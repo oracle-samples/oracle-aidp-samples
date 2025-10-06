@@ -1,0 +1,11 @@
+data_sources:
+  - name: user_data
+    format: "jdbc"
+    options:
+      driver: "org.sqlite.JDBC"
+      user: "sa"
+      password: ""
+      fetchsize: "100"
+      dbtable: "(SELECT 1 c1, 2 c2)"
+      url: "jdbc:sqlite:memory:myDb"
+    target_table: "lake.bronze.user_data"

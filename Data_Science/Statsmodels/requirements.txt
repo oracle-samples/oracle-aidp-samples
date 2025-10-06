@@ -1,0 +1,5 @@
+statsmodels
+seaborn
+pandas
+matplotlib
+numpy==1.26.4
