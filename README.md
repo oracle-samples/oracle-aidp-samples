@@ -2,9 +2,9 @@
 
 This repository provides examples demonstrating how to use Oracle AI Data Platform, a service that lets you run any Apache Spark Application  at any scale.
 
-## What is Oracle Cloud Infrastructure Data Flow
+## What is Oracle AI Data Platform
 
-Oracle AI Data Platform streamlines cataloging, ingestion, and analysis of data for data professionals within an organization. The Oracle AI Data Platform service provides the platform and the framework to create data analytics pipelines.
+Oracle AI Data Platform (AIDP) empowers enterprises to build AI-driven business applications by uniting their enterprise data with best-in-class AI models, developer tools, and tight control over data privacy and governance. By reducing fragmented pipelines and disconnected tools, it enables organizations to accelerate innovation, streamline operations, and gain a sustained competitive advantage through trusted, scalable AI. [Learn more about AIDP](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/index.html)
 
 ## Sample Examples
 
