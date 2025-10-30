@@ -1,0 +1,61 @@
+# Simple Configuration Example
+# This is a basic configuration with two related tables
+
+output_path: ./output
+output_format: both
+
+tables:
+  # Table 1: Users (Parent)
+  - table_name: users
+    rows_count: 20
+    columns:
+      - name: user_id
+        type: integer
+        range: [1, 1000]
+        unique: true
+
+      - name: username
+        type: string
+        length: 8
+        prefix: 'user_'
+
+      - name: email
+        type: email
+        domains: [example.com, test.com]
+        unique: true
+
+      - name: age
+        type: integer
+        range: [18, 65]
+
+      - name: is_active
+        type: boolean
+        true_probability: 0.8
+
+  # Table 2: Orders (Child - references users)
+  - table_name: orders
+    rows_count: 100
+    columns:
+      - name: order_id
+        type: uuid
+
+      # Foreign key to users table
+      - name: user_id
+        type: reference
+        ref_table: users
+        ref_column: user_id
+
+      - name: amount
+        type: float
+        range: [10.0, 1000.0]
+        decimals: 2
+
+      - name: status
+        type: choice
+        values: [pending, completed, cancelled]
+        weights: [0.2, 0.7, 0.1]
+
+      - name: order_date
+        type: date
+        range: ['2024-01-01', '2024-12-31']
+        format: '%Y-%m-%d'
