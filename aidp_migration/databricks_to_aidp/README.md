@@ -1,4 +1,4 @@
-# Databricks to AIDP migration utility
+# Databricks to AIDP Workbench migration utility
 
 Utility to Export Databricks files(non-data) and notebooks to Oracle AI Data Platform (AIDP)
 * Preserves folder structure
