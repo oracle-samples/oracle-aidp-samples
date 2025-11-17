@@ -1,10 +1,10 @@
-# Oracle AI Data Platform Samples
+# Oracle AI Data Platform Workbench Samples
 
-This repository provides examples demonstrating how to use Oracle AI Data Platform, a service that lets you run any Apache Spark Application  at any scale.
+This repository provides examples demonstrating how to use Oracle AI Data Platform, a service that lets you run any Apache Spark Application at any scale.
 
-## What is Oracle AI Data Platform
+## What is AI Data Platform Workbench
 
-Oracle AI Data Platform (AIDP) empowers enterprises to build AI-driven business applications by uniting their enterprise data with best-in-class AI models, developer tools, and tight control over data privacy and governance. By reducing fragmented pipelines and disconnected tools, it enables organizations to accelerate innovation, streamline operations, and gain a sustained competitive advantage through trusted, scalable AI. [Learn more about AIDP](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/index.html)
+A unified, governed workspace for building, managing, and deploying AI and data-driven solutions. It brings together notebooks, agent development, orchestration, and catalog management in a single collaborative platform—empowering teams to explore data, fine-tune models, and operationalize AI with trust and speed.[Learn more about AIDP Workbench](https://www.oracle.com/ai-data-platform/workbench/)
 
 ## Sample Examples
 
