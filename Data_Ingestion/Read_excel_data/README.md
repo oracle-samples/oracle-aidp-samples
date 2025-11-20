@@ -1,6 +1,6 @@
 # Read Excel Files in Spark and Pandas
 
-This module demonstrates two approaches to read Excel files within Spark environments like **OCI Data Flow**, **Databricks**, or **local Spark clusters**.
+This module demonstrates two approaches to read Excel files within Spark environments like **OCI Data Flow**, **AIDP Workbench**, or **local Spark clusters**.
 
 ---
 
