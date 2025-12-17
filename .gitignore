@@ -1,0 +1,94 @@
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# =========================
+# Jupyter / Notebooks
+# =========================
+.ipynb_checkpoints/
+*.ipynb.meta
+
+# =========================
+# Spark / Hadoop
+# =========================
+spark-warehouse/
+metastore_db/
+derby.log
+*.crc
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+*.out
+
+# =========================
+# Build / Dist
+# =========================
+build/
+dist/
+target/
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# Credentials / Secrets
+# =========================
+*.pem
+*.key
+*.crt
+*.jks
+*.p12
+*.wallet
+oci_api_key.pem
+config
+oci_config
+*.tfstate
+*.tfstate.backup
+
+# =========================
+# OCI / AIDP specific
+# =========================
+.oci/
+.wallet/
+objectstorage/
+vector_db/
+adw_wallet/
+*.db
+
+# =========================
+# Test / Coverage
+# =========================
+.coverage
+htmlcov/
+pytest_cache/
+
+# =========================
+# Misc
+# =========================
+tmp/
+temp/
+.cache/
