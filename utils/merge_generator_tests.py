@@ -25,6 +25,9 @@ def base_df(spark):
     return spark.createDataFrame(base_data, base_columns)
 
 
+# ===== Functionality Validations =====
+
+
 def test_merge_with_updates_and_inserts(spark, base_df):
     # Incremental data with updates and new insert
     incremental_data = [
@@ -188,9 +191,7 @@ def test_merge_with_specific_columns_not_to_update(spark, base_df):
     incremental_df = spark.createDataFrame(incremental_data, incremental_columns)
 
     merged_df = get_merged_df(base_df, incremental_df, primary_keys = ["name", "region"], partition_columns = ["category_id", "region"], column_update_deny_list=["department_id"])
-    merged_df.show()
 
-    from pyspark.sql import Row
     expected_rows = [
         Row(name='Charlie', department_id=30, category_id=10, region='West'),
         Row(name='David', department_id=30, category_id=10, region='West'),
@@ -220,3 +221,62 @@ def test_merge_without_supplying_partitions(spark, base_df):
     ]
 
     assertDataFrameEqual(merged_df, spark.createDataFrame(expected_rows))
+
+
+# ===== Input Validation Tests =====
+
+def test_validation_empty_primary_keys(spark, base_df):
+    incremental_data = [("Alice", 25, 20, "North")]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id", "category_id", "region"])
+
+    with pytest.raises(ValueError, match="primary_keys must contain at least one column name"):
+        get_merged_df(base_df, incremental_df, primary_keys=[])
+
+
+def test_validation_none_primary_keys(spark, base_df):
+    incremental_data = [("Alice", 25, 20, "North")]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id", "category_id", "region"])
+
+    with pytest.raises(ValueError, match="primary_keys must contain at least one column name"):
+        get_merged_df(base_df, incremental_df, primary_keys=None)
+
+
+def test_validation_primary_key_not_in_base_df(spark, base_df):
+    incremental_data = [("Alice", 25, 20, "North")]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id", "category_id", "region"])
+
+    with pytest.raises(ValueError, match="Primary key 'invalid_key' not found in base_df columns"):
+        get_merged_df(base_df, incremental_df, primary_keys=["invalid_key"])
+
+
+def test_validation_primary_key_not_in_incremental_df(spark, base_df):
+    incremental_data = [("Alice", 25)]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id"])
+
+    with pytest.raises(ValueError, match="Primary key 'region' not found in incremental_df columns"):
+        get_merged_df(base_df, incremental_df, primary_keys=["name", "region"])
+
+
+def test_validation_partition_column_not_in_base_df(spark, base_df):
+    incremental_data = [("Alice", 25, 20, "North")]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id", "category_id", "region"])
+
+    with pytest.raises(ValueError, match="Partition column 'invalid_partition' not found in base_df columns"):
+        get_merged_df(base_df, incremental_df, primary_keys=["name"], partition_columns=["invalid_partition"])
+
+
+def test_validation_partition_column_not_in_incremental_df(spark, base_df):
+    incremental_data = [("Alice", 25)]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id"])
+
+    with pytest.raises(ValueError, match="Partition column 'category_id' not found in incremental_df columns"):
+        get_merged_df(base_df, incremental_df, primary_keys=["name"], partition_columns=["category_id"])
+
+
+def test_validation_multiple_validation_errors(spark, base_df):
+    incremental_data = [("Alice", 25)]
+    incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id"])
+
+    # Test that it catches the first validation error (primary key)
+    with pytest.raises(ValueError, match="Primary key 'missing_key' not found in base_df columns"):
+        get_merged_df(base_df, incremental_df, primary_keys=["missing_key"], partition_columns=["category_id"])
