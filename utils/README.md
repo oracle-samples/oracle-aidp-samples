@@ -17,7 +17,23 @@ The `merge_generator.py` module provides the `get_merged_df()` function, which p
 Install the required dependencies:
 
 ```bash
-pip install -r requirements.txt
+# From project root
+pip install -r utils/requirements.txt
+
+# Or from utils directory
+cd utils && pip install -r requirements.txt
+```
+
+## Package Structure
+
+```
+utils/
+├── __init__.py              # Makes utils a proper Python package
+├── conftest.py              # Pytest configuration (auto-loaded)
+├── merge_generator.py       # Main merge utility
+├── merge_generator_tests.py # Test suite
+├── requirements.txt         # Dependencies
+└── README.md               # This file
 ```
 
 ## Quick Start
@@ -329,7 +345,17 @@ pip install -r utils/requirements.txt
 
 ### Test Configuration
 
-The test suite includes a `conftest.py` file that automatically configures the PyArrow timezone environment variable to suppress warnings. No additional configuration is needed.
+The test suite includes a `conftest.py` file that pytest automatically loads. It configures:
+
+1. **PyArrow Timezone Setting**: Sets `PYARROW_IGNORE_TIMEZONE=1` environment variable
+   - Prevents PyArrow timezone warnings when using pyarrow>=2.0.0
+
+2. **PySpark Deprecation Warnings**: Filters out distutils warnings
+   - PySpark 3.5.0 uses deprecated `distutils.version.LooseVersion` internally
+   - Only affects Python 3.12+ where distutils is deprecated
+   - Uses pytest's `filterwarnings` configuration to suppress
+
+No additional test configuration is needed - just run pytest.
 
 ### Run All Tests
 
@@ -472,6 +498,26 @@ os.environ['PYARROW_IGNORE_TIMEZONE'] = '1'
 ```
 
 For tests, this is automatically handled by `conftest.py`.
+
+### Issue: Distutils deprecation warning (Python 3.12+)
+**Warning message:**
+```
+DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+```
+
+**Cause:** PySpark 3.5.0 uses `distutils.version.LooseVersion` internally. The `distutils` module was deprecated in Python 3.10 and removed in Python 3.12+, causing this warning.
+
+**Solutions:**
+
+1. **For tests**: Automatically suppressed by `conftest.py`
+
+2. **For production code**: Add before importing PySpark:
+```python
+import warnings
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='pyspark.*')
+```
+
+3. **Long-term**: Upgrade to PySpark 4.0+ or stay on Python 3.11 until your PySpark version is updated
 
 ### Issue: Merge is slow
 - **Solution**: Ensure `partition_columns` are specified and match your data partitioning strategy
