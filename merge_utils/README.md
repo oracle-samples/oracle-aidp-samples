@@ -9,7 +9,7 @@ The `merge_generator.py` module provides the `get_merged_df()` function, which p
 - Inserting new records
 - Supporting partition-aware filtering for performance optimization
 - Handling column-level update policies
-- Supporting soft deletes via deletion conditions
+- Supporting deletes via deletion conditions
 - Managing schema evolution with extra columns
 
 ## Installation
