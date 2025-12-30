@@ -327,7 +327,7 @@ We have seen a performance gain of **6X** when 20GB of incremental data was merg
  Upsert with MERGE        | 27m 37s 
  Upsert with this utility | 4m 33s  
 
-_We had used a compute with 5 workers (each having 8 OCPU and 64GB of memory)_
+_We used a compute with 5 workers (each of AMD type, having 8 OCPU and 64GB of memory)_
 
 ### Dynamic Partition Mode
 
