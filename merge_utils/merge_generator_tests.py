@@ -2,7 +2,7 @@ import pytest
 from pyspark.sql import SparkSession, Row
 from pyspark.testing import assertDataFrameEqual
 
-from utils.merge_generator import get_merged_df
+from merge_utils.merge_generator import get_merged_df
 
 
 @pytest.fixture(scope="module")

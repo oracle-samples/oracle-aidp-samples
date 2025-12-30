@@ -18,17 +18,17 @@ Install the required dependencies:
 
 ```bash
 # From project root
-pip install -r utils/requirements.txt
+pip install -r merge_utils/requirements.txt
 
 # Or from utils directory
-cd utils && pip install -r requirements.txt
+cd merge_utils && pip install -r requirements.txt
 ```
 
 ## Package Structure
 
 ```
-utils/
-├── __init__.py              # Makes utils a proper Python package
+merge_utils/
+├── __init__.py              # Makes merge_utils a proper Python package
 ├── conftest.py              # Pytest configuration (auto-loaded)
 ├── merge_generator.py       # Main merge utility
 ├── merge_generator_tests.py # Test suite
@@ -40,32 +40,32 @@ utils/
 
 ```python
 from pyspark.sql import SparkSession
-from utils.merge_generator import get_merged_df
+from merge_utils.merge_generator import get_merged_df
 
 # Initialize Spark
 spark = SparkSession.builder.appName("merge_example").getOrCreate()
 
 # Create base DataFrame
 base_data = [
-    ("Alice", 30, 20, "North"),
-    ("Bob", 25, 20, "South"),
-    ("Charlie", 30, 10, "West")
+   ("Alice", 30, 20, "North"),
+   ("Bob", 25, 20, "South"),
+   ("Charlie", 30, 10, "West")
 ]
 base_df = spark.createDataFrame(base_data, ["name", "department_id", "category_id", "region"])
 
 # Create incremental DataFrame with updates and new records
 incremental_data = [
-    ("Alice", 35, 20, "North"),  # Update Alice's department_id
-    ("David", 28, 10, "West")    # Insert new record
+   ("Alice", 35, 20, "North"),  # Update Alice's department_id
+   ("David", 28, 10, "West")  # Insert new record
 ]
 incremental_df = spark.createDataFrame(incremental_data, ["name", "department_id", "category_id", "region"])
 
 # Perform merge
 merged_df = get_merged_df(
-    base_df=base_df,
-    incremental_df=incremental_df,
-    primary_keys=["name", "region"],
-    partition_columns=["category_id", "region"]
+   base_df=base_df,
+   incremental_df=incremental_df,
+   primary_keys=["name", "region"],
+   partition_columns=["category_id", "region"]
 )
 
 merged_df.show()
@@ -225,7 +225,7 @@ WHEN MATCHED THEN UPDATE SET
     base.region = incremental.region,
     base.department_id = base.department_id  -- Preserve original value
 WHEN NOT MATCHED THEN INSERT (name, category_id, region, department_id)
-    VALUES (incremental.name, incremental.category_id, incremental.region, NULL)
+    VALUES (incremental.name, incremental.category_id, incremental.region)
 ```
 
 ### 6. Schema Evolution (Extra Columns)
@@ -240,7 +240,19 @@ merged_df = get_merged_df(
     primary_keys=["name", "region"],
     allow_extra_columns=True
 )
+```
 
+**Equivalent Delta Lake SQL:**
+```sql
+MERGE INTO base_table AS base
+USING incremental_table AS incremental
+ON base.name = incremental.name
+AND base.region = incremental.region
+WHEN MATCHED THEN UPDATE SET *
+WHEN NOT MATCHED THEN INSERT *
+```
+
+```python
 # Deny specific extra columns
 merged_df = get_merged_df(
     base_df=base_df,
@@ -252,14 +264,17 @@ merged_df = get_merged_df(
 
 **Equivalent Delta Lake SQL:**
 ```sql
--- For allowing new columns, you need to add them to the target table first
-ALTER TABLE base_table ADD COLUMNS (status STRING);
-
 MERGE INTO base_table AS base
 USING incremental_table AS incremental
-ON base.name = incremental.name AND base.region = incremental.region
-WHEN MATCHED THEN UPDATE SET *
-WHEN NOT MATCHED THEN INSERT *
+ON base.name = incremental.name
+AND base.region = incremental.region
+WHEN MATCHED THEN UPDATE SET
+    base.category_id = incremental.category_id,
+    base.region = incremental.region,
+    base.category_id = incremental.category_id,
+    base.department_id = incremental.department_id
+WHEN NOT MATCHED THEN INSERT (name, category_id, region, department_id)
+    VALUES (incremental.name, incremental.category_id, incremental.region, incremental.department_id)
 ```
 
 ### 7. Merge Without Partitions
@@ -292,9 +307,7 @@ The utility performs **partition-aware filtering** to optimize performance:
 
 1. Extracts distinct partition values from incremental data
 2. Filters base DataFrame to only include matching partitions
-3. Performs merge only on relevant data
-
-This is particularly useful for large datasets where incremental changes affect only a subset of partitions.
+3. Performs merge only on relevant data by doing a single join between the matched partitions 
 
 ```python
 # Only processes partitions [category_id=10, region='West'] and [category_id=20, region='North']
@@ -306,6 +319,16 @@ merged_df = get_merged_df(
 )
 ```
 
+This is particularly useful for large datasets where incremental changes affect only a subset of partitions.
+We have seen a performance gain of **6X** when 20GB of incremental data was merged with 20GB of base data.
+
+ Operation                | Runtime 
+--------------------------|---------
+ Upsert with MERGE        | 27m 37s 
+ Upsert with this utility | 4m 33s  
+
+_We had used a compute with 5 workers (each having 8 OCPU and 64GB of memory)_
+
 ### Dynamic Partition Mode
 
 When `set_dynamic_partition_mode=True` (default), the function automatically sets:
@@ -314,6 +337,7 @@ spark.conf.set("spark.sql.sources.partitionOverwriteMode", "DYNAMIC")
 ```
 
 This ensures only affected partitions are overwritten when writing to partitioned tables.
+Without this config, entire table gets re-written with the content of dataframe returned from `get_merged_df`. 
 
 ## Writing Merged Results to Delta Lake
 
@@ -334,13 +358,22 @@ merged_df.write \
     .save("/path/to/delta/table")
 ```
 
+## A few points to be careful of
+
+1. As we read and upsert into the base table, it should be the table format (e.g DeltaLake) else write to the same location from where data was read might fail.
+2. If the base table is partitioned, once the dataframe is obtained via `get_merged_df`, while writing it we need to use `partitionBy`. In case of `MERGE` sql, this is not needed.
+3. The incremental dataframe could be constructed from all the supported sources like (files, database etc.).
+4. For further performance benefits, you may cache the incremental dataframe if there are partition columns as it is scanned twice (once to detect the partitions going to be impacted and then to perform the join with the base dataframe).
+5. If the partition column of a record gets updated, we'll end up having duplicates.
+6. One record in the incremental dataframe may match multiple records in the base.
+
 ## Running Tests
 
 ### Prerequisites
 
 Ensure all dependencies are installed:
 ```bash
-pip install -r utils/requirements.txt
+pip install -r merge_utils/requirements.txt
 ```
 
 ### Test Configuration
@@ -361,29 +394,24 @@ No additional test configuration is needed - just run pytest.
 
 ```bash
 # From project root
-pytest utils/merge_generator_tests.py -v
-```
-
-Expected output:
-```
-============================= ... passed in ... ==============================
+pytest merge_utils/merge_generator_tests.py -v
 ```
 
 ### Run Specific Test Categories
 
 ```bash
 # Run only validation tests
-pytest utils/merge_generator_tests.py -v -k "validation"
+pytest merge_utils/merge_generator_tests.py -v -k "validation"
 
 # Run only functionality tests
-pytest utils/merge_generator_tests.py -v -k "merge"
+pytest merge_utils/merge_generator_tests.py -v -k "merge"
 ```
 
 ### Run with Coverage
 
 ```bash
 pip install pytest-cov
-pytest utils/merge_generator_tests.py --cov=utils.merge_generator --cov-report=html
+pytest merge_utils/merge_generator_tests.py --cov=merge_utils.merge_generator --cov-report=html
 ```
 
 ### Test Structure
@@ -460,18 +488,18 @@ merged_df = get_merged_df(
 The function performs comprehensive input validation:
 
 ```python
-from utils.merge_generator import get_merged_df
+from merge_utils.merge_generator import get_merged_df
 
 try:
-    merged_df = get_merged_df(
-        base_df=base_df,
-        incremental_df=incremental_df,
-        primary_keys=["invalid_key"],  # Key doesn't exist
-        partition_columns=["category_id"]
-    )
+   merged_df = get_merged_df(
+      base_df=base_df,
+      incremental_df=incremental_df,
+      primary_keys=["invalid_key"],  # Key doesn't exist
+      partition_columns=["category_id"]
+   )
 except ValueError as e:
-    print(f"Validation error: {e}")
-    # Output: Primary key 'invalid_key' not found in base_df columns
+   print(f"Validation error: {e}")
+   # Output: Primary key 'invalid_key' not found in base_df columns
 ```
 
 ## Best Practices
@@ -537,7 +565,7 @@ warnings.filterwarnings('ignore', category=DeprecationWarning, module='pyspark.*
 When contributing to this utility:
 1. Add tests for new functionality
 2. Update this README with examples
-3. Ensure all tests pass: `pytest utils/merge_generator_tests.py -v`
+3. Ensure all tests pass: `pytest merge_utils/merge_generator_tests.py -v`
 4. Follow the existing code style and type hints
 
 ## License
