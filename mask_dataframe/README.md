@@ -24,7 +24,7 @@ from app import mask_df
 masked_df = mask_df(df)  # df is an existing dataframe
 masked_df.show()
 
-# Read a table and apply maskign
+# Read a table and apply masking
 masked_df = mask_df(spark.table("catalog.schema.table"))
 masked_df.show()
 ```
