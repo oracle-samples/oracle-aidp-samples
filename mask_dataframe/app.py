@@ -88,4 +88,5 @@ def mask_df(df, model='xai.grok-4', column_values_to_fetch=1000):
     return df.withColumns(masked_columns_dict) if masked_columns_dict else df
 
 
-mask_df(spark.table("catalog.schema.table")).show()
+# Example call the `mask_df`
+# mask_df(spark.table("catalog.schema.table")).show()
