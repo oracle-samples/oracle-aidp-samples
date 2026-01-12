@@ -1,4 +1,6 @@
+# This package is not required on AIDP. It is required only when running in local
 pyspark==3.5.0
+# Below packages are not required on AIDP. It is required only when running tests in local
 numpy<2.0.0
 pandas>=1.0.5
 pyarrow>=4.0.0
