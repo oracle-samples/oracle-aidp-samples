@@ -76,7 +76,7 @@ oci_config
 .wallet/
 objectstorage/
 vector_db/
-adw_wallet/
+alh_wallet/
 *.db
 
 # =========================
