@@ -36,11 +36,11 @@ outcomes, and reduce outage duration and regulatory risk.
 
 ## Lab Data
 
-There are documents in the `data/Knowledge Base` folder containing
+There are documents in the `data/Knowledge_Base` folder containing
 regulatory reporting requirements, outage triage playbook, vegetation
 risk scoring guidelines, field safety policies, etc.
 
-There are also three database tables in `data/Database Tables`. You will have 
+There are also three database tables in `data/Database_Tables`. You will have 
 to ingest the tables into an Oracle vector 26ai database. 
 
 ## Step-by-step Instructions
@@ -92,7 +92,7 @@ guidelines, field safety policies, etc
 
 5. Upload the documents to the volume
 
-6. Next step is to upload the content of the `Data / Knowledge Base` folder
+6. Next step is to upload the content of the `Data/Knowledge_Base` folder
 to the Volume you just created.
 
 7. Click on the volume you just created.
@@ -103,7 +103,7 @@ to the Volume you just created.
 
 10. Select "Upload file"
 
-11. Drag and drop the files from the Data / Knowledge Base folder.
+11. Drag and drop the files from the `Data/Knowledge_Base`folder.
 
 12. Click "Upload".
 
@@ -121,7 +121,7 @@ less than 1 min to complete.
 
 ### Ingest the SQL data into an Oracle AI Database 
 
-1) Ingest the files stored in the `data / Database Tables` folder into an Oracle AI Database. The table names should match the name of each csv file. We recommend creating a new schema (e.g. `utility`) for the purpose of this example. The tables will be used later with a SQL tool. 
+1) Ingest the files stored in the `data/Database_Tables` folder into an Oracle AI Database. The table names should match the name of each csv file. We recommend creating a new schema (e.g. `utility`) for the purpose of this example. The tables will be used later with a SQL tool. 
 
 
 ## Part II: Agent Flow Setup
