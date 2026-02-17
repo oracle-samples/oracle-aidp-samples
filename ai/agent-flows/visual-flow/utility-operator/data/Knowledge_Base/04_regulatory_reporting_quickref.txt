@@ -1,0 +1,22 @@
+Reliability Reporting Quick Reference (SAIDI/SAIFI)
+Version: 0.9 | Owner: Regulatory Affairs
+
+Key Metrics
+- SAIFI: System Average Interruption Frequency Index (interruptions/customer)
+- SAIDI: System Average Interruption Duration Index (minutes/customer)
+- CAIDI: Customer Average Interruption Duration Index (SAIDI/SAIFI)
+
+Major Event Days (MED)
+- Certain storm days may be excluded from normal indices if they meet major event criteria.
+- Documentation required: event timeline, resource levels, customer impact, restoration milestones.
+
+Common Reporting Fields (per event)
+- Event ID, start/end time, affected feeders, customer counts, cause codes
+- Crew dispatch times, make-safe time, restoration time
+- DER involvement (if applicable)
+
+Cause Codes (Examples)
+- VEG: Vegetation contact
+- EQF: Equipment failure
+- ANM: Animal contact
+- WTH: Weather (wind/ice/lightning)

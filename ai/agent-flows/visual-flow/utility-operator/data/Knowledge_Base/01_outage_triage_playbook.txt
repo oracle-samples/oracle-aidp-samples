@@ -1,0 +1,33 @@
+Outage Triage & Restoration Prioritization (Internal Playbook)
+Version: 1.3  | Owner: Grid Ops Excellence
+
+Purpose
+- Provide a consistent way to prioritize restoration work during storms, equipment failures, or planned switching.
+- Balance public safety, critical infrastructure impact, and restoration efficiency.
+
+Definitions
+- Critical Load: Facilities requiring priority restoration (e.g., hospitals, water treatment, emergency services).
+- Feeder: A distribution circuit serving multiple laterals/transformers.
+- ETR: Estimated Time of Restoration, updated at least every 60 minutes during major events.
+- Hazard Condition: Downed conductor, pole on fire, energized equipment accessible to public, gas odor, etc.
+
+Priority Order (Highest to Lowest)
+1) Immediate Public Safety Hazards
+   - Downed wires, arcing, fire risk, suspected energized contact.
+   - Dispatch: Treat as “Make Safe” first, restore later if needed.
+2) Critical Infrastructure
+   - Hospitals/clinics, 911 dispatch, fire stations, water/wastewater plants, shelters.
+   - If multiple critical sites exist, prioritize those with no backup generation or limited runtime.
+3) Largest Customer Impact / High Load
+   - Highest customer count or MW restored per crew-hour.
+   - Prefer switching that restores large blocks without introducing new hazards.
+4) Secondary Criticality (Community Services)
+   - Schools (during severe cold/heat), large apartment complexes, commercial districts.
+5) Individual/Small Outages
+   - Laterals, single transformers, or isolated taps.
+
+Operational Guardrails
+- Never energize a circuit unless it is confirmed clear of hazards and switching order is approved.
+- Use “two-step verification” for remote switching: operator reads back device ID and desired state.
+- Update ETR when a new constraint is discovered (access, trees, material shortage, safety hold).
+
