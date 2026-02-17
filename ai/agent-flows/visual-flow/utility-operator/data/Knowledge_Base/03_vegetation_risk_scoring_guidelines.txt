@@ -1,0 +1,34 @@
+Vegetation Management: Risk Scoring Guidelines
+Version: 1.0 | Owner: Asset Health & Reliability
+
+Why it matters
+- Vegetation contact is a leading cause of sustained outages and momentary interruptions on overhead circuits.
+
+Risk Score Components (0–100)
+A) Clearance (0–40)
+- < 2 ft clearance: 40
+- 2–4 ft: 25
+- 4–6 ft: 10
+- > 6 ft: 0
+
+B) Species & Growth Rate (0–20)
+- Fast-growing (e.g., willow/poplar): 20
+- Moderate: 10
+- Slow: 5
+
+C) Circuit Criticality (0–25)
+- Serves critical loads or high customer density: 25
+- Mixed residential/commercial: 15
+- Low density: 5
+
+D) Weather Exposure (0–15)
+- High wind corridor / coastal / frequent icing: 15
+- Moderate: 8
+- Low: 3
+
+Recommended Actions
+- Score >= 70: schedule trim within 30 days (priority)
+- 50–69: schedule trim within 90 days
+- 30–49: monitor, trim in next cycle
+- < 30: routine cycle
+

@@ -1,0 +1,41 @@
+work_order_id,asset_id,work_type,created_date,status,priority,estimated_crew_hours,completed_date
+WO00001,A0009,Infrared Scan,2025-12-11,In Progress,P1,2.4,
+WO00002,A0024,Switch Maintenance,2025-03-13,Scheduled,P3,14.3,
+WO00003,A0015,Vegetation Trim,2025-01-17,Completed,P3,14.9,2025-02-12
+WO00004,A0017,Infrared Scan,2025-01-02,Scheduled,P1,10.9,
+WO00005,A0023,Equipment Repair,2025-05-27,In Progress,P1,23.8,
+WO00006,A0001,Vegetation Trim,2025-02-03,In Progress,P2,6.2,
+WO00007,A0003,Pole Replacement,2025-04-05,In Progress,P3,8.3,
+WO00008,A0010,Vegetation Trim,2025-04-29,Scheduled,P1,9.0,
+WO00009,A0001,Infrared Scan,2025-06-17,In Progress,P3,10.4,
+WO00010,A0002,Infrared Scan,2025-08-31,In Progress,P1,2.0,
+WO00011,A0013,Vegetation Trim,2025-04-21,In Progress,P3,19.1,
+WO00012,A0008,Switch Maintenance,2025-12-18,Open,P2,23.2,
+WO00013,A0005,Pole Replacement,2025-02-23,Open,P2,2.6,
+WO00014,A0010,Equipment Repair,2025-11-07,Scheduled,P3,25.2,
+WO00015,A0020,Pole Replacement,2025-07-07,Completed,P1,9.4,2025-08-16
+WO00016,A0021,Equipment Repair,2025-11-28,Completed,P3,20.2,2025-12-31
+WO00017,A0005,Switch Maintenance,2025-04-06,Open,P3,17.2,
+WO00018,A0023,Equipment Repair,2025-11-07,Open,P1,5.5,
+WO00019,A0012,Vegetation Trim,2025-06-11,Completed,P3,3.3,2025-06-13
+WO00020,A0021,Switch Maintenance,2025-01-06,Scheduled,P2,8.9,
+WO00021,A0015,Vegetation Trim,2025-04-07,Open,P3,15.7,
+WO00022,A0024,Pole Replacement,2025-08-13,Open,P2,8.1,
+WO00023,A0025,Equipment Repair,2025-08-24,Completed,P2,24.0,2025-08-29
+WO00024,A0016,Infrared Scan,2025-11-27,Scheduled,P1,17.6,
+WO00025,A0011,Infrared Scan,2025-01-21,In Progress,P3,16.8,
+WO00026,A0001,Pole Replacement,2025-11-19,Completed,P2,27.3,2025-11-26
+WO00027,A0023,Equipment Repair,2025-01-09,Completed,P2,20.4,2025-01-28
+WO00028,A0015,Pole Replacement,2025-04-26,Open,P3,7.2,
+WO00029,A0003,Pole Replacement,2025-12-12,In Progress,P2,4.0,
+WO00030,A0017,Pole Replacement,2025-08-05,Completed,P1,25.8,2025-08-19
+WO00031,A0003,Switch Maintenance,2025-11-04,Scheduled,P3,15.6,
+WO00032,A0012,Equipment Repair,2025-02-15,In Progress,P1,20.3,
+WO00033,A0008,Pole Replacement,2025-04-16,Completed,P1,6.1,2025-05-18
+WO00034,A0022,Pole Replacement,2025-05-27,In Progress,P3,5.7,
+WO00035,A0012,Pole Replacement,2025-07-12,Open,P2,2.0,
+WO00036,A0025,Infrared Scan,2025-05-31,Open,P1,20.5,
+WO00037,A0024,Infrared Scan,2025-08-13,In Progress,P1,12.2,
+WO00038,A0019,Vegetation Trim,2025-06-19,Completed,P2,24.2,2025-07-07
+WO00039,A0004,Vegetation Trim,2025-01-16,In Progress,P3,26.3,
+WO00040,A0008,Infrared Scan,2025-05-11,In Progress,P1,22.1,

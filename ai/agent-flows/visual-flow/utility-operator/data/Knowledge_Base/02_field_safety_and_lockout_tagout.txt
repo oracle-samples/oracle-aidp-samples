@@ -1,0 +1,25 @@
+Field Safety: LOTO & Energization Rules (Excerpt)
+Version: 2.1 | Owner: Safety & Compliance
+
+Golden Rules
+- Assume all conductors are energized until tested and grounded.
+- Wear required PPE: arc-rated clothing, gloves, face shield, and hearing protection per hazard assessment.
+- Establish job briefing before work begins and whenever conditions change.
+
+Lockout/Tagout (LOTO) Basics
+1) Identify all sources of energy (including backfeed from DER).
+2) Open and isolate switching devices per approved switching order.
+3) Apply tags and locks; record device IDs and time.
+4) Test for absence of voltage.
+5) Apply protective grounds where required.
+6) Release to work group; maintain boundary control.
+
+Distributed Energy Resource (DER) Considerations
+- Solar + storage can backfeed into an isolated segment.
+- Confirm DER disconnection or anti-islanding status before proceeding.
+- For known DER areas, require additional verification step: “DER check completed” in the switching order.
+
+Re-energization Checklist
+- All personnel accounted for, grounds removed, barriers cleared.
+- Switching order reviewed and read-back completed.
+- Notify control center before final close.
