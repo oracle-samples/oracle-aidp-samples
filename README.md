@@ -184,6 +184,8 @@ Notebooks covering generative AI, NLP, ML model training, and LLM-powered analyt
 | Notebook | Description |
 |---|---|
 | [Data Code Generator](shared-utils/data_generator/data_code_generator_Example.ipynb) | Generate realistic multi-table synthetic datasets from a YAML configuration file, with CSV and JSON export support for testing and prototyping. |
+| [Data Quality Checker](shared-utils/data_quality/data_quality_example.ipynb) | Run comprehensive data quality checks including null, uniqueness, range, pattern, foreign key, and AI-powered semantic validation across single and multiple tables. |
+| [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
 
 ---
 
