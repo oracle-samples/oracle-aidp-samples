@@ -64,8 +64,6 @@ target/
 *.p12
 *.wallet
 oci_api_key.pem
-config
-oci_config
 *.tfstate
 *.tfstate.backup
 
