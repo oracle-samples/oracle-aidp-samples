@@ -2,12 +2,10 @@ import os
 import uuid
 from typing import Any, Dict, List, Optional
 import requests
-from typing import List, Dict, Any
 import time
 import random
 import oci
 import json
-import os
 import re
 
 class AIDPChatClient:
@@ -167,7 +165,7 @@ class StreamingResponse:
                 if not decoded_line:
                     continue
 
-                print(f"DEBUG: Raw line: {decoded_line[:200]}")  # DEBUG: Show first 200 chars
+                #print(f"DEBUG: Raw line: {decoded_line[:200]}")  # DEBUG: Show first 200 chars
 
                 # Try to extract JSON data from various formats
                 json_data = None
@@ -189,13 +187,13 @@ class StreamingResponse:
 
                 # Format 3: Other SSE events (event:, id:, etc.)
                 else:
-                    print(f"DEBUG: Skipping non-data line: {decoded_line[:100]}")
+                 #   print(f"DEBUG: Skipping non-data line: {decoded_line[:100]}")
                     continue
 
                 if json_data:
                     try:
                         chunk_json = json.loads(json_data)
-                        print(f"DEBUG: Parsed chunk keys: {list(chunk_json.keys())}")
+                    #    print(f"DEBUG: Parsed chunk keys: {list(chunk_json.keys())}")
 
                         # Unwrap the "response" wrapper if present
                         data = chunk_json.get("response", chunk_json)
@@ -204,31 +202,31 @@ class StreamingResponse:
                         response_id = chunk_json.get("response", {}).get("id") or chunk_json.get("id")
                         if response_id and not self.response_data["id"]:
                             self.response_data["id"] = response_id
-                            print(f"DEBUG: Captured response ID: {self.response_data['id']}")
+                     #       print(f"DEBUG: Captured response ID: {self.response_data['id']}")
 
                         # Extract text content from chunk
                         if "output" in data and isinstance(data["output"], list):
-                            print(f"DEBUG: Found {len(data['output'])} output(s)")
+                          #  print(f"DEBUG: Found {len(data['output'])} output(s)")
                             for output in data["output"]:
                                 if "content" in output and isinstance(output["content"], list):
-                                    print(f"DEBUG: Found {len(output['content'])} content item(s)")
+                                  #  print(f"DEBUG: Found {len(output['content'])} content item(s)")
                                     for content in output["content"]:
                                         # Debug: show content structure
                                         content_type = content.get("type")
                                         has_text = "text" in content
                                         text_preview = content.get("text", "")[:50] if has_text else "N/A"
-                                        print(f"DEBUG: Content - type={content_type}, has_text={has_text}, preview={text_preview}")
+                                     #   print(f"DEBUG: Content - type={content_type}, has_text={has_text}, preview={text_preview}")
 
                                         # Skip trace entries
                                         if content_type == "trace":
-                                            print("DEBUG: Skipping trace content")
+                                         #   print("DEBUG: Skipping trace content")
                                             continue
 
                                         # Extract text if present
                                         text = content.get("text", "")
                                         if text:
                                             self.accumulated_text.append(text)
-                                            print(f"DEBUG: ✓ Yielding text chunk (length={len(text)})")
+                                        #    print(f"DEBUG: ✓ Yielding text chunk (length={len(text)})")
                                             yield text
                                         else:
                                             print(f"DEBUG: No text in content item")

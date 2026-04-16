@@ -1001,7 +1001,7 @@ with st.sidebar:
         - Include units ($, %, etc.)
         - Ask follow-up questions
 
-        📚 See [GETTING_STARTED.md](https://github.com/your-repo/blob/main/GETTING_STARTED.md) for detailed examples!
+        📚 See [GETTING_STARTED.md](https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/agent-flows/misc/invoke-agent-flows-from-streamlit/GETTING_STARTED.md) for detailed examples!
         """)
 
     # Show templates source and reload button
@@ -1150,11 +1150,11 @@ if init_clicked:
     ]
     st.session_state.last_response_id = None
     st.session_state.trace_history = []
-    st.rerun()
     ensure_client_ready()
+    st.rerun()
 
-if refresh_clicked:
-    print("Refresh")
+#if refresh_clicked:
+#    print("Refresh")
 
 # -------- Main Chat Pane --------
 
