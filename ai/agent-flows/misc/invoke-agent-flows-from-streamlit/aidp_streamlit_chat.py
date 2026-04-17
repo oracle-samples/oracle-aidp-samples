@@ -929,13 +929,11 @@ with st.sidebar:
         help="Stream responses token-by-token for a more interactive experience."
     )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, = st.columns(2)
 
     with col1:
       init_clicked = st.button("Init Client", type="primary")
     with col2:
-      refresh_clicked = st.button("Refresh")
-    with col3:
       new_chat = st.button("New Chat", help="Start a new chat: clears history and last_response_id")
 
     st.markdown("---")
@@ -1152,9 +1150,6 @@ if init_clicked:
     st.session_state.trace_history = []
     ensure_client_ready()
     st.rerun()
-
-#if refresh_clicked:
-#    print("Refresh")
 
 # -------- Main Chat Pane --------
 
