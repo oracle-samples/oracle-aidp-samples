@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  aidp-chat:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      # Required: AIDP endpoint URL
+      - AIDP_CHAT_URL=https://your-aidp-endpoint.com/chat
+
+      # Optional: Custom templates path
+      # - TEMPLATES_PATH=/custom/templates
+
+      # Optional: OCI configuration (for local testing)
+      # - OCI_CONFIG_FILE=/oci/config
+      # - OCI_CONFIG_PROFILE=DEFAULT
+
+    volumes:
+      # Mount custom prompt templates (Option 1: Direct mount)
+      - ./prompt_templates.json:/app/prompt_templates.json
+
+      # Mount custom templates directory (Option 2: Directory mount)
+      # - ./custom_templates:/custom/templates
+
+      # Mount OCI config for local testing (not needed in OCI Container Instance)
+      # - ~/.oci:/oci:ro
+
+    # Optional: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+# Example usage:
+# 1. Copy this file to docker-compose.yml
+# 2. Update AIDP_CHAT_URL with your endpoint
+# 3. (Optional) Customize prompt_templates.json
+# 4. Run: docker-compose up

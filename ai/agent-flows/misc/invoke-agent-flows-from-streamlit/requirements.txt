@@ -1,0 +1,5 @@
+oci
+requests
+streamlit>=1.39.0
+streamlit-tree-select>=0.0.5
+pandas
