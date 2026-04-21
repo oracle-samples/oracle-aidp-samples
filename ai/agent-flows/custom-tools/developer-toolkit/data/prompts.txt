@@ -1,0 +1,3 @@
+bash: Execute shell commands.
+file: Read, write, and list files.
+python: Execute Python code.
