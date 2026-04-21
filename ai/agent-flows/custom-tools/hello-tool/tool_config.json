@@ -1,0 +1,20 @@
+{
+  "displayName": "Hello Tool",
+  "description": "A simple hello world tool",
+  "tools": [
+    {
+      "toolClassName": "HelloTool",
+      "displayName": "Hello Tool",
+      "description": "Returns a hello world greeting",
+      "version": "1.0.0",
+      "schema": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Name to greet"
+        }
+      ],
+      "conf": {}
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+defaults:
+  timeout: 30
+  max_output_lines: 200

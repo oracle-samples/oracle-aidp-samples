@@ -1,0 +1,68 @@
+{
+  "displayName": "ORDS Database Tool",
+  "description": "Access Oracle Autonomous Database via the ORDS REST API — execute SQL and explore schema",
+  "tools": [
+    {
+      "toolClassName": "OrdsSqlTool",
+      "displayName": "ORDS SQL Query",
+      "description": "Execute SQL statements against Oracle Autonomous Database via the ORDS REST API and return results",
+      "version": "1.0.0",
+      "schema": [
+        {
+          "name": "sql",
+          "type": "string",
+          "description": "The SQL statement to execute (SELECT, INSERT, UPDATE, DELETE, DDL)"
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "description": "Maximum number of rows to return (default 100)"
+        }
+      ],
+      "conf": {
+        "ords_base_url": "https://<YOUR_ADB_HOST>.adb.<region>.oraclecloudapps.com/ords/<schema>",
+        "username": "ADMIN",
+        "password": "{{db_password}}",
+        "timeout": 60,
+        "max_rows": 100
+      }
+    },
+    {
+      "toolClassName": "OrdsSchemaExplorer",
+      "displayName": "ORDS Schema Explorer",
+      "description": "List tables, views, and describe table structures in the Oracle database",
+      "version": "1.0.0",
+      "schema": [
+        {
+          "name": "operation",
+          "type": "string",
+          "description": "Operation to perform: list_tables, list_views, describe_table"
+        },
+        {
+          "name": "table_name",
+          "type": "string",
+          "description": "Table name (required for describe_table)"
+        }
+      ],
+      "conf": {
+        "ords_base_url": "https://<YOUR_ADB_HOST>.adb.<region>.oraclecloudapps.com/ords/<schema>",
+        "username": "ADMIN",
+        "password": "{{db_password}}",
+        "timeout": 30
+      }
+    },
+    {
+      "toolClassName": "OrdsListSchemas",
+      "displayName": "ORDS List Schemas",
+      "description": "List all database schemas (users) in the Oracle database",
+      "version": "1.0.0",
+      "schema": [],
+      "conf": {
+        "ords_base_url": "https://<YOUR_ADB_HOST>.adb.<region>.oraclecloudapps.com/ords/<schema>",
+        "username": "ADMIN",
+        "password": "{{db_password}}",
+        "timeout": 30
+      }
+    }
+  ]
+}
