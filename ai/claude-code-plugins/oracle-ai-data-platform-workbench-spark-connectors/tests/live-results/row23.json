@@ -1,0 +1,16 @@
+{
+  "connector": "aidp-rest-generic",
+  "auth": "HTTP Basic + manifest URL (AIDP `aidataplatform` type=GENERIC_REST)",
+  "result": "NOT RUN",
+  "rows": null,
+  "schema": null,
+  "decision": "Ship as-is with example notebook (2026-04-27). The underlying network/auth/data-path capability is already proven by row 9 (`aidp-fusion-rest` PASS, 229 rows from a Basic-auth REST endpoint reached from cluster's NAT egress, JSON parsed into Spark DataFrame). Row 23 only adds incremental coverage of the AIDP-proprietary `manifest.url` parsing path inside the `aidataplatform` GENERIC_REST connector. Fusion REST does NOT publish a manifest in AIDP's expected format, so existing Fusion creds can't drive this connector.",
+  "what_already_validated_by_row_9": [
+    "AIDP cluster's NAT egress reaches public-internet REST endpoints",
+    "HTTP Basic auth handshake succeeds end-to-end",
+    "JSON response parsed into Spark DataFrame with correct schema"
+  ],
+  "skill_correctness": "skills/aidp-rest-generic/SKILL.md option shape matches the official `oracle-aidp-samples` Read_Only_Ingestion_Connectors.ipynb pattern. Helper `aidataplatform_options(type='GENERIC_REST', ...)` is unit-tested. examples/rest_generic_read.ipynb is shape-correct for any user-provided manifest endpoint.",
+  "to_validate_at_runtime_for_a_customer": "If the customer has a REST API that publishes an AIDP-format manifest URL, set REST_BASE_URL/REST_MANIFEST_URL/REST_USER/REST_PASSWORD/REST_API/REST_SCHEMA env vars and run examples/rest_generic_read.ipynb. If the API doesn't publish such a manifest, use `aidp-fusion-rest`'s requests-based pattern and adapt — same auth path.",
+  "timestamp_utc": null
+}

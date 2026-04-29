@@ -1,0 +1,23 @@
+{
+  "connector": "aidp-postgresql",
+  "auth": "Spark JDBC plain user/password",
+  "result": "PASS",
+  "rows": 5,
+  "schema": ["id", "label", "ts"],
+  "target": "Neon serverless Postgres 17.8 (ep-flat-pine-ams0cmom.c-5.us-east-1.aws.neon.tech:5432/neondb, public endpoint reached via AIDP cluster NAT egress 129.80.7.94)",
+  "table": "public.aidp_test_data",
+  "summary": "End-to-end live test against a public-internet Postgres endpoint (Neon free tier). The 5-row aidp_test_data table was seeded locally via psycopg2, then read from the AIDP cluster via Spark JDBC.",
+  "what_validated": [
+    "Cluster -> public Postgres endpoint reachable via NAT egress (proves the working path is public DNS / public IP, not user-managed VCN private IPs)",
+    "runtime-load helper pattern works for postgresql-42.7.4.jar (downloaded from Maven Central inside the cluster, registered via URLClassLoader + DriverManager + spark._jsc.addJar)",
+    "sslmode=require URL-embedded works with native Spark JDBC reader",
+    "Spark JDBC read returned 5 rows with correct schema (id NUMERIC, label TEXT, ts TIMESTAMP)"
+  ],
+  "key_lessons": [
+    "AIDP `aidataplatform` format with type=POSTGRESQL silently ignores SSL options (ssl, sslmode, jdbc.ssl.enabled, etc.) — Postgres rejects with 'connection is insecure'. For Postgres-with-SSL targets, prefer Spark native JDBC format with URL-embedded sslmode.",
+    "Cluster does NOT have org.postgresql.Driver pre-installed; runtime-load via URLClassLoader works.",
+    "The runtime-load helper from `oracle_ai_data_platform_connectors.jdbc.runtime_load` doesn't exist as a module on the cluster (need to inline the snippet); pattern: download jar -> URLClassLoader([jar], systemCL) -> Thread.setContextClassLoader(ucl) -> DriverManager.registerDriver(Class.forName('org.postgresql.Driver',true,ucl).newInstance()) -> spark._jsc.addJar(path)"
+  ],
+  "skill_correctness": "scripts/oracle_ai_data_platform_connectors/aidataplatform.aidataplatform_options() unit-tested for type=POSTGRESQL; the helper option shape is correct for the aidataplatform format BUT that format requires SSL-disabled Postgres targets. For SSL-required targets (Neon, RDS, most production Postgres), use Spark native JDBC + runtime-load pattern. SKILL.md should document both paths.",
+  "timestamp_utc": 1777286022
+}

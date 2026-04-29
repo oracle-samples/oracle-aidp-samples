@@ -1,0 +1,37 @@
+{
+  "name": "aidp-connectors",
+  "owner": {
+    "name": "Ahmed Awan"
+  },
+  "metadata": {
+    "version": "0.4.1",
+    "description": "Single-plugin marketplace for the Oracle AI Data Platform Workbench Spark Connectors Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-workbench-spark-connectors",
+      "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 18 connector skills covering every data source workbench customers commonly need: Oracle Autonomous DB family (ALH/ADW/ATP), ExaCS, Fusion ERP REST, Fusion BICC, EPM Cloud Planning, Essbase 21c, OCI Streaming, OCI Object Storage, Apache Iceberg, plus PostgreSQL, MySQL/HeatWave, SQL Server, Snowflake, Azure ADLS Gen2, AWS S3, generic REST, custom JDBC, and Excel. Live-validated end-to-end on Spark 3.5.0.",
+      "version": "0.4.1",
+      "source": "./",
+      "category": "data",
+      "keywords": [
+        "oracle",
+        "spark",
+        "jdbc",
+        "lakehouse",
+        "autonomous-database",
+        "fusion",
+        "epm",
+        "essbase",
+        "kafka",
+        "snowflake",
+        "s3",
+        "adls",
+        "postgresql",
+        "mysql",
+        "sqlserver",
+        "iceberg"
+      ]
+    }
+  ]
+}

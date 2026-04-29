@@ -1,0 +1,14 @@
+{
+  "connector": "aidp-alh",
+  "auth": "wallet",
+  "rows": 1,
+  "schema": ["TBL_COUNT"],
+  "tns_alias": "dflvec26ai_high",
+  "sample_value": {"TBL_COUNT": "6.0000000000"},
+  "timestamp_utc": 1777214484,
+  "result": "PASS",
+  "target_db": "DFL Vector 26ai (DFLVEC26AI)",
+  "wallet_size_bytes": 25356,
+  "tnsadmin_files_count": 9,
+  "notes": "Spark JDBC end-to-end via wallet (mTLS). Driver wrote wallet to /tmp/wallet/alh, then broadcast wallet bytes to all executors via spark.sparkContext.broadcast + mapPartitions setup. JDBC query against ADW 26ai returned COUNT=6 user tables. Demonstrates the ESSENTIAL pattern for production Spark JDBC with Oracle wallets in AIDP — executors do NOT share /tmp with driver; wallet must be distributed via broadcast."
+}
