@@ -1,0 +1,21 @@
+{
+  "connector": "aidp-exacs",
+  "auth": "password-tcp-nne",
+  "result": "PASS",
+  "rows": null,
+  "schema": null,
+  "evidence_notebook": "exacs_intransit_encryption_demo.ipynb",
+  "evidence_workspace": "exacs-private-test (key cb4fc76b-1d80-4c99-ba4e-5c1b88f3a126)",
+  "target_db": "Customer ExaCS PDB DB0401_PDB_JLL.paas.oracle.com running Oracle 23ai 23.26.1.0.0",
+  "jdbc_url_pattern": "jdbc:oracle:thin:@//jll-scan-oopzk.clientsubnet.dns.oraclevcn.com:1521/DB0401_PDB_JLL.paas.oracle.com",
+  "auth_mechanism": "Plain user/password on TCP 1521; server-enforced Oracle Native Network Encryption (NNE)",
+  "encryption_verified": "AES256 + Crypto-checksumming (SHA-1) — confirmed via v$session_connect_info.network_service_banner",
+  "scan_proxy": "PE-ARCH 3c (RCE with SCAN Proxy) — workspace networkConfigurationDetails.scanDetails registered jll-scan-oopzk fqdn:1521",
+  "dns_resolved_to": "10.101.245.96 (RFC-1918, routed via PE/VCN peering)",
+  "tcp_connect_ms": 11,
+  "spark_jdbc_load_ms": 400,
+  "smoke_query": "SELECT network_service_banner FROM v$session_connect_info WHERE sid = SYS_CONTEXT('USERENV','SID')",
+  "skill_alignment": "Skill aidp-exacs Option A (recommended default) is now built on this exact pattern: plain TCP 1521 + spark_jdbc_options_password() + server-enforced NNE. Wallet TCPS demoted to Option B. examples/exacs_user_password.ipynb mirrors this notebook (DNS check + TCP + JDBC + NNE verify) and is the env-var-driven canonical version.",
+  "notes": "Live evidence from a customer-tenancy ExaCS deployment. End-to-end Spark JDBC connection succeeded; AES256 in-transit encryption confirmed via v$session_connect_info banners. The reference demo notebook (`exacs_intransit_encryption_demo.ipynb` in workspace `exacs-private-test`) ran cleanly with row count and encryption confirmed. The plugin's example notebook for row 6 is a parameterized version of the same pattern.",
+  "timestamp_utc": null
+}

@@ -1,0 +1,13 @@
+{
+  "connector": "bootstrap",
+  "auth": "n/a",
+  "rows": 1,
+  "schema": ["BOOTSTRAP_OK"],
+  "package_version": "0.1.0",
+  "timestamp_utc": 1777213489,
+  "aidp_workspace": "54368733-3a17-47a1-b231-869d8ae2a048",
+  "aidp_cluster": "tpcds",
+  "aidp_cluster_id": "98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb",
+  "result": "PASS",
+  "notes": "16 helper .py files found at /Workspace/Shared/oracle_ai_data_platform_connectors/scripts/oracle_ai_data_platform_connectors. Every public submodule importable. Smoke tests (URL builder + checkpoint validator) green."
+}

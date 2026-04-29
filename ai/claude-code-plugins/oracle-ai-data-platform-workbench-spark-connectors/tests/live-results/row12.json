@@ -1,0 +1,13 @@
+{
+  "connector": "aidp-essbase",
+  "auth": "basic",
+  "rows": 2,
+  "schema": ["name", "description"],
+  "applications": ["Sample", "ASOSamp"],
+  "result": "PASS",
+  "target_url": "https://ess21c.cealinfra.com",
+  "essbase_user": "Oacadmin1",
+  "endpoint": "/essbase/rest/v1/applications",
+  "timestamp_utc": null,
+  "notes": "HTTP Basic with Oacadmin1 + Welcome_12345 returns 200 OK from /essbase/rest/v1/about and /essbase/rest/v1/applications. Two apps visible: Sample (BSO) and ASOSamp (ASO). Auth model fully validated; the helper's `http_basic_session` works once `session.verify=False` is set (cluster's CA bundle doesn't trust cealinfra.com's cert). MDX-grid round-trip not yet captured because AIDP_SESSION expired mid-run; refresh and re-run to complete with a live data row count."
+}

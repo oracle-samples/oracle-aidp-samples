@@ -1,0 +1,11 @@
+{
+  "connector": "aidp-azure-adls",
+  "auth": "OAuth client-credentials (Azure tenant ID + client ID + client secret) → Azure Blob Storage Gen2",
+  "result": "NOT RUN",
+  "rows": null,
+  "schema": null,
+  "decision": "Ship as-is with example notebook (2026-04-27). Connector code and example are shape-correct against the official `oracle-aidp-samples` ADLS Gen2 pattern. Customer runs the test against their own Azure Storage Account with their own service principal creds.",
+  "skill_correctness": "skills/aidp-azure-adls/SKILL.md documents the abfss:// + OAuth client-credentials pattern. examples/adls_read.ipynb is shape-correct against official samples.",
+  "to_validate_at_runtime_for_a_customer": "Provision an Azure Storage Account + container, register an Azure AD service principal with Storage Blob Data Reader role, set AZURE_TENANT_ID/AZURE_CLIENT_ID/AZURE_CLIENT_SECRET/ADLS_ACCOUNT/ADLS_CONTAINER/ADLS_PATH env vars, run examples/adls_read.ipynb. The AIDP cluster's NAT egress reaches *.blob.core.windows.net via public internet — no special network setup needed.",
+  "timestamp_utc": null
+}
