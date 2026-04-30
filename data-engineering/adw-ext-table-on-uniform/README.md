@@ -120,6 +120,11 @@ The procedure then:
 4. Drops the ADW external table if it exists.
 5. Recreates the ADW external table against that metadata file.
 
+When the notebook creates the Delta table, it explicitly sets both documented UniForm Iceberg properties so the sample remains reproducible on Delta 3.2.0:
+
+- `delta.enableIcebergCompatV2 = true`
+- `delta.universalFormat.enabledFormats = iceberg`
+
 The procedure uses `DBMS_ASSERT.SIMPLE_SQL_NAME` when dropping the ADW table before recreation. Because of that, `p_table_name` must be a simple ADW table name such as `UNIFORM_TABLE_01`, not a qualified name such as `ADMIN.UNIFORM_TABLE_01`.
 
 In this sample, the ADW schema is derived from the Python connection user. The procedure is created in that schema, and the recreated external table is also created in that same connected schema.

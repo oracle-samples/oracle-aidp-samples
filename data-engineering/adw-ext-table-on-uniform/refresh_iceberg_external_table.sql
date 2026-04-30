@@ -110,6 +110,13 @@ BEGIN
         RAISE_APPLICATION_ERROR(-20001, 'Invalid OCI table URI: ' || p_oci_table_uri);
     END IF;
 
+    -- Validate the OCI region string before building the Object Storage URL.
+    IF p_region IS NULL
+       OR NOT REGEXP_LIKE(p_region, '^[a-z]{2,3}-[a-z]+-\d+$')
+    THEN
+        RAISE_APPLICATION_ERROR(-20003, 'Invalid OCI region: ' || p_region);
+    END IF;
+
     -- Parse bucket@namespace and the object path from the OCI URI.
     l_uri_no_scheme := SUBSTR(p_oci_table_uri, LENGTH('oci://') + 1);
     l_bucket_and_ns := REGEXP_SUBSTR(l_uri_no_scheme, '^[^/]+');
@@ -131,30 +138,39 @@ BEGIN
     l_metadata_folder := l_bucket_base_url || l_table_path || '/metadata/';
 
     -- Find the highest vN.metadata.json in the metadata folder.
-    SELECT object_name
-    INTO l_object_name
-    FROM (
-        SELECT object_name,
-               TO_NUMBER(
-                   REGEXP_SUBSTR(
-                       object_name,
-                       '^v([0-9]+)\.metadata\.json$',
-                       1,
-                       1,
-                       NULL,
-                       1
-                   )
-               ) AS version_no
-        FROM TABLE(
-            DBMS_CLOUD.LIST_OBJECTS(
-                credential_name => p_credential_name,
-                location_uri    => l_metadata_folder
+    BEGIN
+        SELECT object_name
+        INTO l_object_name
+        FROM (
+            SELECT object_name,
+                   TO_NUMBER(
+                       REGEXP_SUBSTR(
+                           object_name,
+                           '^v([0-9]+)\.metadata\.json$',
+                           1,
+                           1,
+                           NULL,
+                           1
+                       )
+                   ) AS version_no
+            FROM TABLE(
+                DBMS_CLOUD.LIST_OBJECTS(
+                    credential_name => p_credential_name,
+                    location_uri    => l_metadata_folder
+                )
             )
+            WHERE REGEXP_LIKE(object_name, '^v[0-9]+\.metadata\.json$')
+            ORDER BY version_no DESC
         )
-        WHERE REGEXP_LIKE(object_name, '^v[0-9]+\.metadata\.json$')
-        ORDER BY version_no DESC
-    )
-    WHERE ROWNUM = 1;
+        WHERE ROWNUM = 1;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(
+                -20002,
+                'No vN.metadata.json found under ' || l_metadata_folder ||
+                '. Check the credential, bucket path, or wait for async UniForm metadata generation.'
+            );
+    END;
 
     l_metadata_file_url :=
            l_bucket_base_url
