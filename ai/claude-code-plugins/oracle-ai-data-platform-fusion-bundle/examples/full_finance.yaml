@@ -1,0 +1,95 @@
+apiVersion: aidp-fusion-bundle/v1
+project: cecl-finance-lake
+variables:
+  team: cecl
+
+fusion:
+  serviceUrl: ${FUSION_BICC_BASE_URL}
+  username: ${FUSION_BICC_USER}
+  password: ${vault:ocid1.vaultsecret.oc1.iad.placeholder.fusion_password}
+  externalStorage: ${FUSION_BICC_EXTERNAL_STORAGE}
+
+aidp:
+  catalog: fusion_catalog
+  bronzeSchema: bronze
+  silverSchema: silver
+  goldSchema: gold
+  storageFormat: delta
+
+datasets:
+  # GL
+  - id: gl_journal_lines
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: gl_period_balances
+    mode: full
+    schedule: "0 3 1 * *"
+  - id: gl_coa
+    mode: full
+  # Suppliers (✅ confirmed PVO from pdf1)
+  - id: erp_suppliers
+    mode: full
+  # AR
+  - id: ar_invoices
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: ar_receipts
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: ar_aging
+    mode: full
+    schedule: "0 4 1 * *"
+  # AP
+  - id: ap_invoices
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: ap_payments
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: ap_aging
+    mode: full
+    schedule: "0 4 1 * *"
+  # PO (✅ confirmed PVO from pdf2)
+  - id: po_orders
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: po_receipts
+    mode: incremental
+    schedule: "0 2 * * *"
+  # SCM Items (✅ confirmed PVO from pdf2)
+  - id: scm_items
+    mode: full
+
+dimensions:
+  build:
+    - dim_account
+    - dim_calendar
+    - dim_org
+    - dim_supplier
+    - dim_item
+
+gold:
+  marts:
+    - ar_aging
+    - ap_aging
+    - gl_balance
+    - po_backlog
+    - supplier_spend
+
+oac:
+  enabled: true
+  url: ${OAC_URL}
+  dataSourceName: aidp_fusion_jdbc
+  workbooks:
+    - cfo_dashboard
+    - ar_aging
+    - ap_aging
+    - gl_balance
+    - po_backlog
+    - supplier_spend
+  oauthClientId: ${OAC_OAUTH_CLIENT_ID}
+  oauthClientSecret: ${vault:ocid1.vaultsecret.oc1.iad.placeholder.oac_client_secret}
+
+notifications:
+  onFailure:
+    - ahmed.shahzad.awan@oracle.com

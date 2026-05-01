@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oracle-ai-data-platform-fusion-bundle"
+version = "0.1.0a0"
+description = "Productized Fusion ERP/HCM/SCM → Oracle AI Data Platform pipeline with curated BICC extracts, medallion bronze/silver/gold in Delta, conformed dimensions, gold marts, and Oracle Analytics Cloud workbooks installable via OAC REST API."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [
+  { name = "Ahmed Awan" }
+]
+keywords = [
+  "oracle", "aidp", "fusion", "bicc", "lakehouse", "delta",
+  "medallion", "oac", "oracle-analytics-cloud", "mcp", "spark"
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Database",
+  "Topic :: Office/Business :: Financial",
+  "Topic :: Scientific/Engineering :: Information Analysis"
+]
+dependencies = [
+  "click>=8.0",
+  "pydantic>=2.0",
+  "pydantic-settings>=2.0",
+  "pyyaml>=6.0",
+  "requests>=2.31",
+  "oci>=2.130",
+  "rich>=13.0"
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+  "pytest-timeout>=2",
+  "responses>=0.25"
+]
+dev = [
+  "ruff>=0.4",
+  "mypy>=1.8",
+  "build>=1.0",
+  "twine>=5.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/ahmedawan-oracle/claude-code-plugins"
+Repository = "https://github.com/ahmedawan-oracle/claude-code-plugins"
+Issues = "https://github.com/ahmedawan-oracle/claude-code-plugins/issues"
+
+[project.scripts]
+aidp-fusion-bundle = "oracle_ai_data_platform_fusion_bundle.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["scripts"]
+include = ["oracle_ai_data_platform_fusion_bundle*"]
+
+[tool.setuptools.package-data]
+oracle_ai_data_platform_fusion_bundle = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "live: requires live Fusion pod / AIDP workspace / OAC instance (gated by AIDP_FUSION_BUNDLE_INTEGRATION=1)"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "RUF"]
+ignore = ["E501"]

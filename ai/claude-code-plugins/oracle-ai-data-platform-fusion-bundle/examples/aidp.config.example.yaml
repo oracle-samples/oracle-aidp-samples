@@ -1,0 +1,20 @@
+apiVersion: aidp-fusion-bundle/v1
+project: cecl-finance-lake
+
+defaults:
+  region: us-ashburn-1
+  workspaceRoot: Shared
+
+environments:
+  dev:
+    workspaceKey: 54368733-3a17-47a1-b231-869d8ae2a048
+    region: us-ashburn-1
+    ociProfile: AIDP_SESSION                # local OCI session token (oci session authenticate)
+
+  prod:
+    workspaceKey: 9a2f-PROD-PLACEHOLDER
+    region: us-ashburn-1
+    auth:
+      mode: vault
+      apiKeyOcid: ocid1.vaultsecret.oc1.iad.placeholder.oci_api_key_json
+      privateKeyOcid: ocid1.vaultsecret.oc1.iad.placeholder.oci_private_key_pem
