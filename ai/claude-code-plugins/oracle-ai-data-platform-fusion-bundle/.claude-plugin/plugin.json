@@ -1,0 +1,32 @@
+{
+  "name": "oracle-ai-data-platform-fusion-bundle",
+  "version": "0.1.0-alpha",
+  "description": "Productized Fusion → Oracle AI Data Platform pipeline. Curated BICC extracts for the most-asked Fusion ERP/HCM/SCM datasets, bronze→silver→gold medallion architecture, conformed COA/calendar/org/supplier/item dimensions, ready-made AR-aging/AP-aging/GL-balance/PO-backlog/Supplier-spend gold marts, and an Oracle Analytics Cloud (OAC) workbook bundle installable via OAC REST API. End-user consumption via OAC MCP (Preview) chat in Claude/Cline/Copilot. Same pattern shown in the official Oracle blog 'Bring Fusion Data into AIDP Workbench Using BICC', productized. Additive to and complementary with Oracle's managed Fusion data offerings — never positioned as a replacement.",
+  "author": {
+    "name": "Ahmed Awan"
+  },
+  "homepage": "https://github.com/ahmedawan-oracle/claude-code-plugins",
+  "repository": "https://github.com/ahmedawan-oracle/claude-code-plugins",
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "fusion",
+    "erp",
+    "hcm",
+    "scm",
+    "bicc",
+    "lakehouse",
+    "delta",
+    "medallion",
+    "bronze-silver-gold",
+    "oac",
+    "oracle-analytics-cloud",
+    "mcp",
+    "spark",
+    "saas-batch",
+    "data-engineering",
+    "genai",
+    "ai-agents"
+  ]
+}

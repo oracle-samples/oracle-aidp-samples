@@ -1,0 +1,43 @@
+apiVersion: aidp-fusion-bundle/v1
+project: cecl-finance-lake
+variables:
+  team: cecl
+
+fusion:
+  serviceUrl: ${FUSION_BICC_BASE_URL}
+  username: ${FUSION_BICC_USER}
+  password: ${vault:ocid1.vaultsecret.oc1.iad.placeholder.fusion_password}
+  externalStorage: ${FUSION_BICC_EXTERNAL_STORAGE}
+
+aidp:
+  catalog: fusion_catalog
+  bronzeSchema: bronze
+  silverSchema: silver
+  goldSchema: gold
+  storageFormat: delta
+
+datasets:
+  - id: gl_journal_lines
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: gl_period_balances
+    mode: full
+    schedule: "0 3 1 * *"
+  - id: gl_coa
+    mode: full
+
+dimensions:
+  build:
+    - dim_account
+    - dim_calendar
+
+gold:
+  marts:
+    - gl_balance
+
+oac:
+  enabled: false                            # disabled in minimal example
+
+notifications:
+  onFailure:
+    - ahmed.shahzad.awan@oracle.com

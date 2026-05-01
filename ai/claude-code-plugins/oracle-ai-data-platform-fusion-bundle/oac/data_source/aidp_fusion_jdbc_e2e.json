@@ -1,0 +1,8 @@
+{
+  "username": "ocid1.user.oc1..aaaaaaaaypf4ufaajpjuceuuk5zcqvkmzngqaqphjo77r3orce7w4ijxerva",
+  "tenancy": "ocid1.tenancy.oc1..aaaaaaaaqu76jmq6jw6eh3w4hx2c4coxsg3ty46iqufzhvic6hvxsuohi5aq",
+  "region": "us-ashburn-1",
+  "fingerprint": "90:4a:7b:9f:df:06:f1:98:92:6a:23:86:89:5c:4a:11",
+  "idl-ocid": "ocid1.aidataplatform.oc1.iad.amaaaaaaai22xpqahbvgp37xdc3thvvpqbe66mufkkknoq6qpm6fybmz5ypq",
+  "dsn": "jdbc:spark://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/default;SparkServerType=AIDP;httpPath=cliservice/98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb"
+}

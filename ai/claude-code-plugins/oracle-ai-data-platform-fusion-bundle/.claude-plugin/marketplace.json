@@ -1,0 +1,31 @@
+{
+  "name": "aidp-fusion-bundle",
+  "owner": {
+    "name": "Ahmed Awan"
+  },
+  "metadata": {
+    "version": "0.1.0-alpha",
+    "description": "Single-plugin marketplace for the Oracle AI Data Platform Fusion Bundle Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-fusion-bundle",
+      "description": "Productized Fusion → AIDP pipeline: curated BICC extracts, medallion bronze/silver/gold, conformed dimensions, gold marts, and OAC workbooks installable via OAC REST API. End-user consumption via OAC MCP Preview in Claude/Cline/Copilot.",
+      "version": "0.1.0-alpha",
+      "source": "./",
+      "category": "data",
+      "keywords": [
+        "oracle",
+        "aidp",
+        "fusion",
+        "erp",
+        "bicc",
+        "lakehouse",
+        "delta",
+        "oac",
+        "mcp",
+        "spark"
+      ]
+    }
+  ]
+}
