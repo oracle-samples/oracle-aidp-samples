@@ -93,26 +93,27 @@ class TestCreateConnection:
         call = s.request.call_args
         assert call.kwargs["method"] == "POST"
         assert call.kwargs["url"] == "https://oac.example.com/api/20210901/catalog/connections"
-        files = call.kwargs["files"]
-        # New schema (verified live TC10h, 2026-05-01): documented field names
-        # are ``connectionParams`` (JSON envelope) and ``cert`` (PEM file).
-        assert "connectionParams" in files
-        assert "cert" in files
-        assert files["connectionParams"][2] == "text/plain"
-        assert files["cert"][2] == "text/plain"
-
-        import json as _json
-        envelope = _json.loads(files["connectionParams"][1])
+        # Schema captured live 2026-05-01 from OAC UI's actual create POST: pure JSON
+        # body, PEM inlined under content.connectionParams.private-key (no multipart).
+        envelope = call.kwargs["json"]
         assert envelope["version"] == "2.0.0"
         assert envelope["type"] == "connection"
         assert envelope["name"] == "aidp_fusion_jdbc"
-        # The 6-key AIDP payload lives under content.connectionParams alongside
-        # the connectionType discriminator.
-        cp = envelope["content"]["connectionParams"]
-        assert cp["connectionType"] == "oracle-ai-data-platform"
-        assert cp["username"] == "u"
-        assert cp["idl-ocid"] == "idl"
         assert envelope["description"] == "bundle install"
+
+        cp = envelope["content"]["connectionParams"]
+        # OAC's discriminator for AIDP is "idljdbc" (provider-name field; aliased
+        # to connectionType for the documented public REST envelope).
+        assert cp["connectionType"] == "idljdbc"
+        assert cp["provider-name"] == "idljdbc"
+        # Field-name traps (verified live):
+        assert cp["username"] == "u"
+        assert cp["idlocid"] == "idl"          # NOT "idl-ocid" — OAC wants no separator here
+        assert cp["auth-type"] == "APIKey"
+        assert cp["catalog"] == "fusion_catalog"
+        # PEM is inlined as a string with the BEGIN/END markers preserved
+        assert cp["private-key"].startswith("-----BEGIN PRIVATE KEY-----")
+        assert cp["private-key"].endswith("-----END PRIVATE KEY-----")
 
     def test_raises_when_pem_missing(self, tmp_path: Path) -> None:
         client = OacRestClient("https://oac.example.com", _fetcher(), session=MagicMock())

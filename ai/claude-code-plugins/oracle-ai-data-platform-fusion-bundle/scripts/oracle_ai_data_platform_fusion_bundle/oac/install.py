@@ -145,52 +145,25 @@ def _install_via_rest(
     payload: AidpConnectionPayload,
     console: Console,
 ) -> InstallResult:
-    """Hybrid install: connection JSON via print-only, workbooks via REST.
+    """Full-REST install: connection POST + workbook imports via OAC REST API.
 
-    OAC's public REST API does not publish a documented schema for the
-    "Oracle AI Data Platform" connectionType (verified live 2026-05-01,
-    TC10h). The 6-key JSON is UI-form-only on OAC's side. Workbook imports,
-    however, work via REST with a user-context Bearer token.
+    Schema for the connection POST was captured live 2026-05-01 from the OAC
+    UI's actual create-connection traffic (TC10h follow-up). Falls back to
+    print-only if the public REST API rejects the captured shape (e.g. on
+    OAC instances where the AIDP connectionType isn't yet REST-enabled).
 
-    So this function:
-
-      1. Writes the connection JSON file (the proven print-only path) and
-         tells the user the 3-min UI upload step.
-      2. Authenticates via Auth Code + PKCE / Device Code (one-time consent;
+    Steps:
+      1. Authenticate via Auth Code + PKCE / Device Code (one-time consent;
          refresh token persists).
-      3. Imports each ``oac/workbooks/*.dva`` via REST.
-
-    If the user passed ``--skip-workbooks``, step 3 is a no-op and the function
-    devolves to print-only.
+      2. POST the connection. If OAC accepts → continue. If 400 with
+         schema/discriminator error → write print-only JSON and tell user
+         to upload via UI, then continue with workbook imports.
+      3. Import each ``oac/workbooks/*.dva`` via REST.
     """
-    # Step 1: write connection JSON (always, as a deliverable for the admin)
-    out_path = Path("oac") / "data_source" / f"{params.connection_name}.json"
-    written = render_template(payload, out_path)
-    console.print(
-        f"[green][CONNECTION][/green] Wrote OAC connection JSON: [bold]{written}[/bold]"
-    )
-    console.print(
-        f"\n[bold]Connection upload (one-time, ~3 min):[/bold]\n"
-        f"  Open [cyan]{params.oac_url}[/cyan] -> Data -> Connections -> Create -> "
-        f"\"Oracle AI Data Platform\"\n"
-        f"  Connection Name: [bold]{params.connection_name}[/bold]\n"
-        f"  Connection Details: upload [bold]{written}[/bold]\n"
-        f"  Private API Key: upload [bold]{params.private_key_pem_path}[/bold]\n"
-        f"\n[dim]REST schema for the AIDP connectionType is undocumented by Oracle "
-        f"(see TC10h). UI upload is currently the only path. Workbooks will be "
-        f"imported via REST below.[/dim]\n"
-    )
-
-    if params.skip_workbooks:
-        console.print("[yellow]--skip-workbooks set; not importing .dva files via REST.[/yellow]")
-        return InstallResult(json_template_path=written, imported_workbooks=[])
-
-    # Step 2: authenticate
     if not (params.idcs_url and params.client_id and params.client_secret):
         raise ValueError(
-            "Workbook REST import requires --idcs-url, --client-id, --client-secret "
-            "(or the equivalent fields in bundle.yaml). Pass --skip-workbooks to "
-            "stop after the connection JSON is written."
+            "Full REST install requires --idcs-url, --client-id, --client-secret. "
+            "Use --print-only to skip REST and write a JSON file for manual upload."
         )
 
     fetcher = OacOauthFlow(
@@ -198,23 +171,68 @@ def _install_via_rest(
         client_id=params.client_id,
         client_secret=params.client_secret,
         scope=params.oauth_scope,
-        flow=params.auth_flow,  # "auth_code" (default) or "device"
+        flow=params.auth_flow,
     )
     client = OacRestClient(params.oac_url, fetcher)
 
-    # Step 3: import workbooks
-    imported: list[str] = []
-    for dva in _iter_workbook_files(params.workbooks_dir):
-        console.print(f"Importing workbook [bold]{dva.name}[/bold] ...")
+    # Step 1: connection — try REST POST, fall back to print-only on schema errors
+    connection_id: str | None = None
+    json_template_path: Path | None = None
+    existing = client.find_connection(params.connection_name)
+    if existing:
+        connection_id = str(existing.get("id") or existing.get("connectionId") or "<unknown>")
+        console.print(
+            f"[yellow]Connection '{params.connection_name}' already exists "
+            f"(id={connection_id}). Skipping create.[/yellow]"
+        )
+    else:
+        console.print(f"Creating OAC connection [bold]{params.connection_name}[/bold] via REST ...")
         try:
-            client.import_workbook(dva)
-            imported.append(dva.name)
-            console.print("  [green]done[/green]")
+            created = client.create_connection(
+                name=params.connection_name,
+                payload=payload,
+                private_key_pem_path=params.private_key_pem_path,
+                description=(
+                    "AIDP Fusion bundle JDBC connection — auto-installed by "
+                    "aidp-fusion-bundle dashboard install"
+                ),
+                catalog=params.catalog,
+            )
+            connection_id = str(created.get("id") or created.get("connectionId") or "<unknown>")
+            console.print(f"  [green]done[/green] (id={connection_id})")
         except OacRestError as exc:
-            console.print(f"  [red]failed:[/red] {exc}")
+            # Schema mismatch on AIDP connectionType: fall back to print-only for
+            # the connection step. Workbook imports continue normally.
+            console.print(f"  [yellow]REST POST rejected: {exc}[/yellow]")
+            console.print("  [yellow]Falling back to print-only JSON for manual UI upload.[/yellow]")
+            out_path = Path("oac") / "data_source" / f"{params.connection_name}.json"
+            json_template_path = render_template(payload, out_path)
+            console.print(
+                f"\n[bold]Connection upload (one-time, ~3 min):[/bold]\n"
+                f"  Open [cyan]{params.oac_url}[/cyan] -> Data -> Connections -> Create -> "
+                f"\"Oracle AI Data Platform\"\n"
+                f"  Connection Name: [bold]{params.connection_name}[/bold]\n"
+                f"  Connection Details: upload [bold]{json_template_path}[/bold]\n"
+                f"  Private API Key: upload [bold]{params.private_key_pem_path}[/bold]\n"
+            )
+
+    # Step 2: workbooks
+    imported: list[str] = []
+    if params.skip_workbooks:
+        console.print("[yellow]--skip-workbooks set; not importing .dva files.[/yellow]")
+    else:
+        for dva in _iter_workbook_files(params.workbooks_dir):
+            console.print(f"Importing workbook [bold]{dva.name}[/bold] ...")
+            try:
+                client.import_workbook(dva)
+                imported.append(dva.name)
+                console.print("  [green]done[/green]")
+            except OacRestError as exc:
+                console.print(f"  [red]failed:[/red] {exc}")
 
     return InstallResult(
-        json_template_path=written,
+        connection_id=connection_id,
+        json_template_path=json_template_path,
         imported_workbooks=imported,
     )
 

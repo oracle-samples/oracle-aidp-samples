@@ -156,34 +156,35 @@ class OacRestClient:
         payload: AidpConnectionPayload,
         private_key_pem_path: Path | str,
         description: str | None = None,
-        connection_type: str = "oracle-ai-data-platform",
+        catalog: str = "fusion_catalog",
+        connection_type: str = "idljdbc",
     ) -> dict[str, Any]:
         """``POST /api/<v>/catalog/connections`` — register the AIDP JDBC connection.
 
-        Per Oracle's [REST API doc](https://docs.oracle.com/en/cloud/paas/analytics-cloud/acapi/op-20210901-catalog-connections-post.html),
-        OAC expects a multipart/form-data body with two fields:
+        Schema captured live 2026-05-01 from the OAC UI's actual create POST
+        (Chrome DevTools network interceptor on `oacai.cealinfra.com`):
 
-          - ``connectionParams`` (string): JSON envelope with version + type + name +
-            content.connectionParams (the per-connection-type key-bag)
-          - ``cert`` (file): the private key PEM (or wallet zip for ATP-style connections)
-
-        The 6-key AIDP details (``username``/``tenancy``/``region``/``fingerprint``/
-        ``idl-ocid``/``dsn``) live inside ``content.connectionParams`` alongside the
-        ``connectionType`` discriminator.
+          - The discriminator is ``provider-name: "idljdbc"`` (Intelligent
+            DataLake JDBC). Aliased here as ``connectionType`` to match
+            Oracle's documented public REST envelope vocabulary.
+          - The PEM is **inlined** as a string field with literal ``\\n``
+            escapes, NOT a separate cert file upload.
+          - All inner field names are kebab-case (``private-key``, ``auth-type``)
+            EXCEPT ``idlocid`` which is lowercase-no-separator.
 
         Args:
             name: Human-readable connection name (e.g. ``aidp_fusion_jdbc``).
             payload: 6-key AIDP detail payload from
                 :func:`oracle_ai_data_platform_fusion_bundle.oac.rest.connection.build_payload`.
-            private_key_pem_path: Path to the RSA private key whose public half is
-                registered on the user OCID.
+            private_key_pem_path: Path to the RSA private key. Read into memory
+                and inlined into the JSON.
             description: Optional connection description.
-            connection_type: Discriminator key OAC uses internally. Default
-                ``oracle-ai-data-platform`` matches what the OAC UI's connection
-                picker emits (verified in network DevTools).
+            catalog: AIDP catalog name (default ``fusion_catalog``).
+            connection_type: OAC's internal provider discriminator. Default
+                ``idljdbc`` (verified live 2026-05-01 via UI capture).
 
         Returns:
-            The newly created connection record (as returned by OAC).
+            The newly created connection record.
 
         Raises:
             OacRestError: if OAC rejects the request.
@@ -192,13 +193,26 @@ class OacRestClient:
         if not pem_path.exists():
             raise FileNotFoundError(f"private key PEM not found: {pem_path}")
 
-        # Build the documented JSON envelope.
+        pem_text = pem_path.read_text(encoding="utf-8").strip()
+
+        # Inner connection params using OAC's actual field names (verified via
+        # UI DevTools capture 2026-05-01). See
+        # ``project_oac_aidp_rest_create_connection_payload.md`` for the full trace.
+        d = payload.to_dict()
         connection_params: dict[str, Any] = {
-            "connectionType": connection_type,
-            **payload.to_dict(),
-            "systemConnection": False,
-            "remoteData": False,
+            "connectionType": connection_type,        # public REST envelope key
+            "provider-name": connection_type,         # UI-internal duplicate
+            "username": d["username"],
+            "tenancy": d["tenancy"],
+            "region": d["region"],
+            "fingerprint": d["fingerprint"],
+            "idlocid": d["idl-ocid"],                 # rename: idl-ocid -> idlocid
+            "dsn": d["dsn"],
+            "auth-type": "APIKey",
+            "private-key": pem_text,                  # PEM inlined (with literal \n in string)
+            "catalog": catalog,
         }
+
         envelope: dict[str, Any] = {
             "version": "2.0.0",
             "type": "connection",
@@ -208,15 +222,7 @@ class OacRestClient:
         if description:
             envelope["description"] = description
 
-        with pem_path.open("rb") as pem_fh:
-            # OAC's POST /catalog/connections wants both multipart parts as text/plain
-            # (verified live 2026-05-01: application/json on connectionParams gets
-            # "Media type is not text/plain").
-            files = {
-                "connectionParams": (None, json.dumps(envelope), "text/plain"),
-                "cert": (pem_path.name, pem_fh.read(), "text/plain"),
-            }
-            response = self._request("POST", "/catalog/connections", files=files)
+        response = self._request("POST", "/catalog/connections", json_body=envelope)
 
         if response.status_code not in (200, 201):
             raise OacRestError(
