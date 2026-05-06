@@ -14,7 +14,8 @@ def sanitize_path(base_dir, relative_path):
     import os
     if not relative_path:
         return base_dir
-    full = os.path.normpath(os.path.join(base_dir, relative_path))
-    if not full.startswith(os.path.normpath(base_dir)):
+    base = os.path.normpath(base_dir)
+    full = os.path.normpath(os.path.join(base, relative_path))
+    if full != base and not full.startswith(base + os.sep):
         return None
     return full
