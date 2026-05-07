@@ -18,9 +18,9 @@ Bridge AIDP Spark to Snowflake using the official Snowflake Spark connector. Use
 
 The Snowflake Spark connector is **not** in the AIDP cluster image by default. Two ways to get it in.
 
-### Option A — Runtime-load (recommended; no cluster restart) ★ live-validated
+### Option A — Runtime-load (recommended; no cluster restart)
 
-The plugin's `add_spark_connector_at_runtime` helper downloads + registers both JARs in the running Spark session. Live-validated on the AIDP `tpcds` cluster (Spark 3.5.0) — see `tests/live-results/row20.json`.
+The plugin's `add_spark_connector_at_runtime` helper downloads + registers both JARs in the running Spark session.
 
 ```python
 from oracle_ai_data_platform_connectors.jdbc import (

@@ -1,5 +1,5 @@
 ---
-description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers Oracle and non-Oracle sources — Postgres, MySQL, SQL Server, Snowflake, S3, ADLS, Iceberg, Object Storage, generic JDBC, Excel.
+description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 23 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, SQL Server, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, generic REST, custom JDBC, Excel.
 allowed-tools: Read
 ---
 
@@ -23,8 +23,11 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 
 | User says... | Use skill |
 |---|---|
-| "ALH", "AI Lakehouse", "ADW", "ATP", "Autonomous Database", "26ai", "external catalog from lakehouse", "Oracle on Compute", "Base DB", "on-prem Oracle", "Oracle 19c / 21c" | [`aidp-alh`](../aidp-alh/SKILL.md) — covers the entire Oracle DB family (Autonomous + non-Autonomous) |
+| "ALH", "AI Lakehouse", "ADW", "ATP", "Autonomous Database", "26ai" | [`aidp-alh`](../aidp-alh/SKILL.md) — Autonomous DB family (wallet / IAM DB-Token / API key) |
+| "Oracle Database", "generic Oracle DB", "on-prem Oracle", "Oracle 19c / 21c", "Base DB", "Oracle on Compute", non-Autonomous Oracle | [`aidp-oracle-db`](../aidp-oracle-db/SKILL.md) — generic Oracle DB via plain user/password on TCP 1521 |
 | "ExaCS", "Exadata", "Exadata Cloud", "private-subnet Oracle DB" | [`aidp-exacs`](../aidp-exacs/SKILL.md) |
+| "PeopleSoft", "PSFT", "PS HCM", "FSCM", "Campus Solutions" | [`aidp-peoplesoft`](../aidp-peoplesoft/SKILL.md) |
+| "Siebel", "Siebel CRM", "S_CONTACT", "S_ORG_EXT" | [`aidp-siebel`](../aidp-siebel/SKILL.md) |
 | "Fusion ERP", "Fusion HCM", "Fusion REST", "FA REST", "Cloud ERP API" | [`aidp-fusion-rest`](../aidp-fusion-rest/SKILL.md) |
 | "BICC", "BI Cloud Connector", "Fusion bulk extract", >50k rows from Fusion | [`aidp-fusion-bicc`](../aidp-fusion-bicc/SKILL.md) |
 | "EPM Cloud", "EPBCS", "Hyperion Planning", "Planning app", "exportdataslice" | [`aidp-epm-cloud`](../aidp-epm-cloud/SKILL.md) |
@@ -33,13 +36,20 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 | "OCI Object Storage", "oci://", "external volume", "external table on bucket" | [`aidp-object-storage`](../aidp-object-storage/SKILL.md) |
 | "Iceberg", "Apache Iceberg", "time travel", "snapshots", "schema evolution" | [`aidp-iceberg`](../aidp-iceberg/SKILL.md) |
 
-### External RDBMS (non-Oracle)
+### External RDBMS / Hadoop (non-Oracle)
 
 | User says... | Use skill |
 |---|---|
 | "PostgreSQL", "Postgres", "psql" | [`aidp-postgresql`](../aidp-postgresql/SKILL.md) |
 | "MySQL", "HeatWave", "MDS", "MySQL Database Service" | [`aidp-mysql`](../aidp-mysql/SKILL.md) |
 | "SQL Server", "MSSQL", "Azure SQL", "TDS" | [`aidp-sqlserver`](../aidp-sqlserver/SKILL.md) |
+| "Hive", "HiveServer2", "HS2", "HCatalog", non-Kerberos Hive | [`aidp-hive`](../aidp-hive/SKILL.md) |
+
+### SaaS
+
+| User says... | Use skill |
+|---|---|
+| "Salesforce", "SFDC", "Sales Cloud", "Service Cloud", "sObject", "SOQL", "Account / Opportunity / Lead" | [`aidp-salesforce`](../aidp-salesforce/SKILL.md) |
 
 ### Multi-cloud + escape hatches
 
@@ -48,7 +58,7 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 | "Snowflake", "sfUrl", "sfWarehouse" | [`aidp-snowflake`](../aidp-snowflake/SKILL.md) |
 | "ADLS", "Azure Data Lake", "abfss" | [`aidp-azure-adls`](../aidp-azure-adls/SKILL.md) |
 | "S3", "AWS S3", "s3a" | [`aidp-aws-s3`](../aidp-aws-s3/SKILL.md) |
-| "Generic REST", "manifest URL", REST endpoint with manifest schema | [`aidp-rest-generic`](../aidp-rest-generic/SKILL.md) |
+| "Generic REST", "manifest URL", "manifest.path", REST endpoint with manifest schema | [`aidp-rest-generic`](../aidp-rest-generic/SKILL.md) |
 | "Custom JDBC", "ClickHouse", "DuckDB", "DB2", "SAP HANA", any DB without a dedicated skill | [`aidp-jdbc-custom`](../aidp-jdbc-custom/SKILL.md) |
 | ".xlsx", "Excel", "spreadsheet ingestion" | [`aidp-excel`](../aidp-excel/SKILL.md) |
 

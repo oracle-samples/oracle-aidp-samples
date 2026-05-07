@@ -14,9 +14,9 @@ Two ways to land Excel data in Spark: the native Spark Excel format (faster, par
 ## When NOT to use
 - For CSV files → just use [`aidp-object-storage`](../aidp-object-storage/SKILL.md). Spark reads CSV natively.
 
-## Option C — Pure-stdlib parser (no openpyxl, no JARs) ★ live-validated
+## Option C — Pure-stdlib parser (no openpyxl, no JARs)
 
-The plugin ships a stdlib-only `.xlsx` reader. **No** `openpyxl`. **No** Crealytics JAR. Works on AIDP clusters that have neither PyPI access nor Maven access for the Crealytics dependency closure. Live-validated on the AIDP `tpcds` cluster — 5,460-byte file parsed in ~120 ms.
+The plugin ships a stdlib-only `.xlsx` reader. **No** `openpyxl`. **No** Crealytics JAR. Works on AIDP clusters that have neither PyPI access nor Maven access for the Crealytics dependency closure.
 
 ```python
 import os

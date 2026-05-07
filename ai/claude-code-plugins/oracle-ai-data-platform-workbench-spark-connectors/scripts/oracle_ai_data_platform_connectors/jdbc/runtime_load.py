@@ -26,9 +26,9 @@ Use ``add_spark_connector_at_runtime`` for Spark DataSource JARs (Snowflake,
 spark-excel, custom format providers). Use ``add_jdbc_jar_at_runtime`` for
 plain JDBC drivers (SQLite, ClickHouse, DuckDB, IBM DB2 ...).
 
-Live-validated on the AIDP ``tpcds`` cluster (Spark 3.5.0):
-* SQLite JDBC (no executor distribution needed — driver-only path).
-* Snowflake Spark connector (needs both driver and executor distribution).
+Two patterns covered:
+* SQLite JDBC and similar (no executor distribution needed — driver-only).
+* Snowflake-style Spark connectors (needs both driver and executor distribution).
 
 Maven Central is reachable from AIDP clusters; PyPI is not.
 """

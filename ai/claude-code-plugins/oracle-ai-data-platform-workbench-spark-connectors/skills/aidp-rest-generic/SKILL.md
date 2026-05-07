@@ -68,6 +68,33 @@ extra={
 }
 ```
 
+## Manifest from a workspace / volume path (`manifest.path`)
+
+If the manifest is a static file you've uploaded to your AIDP workspace or a Volume — instead of being served over HTTP — use `manifest.path` instead of `manifest.url`. Same shape, different source. Useful when the manifest is hand-authored or version-pinned alongside your notebook.
+
+```python
+opts = aidataplatform_options(
+    type="GENERIC_REST",
+    user=os.environ["REST_USER"],
+    password=os.environ["REST_PASSWORD"],
+    schema="default",
+    extra={
+        "base.url":      os.environ["REST_BASE_URL"],
+        "manifest.path": "/Volumes/myvol/manifests/orders_api.json",
+        "auth.type":     "basic",
+        "api":           "searchOrders",
+        "derived.property.status": "OPEN",
+    },
+)
+df = spark.read.format(AIDP_FORMAT).options(**opts).load()
+```
+
+The path can be:
+- `/Volumes/<catalog>/<schema>/<volume>/path/to/manifest.json` (AIDP Volume)
+- `/Workspace/Shared/.../manifest.json` (workspace file — works but FUSE-flaky)
+
+Volume paths are the preferred location.
+
 ## Gotchas
 - **`auth.type=basic` only.** If the API uses OAuth / API key headers / mTLS, this connector won't help — use the Python `requests` path.
 - **Manifest must be reachable from the AIDP cluster's VCN.** Egress restrictions apply.
