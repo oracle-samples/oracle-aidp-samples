@@ -52,7 +52,6 @@ class OrdsSqlTool(CustomToolBase):
                 }
             )
 
-            # Allow self-signed certs for dev
             ctx = ssl.create_default_context()
 
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:

@@ -82,24 +82,27 @@ MAX_FILE_BYTES = 10 * 1024 * 1024           # 10 MB per file
 MAX_TOTAL_BYTES = 500 * 1024 * 1024         # 500 MB total extracted
 
 # Packages the platform drops from requirements.txt — they would replace
-# pinned runtime components and break the agent.
+# pinned runtime components and break the agent. Mirrors
+# `PackageManager._BASE_PACKAGE_NAMES` in
+# datahub-dp/aidp-dp-agent/agentservice/utils/package_manager.py.
 BLOCKED_PACKAGES = {
     "langgraph",
-    "langchain",
-    "langchain-core",
     "langchain-oci",
+    "langchain-core",
+    "langchain_mcp_adapters",
     "pyyaml",
-    "yaml",
 }
 
 # Packages already installed on the compute runtime. Listing them is
-# redundant (the platform skips them) but harmless.
+# redundant (the platform skips them) but harmless. Mirrors
+# `PackageManager._PREINSTALLED_PACKAGE_NAMES`.
 PREINSTALLED_PACKAGES = {
-    "requests", "urllib3", "certifi", "aiohttp", "httpx",
-    "oci", "oracledb", "sqlalchemy",
-    "numpy", "pydantic", "jsonschema",
-    "cryptography", "pyopenssl",
-    "orjson", "websockets",
+    "oci", "requests", "requests-toolbelt", "websockets",
+    "cryptography", "certifi", "pyopenssl", "urllib3",
+    "pydantic", "pydantic-core", "pydantic-settings",
+    "numpy", "oracledb", "sqlalchemy",
+    "aiohttp", "httpx", "httpx-sse", "anyio",
+    "jsonschema", "orjson",
 }
 
 REGISTRATION_MARKERS = (
@@ -235,6 +238,22 @@ def validate_tool_config(config_path: Path, registered: list[str]) -> list[str]:
 _REQ_NAME_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
 
+def _canonicalize_name(name: str) -> str:
+    """Match the platform's `lower().replace('-', '_')` membership check.
+
+    Mirrors `_merge_custom_tool_requirements` in
+    datahub-dp/aidp-dp-agent/agentservice/utils/package_manager.py so the
+    build script's filtering predicts the platform's behavior exactly —
+    `langchain_core` and `langchain-core` both normalize to
+    `langchain_core` and match the entry in BLOCKED_PACKAGES.
+    """
+    return name.lower().replace("-", "_")
+
+
+BLOCKED_PACKAGES_CANONICAL = {_canonicalize_name(p) for p in BLOCKED_PACKAGES}
+PREINSTALLED_PACKAGES_CANONICAL = {_canonicalize_name(p) for p in PREINSTALLED_PACKAGES}
+
+
 def check_requirements(req_path: Path) -> tuple[list[str], list[str], list[str]]:
     """Return (blocked, redundant, url_vcs) lines from requirements.txt."""
     blocked: list[str] = []
@@ -245,17 +264,21 @@ def check_requirements(req_path: Path) -> tuple[list[str], list[str], list[str]]
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        url_prefixes = ("-e ", "--editable", "git+", "http://", "https://", "file:")
+        url_prefixes = (
+            "-e ", "--editable",
+            "git+", "hg+", "svn+", "bzr+",
+            "http://", "https://", "file:",
+        )
         if any(line.startswith(p) for p in url_prefixes):
             url_vcs.append(line)
             continue
         match = _REQ_NAME_RE.match(line)
         if not match:
             continue
-        base = match.group(1).split("[", 1)[0].lower()
-        if base in BLOCKED_PACKAGES:
+        base = _canonicalize_name(match.group(1).split("[", 1)[0])
+        if base in BLOCKED_PACKAGES_CANONICAL:
             blocked.append(line)
-        elif base in PREINSTALLED_PACKAGES:
+        elif base in PREINSTALLED_PACKAGES_CANONICAL:
             redundant.append(line)
 
     return blocked, redundant, url_vcs
@@ -279,8 +302,8 @@ def _installable_requirements(req_path: Path) -> list[str]:
         match = _REQ_NAME_RE.match(line)
         if not match:
             continue
-        base = match.group(1).split("[", 1)[0].lower()
-        if base in BLOCKED_PACKAGES or base in PREINSTALLED_PACKAGES:
+        base = _canonicalize_name(match.group(1).split("[", 1)[0])
+        if base in BLOCKED_PACKAGES_CANONICAL or base in PREINSTALLED_PACKAGES_CANONICAL:
             continue
         keep.append(line)
     return keep
@@ -296,10 +319,13 @@ def download_wheels(
 
     Tries a single platform-targeted `pip download -r` first so pip can
     resolve transitive deps against the compute runtime's Linux amd64 /
-    Python 3.11 target. If that fails (e.g. a pure-Python package has no
-    matching manylinux wheel), retries each requirement individually with
-    `--no-deps` — pure-Python wheels are platform-independent and download
-    fine this way.
+    Python 3.11 target. If that fails (typically because one transitive
+    dep doesn't ship a manylinux wheel and tanks the all-or-nothing
+    resolution), retries each requirement individually with `--no-deps`
+    while keeping the same `--platform` / `--python-version` /
+    `--only-binary=:all:` constraints — without `--only-binary` pip would
+    fall back to source distributions, which the platform can't build on
+    the OL 8 compute (no C toolchain).
 
     Returns (wheel_count_after, failures) where `failures` is a list of
     requirement lines whose wheel could not be fetched.
@@ -333,12 +359,15 @@ def download_wheels(
             stderr_tail = (result.stderr or result.stdout or "").strip().splitlines()
             for line in stderr_tail[-6:]:
                 _info(line)
-            _info("Retrying pure-Python wheels per requirement (--no-deps)...")
+            _info("Retrying per requirement with --no-deps...")
             for req in requirements:
                 retry = subprocess.run(
                     [
                         sys.executable, "-m", "pip", "download",
                         "--dest", str(wheels_dir),
+                        "--platform", platform,
+                        "--python-version", python_version,
+                        "--only-binary=:all:",
                         "--no-deps",
                         "--no-cache-dir",
                         req,
@@ -350,7 +379,7 @@ def download_wheels(
     finally:
         tmp_req.unlink(missing_ok=True)
 
-    wheel_count = len(list(wheels_dir.glob("*.whl"))) + len(list(wheels_dir.glob("*.tar.gz")))
+    wheel_count = len(list(wheels_dir.glob("*.whl")))
     return wheel_count, failures
 
 

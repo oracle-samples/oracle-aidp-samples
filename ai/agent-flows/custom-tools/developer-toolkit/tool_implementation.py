@@ -67,9 +67,17 @@ class FileTool(CustomToolBase):
 
         try:
             if operation == "read":
+                if not os.path.isfile(safe_path):
+                    return {"error": f"File not found: {path}"}
+                size = os.path.getsize(safe_path)
+                if size > max_size:
+                    return {"error": f"File exceeds max_file_size_kb: {size} > {max_size} bytes"}
                 with open(safe_path, "r") as f:
                     return {"output": f.read()}
             elif operation == "write":
+                payload_bytes = len(content.encode("utf-8"))
+                if payload_bytes > max_size:
+                    return {"error": f"Content exceeds max_file_size_kb: {payload_bytes} > {max_size} bytes"}
                 parent = os.path.dirname(safe_path)
                 if parent:
                     os.makedirs(parent, exist_ok=True)
@@ -77,8 +85,9 @@ class FileTool(CustomToolBase):
                     f.write(content)
                 return {"output": f"Written {len(content)} chars to {path}"}
             elif operation == "list":
-                target = safe_path if os.path.isdir(safe_path) else os.path.dirname(safe_path)
-                return {"output": "\n".join(sorted(os.listdir(target)))}
+                if not os.path.isdir(safe_path):
+                    return {"error": f"Not a directory: {path}"}
+                return {"output": "\n".join(sorted(os.listdir(safe_path)))}
             else:
                 return {"error": f"Unknown operation: {operation}. Use read/write/list"}
         except Exception as e:

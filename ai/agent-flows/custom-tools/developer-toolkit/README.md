@@ -40,7 +40,7 @@ developer-toolkit/
    ```bash
    python ../scripts/build_custom_tool.py .
    ```
-2. **Upload** `developer_toolkit.zip` to your workspace volume.
+2. **Upload** `custom_tool_developer_toolkit.zip` to your workspace volume.
 3. **Add a Custom Tool node** for each of the three classes in your agent flow. Each entry in `tool_config.json` corresponds to one node (or one tool inside a multi-tool package node, depending on your UI).
 4. **Review the defaults** in each tool's `conf` and override as needed:
    - `BashTool`: `timeout` (30s), `max_output_lines` (200).

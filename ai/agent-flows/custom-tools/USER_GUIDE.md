@@ -492,7 +492,7 @@ class WeatherTool(CustomToolBase):
 
 ### Database Query Tool (ORDS)
 
-See `ords_tool.zip` for a complete example that:
+See `ords-database-tool/` (build output: `custom_tool_ords_database_tool.zip`) for a complete example that:
 - Connects to Oracle ADB via ORDS REST API
 - Executes SQL queries with parameterized limits
 - Explores schema (list tables, describe columns)
