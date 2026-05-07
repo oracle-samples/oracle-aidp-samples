@@ -152,23 +152,53 @@ def is_excluded(rel_path: str) -> bool:
     return any(p.search(rel_path) for p in EXCLUDE_PATTERNS)
 
 
-def sanitize_source_key(name: str) -> str:
-    """Mirror the platform's source_key derivation.
+_MAX_SOURCE_KEY_LENGTH = 128
 
-    See aidp_utils.py / CodeGenContext.java:
-      - strip trailing slashes and `.zip`
-      - replace `-` with `_`
-      - drop non-word characters
-      - prepend `_` if the result starts with a digit
+
+def sanitize_source_key(name: str) -> str:
+    """Mirror the platform's source_key derivation byte-for-byte.
+
+    Source of truth: `extract_source_key` in
+    datahub-dp/aidp-dp-agent/agentservice/utils/aidp_utils.py (which in
+    turn matches Java's `CodeGenContext.extractSourceKeyFromPackagePath`).
+    Drift here causes the locally built ZIP filename to disagree with the
+    `custom_tools/<source_key>/` directory the platform's codegen imports
+    from — the deploy then fails at import time with no obvious clue.
+
+    Steps:
+      1. Reject path traversal (`..` in any path component → "unknown").
+      2. Strip leading `/`, take the last path segment.
+      3. Drop a trailing `.zip`.
+      4. Replace `-` with `_`.
+      5. Replace any non-`\\w` char with `_` (re.ASCII so the regex
+         matches Java's `\\w`, otherwise Unicode letters like accented
+         chars or CJK pass through and produce a different key than
+         Java).
+      6. Prepend `_` if the first char isn't `[a-zA-Z_]`.
+      7. Truncate to MAX length.
     """
-    stem = name.rstrip("/").split("/")[-1]
+    if not name:
+        return "unknown"
+
+    import os
+    normed = os.path.normpath(name)
+    parts = normed.replace("\\", "/").split("/")
+    if ".." in parts:
+        return "unknown"
+    original_depth = len([p for p in name.replace("\\", "/").split("/") if p and p != "."])
+    normed_depth = len([p for p in parts if p and p != "."])
+    if normed_depth < original_depth:
+        return "unknown"
+
+    stem = name.lstrip("/").rsplit("/", 1)[-1]
     if stem.endswith(".zip"):
         stem = stem[:-4]
     stem = stem.replace("-", "_")
-    stem = re.sub(r"[^\w]", "", stem)
-    if stem and stem[0].isdigit():
+    stem = re.sub(r"[^\w]", "_", stem, flags=re.ASCII)
+    if stem and not (stem[0].isalpha() or stem[0] == "_"):
         stem = "_" + stem
-    return stem or "tool"
+    stem = stem[:_MAX_SOURCE_KEY_LENGTH]
+    return stem or "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +267,22 @@ def validate_tool_config(config_path: Path, registered: list[str]) -> list[str]:
 
 _REQ_NAME_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
+_URL_VCS_PREFIXES = (
+    "-e ", "--editable",
+    "git+", "hg+", "svn+", "bzr+",
+    "http://", "https://", "file:",
+)
+
+
+def _is_url_vcs_requirement(line: str) -> bool:
+    """Match the platform's URL/VCS detection in
+    `PackageManager._merge_custom_tool_requirements`. Catches both
+    prefix forms (`git+`, `https://`, …) and PEP 508 direct-URL refs
+    (`pkg @ https://…`, `pkg @ file:…`)."""
+    if any(line.startswith(p) for p in _URL_VCS_PREFIXES):
+        return True
+    return "@" in line and ("://" in line or "file:" in line)
+
 
 def _canonicalize_name(name: str) -> str:
     """Match the platform's `lower().replace('-', '_')` membership check.
@@ -264,12 +310,7 @@ def check_requirements(req_path: Path) -> tuple[list[str], list[str], list[str]]
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        url_prefixes = (
-            "-e ", "--editable",
-            "git+", "hg+", "svn+", "bzr+",
-            "http://", "https://", "file:",
-        )
-        if any(line.startswith(p) for p in url_prefixes):
+        if _is_url_vcs_requirement(line):
             url_vcs.append(line)
             continue
         match = _REQ_NAME_RE.match(line)
@@ -292,12 +333,11 @@ def _installable_requirements(req_path: Path) -> list[str]:
     (blocked by the platform). The remainder is what needs wheels.
     """
     keep: list[str] = []
-    url_prefixes = ("-e ", "--editable", "git+", "http://", "https://", "file:")
     for raw in req_path.read_text().splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        if any(line.startswith(p) for p in url_prefixes):
+        if _is_url_vcs_requirement(line):
             continue
         match = _REQ_NAME_RE.match(line)
         if not match:

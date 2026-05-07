@@ -25,7 +25,7 @@ class HelloTool(CustomToolBase):
 ### 2. Package as ZIP
 
 ```
-my_tool.zip
+my_tool/
 ├── tool_implementation.py    # Required: your tool class(es)
 ├── requirements.txt          # Optional: pip dependencies
 ├── utils/                    # Optional: helper modules
@@ -35,11 +35,14 @@ my_tool.zip
     └── settings.yaml
 ```
 
-Create the ZIP:
+Build the ZIP with the included utility — it runs the same checks the platform performs at upload time (registration markers, blocked/preinstalled packages, size limits, source-key derivation), auto-creates missing `__init__.py` files, and writes a correctly-named archive:
+
 ```bash
-cd my_tool/
-zip -r my_tool.zip tool_implementation.py requirements.txt utils/ config/
+python scripts/build_custom_tool.py my_tool/
+# → custom_tool_my_tool.zip
 ```
+
+The build utility's filename matches the `source_key` the platform derives from your upload path, so the `custom_tools/<source_key>/` directory the agent imports from at runtime always lines up. A hand-rolled `zip` works too, but you lose the local validation and have to name the archive yourself.
 
 ### 3. Upload to workspace
 
@@ -293,16 +296,26 @@ ls wheels/
 
 ### Pre-installed packages (no requirements.txt needed)
 
-These are available in the compute runtime without adding to `requirements.txt`:
+These are already on the compute runtime — listing them in `requirements.txt` is redundant and the platform skips them:
 
 ```
-requests, urllib3, certifi, aiohttp, httpx
-oci, oracledb, sqlalchemy
-numpy, pydantic, jsonschema
-cryptography, pyopenssl
-langchain-core, langchain-oci, langgraph
-pyyaml, orjson, websockets
+oci, requests, requests-toolbelt, websockets
+cryptography, certifi, pyopenssl, urllib3
+pydantic, pydantic-core, pydantic-settings
+numpy, oracledb, sqlalchemy
+aiohttp, httpx, httpx-sse, anyio
+jsonschema, orjson
 ```
+
+### Platform-managed packages (cannot be overridden)
+
+These are pinned by the agent runtime. Putting any of them in `requirements.txt` is **dropped** by the platform — your custom version will not be installed:
+
+```
+langgraph, langchain-core, langchain-oci, langchain_mcp_adapters, pyyaml
+```
+
+Authoritative source for both lists: `_PREINSTALLED_PACKAGE_NAMES` and `_BASE_PACKAGE_NAMES` in `datahub-dp/aidp-dp-agent/agentservice/utils/package_manager.py`. The build utility (`scripts/build_custom_tool.py`) checks against the same lists locally so divergence shows up before upload.
 
 ---
 
