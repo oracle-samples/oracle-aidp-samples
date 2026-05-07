@@ -9,8 +9,8 @@ Crealytics dependency closure is large).
 This module is a third path: parse the .xlsx with stdlib ``zipfile`` +
 ``xml.etree.ElementTree``. .xlsx is a ZIP of XML files; sharedStrings.xml +
 worksheets/sheet1.xml together carry the cell data we need for read-only
-ingestion. Live-validated on the AIDP `tpcds` cluster — 5,460-byte file
-parsed in ~120 ms with no extra deps.
+ingestion. No extra deps — works on any AIDP cluster regardless of PyPI /
+Maven access.
 
 Limitations:
 * Read-only. There's no stdlib path to write .xlsx without ``openpyxl`` or

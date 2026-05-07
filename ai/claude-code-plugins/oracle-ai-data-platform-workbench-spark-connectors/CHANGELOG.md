@@ -59,10 +59,10 @@ Documentation-only release. Plugin code, skills, and helpers are unchanged from 
 
 ## [0.4.0] — 2026-04-27
 
-First public-marketplace-ready release. Live-validated end-to-end on AIDP `tpcds` cluster (Spark 3.5.0).
+First public-marketplace-ready release.
 
 ### Highlights
-- **17 of 21 live-test rows PASS**, 4 ship-as-is (customer-supplied endpoints): MySQL, SQL Server, Azure ADLS, generic REST manifest.
+- 4 connectors ship as-is (customer-supplied endpoints): MySQL, SQL Server, Azure ADLS, generic REST manifest.
 - **18 connector skills** + bootstrap + routing, every one with an action-oriented `description:` for Claude Code skill discovery.
 - **Zero DEFERRED rows.** All previously deferred BDS / DB-token / catalog-sync / VCN-routing items are either flipped to PASS, rolled into ship-as-is, or removed from scope.
 

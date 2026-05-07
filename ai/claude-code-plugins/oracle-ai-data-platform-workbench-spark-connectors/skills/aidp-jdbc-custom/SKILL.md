@@ -18,9 +18,9 @@ The catch-all skill for any DB with a JDBC driver. Skips the AIDP `aidataplatfor
 
 ## Two ways to load a non-bundled JDBC driver
 
-### Option A — Runtime-load (recommended; no cluster restart) ★ live-validated
+### Option A — Runtime-load (recommended; no cluster restart)
 
-The plugin ships a helper that loads a JDBC JAR into a running Spark session via Java's URLClassLoader + DriverManager. It works without admin access and without restarting the kernel. Live-validated on the AIDP `tpcds` cluster (Spark 3.5.0) — see `tests/live-results/row24.json`.
+The plugin ships a helper that loads a JDBC JAR into a running Spark session via Java's URLClassLoader + DriverManager. It works without admin access and without restarting the kernel.
 
 ```python
 import os
