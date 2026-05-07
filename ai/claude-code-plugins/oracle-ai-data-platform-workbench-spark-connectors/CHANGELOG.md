@@ -2,6 +2,51 @@
 
 All notable changes to this plugin are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-07
+
+Adds 5 new connectors and adopts the v1.0 sample patterns from [`oracle-samples/oracle-aidp-samples` PR #46](https://github.com/oracle-samples/oracle-aidp-samples/pull/46) (`pushdown.sql`, `catalog.id`, `manifest.path`, `write.mode=MERGE`).
+
+### Added — 5 new connector skills (23 total, was 18)
+
+| Skill | Target | aidataplatform `type` |
+|---|---|---|
+| **`aidp-oracle-db`** | Generic Oracle Database (Compute / Base DB / on-prem / 19c-26ai non-Autonomous) — read-write | `ORACLE_DB` |
+| **`aidp-peoplesoft`** | Oracle PeopleSoft (HCM, FSCM, Campus Solutions) — read-only | `ORACLE_PEOPLESOFT` |
+| **`aidp-siebel`** | Oracle Siebel CRM — read-only | `ORACLE_SIEBEL` |
+| **`aidp-salesforce`** | Salesforce (Sales/Service Cloud, custom sObjects) — read-only | `SFORCE` (note: literal type is `SFORCE`, not `SALESFORCE`) |
+| **`aidp-hive`** | Apache Hive (HiveServer2, non-Kerberos) — read-write | `HIVE` |
+
+### Added — cross-cutting patterns from oracle-samples PR #46
+
+- **`pushdown.sql`** — push complete source SQL queries at the database, skipping schema/table option building. Documented in every applicable connector skill.
+- **`catalog.id`** — reference pre-registered AIDP external catalogs by id, replacing host/port/user/password. Pairs with three-part `spark.table()` and `saveAsTable()` for the cleanest read/write code. Documented in `aidp-oracle-db`.
+- **`manifest.path`** — REST manifest as a workspace/Volume path instead of an HTTP URL. Documented in `aidp-rest-generic`.
+- **`write.mode` MERGE + `write.merge.keys`** — merge writes via the format handler.
+
+### Added — example notebooks
+
+5 new notebooks under `examples/` (one per new skill), copied directly from the canonical `oracle-samples` PR #46:
+
+- `examples/oracle_db_read_write.ipynb`
+- `examples/peoplesoft_read.ipynb`
+- `examples/siebel_read.ipynb`
+- `examples/salesforce_read.ipynb`
+- `examples/hive_read_write.ipynb`
+
+### Added — unit tests
+
+8 new unit tests in `tests/test_aidataplatform.py` covering each new `type` value, the `catalog.id` shape, `pushdown.sql` shape, `write.mode=MERGE` with `write.merge.keys`, and `manifest.path` for REST. Test count: 45 → **53 passing**.
+
+### Changed — existing skills
+
+- **`aidp-connectors-overview`** (routing): expanded keyword list and added new sections — RDBMS/Hadoop now covers Hive, new SaaS section for Salesforce, expanded Oracle/OCI section for PeopleSoft / Siebel / generic Oracle DB.
+- **`aidp-rest-generic`**: added a new section documenting the `manifest.path` (workspace/Volume) pattern alongside the original `manifest.url` pattern.
+- **`scripts/oracle_ai_data_platform_connectors/aidataplatform.py`**: docstring updated to list the new connector types and the new common-extras (`write.mode`, `write.merge.keys`, `pushdown.sql`, `catalog.id`, `manifest.path`).
+
+### Live-test status (unchanged from v0.4.x)
+
+The 5 new connectors ship as-is — they wrap the same `aidataplatform` format handler that the oracle-samples team validates upstream. The `aidp-oracle-db` skill has the same code path as `aidp-postgresql` / `aidp-mysql` / `aidp-sqlserver`, all of which were live-validated in v0.3.0+. The 17 PASS / 4 ship-as-is matrix from v0.4.0 carries forward unchanged.
+
 ## [0.4.1] — 2026-04-28
 
 Documentation-only release. Plugin code, skills, and helpers are unchanged from `0.4.0`.

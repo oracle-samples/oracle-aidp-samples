@@ -8,22 +8,38 @@ across many connector types — host/port/user/password/schema/table — only
 Connector types known to be supported by the format handler (from the official
 oracle-aidp-samples repo):
 
-* ``ORACLE_DB``       — Oracle DB on Compute / on-prem / Base DB
-* ``ORACLE_EXADATA``  — Exadata Cloud Service
-* ``ORACLE_ALH``      — Autonomous Data Warehouse / Lakehouse
-* ``ORACLE_ATP``      — Autonomous Transaction Processing
-* ``POSTGRESQL``      — PostgreSQL
-* ``MYSQL``           — MySQL
-* ``MYSQL_HEATWAVE``  — OCI MySQL HeatWave
-* ``SQLSERVER``       — Microsoft SQL Server
-* ``KAFKA``           — Kafka via the format-handler shape
-* ``FUSION_BICC``     — Fusion BICC bulk extracts
-* ``GENERIC_REST``    — any REST API with a manifest
+* ``ORACLE_DB``          — Oracle DB on Compute / on-prem / Base DB
+* ``ORACLE_EXADATA``     — Exadata Cloud Service
+* ``ORACLE_ALH``         — Autonomous Data Warehouse / Lakehouse
+* ``ORACLE_ATP``         — Autonomous Transaction Processing
+* ``ORACLE_PEOPLESOFT``  — Oracle PeopleSoft (read-only)
+* ``ORACLE_SIEBEL``      — Oracle Siebel CRM (read-only)
+* ``SFORCE``             — Salesforce (read-only)
+* ``HIVE``               — Apache Hive (read-write, non-Kerberos)
+* ``POSTGRESQL``         — PostgreSQL
+* ``MYSQL``              — MySQL
+* ``MYSQL_HEATWAVE``     — OCI MySQL HeatWave
+* ``SQLSERVER``          — Microsoft SQL Server
+* ``KAFKA``              — Kafka via the format-handler shape
+* ``FUSION_BICC``        — Fusion BICC bulk extracts
+* ``GENERIC_REST``       — any REST API with a manifest
 
 This module exposes one canonical builder, ``aidataplatform_options()``, that
 takes the common keys and lets caller-specific extras flow through. Skills
 that wrap a particular ``type`` should compose this helper rather than
 re-declaring the option dict.
+
+Common ``extra`` options seen across multiple types (added in oracle-samples
+PR #46):
+
+* ``write.mode``       — ``CREATE`` | ``APPEND`` | ``OVERWRITE`` | ``MERGE``
+* ``write.merge.keys`` — comma-separated key columns (when ``write.mode=MERGE``)
+* ``pushdown.sql``     — full SQL pushed at the source instead of
+                         host/schema/table option building
+* ``catalog.id``       — reference an existing AIDP external catalog by id
+                         (replaces host/port/user/password)
+* ``manifest.path``    — workspace/volume path to a REST manifest file
+                         (alternative to ``manifest.url``)
 """
 
 from __future__ import annotations
