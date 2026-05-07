@@ -7,7 +7,7 @@ A Claude Code plugin that ships **23 model-invokable skills** for connecting Ora
 
 **v0.5.0** adds 5 new connectors (Oracle Database, PeopleSoft, Siebel, Salesforce, Hive) plus the new pushdown.sql / catalog.id / manifest.path patterns from [oracle-samples/oracle-aidp-samples PR #46](https://github.com/oracle-samples/oracle-aidp-samples/pull/46).
 
-**Live-validated** on the workbench `tpcds` cluster (Spark 3.5.0): **17 PASS / 4 ship-as-is** out of 21 test rows in v0.4.x. The 5 new v0.5.0 connectors ship as-is — they wrap the same `aidataplatform` format handler validated upstream by the oracle-samples team. See [`tests/live-results/RESULTS.md`](tests/live-results/RESULTS.md).
+All connectors wrap the official AIDP `aidataplatform` Spark format handler (or, where applicable, Spark JDBC / structured streaming / `oci://`/`s3a://`/`abfss://`) — same patterns shown in the upstream [`oracle-samples/oracle-aidp-samples`](https://github.com/oracle-samples/oracle-aidp-samples) connector notebooks.
 
 ## Install
 

@@ -43,9 +43,9 @@ Adds 5 new connectors and adopts the v1.0 sample patterns from [`oracle-samples/
 - **`aidp-rest-generic`**: added a new section documenting the `manifest.path` (workspace/Volume) pattern alongside the original `manifest.url` pattern.
 - **`scripts/oracle_ai_data_platform_connectors/aidataplatform.py`**: docstring updated to list the new connector types and the new common-extras (`write.mode`, `write.merge.keys`, `pushdown.sql`, `catalog.id`, `manifest.path`).
 
-### Live-test status (unchanged from v0.4.x)
+### Validation
 
-The 5 new connectors ship as-is — they wrap the same `aidataplatform` format handler that the oracle-samples team validates upstream. The `aidp-oracle-db` skill has the same code path as `aidp-postgresql` / `aidp-mysql` / `aidp-sqlserver`, all of which were live-validated in v0.3.0+. The 17 PASS / 4 ship-as-is matrix from v0.4.0 carries forward unchanged.
+The 5 new connectors wrap the same `aidataplatform` format handler that the oracle-samples team validates upstream — the `aidp-oracle-db` skill in particular shares its code path with `aidp-postgresql` / `aidp-mysql` / `aidp-sqlserver`. Plugin shape: `claude plugin validate .` ✓; unit tests: 53/53 ✓.
 
 ## [0.4.1] — 2026-04-28
 
