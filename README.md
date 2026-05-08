@@ -176,6 +176,7 @@ Notebooks covering generative AI, NLP, ML model training, and LLM-powered analyt
 | Notebook | Description |
 |---|---|
 | [Agent Flow Schedule Trigger](ai/agent-flows/misc/agent-flow-schedule-trigger/task_notebook.ipynb) | Invoke AIDP agent flows via REST API using OCI request signing, demonstrating programmatic agent orchestration with custom message handling. |
+| [Multi-MCP Chat Agent](ai/agent-flows/code-first/multi-mcp-chat-agent/README.md) | Natural-language chat agent that fans out across Oracle Autonomous Database (Select AI MCP), Oracle Analytics Cloud (Logical SQL MCP), and Oracle Integration Cloud (project-scoped MCP). Each integration can be enabled or disabled independently via config. |
 
 ---
 
