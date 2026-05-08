@@ -20,10 +20,16 @@ Quick architecture:
         - OAC:  JWT Bearer / User Assertion (RFC 7523), local-signed
                 from a long-lived private key
         - OIC:  client_credentials (RFC 6749 §4.4)
-    So we don't run any background refresh loop. Tokens get rebuilt
-    only when a tool call fails with 401/connection error — the
-    reactive retry in invoke() catches that, mints fresh bearers,
-    and retries.
+    So we don't run any background refresh loop.
+  • OAC's access_token has a 5-minute TTL — short enough that AIDP's
+    idle-suspend can wake the agent up with a long-expired bearer
+    cached in MCP's headers. To handle that, every invoke() runs
+    _ensure_fresh_oac_token() at the top, which checks the cached
+    JWT's exp claim and mints a fresh one if there's <60s remaining.
+    Cheap when fresh (one JWT decode); ~300ms refresh when needed.
+  • If a tool call still fails with 401/connection error despite the
+    proactive refresh, the reactive retry in invoke() catches that,
+    rebuilds MCP, heals any orphan tool_calls, and retries once.
 """
 
 import asyncio
@@ -645,6 +651,74 @@ class AgentBasic:
         logger.info("OAC access_token minted via JWT assertion")
         await self._load_all_mcp_tools()
 
+    def _oac_token_seconds_remaining(self) -> int:
+        """Decode the cached OAC JWT's `exp` claim and return seconds left
+        before it expires. Returns -1 if no token is cached or the claim
+        can't be parsed — callers treat that as 'expired' and refresh."""
+        access = self._oac_access_token or ""
+        if not access or access.count(".") != 2:
+            return -1
+        try:
+            payload_b64 = access.split(".")[1]
+            payload_b64 += "=" * (-len(payload_b64) % 4)
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+            exp = payload.get("exp")
+            if not exp:
+                return -1
+            return int(exp - time.time())
+        except Exception:
+            return -1
+
+    # OAC's IDCS-issued access_tokens have a 5-minute TTL. If our cached
+    # token has less than this many seconds remaining, mint a fresh one
+    # before the LLM's next tool call. 60s is comfortably above any
+    # plausible call duration and gives us a small buffer against clock
+    # skew between the agent host and OAC.
+    OAC_TOKEN_REFRESH_THRESHOLD_SECS = 60
+
+    async def _ensure_fresh_oac_token(self) -> None:
+        """If the cached OAC token is expired or close to expiring, mint a
+        fresh one and (if MCP was already built) rebuild MCP so the new
+        bearer takes effect. Cheap (just a JWT decode) when the token is
+        fresh — safe to call at the top of every invoke.
+
+        Why this is the right freshness mechanism:
+          - OAC tokens have a 5-minute TTL. AIDP suspends the agent process
+            during idle; after hours of idle, the cached bearer baked into
+            the MCP client headers is hopelessly expired and the first
+            tool call would fail with 401.
+          - Refreshing on-demand at the start of each invoke catches this
+            without scheduled background work (which wouldn't tick anyway
+            during AIDP idle suspension).
+          - We refresh proactively when there's less than ~60s remaining
+            so the LLM's chained tool calls during a single user turn
+            (discover → describe → execute) all use the same fresh token
+            without us having to refresh mid-turn."""
+        if not OAC_ENABLED:
+            return
+        seconds_left = self._oac_token_seconds_remaining()
+        if seconds_left > self.OAC_TOKEN_REFRESH_THRESHOLD_SECS:
+            return
+        logger.info(
+            "OAC token has %ds remaining (≤%ds threshold) — refreshing",
+            seconds_left, self.OAC_TOKEN_REFRESH_THRESHOLD_SECS,
+        )
+        async with self._load_lock:
+            # Double-check inside the lock — another concurrent invoke may
+            # have refreshed already and updated the cached token.
+            if self._oac_token_seconds_remaining() > self.OAC_TOKEN_REFRESH_THRESHOLD_SECS:
+                return
+            if self._tools_loaded:
+                # MCP is already built with the stale bearer; rebuild it.
+                await self._refresh_oac_token_and_rebuild()
+            else:
+                # Lazy first-load hasn't run yet. Just update the cached
+                # token — the upcoming first-load will pick it up.
+                self._oac_access_token = await asyncio.to_thread(
+                    _fetch_oac_access_token, self._oac_private_key
+                )
+                logger.info("OAC token refreshed (MCP not yet built; will be used at first build)")
+
     # ── Conversation state healing ──────────────────────────────
     async def _heal_orphan_tool_calls(self, config) -> int:
         """Clean up "orphan" tool-call records left in the conversation
@@ -985,6 +1059,8 @@ class AgentBasic:
            setup failed) — return that error as the chat reply.
         2. Run pre_invoke_setup() to configure auth context for OCI
            Generative AI.
+        2.5. Refresh the OAC bearer if it's expired or about to expire
+           (5-minute token TTL — handles AIDP suspend-then-wake gaps).
         3. Lazy-load MCP tools the very first time we're invoked.
         4. Heal any orphan tool_calls left in conversation state by
            previously-failed tool executions.
@@ -994,9 +1070,9 @@ class AgentBasic:
 
         There is NO scheduled token refresh. Every Oracle service we hit
         can be re-authenticated on demand from cached config + private
-        key, with no rotating refresh chain to keep alive. When a tool
-        call hits 401, step 6 mints a fresh bearer and retries — that's
-        the entire freshness story."""
+        key, with no rotating refresh chain to keep alive. The proactive
+        check in step 2.5 handles the common case (AIDP idle for hours,
+        cached OAC token expired); step 6 catches the rest."""
 
         # ─── Step 1: surface setup-time errors ─────────────────────
         if self._self_stage_error:
@@ -1020,6 +1096,17 @@ class AgentBasic:
         # in __init__ (which runs at module import time, no loop).
         if self._load_lock is None:
             self._load_lock = asyncio.Lock()
+
+        # ─── Step 2.5: refresh OAC token if it's about to expire ─────
+        # OAC tokens have a 5-minute TTL. AIDP suspends the agent during
+        # idle, so a session that was warm hours ago will have a long-
+        # expired bearer. Mint a fresh one before the LLM ever sees
+        # OAC. Cheap when the token is fresh (one JWT decode); a single
+        # JWT-bearer exchange (~300ms) when refresh is needed.
+        try:
+            await self._ensure_fresh_oac_token()
+        except Exception as e:
+            logger.warning("OAC token freshness check failed (continuing): %s", e)
 
         # ─── Step 3: lazy first-load of MCP tools ──────────────────
         # We don't load MCP at setup() time because setup is sync and MCP
