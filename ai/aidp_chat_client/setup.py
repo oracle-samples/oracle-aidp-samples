@@ -18,7 +18,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/oracle-samples/oracle-aidp-samples",
-    packages=find_packages(),
+    packages=["aidp_chat_client"],
+    package_dir={"aidp_chat_client": "."},
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

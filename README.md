@@ -177,6 +177,12 @@ Notebooks covering generative AI, NLP, ML model training, and LLM-powered analyt
 |---|---|
 | [Agent Flow Schedule Trigger](ai/agent-flows/misc/agent-flow-schedule-trigger/task_notebook.ipynb) | Invoke AIDP agent flows via REST API using OCI request signing, demonstrating programmatic agent orchestration with custom message handling. |
 
+#### Agent Chat Clients
+
+| Sample | Description |
+|---|---|
+| [AIDP Agent Chat — Web UI](ai/aidp_chat_client/web_ui/README.md) | Browser chat UI for any deployed AIDP agent: a Flask proxy that handles OCI request signing plus a single-page HTML frontend. Includes a one-command deploy script for OCI Container Instances. |
+
 #### Code-First Agent Flows
 
 | Sample | Description |
