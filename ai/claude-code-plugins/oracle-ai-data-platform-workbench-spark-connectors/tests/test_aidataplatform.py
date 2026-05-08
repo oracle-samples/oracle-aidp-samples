@@ -147,3 +147,121 @@ class TestAidataplatformOptionsGenericRest:
         assert out["derived.property.orderNo"] == "12345"
         # No host/port/table for the rest shape
         assert "host" not in out
+
+
+class TestAidataplatformOptionsV050NewTypes:
+    """Tests for the 5 new connector types added in v0.5.0 (oracle-samples PR #46)."""
+
+    def test_peoplesoft_shape(self):
+        out = aidataplatform_options(
+            type="ORACLE_PEOPLESOFT",
+            host="psft-db.example.com",
+            port=1521,
+            database_name="HCMDB",
+            user="PS_USER",
+            password="pw",
+            schema="SYSADM",
+            table="PS_JOB",
+        )
+        assert out["type"] == "ORACLE_PEOPLESOFT"
+        assert out["host"] == "psft-db.example.com"
+        assert out["port"] == "1521"
+        assert out["database.name"] == "HCMDB"
+        assert out["schema"] == "SYSADM"
+        assert out["table"] == "PS_JOB"
+
+    def test_siebel_shape(self):
+        out = aidataplatform_options(
+            type="ORACLE_SIEBEL",
+            host="siebel-db.example.com",
+            port=1521,
+            database_name="SIEBELDB",
+            user="SIEBEL_USER",
+            password="pw",
+            schema="SIEBEL",
+            table="S_CONTACT",
+        )
+        assert out["type"] == "ORACLE_SIEBEL"
+        assert out["schema"] == "SIEBEL"
+        assert out["table"] == "S_CONTACT"
+
+    def test_salesforce_uses_sforce_type(self):
+        """Salesforce connector type literal is ``SFORCE``, not ``SALESFORCE``."""
+        out = aidataplatform_options(
+            type="SFORCE",
+            host="login.salesforce.com",
+            port=443,
+            database_name="myorg",
+            user="user@example.com",
+            password="pwd+token",
+            schema="SFORCE",
+            table="Account",
+        )
+        assert out["type"] == "SFORCE"
+        assert out["table"] == "Account"
+
+    def test_hive_no_database_name(self):
+        """Hive connector uses ``schema`` directly (Hive database name)."""
+        out = aidataplatform_options(
+            type="HIVE",
+            host="hs2.example.com",
+            port=10000,
+            user="hive",
+            password="hivepw",
+            schema="sales_db",
+            table="transactions",
+        )
+        assert out["type"] == "HIVE"
+        assert out["schema"] == "sales_db"
+        assert "database.name" not in out  # Hive doesn't use database.name
+
+    def test_oracle_db_with_catalog_id(self):
+        """v0.5.0 pattern: use catalog.id and skip host/port/user/password."""
+        out = aidataplatform_options(
+            type="ORACLE_DB",
+            schema="HR",
+            table="EMPLOYEES",
+            extra={"catalog.id": "my-oracle-catalog"},
+        )
+        assert out == {
+            "type": "ORACLE_DB",
+            "schema": "HR",
+            "table": "EMPLOYEES",
+            "catalog.id": "my-oracle-catalog",
+        }
+
+    def test_pushdown_sql_extra(self):
+        """v0.5.0 pattern: pushdown.sql replaces schema/table option building."""
+        out = aidataplatform_options(
+            type="ORACLE_PEOPLESOFT",
+            host="h",
+            port=1521,
+            database_name="HCMDB",
+            user="u",
+            password="p",
+            extra={"pushdown.sql": "SELECT 1 FROM DUAL"},
+        )
+        assert out["pushdown.sql"] == "SELECT 1 FROM DUAL"
+        # When pushdown.sql is used, schema/table aren't in the dict
+        assert "schema" not in out
+        assert "table" not in out
+
+    def test_write_mode_merge_with_keys(self):
+        """v0.5.0 pattern: write.mode=MERGE requires write.merge.keys."""
+        out = aidataplatform_options(
+            type="ORACLE_DB",
+            host="h", port=1521, database_name="DB",
+            user="u", password="p", schema="HR", table="EMPLOYEES",
+            extra={"write.mode": "MERGE", "write.merge.keys": "EMPLOYEE_ID"},
+        )
+        assert out["write.mode"] == "MERGE"
+        assert out["write.merge.keys"] == "EMPLOYEE_ID"
+
+    def test_manifest_path_for_rest(self):
+        """v0.5.0 pattern: REST connector accepts manifest.path (workspace/volume)."""
+        out = aidataplatform_options(
+            type="GENERIC_REST",
+            extra={"manifest.path": "/Volumes/myvol/manifests/my_api.json"},
+        )
+        assert out["type"] == "GENERIC_REST"
+        assert out["manifest.path"] == "/Volumes/myvol/manifests/my_api.json"

@@ -1,7 +1,7 @@
 # Live-test results
 
 
-**Summary:** 17 PASS, 0 DEFERRED, 4 NOT RUN out of 21 rows. Rows 16, 17, 21, 23 are explicitly ship-as-is (connector code + example notebook ship; customer validates against their own endpoint).
+**Summary:** Rows 16, 17, 21, 23 ship as-is (connector code + example notebook ship; customer validates against their own endpoint). All other rows have a corresponding `row<N>.json` artifact alongside this file.
 
 Row IDs 4 (ExaCS Wallet TCPS), 5 (ExaCS IAM DB-Token), 7 + 8 (`aidp-bds-hive` Kerberos + LDAP), and 18 (`aidp-oracle-db` plain TCP 1521) were removed. ExaCS rows 4/5 aren't supported by AIDP notebooks for ExaCS clusters. The `aidp-bds-hive` skill was dropped from the plugin (BDS Hive not in scope for this connector pack). Row 18 was dropped because the `aidp-alh` family already covers Oracle 26ai connectivity end-to-end across all three auth methods (wallet, IAM DB-Token, aidataplatform format handler) — a separate plain-1521 Oracle DB skill adds no incremental coverage and the JDBC code path is identical.
 

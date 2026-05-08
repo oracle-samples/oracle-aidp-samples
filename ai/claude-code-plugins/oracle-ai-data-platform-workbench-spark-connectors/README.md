@@ -1,8 +1,13 @@
 # Oracle AI Data Platform Workbench — Spark Connectors
 
-A Claude Code plugin that ships **18 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
+> **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors).
+> This repository is now a personal development mirror. End users should install via Anthropic's community marketplace (see below), which sources from the canonical Oracle-org location.
 
-**Live-validated** on the workbench `tpcds` cluster (Spark 3.5.0): **17 PASS / 4 ship-as-is** out of 21 test rows. See [`tests/live-results/RESULTS.md`](tests/live-results/RESULTS.md).
+A Claude Code plugin that ships **23 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
+
+**v0.5.0** adds 5 new connectors (Oracle Database, PeopleSoft, Siebel, Salesforce, Hive) plus the new pushdown.sql / catalog.id / manifest.path patterns from [oracle-samples/oracle-aidp-samples PR #46](https://github.com/oracle-samples/oracle-aidp-samples/pull/46).
+
+All connectors wrap the official AIDP `aidataplatform` Spark format handler (or, where applicable, Spark JDBC / structured streaming / `oci://`/`s3a://`/`abfss://`) — same patterns shown in the upstream [`oracle-samples/oracle-aidp-samples`](https://github.com/oracle-samples/oracle-aidp-samples) connector notebooks.
 
 ## Install
 
@@ -13,21 +18,27 @@ From Anthropic's community plugin marketplace (recommended):
 /plugin install oracle-ai-data-platform-workbench-spark-connectors
 ```
 
-This is the canonical home. The plugin lives at
-[`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors)
-and the community marketplace points at this subdirectory via `git-subdir` source.
+Or from this development mirror (gets the latest pre-release commits):
+
+```
+/plugin marketplace add ahmedawan-oracle/claude-code-plugins
+/plugin install oracle-ai-data-platform-workbench-spark-connectors@aidp-connectors
+```
 
 ## What's in here
 
-20 skills total (18 connectors + 1 bootstrap + 1 routing).
+25 skills total (23 connectors + 1 bootstrap + 1 routing).
 
 ### Oracle / OCI sources
 | Skill | Target | Transport | Recommended auth |
 |---|---|---|---|
 | `aidp-connectors-overview` | (router) | — | — |
 | `aidp-connectors-bootstrap` | one-time setup | — | — |
-| `aidp-alh` | Oracle DB family (Autonomous: ALH/ADW/ATP + non-Autonomous: Compute/Base DB/on-prem) | Spark JDBC | Wallet (mTLS) for Autonomous, plain user/password for non-Autonomous |
+| `aidp-alh` | Oracle Autonomous DB family (ALH / ADW / ATP) | Spark JDBC | Wallet (mTLS), IAM DB-Token, or API key |
+| `aidp-oracle-db` ⭐ NEW | Generic Oracle DB (Compute / Base DB / on-prem / 19c-26ai non-Autonomous) | `aidataplatform` (`type=ORACLE_DB`) | Plain user/password |
 | `aidp-exacs` | Exadata Cloud Service | Spark JDBC (TCP 1521 + NNE AES256) | Plain user/password |
+| `aidp-peoplesoft` ⭐ NEW | Oracle PeopleSoft | `aidataplatform` (`type=ORACLE_PEOPLESOFT`) | Plain user/password (read-only) |
+| `aidp-siebel` ⭐ NEW | Oracle Siebel CRM | `aidataplatform` (`type=ORACLE_SIEBEL`) | Plain user/password (read-only) |
 | `aidp-fusion-rest` | Fusion ERP/HCM/SCM | REST → DataFrame | HTTP Basic |
 | `aidp-fusion-bicc` | Fusion BICC bulk extracts | `aidataplatform` (`type=FUSION_BICC`) | HTTP Basic |
 | `aidp-epm-cloud` | EPM Cloud Planning | REST → DataFrame | HTTP Basic (`tenancy.user@domain`) |
@@ -36,12 +47,18 @@ and the community marketplace points at this subdirectory via `git-subdir` sourc
 | `aidp-object-storage` | OCI Object Storage native | Spark `oci://` | Implicit IAM (workspace identity) |
 | `aidp-iceberg` | Apache Iceberg on OCI Object Storage | Iceberg Hadoop catalog on `oci://` | Implicit IAM |
 
-### External RDBMS (`aidataplatform` format)
+### External RDBMS / Hadoop (`aidataplatform` format)
 | Skill | Target | Transport | Recommended auth |
 |---|---|---|---|
 | `aidp-postgresql` | PostgreSQL | Spark JDBC (runtime-loaded driver) for SSL targets, `aidataplatform` `type=POSTGRESQL` for non-SSL | Plain user/password |
 | `aidp-mysql` | MySQL / OCI MySQL HeatWave | `aidataplatform` (`type=MYSQL` or `MYSQL_HEATWAVE`) | Plain user/password |
 | `aidp-sqlserver` | Microsoft SQL Server / Azure SQL DB | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
+| `aidp-hive` ⭐ NEW | Apache Hive (HiveServer2, non-Kerberos) | `aidataplatform` (`type=HIVE`) | Plain user/password |
+
+### SaaS
+| Skill | Target | Transport | Recommended auth |
+|---|---|---|---|
+| `aidp-salesforce` ⭐ NEW | Salesforce (Sales/Service Cloud, custom sObjects) | `aidataplatform` (`type=SFORCE`) | Username + password+security-token (read-only) |
 
 ### Multi-cloud + escape hatches
 | Skill | Target | Transport | Recommended auth |
@@ -49,9 +66,19 @@ and the community marketplace points at this subdirectory via `git-subdir` sourc
 | `aidp-snowflake` | Snowflake | `format("snowflake")` (Snowflake Spark connector) | sfUser/sfPassword |
 | `aidp-azure-adls` | Azure ADLS Gen2 | Spark `abfss://` | OAuth client-credentials (Service Principal) |
 | `aidp-aws-s3` | AWS S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
-| `aidp-rest-generic` | Any REST API with a manifest | `aidataplatform` (`type=GENERIC_REST`) | HTTP Basic |
+| `aidp-rest-generic` | Any REST API with a manifest URL or Volume `manifest.path` | `aidataplatform` (`type=GENERIC_REST`) | HTTP Basic |
 | `aidp-jdbc-custom` | Any DB with a JDBC driver | Spark `format("jdbc")` (runtime-loaded driver) | Driver-specific |
 | `aidp-excel` | `.xlsx` files in Volumes / Object Storage | stdlib `zipfile` + XML parser (no extra deps) | None (file-based) |
+
+### v0.5.0 cross-cutting patterns
+
+The new oracle-samples PR #46 introduced three patterns that are wired into every applicable skill:
+
+| Pattern | What it does |
+|---|---|
+| `pushdown.sql` | Push a complete source SQL query at the database — replaces schema/table option building. Useful for joins, filters, derived columns, and bulk-table avoidance. |
+| `catalog.id` | Reference an existing AIDP external catalog connection by id — drops host/port/user/password from the option list. Pairs with three-part `spark.table()` / `saveAsTable()` for the cleanest read/write code. |
+| `manifest.path` | (REST only) Reference a manifest file by workspace/Volume path instead of HTTP URL. Lets manifests be hand-authored and version-pinned alongside the notebook. |
 
 ## How to use
 
