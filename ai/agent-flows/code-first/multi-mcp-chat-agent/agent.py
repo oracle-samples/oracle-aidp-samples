@@ -455,6 +455,24 @@ def _is_auth_error(e: Exception) -> bool:
     return any(s in msg for s in ("401", "403", "unauthorized", "forbidden", "expired"))
 
 
+def _is_invalid_history(e: BaseException) -> bool:
+    """True when the error is LangGraph's INVALID_CHAT_HISTORY — i.e. an
+    AIMessage with tool_calls but no matching ToolMessage. Happens when a
+    tool execution gets interrupted (typical cause: AIDP suspends the
+    agent process mid-call). Our normal `_heal_orphan_tool_calls` handles
+    most of these, but it can fail when the persisted AIMessage has no
+    `.id` we can target with RemoveMessage. Recovery for that case is a
+    hard state wipe — handled in invoke()."""
+    sub_exceptions = getattr(e, "exceptions", None)
+    if sub_exceptions:
+        return any(_is_invalid_history(sub) for sub in sub_exceptions)
+    msg = str(e)
+    return (
+        "INVALID_CHAT_HISTORY" in msg
+        or "tool_calls that do not have a corresponding ToolMessage" in msg
+    )
+
+
 def _is_recoverable_error(e: BaseException) -> bool:
     """Decide whether a failed invoke is worth retrying after rebuilding
     the MCP stack. We retry on:
@@ -706,6 +724,40 @@ class AgentBasic:
         logger.warning(
             "Removing %d orphan AIMessage(s) (cleared %d unmatched tool_call ids: %s)",
             len(removals), len(orphans), list(orphans),
+        )
+        await self.graph.aupdate_state(config, {"messages": removals})
+        return len(removals)
+
+    async def _hard_clear_history(self, config) -> int:
+        """Last-resort recovery: remove EVERY message from conversation state.
+        Used when `_heal_orphan_tool_calls` couldn't fix an INVALID_CHAT_HISTORY
+        situation (typically because some persisted AIMessage has no `.id` for
+        targeted removal). Loses conversation history but the next message
+        starts from a clean slate. Returns the number of messages cleared."""
+        if not self.graph or not config:
+            return 0
+        try:
+            state = await self.graph.aget_state(config)
+        except Exception as e:
+            logger.debug("Could not fetch state for hard clear: %s", e)
+            return 0
+
+        messages = state.values.get("messages", []) if state and state.values else []
+        if not messages:
+            return 0
+
+        removals = []
+        for msg in messages:
+            msg_id = getattr(msg, "id", None)
+            if msg_id:
+                removals.append(RemoveMessage(id=msg_id))
+
+        if not removals:
+            return 0
+
+        logger.warning(
+            "Hard-clearing %d message(s) from conversation state (last-resort recovery)",
+            len(removals),
         )
         await self.graph.aupdate_state(config, {"messages": removals})
         return len(removals)
@@ -1035,20 +1087,60 @@ class AgentBasic:
                         logger.warning("Orphan healing on retry failed: %s", heal_err)
                     return await self.graph.ainvoke(messages, config=config)
                 except Exception as e2:
-                    # Retry also failed. Surface a friendly message if
-                    # we can identify the auth issue, else dump diagnostics.
+                    # Retry also failed. Surface a friendly auth message if
+                    # we can classify it as an identifiable auth issue.
                     friendly = self._friendly_auth_message(e2)
                     if friendly:
                         return {"messages": [{"role": "ai", "content": friendly}]}
+                    # If the retry hit INVALID_CHAT_HISTORY (orphan tool_call
+                    # we couldn't heal), do a hard state wipe and try ONE more
+                    # time. Loses prior conversation memory but recovers
+                    # automatically.
+                    if _is_invalid_history(e2):
+                        logger.warning(
+                            "Retry hit INVALID_CHAT_HISTORY — hard-clearing state and trying once more"
+                        )
+                        try:
+                            await self._hard_clear_history(config)
+                            return await self.graph.ainvoke(messages, config=config)
+                        except Exception as e3:
+                            logger.error("Hard-clear retry also failed: %s", e3, exc_info=True)
                     logger.error("Retry after rebuild failed: %s", e2, exc_info=True)
                     return {"messages": [{"role": "ai", "content":
-                        f"Agent error after rebuild retry: {type(e2).__name__}: {e2}\n\n"
-                        f"Runtime diagnostics:\n{self._runtime_diagnostics()}"
+                        self._try_again_message()
                     }]}
 
-            # Non-recoverable error path: log it and return the error text.
-            # User sees a friendly-ish "Agent error: ..." message.
+            # INVALID_CHAT_HISTORY caught directly (no recoverable error
+            # preceded it). Same hard-clear + retry path.
+            if _is_invalid_history(e):
+                logger.warning(
+                    "INVALID_CHAT_HISTORY mid-invoke — hard-clearing state and retrying"
+                )
+                try:
+                    await self._hard_clear_history(config)
+                    return await self.graph.ainvoke(messages, config=config)
+                except Exception as e2:
+                    logger.error("Hard-clear retry failed: %s", e2, exc_info=True)
+                return {"messages": [{"role": "ai", "content":
+                    self._try_again_message()
+                }]}
+
+            # Non-recoverable, unclassified error path: log full detail for
+            # ops, but only show the user a friendly retry message.
             logger.error("invoke error: %s", e, exc_info=True)
             return {"messages": [{"role": "ai", "content":
-                f"Agent error: {type(e).__name__}: {e}"
+                self._try_again_message()
             }]}
+
+    @staticmethod
+    def _try_again_message() -> str:
+        """Friendly message shown to the user when the agent couldn't complete
+        the request after all internal retries. Hides the technical details
+        (logged separately for ops) and tells the user to try again."""
+        return (
+            "I ran into a problem completing that request and couldn't recover "
+            "from it automatically. Please try sending your message again — if "
+            "the issue persists for a few minutes, the connected services "
+            "(database, analytics, integrations) may be having trouble. The "
+            "agent's logs have full details for diagnostics."
+        )
