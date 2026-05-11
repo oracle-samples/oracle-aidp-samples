@@ -84,9 +84,10 @@ Each constant also reads from an environment variable (`AIDP_AGENT_URL`,
 
 `deploy.py` builds the Docker image, pushes it to OCIR, sets up a VCN/subnet
 with port 5001 open, and creates a Container Instance running the proxy. It
-auto-discovers tenancy, region, namespace, and compartment from
-`~/.oci/config`, prompts to create an OCIR auth token if you don't have one
-free, and prints the public URL when done.
+auto-discovers tenancy, region, and namespace from `~/.oci/config`, prompts
+you to pick a compartment (or reads `DEPLOY_COMPARTMENT_ID` /
+`config-deploy.yaml`), prompts to create an OCIR auth token if you don't
+have one free, and prints the public URL when done.
 
 ```bash
 python3 -m pip install oci pyyaml   # if not already installed

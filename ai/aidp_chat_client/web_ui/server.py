@@ -16,6 +16,8 @@ Usage:
     # then open http://localhost:5001
 """
 
+import json
+import logging
 import os
 import oci
 import requests
@@ -24,6 +26,12 @@ from flask_cors import CORS
 
 from aidp_chat_client import AIDPChatClient
 from aidp_chat_client.config import load_oci_config
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # ── Configuration ────────────────────────────────────────────────────────────
 # Edit these for local dev. When deployed via deploy.py, AIDP_AGENT_URL and
@@ -68,7 +76,7 @@ def index():
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.get_json() or {}
-    print(f"[chat] session_id from browser: {data.get('session_id')!r}")
+    logger.info("session_id from browser: %r", data.get("session_id"))
     payload = {
         "isStreamEnabled": True,
         "input": [
@@ -87,7 +95,7 @@ def chat():
 
     def generate():
         try:
-            print(f"[chat] entering generator; calling AIDP", flush=True)
+            logger.info("entering generator; calling AIDP")
             with requests.post(
                 AGENT_URL,
                 json=payload,
@@ -99,29 +107,33 @@ def chat():
                 },
                 timeout=120,
             ) as response:
-                print(f"[chat] AIDP status={response.status_code} "
-                      f"content-type={response.headers.get('content-type')} "
-                      f"opc-request-id={response.headers.get('opc-request-id')}",
-                      flush=True)
+                logger.info(
+                    "AIDP status=%s content-type=%s opc-request-id=%s",
+                    response.status_code,
+                    response.headers.get("content-type"),
+                    response.headers.get("opc-request-id"),
+                )
                 response.raise_for_status()
                 line_count = 0
                 for line in response.iter_lines():
                     if line:
                         line_count += 1
                         if line_count <= 3:
-                            print(f"[chat] line {line_count}: {line.decode('utf-8')[:200]}",
-                                  flush=True)
+                            logger.info(
+                                "line %d: %s",
+                                line_count,
+                                line.decode("utf-8")[:200],
+                            )
                         yield f"{line.decode('utf-8')}\n\n"
-                print(f"[chat] stream finished — {line_count} non-empty lines yielded",
-                      flush=True)
+                logger.info("stream finished — %d non-empty lines yielded", line_count)
         except Exception as e:
-            print(f"[ERROR] {e}", flush=True)
-            yield f'data: {{"error": "{e}"}}\n\n'
+            logger.exception("chat stream failed")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
 
 
 if __name__ == "__main__":
-    print(f"AIDP Agent Chat proxy -> {AGENT_URL}")
-    print("Open http://localhost:5001 in your browser")
+    logger.info("AIDP Agent Chat proxy -> %s", AGENT_URL)
+    logger.info("Open http://localhost:5001 in your browser")
     app.run(host="0.0.0.0", port=5001, debug=False)

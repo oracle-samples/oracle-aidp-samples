@@ -14,7 +14,7 @@ Prerequisites:
     Example matching rule:
         ALL {resource.type = 'computecontainerinstance', resource.compartment.id = '<COMPARTMENT_OCID>'}
     Example policy:
-        Allow dynamic-group <DG_NAME> to use genai-agent-endpoint in compartment <COMPARTMENT_NAME>
+        Allow dynamic-group <DG_NAME> to use ai-data-platforms in compartment <COMPARTMENT_NAME>
   - The Dynamic Group also added as a MEMBER of the AIDP Workbench that hosts
     the agent (Workbench → Roles → Admin). IAM alone is not enough — the AIDP
     gateway enforces its own Workbench auth and returns HTTP 404 on chat if
