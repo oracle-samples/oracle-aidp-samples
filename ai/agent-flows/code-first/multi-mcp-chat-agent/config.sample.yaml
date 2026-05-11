@@ -94,10 +94,17 @@ integrations:
   # How the agent uses this at runtime:
   #   • At deploy: stages oac-jwt-key.txt → $HOME/oac-mcp/jwt-signing.pem,
   #     loads the private key, mints the first access_token.
-  #   • No background refresh loop. When a tool call fails with 401, the
+  #   • Proactive freshness check at the top of every invoke(): OAC's
+  #     access_tokens have a short 5-minute TTL and AIDP suspends the
+  #     agent during idle, so the cached bearer goes stale fast. The
+  #     agent decodes the cached token's exp claim — if ≤60s remain it
+  #     mints a fresh JWT, exchanges it at IDCS, and rebuilds MCP before
+  #     the LLM sees OAC. Cheap when the token is fresh (one JWT decode).
+  #   • Reactive retry as a safety net. If a tool call still fails with
+  #     401 (e.g. a slow tool outlives the freshly minted bearer), the
   #     reactive-retry path mints a fresh JWT, rebuilds MCP, and retries
-  #     the same message. The user sees ~1-2s of extra latency once after
-  #     a long idle, but never a failed message.
+  #     the same message. The user sees ~1-2s of extra latency at worst,
+  #     never a failed message.
   #
   # The only operational break point is key rotation — you choose the
   # cadence (annual is generous). When you rotate, generate a new keypair,

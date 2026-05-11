@@ -271,17 +271,31 @@ README for what to fix.
   `$HOME/oac-mcp/jwt-signing.pem`, loads the private key into memory,
   mints the first access_token by signing two JWTs and exchanging them
   at IDCS.
-- **No background refresh loop, no proactive freshness check.** All
-  three integrations (ADB password grant, OAC JWT assertion, OIC
-  client_credentials) can be re-authenticated on demand from cached
-  config + private key — there's no rotating refresh chain that needs
-  scheduled tending.
-- **On error mid-message**: if a tool call fails with an auth or
-  network error (401/403, ClosedResourceError, etc.), the reactive
-  retry path mints a fresh JWT, rebuilds MCP, heals any orphan
-  tool_calls in conversation state, and tries the same message once
-  more. The user sees ~1-2s of extra latency the first time they chat
-  after a long idle, but never a failed message.
+- **No background refresh loop.** All three integrations (ADB password
+  grant, OAC JWT assertion, OIC client_credentials) can be
+  re-authenticated on demand from cached config + private key — there's
+  no rotating refresh chain that needs scheduled tending.
+- **Proactive OAC freshness check at the start of every `invoke()`.**
+  OAC's IDCS-issued access_tokens have a short 5-minute TTL (much
+  shorter than ADB's or OIC's), and AIDP suspends the agent process
+  during idle — so a session that was warm hours ago will have a
+  long-expired bearer baked into the MCP client headers. Before the
+  LLM sees OAC, `_ensure_fresh_oac_token()` decodes the cached
+  bearer's `exp` claim; if there are ≤60s left it mints a fresh JWT,
+  exchanges it at IDCS, and rebuilds MCP. The 60s threshold is
+  comfortably above any plausible tool-call duration and absorbs
+  clock skew, so a single user turn's chained tool calls (discover →
+  describe → execute) all see the same fresh token. Cheap when the
+  token is fresh (one JWT decode); ~300ms when refresh is needed.
+  ADB and OIC are not pre-checked — their tokens are longer-lived
+  and the reactive path below handles them.
+- **On error mid-message**: if a tool call still fails with an auth
+  or network error (401/403, ClosedResourceError, etc.) — e.g. an
+  unusually long tool execution that outlived the freshly minted
+  bearer, or an ADB/OIC token that expired — the reactive retry path
+  mints a fresh JWT, rebuilds MCP, heals any orphan tool_calls in
+  conversation state, and tries the same message once more. The user
+  may see ~1-2s of extra latency but never a failed message.
 - **The only operational break point** is **key rotation** — yearly or
   whatever cadence you choose. To rotate: regenerate the keypair,
   register the new cert in IDCS (delete the old alias or upload
