@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AIDP Agent Chat</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6f9;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #c74634;
+      color: white;
+      padding: 16px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    header span {
+      font-weight: 300;
+      font-size: 14px;
+      margin-left: 12px;
+      opacity: 0.8;
+    }
+
+    #chat-window {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 75%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: #c74634;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.agent {
+      align-self: flex-start;
+      background: white;
+      color: #1a1a1a;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .message.agent.thinking {
+      color: #888;
+      font-style: italic;
+    }
+
+    /* Markdown styling for agent messages */
+    .message.agent.rendered { white-space: normal; }
+    .message.agent p { margin: 0 0 8px 0; }
+    .message.agent p:last-child { margin-bottom: 0; }
+    .message.agent ul, .message.agent ol { margin: 4px 0 8px 22px; padding: 0; }
+    .message.agent li { margin: 2px 0; }
+    .message.agent code {
+      background: #f0f2f5;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    .message.agent pre {
+      background: #f0f2f5;
+      padding: 10px 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 6px 0;
+    }
+    .message.agent pre code {
+      background: none;
+      padding: 0;
+      font-size: 12.5px;
+    }
+    .message.agent a { color: #0a66c2; text-decoration: underline; }
+    .message.agent blockquote {
+      border-left: 3px solid #d0d0d0;
+      margin: 6px 0;
+      padding: 2px 10px;
+      color: #555;
+    }
+    .message.agent h1, .message.agent h2, .message.agent h3 {
+      margin: 10px 0 6px 0;
+      font-weight: 600;
+    }
+    .message.agent h1 { font-size: 17px; }
+    .message.agent h2 { font-size: 15px; }
+    .message.agent h3 { font-size: 14px; }
+    .message.agent table { border-collapse: collapse; margin: 6px 0; }
+    .message.agent th, .message.agent td {
+      border: 1px solid #d0d0d0;
+      padding: 4px 8px;
+      text-align: left;
+    }
+    .message.agent hr {
+      border: none;
+      border-top: 1px solid #e0e0e0;
+      margin: 10px 0;
+    }
+
+    #input-area {
+      display: flex;
+      gap: 10px;
+      padding: 16px 24px;
+      background: white;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    #user-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #d0d0d0;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      resize: none;
+      height: 44px;
+      font-family: inherit;
+    }
+
+    #user-input:focus {
+      border-color: #c74634;
+    }
+
+    #send-btn {
+      padding: 10px 20px;
+      background: #c74634;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    #send-btn:hover { background: #a83828; }
+    #send-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .session-id {
+      font-size: 11px;
+      color: #aaa;
+      text-align: center;
+      padding: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  AIDP Agent Chat
+  <span>Streaming chat over a deployed agent endpoint</span>
+</header>
+
+<div id="chat-window"></div>
+
+<div class="session-id" id="session-label"></div>
+
+<div id="input-area">
+  <textarea id="user-input" placeholder="Type your message..."></textarea>
+  <button id="send-btn" onclick="sendMessage()">Send</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+<script>
+  // CDN scripts (marked / DOMPurify) may fail to load — fall back to plain
+  // text rendering rather than letting setOptions throw and break the page.
+  const _hasMd = typeof marked !== "undefined" && typeof DOMPurify !== "undefined";
+  if (_hasMd) marked.setOptions({ breaks: true, gfm: true });
+
+  function renderMarkdown(text) {
+    if (!_hasMd) {
+      return text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/\n/g, "<br>");
+    }
+    return DOMPurify.sanitize(marked.parse(text));
+  }
+
+  // The AIDP gateway threads conversation memory by session_id — a stable
+  // UUID is generated per browser tab and sent on every turn.
+  // crypto.randomUUID() needs a secure context (HTTPS) — fall back when
+  // the page is served over plain HTTP (e.g. Container Instance public IP).
+  function makeUUID() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  const SESSION_ID = makeUUID();
+  document.getElementById("session-label").textContent = `Session: ${SESSION_ID}`;
+
+  const chatWindow = document.getElementById("chat-window");
+  const input = document.getElementById("user-input");
+  const sendBtn = document.getElementById("send-btn");
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  function appendMessage(role, text, id) {
+    const div = document.createElement("div");
+    div.className = `message ${role}`;
+    if (id) div.id = id;
+    div.textContent = text;
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+    return div;
+  }
+
+  async function sendMessage() {
+    const text = input.value.trim();
+    if (!text) return;
+
+    input.value = "";
+    sendBtn.disabled = true;
+
+    appendMessage("user", text);
+    const agentMsgId = "agent-" + Date.now();
+    const agentMsg = appendMessage("agent thinking", "Thinking...", agentMsgId);
+
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          session_id: SESSION_ID,
+        })
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      let started = false;
+      let streaming = true;
+      // Carry-over buffer for SSE lines that get split across network reads.
+      // Without this, long responses (e.g. tool-calling chains) lose data
+      // when the JSON of a single `data:` line spans two TCP chunks.
+      let buffer = "";
+
+      while (streaming) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Split off complete lines; the last element may be a partial line
+        // that we hold over for the next read.
+        const parts = buffer.split(/\r?\n/);
+        buffer = parts.pop();
+        const lines = parts;
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          if (raw === "[DONE]") { streaming = false; break; }
+
+          try {
+            const parsed = JSON.parse(raw);
+
+            if (parsed?.error) {
+              agentMsg.textContent = "Error: " + parsed.error;
+              agentMsg.classList.remove("thinking");
+              streaming = false;
+              break;
+            }
+
+            // Pick text from any output event that has output_text content
+            const output = parsed?.response?.output;
+            if (Array.isArray(output)) {
+              for (const out of output) {
+                if (Array.isArray(out?.content)) {
+                  for (const c of out.content) {
+                    if (c?.type === "output_text" && c?.text) {
+                      agentMsg.classList.remove("thinking");
+                      agentMsg.classList.add("rendered");
+                      agentMsg.innerHTML = renderMarkdown(c.text);
+                      fullText = c.text;
+                      started = true;
+                      chatWindow.scrollTop = chatWindow.scrollHeight;
+                    }
+                  }
+                }
+              }
+            }
+
+          } catch (_) {
+            // non-JSON SSE lines, skip
+          }
+        }
+      }
+
+      reader.cancel();
+
+      if (!started) {
+        agentMsg.textContent = "No response received.";
+        agentMsg.classList.remove("thinking");
+      }
+
+    } catch (err) {
+      agentMsg.textContent = "Connection error: " + err.message;
+      agentMsg.classList.remove("thinking");
+    }
+
+    sendBtn.disabled = false;
+    input.focus();
+  }
+</script>
+
+</body>
+</html>
