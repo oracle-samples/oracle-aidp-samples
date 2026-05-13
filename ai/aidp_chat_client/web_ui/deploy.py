@@ -34,6 +34,7 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import oci
 from oci.regions import REGIONS_SHORT_NAMES
@@ -261,8 +262,24 @@ def discover_config():
                 )
                 auth_token = resp.data.token
                 token_was_just_created = True
-                print(f"  Auth token created. Save this — it won't be shown again!")
-                print(f"  Token: {auth_token}")
+                # Write the freshly-created token to a 0600 file rather than
+                # stdout: the script is often invoked from CI/shared terminals
+                # where stdout is captured into build logs, and OCIR auth
+                # tokens are full credentials.
+                token_path = Path.home() / f".oci-ocir-token-{int(time.time())}.txt"
+                try:
+                    token_path.write_text(auth_token + "\n")
+                    os.chmod(token_path, 0o600)
+                    print(f"  Auth token created. Saved (mode 0600) to: {token_path}")
+                    print(f"  This is the only time we can show it — back it up before deleting.")
+                except OSError as e:
+                    # Filesystem unwritable — fall back to a masked notice and
+                    # require the user to re-fetch via the OCI Console.
+                    print(f"  Auth token created but could NOT be saved to disk ({e}).")
+                    print(f"  Delete it in the OCI Console and re-run, or paste it manually now.")
+                    auth_token = prompt("Paste the token you just created (or blank to abort)", secret=True)
+                    if not auth_token:
+                        sys.exit(1)
         else:
             auth_token = prompt("Paste existing OCIR auth token", secret=True)
 
@@ -479,9 +496,19 @@ def check_or_create_iam(cfg, create=False):
     policy_ok = False
     try:
         policies = identity.list_policies(cid).data
-        target = policy_statement.lower()
+        # Match either the OCID form (what we create programmatically) OR the
+        # name form (what users typically write when creating policies in the
+        # OCI Console, including the form we print in print_manual()).
+        # Both refer to the same DG, so either should count as 'already
+        # granted' and prevent a redundant create / spurious 'missing' error.
+        targets = (
+            build_statement(f"id {dg_ocid}").lower(),
+            build_statement(dg_name).lower(),
+            build_statement(f"'{dg_name}'").lower(),
+        )
         for p in policies:
-            if any(target in s.lower() for s in p.statements):
+            statements_lower = [s.lower() for s in p.statements]
+            if any(t in s for t in targets for s in statements_lower):
                 print(f"  Policy OK: {p.name} (already grants the required statement)")
                 policy_ok = True
                 break
