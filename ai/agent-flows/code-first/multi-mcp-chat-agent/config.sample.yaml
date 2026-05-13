@@ -1,0 +1,178 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  Multi-MCP Chat Agent — configuration                            ║
+# ║                                                                  ║
+# ║  Copy this file to config.yaml and fill in your values.          ║
+# ║  Set 'enabled: false' on any integration you don't want to use.  ║
+# ║  See README.md for full setup steps.                             ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+
+# ─── LLM (always required) ─────────────────────────────────────────
+# OCI Generative AI is the LLM backend. The agent uses the OCI signer
+# principal injected by AIDP — no API key needed.
+#
+#   1. Pick a compartment on-listed for OCI Generative AI in your region.
+#   2. Choose any chat-capable model. xai.grok-4-fast-non-reasoning is a
+#      solid default.
+llm:
+  compartment_id: ocid1.compartment.oc1..your-compartment-ocid
+  region: us-ashburn-1
+  model_id: xai.grok-4-fast-non-reasoning
+
+
+integrations:
+
+  # ─── ADB Select AI MCP ───────────────────────────────────────────
+  # Exposes a Select AI tool from your database as an MCP tool.
+  # Assumes you already have an ADB instance with data, version 19.29+
+  # or 23.26+ (older versions don't support Select AI MCP).
+  #
+  # Two pieces are required — both must be done:
+  #
+  # 1. Enable MCP on the ADB instance (OCI Console, REQUIRED FIRST):
+  #      OCI Console → Autonomous Database → your ADB → Tags → Add tag.
+  #      Tag namespace: free-form
+  #      Tag key:       adb$feature
+  #      Tag value:     {"name":"mcp_server","enable":true}
+  #      Save. Without this tag the MCP endpoint is not exposed at all.
+  #
+  # 2. Create profile + tool inside the database:
+  #      Use enable-mcp-selectai.sql as a starting point. Run it as ADMIN
+  #      from SQL Developer Web. The template:
+  #        - Calls DBMS_CLOUD_ADMIN.ENABLE_RESOURCE_PRINCIPAL() so ADB
+  #          can call OCI Generative AI as itself
+  #        - Creates a Select AI profile (provider=oci, credential=
+  #          OCI$RESOURCE_PRINCIPAL) auto-discovering schema tables
+  #        - Registers an MCP tool via DBMS_CLOUD_AI_AGENT.CREATE_TOOL
+  #          (with COMMIT — required on some ADB versions)
+  #        - Smoke tests with DBMS_CLOUD_AI.GENERATE
+  #
+  # Endpoint URL becomes live ~1 minute after the OCI tag is saved AND
+  # at least one tool is registered:
+  #   https://dataaccess.adb.<region>.oraclecloudapps.com/adb/mcp/v1/databases/<adb_ocid>
+  #
+  # Auth: OAuth 2.0 Resource Owner Password Credentials grant ("password
+  # grant"). Bearer is fetched fresh on every MCP rebuild cycle — no
+  # token persistence needed.
+  adb:
+    enabled: true
+    ocid: ocid1.autonomousdatabase.oc1.iad.your-adb-ocid
+    region: us-ashburn-1
+    user: admin
+    password: your-adb-password
+
+  # ─── OAC MCP ─────────────────────────────────────────────────────
+  # Auth uses OAuth 2.0 JWT User Assertion. The agent locally signs a
+  # short-lived JWT, exchanges it at IDCS for an OAC access_token, and
+  # uses that bearer to call /api/mcp. There's NO rotating refresh token
+  # — every access_token is freshly minted, so the chain can't break
+  # overnight (the original failure mode of the user-profile tokens.json
+  # flow).
+  #
+  # Assumes you already have datasets / subject areas in OAC.
+  #
+  # To enable MCP (one-time IDCS setup):
+  #   1. Generate keypair + X.509 cert on your laptop:
+  #        openssl genrsa -out oac-jwt-key.pem 2048
+  #        openssl req -x509 -key oac-jwt-key.pem -out oac-cert.pem \
+  #          -days 365 -subj "/CN=oac-mcp-agent"
+  #   2. In your OCI Identity Domain, on a Confidential Application
+  #      (you can reuse the OIC one or create a separate one):
+  #        • Allowed grant types must include "JWT Assertion"
+  #        • Upload oac-cert.pem under "Trusted Client Certificates"
+  #        • Activate the app
+  #   3. Pick or create a service user on OAC (e.g. oac-agent-svc@your-org.com)
+  #      and grant them the OAC permissions you want the agent to inherit.
+  #      All chat users will see data as this service user (no per-user RLS).
+  #   4. Verify the chain works locally with mint-and-exchange.py BEFORE
+  #      deploying the agent — fastest way to confirm the IDCS+OAC config.
+  #   5. Rename oac-jwt-key.pem → oac-jwt-key.txt (AIDP file picker
+  #      doesn't accept .pem; .txt is fine and treated as a binary file).
+  #   6. Upload oac-jwt-key.txt next to agent.py in your AIDP project.
+  #   7. Set 'enabled: true' and fill in the fields below.
+  #
+  # How the agent uses this at runtime:
+  #   • At deploy: stages oac-jwt-key.txt → $HOME/oac-mcp/jwt-signing.pem,
+  #     loads the private key, mints the first access_token.
+  #   • Proactive freshness check at the top of every invoke(): OAC's
+  #     access_tokens have a short 5-minute TTL and AIDP suspends the
+  #     agent during idle, so the cached bearer goes stale fast. The
+  #     agent decodes the cached token's exp claim — if ≤60s remain it
+  #     mints a fresh JWT, exchanges it at IDCS, and rebuilds MCP before
+  #     the LLM sees OAC. Cheap when the token is fresh (one JWT decode).
+  #   • Reactive retry as a safety net. If a tool call still fails with
+  #     401 (e.g. a slow tool outlives the freshly minted bearer), the
+  #     reactive-retry path mints a fresh JWT, rebuilds MCP, and retries
+  #     the same message. The user sees ~1-2s of extra latency at worst,
+  #     never a failed message.
+  #
+  # The only operational break point is key rotation — you choose the
+  # cadence (annual is generous). When you rotate, generate a new keypair,
+  # re-register the cert in IDCS, re-upload the .txt, redeploy.
+  oac:
+    enabled: true
+    url: https://your-oac-host.analytics.ocp.oraclecloud.com
+    idcs_host: idcs-yourdomain.identity.oraclecloud.com
+    client_id: your-confidential-app-client-id
+    service_user_email: oac-agent-svc@your-org.com
+    # Scope: full OAC resource scope from the Token Issuance Policy → Resources
+    # table. Use the IDCS-registered hash hostname (e.g.
+    # "https://<hash>.analytics.ocp.oraclecloud.comurn:opc:resource:consumer::all"),
+    # NOT the user-facing OAC URL.
+    scope: https://<hash>.analytics.ocp.oraclecloud.comurn:opc:resource:consumer::all
+    # Cert alias: must match the Alias you set when importing oac-cert.pem
+    # in IDCS. Used as the JWT `kid` header so IDCS knows which trusted
+    # cert to verify the signature against.
+    cert_alias: oac-mcp
+    private_key_filename: oac-jwt-key.txt
+
+  # ─── OIC MCP ─────────────────────────────────────────────────────
+  # OIC's MCP server is per-project. Three orthogonal pieces — ALL must
+  # be in place or you get 403 / empty tool lists / invalid_scope.
+  #
+  # Assumes you already have an OIC 3 project with integrations.
+  #
+  # 1. Enable MCP on the project:
+  #      OIC Designer → open the project → pencil/Edit (top right) →
+  #      tick "Enable MCP server" → Save. Re-open Edit to copy the
+  #      MCP server URL. Canonical pattern:
+  #        https://<oic-host>/mcp-server/v1/projects/<projectId>/mcp
+  #
+  # 2. Register tools via the AI Agents tab:
+  #      Project sidebar → AI Agents → Tools → Add. The Integration
+  #      dropdown ONLY shows integrations that are REST-triggered,
+  #      activated, AND shared with other projects. Pick one, write a
+  #      clear description (the LLM uses it to decide when to call),
+  #      Save. Repeat for each integration you want exposed.
+  #
+  # 3. Confidential Application + ServiceInvoker role (auth chain):
+  #    a. In your OCI Identity Domain, create or reuse a Confidential
+  #       Application. Allowed grants must include Client Credentials.
+  #    b. OAuth Configuration → Token issuance policy → Resources → add
+  #       the OIC instance app. Add BOTH scopes:
+  #         • urn:opc:resource:consumer::all
+  #         • /ic/api/
+  #       Both use the IDCS-registered hash hostname (something like
+  #       1CE41DD5...integration.region.ocp.oraclecloud.com), NOT the
+  #       user-facing design.* hostname. Copy verbatim from the
+  #       Resources table.
+  #    c. Activate the application (Actions → Activate at the top of
+  #       the App detail page).
+  #    d. CRITICAL — map the app to ServiceInvoker on the OIC instance:
+  #       OCI Console → Identity → Domains → your domain → Oracle Cloud
+  #       Services → your OIC instance → Application Roles →
+  #       ServiceInvoker → Assigned applications → assign the
+  #       Confidential App. ServiceAdministrator alone is NOT enough —
+  #       MCP specifically requires ServiceInvoker.
+  #
+  # Auth: OAuth 2.0 client_credentials. Token TTL ~1h. No scheduled
+  # refresh — the agent re-fetches a fresh bearer on demand, triggered
+  # by the reactive-retry path when a tool call fails with 401.
+  oic:
+    enabled: true
+    mcp_url: https://your-oic-host.integration.your-region.ocp.oraclecloud.com/mcp-server/v1/projects/YOUR_PROJECT_ID/mcp
+    idcs_host: idcs-yourdomain.identity.oraclecloud.com
+    client_id: your-confidential-app-client-id
+    client_secret: your-confidential-app-client-secret
+    # Two scopes, space-separated, both using the IDCS-registered hash hostname:
+    scope: "https://<hash>.integration.<region>.ocp.oraclecloud.com:443urn:opc:resource:consumer::all https://<hash>.integration.<region>.ocp.oraclecloud.com:443/ic/api/"

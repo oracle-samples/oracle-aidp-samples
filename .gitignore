@@ -90,3 +90,11 @@ pytest_cache/
 tmp/
 temp/
 .cache/
+
+# =========================
+# Local agent config (may contain secrets)
+# =========================
+ai/agent-flows/code-first/multi-mcp-chat-agent/config.yaml
+ai/agent-flows/code-first/multi-mcp-chat-agent/oac-jwt-key.pem
+ai/agent-flows/code-first/multi-mcp-chat-agent/oac-jwt-key.txt
+ai/agent-flows/code-first/multi-mcp-chat-agent/oac-cert.pem
