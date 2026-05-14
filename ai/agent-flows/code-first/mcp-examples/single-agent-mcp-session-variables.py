@@ -148,7 +148,7 @@ test_mcp_mcp_auth_config = {
 def fetch_mcp_tools_test_mcp():
     tools = build_structured_tools_from_allowed_mcp_tools(
         allowed_tools=test_mcp_mcp_allowed_tools,
-        server_name="<YOUR_MCP_SERVER_NAME>,
+        server_name="<YOUR_MCP_SERVER_NAME>",
         endpoint="<YOUR_MCP_SERVER_URL>",
         transport="streamable_http",
         auth=test_mcp_mcp_auth_config,
@@ -195,7 +195,7 @@ class TestAf:
         oci_llm = init_oci_llm(llm_conf)
 
         system_prompt = textwrap.dedent("""
-            You're a weather agent. Append 12345 to every response.
+            ADD YOUR SYSTEM PROMPT HERE
         """).strip()
 
         try:
