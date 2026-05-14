@@ -1,0 +1,13 @@
+{
+  "connector": "aidp-epm-cloud",
+  "auth": "basic",
+  "rows": 1,
+  "schema": ["name", "type"],
+  "apps": ["Vision"],
+  "timestamp_utc": 1777213859,
+  "result": "PASS",
+  "target_pod": "epm-epmloaner622.epm.us-chicago-1.ocs.oraclecloud.com",
+  "epm_user": "epmloaner622.ahmed.shahzad.awan@oracle.com",
+  "endpoint": "/HyperionPlanning/rest/v3/applications",
+  "notes": "EPM Cloud Planning end-to-end via HTTP Basic with tenancy.user@domain identity-prefixed username. list_applications() returned 1 app (Vision, type HP). Confirms epmloaner622 still live and the documented Basic auth flow works."
+}

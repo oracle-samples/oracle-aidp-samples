@@ -11,6 +11,8 @@ python standalone_endpoint_test.py
 ```
 No installation required! Just edit your endpoint URL and config path in the file.
 
+**Prefer a browser UI?** See [web_ui/](web_ui/) for a minimal Flask proxy + single-page chat that streams responses from a deployed agent endpoint.
+
 See [QUICKSTART.md](QUICKSTART.md) for detailed quick start guide.
 
 ## Features

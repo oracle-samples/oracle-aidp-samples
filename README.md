@@ -187,6 +187,18 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | [Developer Toolkit](ai/agent-flows/custom-tools/developer-toolkit/) | Three tools in one package — bash execution, file I/O, and Python subprocess execution — demonstrating multi-tool packages and a shared `utils/` module. |
 | [ORDS Database Tool](ai/agent-flows/custom-tools/ords-database-tool/) | Query Oracle Autonomous Database via the ORDS REST API with basic auth. Executes SQL, lists tables/views, and describes columns. |
 
+#### Agent Chat Clients
+
+| Sample | Description |
+|---|---|
+| [AIDP Agent Chat — Web UI](ai/aidp_chat_client/web_ui/README.md) | Browser chat UI for any deployed AIDP agent: a Flask proxy that handles OCI request signing plus a single-page HTML frontend. Includes a one-command deploy script for OCI Container Instances. |
+
+#### Code-First Agent Flows
+
+| Sample | Description |
+|---|---|
+| [Multi-MCP Chat Agent](ai/agent-flows/code-first/multi-mcp-chat-agent/README.md) | Natural-language chat agent that fans out across Oracle Autonomous Database (Select AI MCP), Oracle Analytics Cloud (Logical SQL MCP), and Oracle Integration Cloud (project-scoped MCP). Each integration can be enabled or disabled independently via config. |
+
 ---
 
 ### Shared Utilities

@@ -1,0 +1,17 @@
+{
+  "connector": "aidp-excel",
+  "auth": "stdlib-zipfile-xml",
+  "result": "PASS",
+  "rows": 5,
+  "schema": ["age", "dept", "name"],
+  "xlsx_path": "/Volumes/default/default/stability_test_vol/aidp-quickwin-tests/row25_excel/data.xlsx",
+  "csv_path":  "/Volumes/default/default/stability_test_vol/aidp-quickwin-tests/row25_excel/data.csv",
+  "xlsx_size_bytes": 5460,
+  "parse_ms": 120,
+  "csv_write_ms": 10401,
+  "approach": "Pure-Python stdlib xlsx parser (zipfile + xml.etree.ElementTree). No openpyxl, no com.crealytics.spark.excel jar. Works in PyPI-isolated AIDP clusters.",
+  "test_path": "Reconstituted a 5,460-byte .xlsx from base64-embedded content, wrote to a Volume, parsed via stdlib zipfile + xml.etree (sharedStrings.xml + worksheets/sheet1.xml), built a Spark DataFrame from the parsed rows, persisted as CSV to the Volume, and re-read via Spark CSV. Demonstrates Excel ingestion in AIDP clusters with NO non-stdlib Python deps and NO Java JARs.",
+  "cluster": "tpcds (98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb)",
+  "fix_origin": "v0.3.0 — stdlib xlsx parser added to `oracle_ai_data_platform_connectors.excel.read_xlsx_stdlib()` and skill SKILL.md updated with this as Option C (works when openpyxl is unavailable AND com.crealytics jar is unavailable).",
+  "timestamp_utc": 1777230349
+}

@@ -1,0 +1,17 @@
+{
+  "connector": "aidp-mysql",
+  "auth": "AIDP `aidataplatform` (type=MYSQL or MYSQL_HEATWAVE) — Spark JDBC plain user/password, optionally inside private workspace VCN",
+  "result": "NOT RUN",
+  "rows": null,
+  "schema": null,
+  "decision": "Ship as-is with example notebook (2026-04-27). Connector code and example are shape-correct against the official `oracle-aidp-samples` Read_Write_External_Ecosystem_Connectors.ipynb. Customer runs the test against their own MySQL/HeatWave instance with their own creds.",
+  "what_we_attempted_and_learned": [
+    "Attempt 1 — self-hosted Compute VM in dfl-server-vcn: cluster cannot reach Compute IPs in user-managed VCNs (TCP timeout from cluster's NAT egress 129.80.7.94)",
+    "Attempt 2 — self-hosted Compute VM in fresh purpose-built VCN: same outcome",
+    "Attempt 3 — OCI MySQL HeatWave (private endpoint 10.99.1.33:3306) in dfl-server-subnet-public + dfl_private_cluster (private workspace with PE on that subnet) + driven via raw AIDP REST Jobs API: confirmed cluster pod IP is 10.111.107.121 (AIDP-managed pod CIDR), and the workspace's PE attaches to the customer subnet for AIDP service routing (catalog sync, ATP token endpoint) but does NOT extend cluster pod L3 reachability to the subnet's CIDR. Probe job showed TimeoutError to 10.99.x.x targets and gaierror on public DNS.",
+    "These attempts produced reusable knowledge folded into the `aidp-postgresql` skill (which DID flip to PASS via a public-internet Neon Postgres in row 15)"
+  ],
+  "skill_correctness": "scripts/oracle_ai_data_platform_connectors/aidataplatform.aidataplatform_options() unit-tested for type=MYSQL and MYSQL_HEATWAVE. examples/mysql_read.ipynb option shape matches the official oracle-aidp-samples MySQL pattern.",
+  "to_validate_at_runtime_for_a_customer": "Set MYSQL_HOST/MYSQL_PORT/MYSQL_USER/MYSQL_PASSWORD/MYSQL_DB/MYSQL_TABLE env vars, run examples/mysql_read.ipynb. The aidataplatform format handler is pre-installed on AIDP clusters with MySQL JDBC bundled.",
+  "timestamp_utc": null
+}

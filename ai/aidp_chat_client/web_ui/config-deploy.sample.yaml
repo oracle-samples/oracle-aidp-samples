@@ -1,0 +1,69 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  AIDP Agent Chat UI — Deployment Configuration                   ║
+# ║                                                                  ║
+# ║  Copy this file to `config-deploy.yaml` and fill in your values. ║
+# ║  `deploy.py` reads it from the same directory and skips prompts  ║
+# ║  for any field set here. Anything left blank still falls back to ║
+# ║  the original interactive prompt or env-var override.            ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+
+# ─── Agent ─────────────────────────────────────────────────────────
+# Full /chat URL of the deployed AIDP agent. Copy this from the AIDP
+# console after deploying your agent. Pattern:
+#   https://gateway.aidp.<region>.oci.oraclecloud.com/agentendpoint/<id>/chat
+agent:
+  url: https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/agentendpoint/<AGENT_ID>/chat
+
+
+# ─── Deploy target ─────────────────────────────────────────────────
+deploy:
+  # OCI region the container instance + VCN go into. If omitted, the
+  # script uses whatever region your ~/.oci/config has as default.
+  region: us-ashburn-1
+
+  # Compartment where the Container Instance, VCN, and OCIR repo live.
+  # Paste the compartment OCID. To use the tenancy root, paste the
+  # tenancy OCID. If omitted, the script shows a numbered picker.
+  compartment_id: ocid1.compartment.oc1..XXXXXX
+
+  # Cosmetic / sizing — change only if you have a reason to.
+  display_name: aidp-agent-chat-ui
+  shape: CI.Standard.E4.Flex
+  cpus: 1
+  memory_gb: 2
+
+
+# ─── Container image ───────────────────────────────────────────────
+# The script tags the image as <region-key>.ocir.io/<namespace>/<repo>:<tag>
+# — only repo/tag are configurable here. region key and namespace are
+# auto-derived from your tenancy.
+container:
+  repo: aidp-agent-chat-ui
+  tag: latest
+
+
+# ─── IAM (advanced — usually leave alone) ──────────────────────────
+# Resource family used in the auto-generated policy. The default
+# 'ai-data-platforms' is the correct family — the AIDP gateway enforces
+# Workbench-level auth, which is gated by this family. Override only if
+# Oracle changes the family name in the future.
+iam:
+  policy_resource: ai-data-platforms
+
+
+# ─── OCIR auth token (SENSITIVE) ───────────────────────────────────
+# ⚠ DO NOT COMMIT a populated config-deploy.yaml to git — this file
+#   is .gitignored for that reason. Keep your sample (this file) clean
+#   and put real values only in your local config-deploy.yaml.
+#
+# If left blank, the script lists your existing tokens and offers to
+# create a new one (max 2 per user — OCI limit). Generate manually at:
+#   OCI Console → Identity → Users → your user → Auth Tokens
+ocir:
+  auth_token:
+
+
+# ─── NOT in this file (intentionally) ──────────────────────────────
+# • Tenancy OCID, OCIR namespace, OCIR username — auto-discovered
+#   from ~/.oci/config every run; nothing to configure.

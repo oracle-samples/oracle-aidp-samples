@@ -1,0 +1,17 @@
+{
+  "connector": "aidp-object-storage",
+  "auth": "oci-implicit-iam",
+  "result": "PASS",
+  "rows": 3,
+  "schema": ["age", "name"],
+  "oci_path": "oci://IDL_kkknoq6qpm6fybmz5ypq_1766012666158@idseylbmv0mm/aidp-quickwin-tests/row14_csv_roundtrip.csv",
+  "rows_written": 3,
+  "rows_read": 3,
+  "write_ms": 3295,
+  "read_ms": 1237,
+  "test_path": "Wrote a 3-row CSV to OCI Object Storage via Spark, then read it back. Workspace IAM identity authorized — no keys, no signer config.",
+  "cluster": "tpcds (98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb)",
+  "namespace": "idseylbmv0mm",
+  "bucket": "IDL_kkknoq6qpm6fybmz5ypq_1766012666158",
+  "timestamp_utc": 1777229586
+}

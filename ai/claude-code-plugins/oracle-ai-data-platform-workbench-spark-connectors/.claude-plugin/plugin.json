@@ -1,0 +1,43 @@
+{
+  "name": "oracle-ai-data-platform-workbench-spark-connectors",
+  "version": "0.5.0",
+  "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 23 connector skills covering every data source workbench customers commonly need: Oracle Autonomous DB family (ALH/ADW/ATP) via wallet/IAM-DB-Token/API-key, generic Oracle Database, ExaCS, Oracle PeopleSoft, Oracle Siebel, Fusion ERP REST, Fusion BICC, EPM Cloud Planning, Essbase 21c, OCI Streaming (Kafka), OCI Object Storage, Apache Iceberg, plus PostgreSQL, MySQL/HeatWave, SQL Server, Apache Hive, Salesforce, Snowflake, Azure ADLS Gen2, AWS S3, generic REST, custom JDBC, and Excel. v0.5.0 adds 5 new connectors plus pushdown.sql / catalog.id / manifest.path patterns from oracle-samples PR #46.",
+  "author": {
+    "name": "Ahmed Awan"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "spark",
+    "jdbc",
+    "lakehouse",
+    "autonomous-database",
+    "atp",
+    "adw",
+    "exacs",
+    "fusion",
+    "epm",
+    "essbase",
+    "kafka",
+    "streaming",
+    "object-storage",
+    "iceberg",
+    "postgresql",
+    "mysql",
+    "sqlserver",
+    "snowflake",
+    "adls",
+    "s3",
+    "rest",
+    "connector",
+    "peoplesoft",
+    "siebel",
+    "salesforce",
+    "hive",
+    "pushdown",
+    "catalog"
+  ]
+}
