@@ -1,0 +1,67 @@
+{
+  "displayName": "Developer Toolkit",
+  "description": "A collection of tools for bash commands, file operations, and Python execution",
+  "tools": [
+    {
+      "toolClassName": "BashTool",
+      "displayName": "Bash Tool",
+      "description": "Executes a bash command and returns stdout/stderr output",
+      "version": "1.0.0",
+      "schema": [
+        {
+          "name": "command",
+          "type": "string",
+          "description": "The bash command to execute"
+        }
+      ],
+      "conf": {
+        "timeout": 30,
+        "max_output_lines": 200
+      }
+    },
+    {
+      "toolClassName": "FileTool",
+      "displayName": "File Tool",
+      "description": "Read, write, or list files in the workspace",
+      "version": "1.0.0",
+      "schema": [
+        {
+          "name": "operation",
+          "type": "string",
+          "description": "Operation to perform: read, write, or list"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "description": "File or directory path"
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "description": "Content to write (for write operation)"
+        }
+      ],
+      "conf": {
+        "base_dir": "/workspace",
+        "max_file_size_kb": 1024
+      }
+    },
+    {
+      "toolClassName": "PythonTool",
+      "displayName": "Python Tool",
+      "description": "Executes Python code in an isolated subprocess and returns the output",
+      "version": "1.0.0",
+      "schema": [
+        {
+          "name": "code",
+          "type": "string",
+          "description": "The Python code to execute"
+        }
+      ],
+      "conf": {
+        "timeout": 60,
+        "max_output_lines": 500
+      }
+    }
+  ]
+}

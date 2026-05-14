@@ -177,6 +177,16 @@ Notebooks covering generative AI, NLP, ML model training, and LLM-powered analyt
 |---|---|
 | [Agent Flow Schedule Trigger](ai/agent-flows/misc/agent-flow-schedule-trigger/task_notebook.ipynb) | Invoke AIDP agent flows via REST API using OCI request signing, demonstrating programmatic agent orchestration with custom message handling. |
 
+#### Custom Tools
+
+Python tool packages that extend agent flows with user-authored capabilities. Upload the ZIP to a workspace volume and wire it into any agent flow. See the [Custom Tools User Guide](ai/agent-flows/custom-tools/USER_GUIDE.md) for the full authoring contract.
+
+| Sample | Description |
+|---|---|
+| [Hello Tool](ai/agent-flows/custom-tools/hello-tool/) | The minimal `CustomToolBase` tool — one class, one parameter, no dependencies. The starting template for new tools. |
+| [Developer Toolkit](ai/agent-flows/custom-tools/developer-toolkit/) | Three tools in one package — bash execution, file I/O, and Python subprocess execution — demonstrating multi-tool packages and a shared `utils/` module. |
+| [ORDS Database Tool](ai/agent-flows/custom-tools/ords-database-tool/) | Query Oracle Autonomous Database via the ORDS REST API with basic auth. Executes SQL, lists tables/views, and describes columns. |
+
 #### Agent Chat Clients
 
 | Sample | Description |
