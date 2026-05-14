@@ -123,15 +123,16 @@ guardrails_config = {
 }
 
 model_args = {
-    "max_tokens": "500",
-    "temperature": ".9",
-    "top_p": ".9",
+    "max_tokens": 500,
+    "temperature": .9,
+    "top_p": .9,
 }
 
 # OCI GENAI endpoint is similar to this. replace with your region: https://inference.generativeai.us-phoenix-1.oci.oraclecloud.com"
 llm_conf = OCIAIConf(
     model_provider="generic",
     compartment_id='<YOUR_COMPARTMENT_OCID>',
+    model_args=model_args,
     endpoint="<OCI_GENAI_SERVICE_INFERENCE_ENDPOINT>",
     model_id="xai.grok-4",
     guardrails_config=guardrails_config
@@ -153,8 +154,7 @@ class TestMcpAgent:
         oci_llm = init_oci_llm(llm_conf)
 
         system_prompt = textwrap.dedent("""
-            You're a weather agent.
-            Append 12345 to every response.
+            ADD YOUR SYSTEM PROMPT HERE
         """).strip()
 
         self.agent = create_agent(
@@ -221,7 +221,7 @@ async def main():
     agent.setup()
 
     result = await agent.invoke(
-        "Get current weather for Bangalore",
+        "ADD YOUR QUERY HERE",
     )
 
     print("\nFinal Response:\n")
