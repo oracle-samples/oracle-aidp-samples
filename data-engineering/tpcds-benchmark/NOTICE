@@ -1,0 +1,55 @@
+AIDP TPC-DS Benchmark Toolkit
+Copyright (c) 2026, Oracle and/or its affiliates.
+
+This product is licensed under the Universal Permissive License (UPL),
+Version 1.0. See the LICENSE file for full terms, or visit
+https://oss.oracle.com/licenses/upl/.
+
+================================================================================
+TPC-DS — Transaction Processing Performance Council
+================================================================================
+
+This product bundles TPC-DS v4.0.0 benchmark materials, including the dsdgen
+data-generation tool and the 99 TPC-DS query templates (103 with a/b splits),
+under the TPC End User License Agreement. The complete TPC EULA is included
+at: aidp_benchmark/queries/v4_0_0_spark/EULA.txt
+
+The following TPC notice is REQUIRED by Section 9.b of the TPC EULA and must
+appear in 12-point all-caps type on every distributed copy:
+
+================================================================================
+
+  THE TPC SOFTWARE IS AVAILABLE WITHOUT CHARGE FROM TPC.
+
+================================================================================
+
+TPC, TPC-DS, dsdgen, and TPC Benchmark are trademarks of the Transaction
+Processing Performance Council.
+
+================================================================================
+Compliance disclaimer
+================================================================================
+
+Results produced by this toolkit are NOT official TPC Benchmark Results. The
+toolkit implements TPC-DS workloads for internal performance testing and
+optimization purposes only. Per TPC EULA Section 4.c, any performance results
+generated using this toolkit are clearly identified as not being comparable to
+TPC Benchmark Results unless specifically authorized by TPC.
+
+Customers requiring official TPC-DS certification must engage with the
+Transaction Processing Performance Council directly.
+
+================================================================================
+Third-party components
+================================================================================
+
+This product depends on third-party open-source software:
+
+  - DuckDB                  (MIT License)         https://duckdb.org
+  - Oracle Cloud Infrastructure Python SDK
+                            (UPL / Apache 2.0)    https://github.com/oracle/oci-python-sdk
+  - Apache Spark            (Apache 2.0)          https://spark.apache.org
+  - PyArrow / Parquet       (Apache 2.0)          https://arrow.apache.org
+
+Each dependency is governed by its own license, summarized in this NOTICE only
+for attribution. Refer to each project for the canonical license text.

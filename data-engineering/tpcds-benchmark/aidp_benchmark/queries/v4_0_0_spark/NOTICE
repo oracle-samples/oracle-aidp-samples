@@ -1,0 +1,37 @@
+AIDP Benchmark Toolkit — TPC-DS v4.0.0 Queries
+==============================================
+
+These 99 SQL files were generated using the official TPC-DS v4.0.0 tools
+(dsqgen) downloaded from https://www.tpc.org and made available under the
+TPC EULA included in this directory (EULA.txt).
+
+Generation parameters
+---------------------
+  Tools version : TPC-DS v4.0.0
+  Dialect       : netezza  (closest to Spark SQL syntax)
+  Scale factor  : 1 (qualification)
+  RNG seed      : 19620718  (canonical qualification seed)
+  Mode          : -QUALIFY Y  (deterministic qualification stream — 99 queries
+                  in numerical order)
+
+Source command
+--------------
+  ./tools/dsqgen
+    -DIRECTORY query_templates
+    -TEMPLATE queryN.tpl                     # looped for N in 1..99
+    -DIALECT netezza
+    -SCALE 1
+    -RNGSEED 19620718
+    -QUALIFY Y
+    -OUTPUT_DIR /tmp/v4_queries
+    -DISTRIBUTIONS ./tools/tpcds.idx
+
+Attribution (per TPC EULA §9.b/§9.c)
+------------------------------------
+TPC Benchmark™ DS is a Trademark of the Transaction Processing Performance
+Council (TPC). Copyright © 2001-2021 Transaction Processing Performance
+Council. All rights reserved.
+
+The TPC software is available without charge from TPC. See EULA.txt for
+the full license text. Redistribution permitted under the conditions of
+that license; redistribution may not charge a fee.

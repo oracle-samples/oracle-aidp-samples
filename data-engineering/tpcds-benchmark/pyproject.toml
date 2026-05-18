@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aidp-benchmark"
+version = "0.1.2"
+description = "AIDP TPC-DS Benchmark Toolkit (V1.2 — portable across OCI tenancies) — performance engineering for the Oracle AI Data Platform."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary - Oracle internal" }
+authors = [
+    { name = "Taha BENMALEK", email = "TAHA.BENMALEK@ORACLE.COM" },
+]
+keywords = ["tpc-ds", "benchmark", "aidp", "oracle", "spark"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+# Runtime dependencies. pyspark is intentionally NOT pinned here — AIDP
+# Workbench provides its own Spark (3.5.x); pinning would conflict.
+# Customers running outside AIDP install pyspark themselves.
+dependencies = [
+    "oci>=2.130",
+    "duckdb>=1.0",
+]
+
+[project.optional-dependencies]
+local = ["pyspark>=3.5,<4"]
+dev = ["pytest>=7", "build>=1.0"]
+
+[project.urls]
+Repository = "TBD — pending OPEN-5 (public GitHub vs Oracle internal)"
+Documentation = "TBD"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aidp_benchmark*"]
+
+[tool.setuptools.package-data]
+# Bundle the 103 v4.0.0_spark .sql files + EULA + NOTICE inside the wheel.
+# Per D11 — queries are part of the package, not fetched at runtime.
+aidp_benchmark = [
+    "queries/v4_0_0_spark/*.sql",
+    "queries/v4_0_0_spark/EULA.txt",
+    "queries/v4_0_0_spark/NOTICE",
+]
