@@ -9,9 +9,7 @@ description = "AIDP TPC-DS Benchmark Toolkit (V1.2 — portable across OCI tenan
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Proprietary - Oracle internal" }
-authors = [
-    { name = "Taha BENMALEK", email = "TAHA.BENMALEK@ORACLE.COM" },
-]
+authors = []
 keywords = ["tpc-ds", "benchmark", "aidp", "oracle", "spark"]
 classifiers = [
     "Development Status :: 3 - Alpha",

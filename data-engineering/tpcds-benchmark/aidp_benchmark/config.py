@@ -6,7 +6,7 @@ This module hides the difference between running inside AIDP Workbench
 
 Implements:
 - D9: Bucket auto-creation with graceful NotAuthorized fallback
-- D10: Namespace + region auto-detection (no hardcoded `idseylbmv0mm`)
+- D10: Namespace + region auto-detection via Resource Principal (no hardcoded values)
 - D12 (decision-log): Resource Principal first, ~/.oci/config fallback
 """
 from __future__ import annotations
@@ -161,7 +161,7 @@ def ensure_bucket(client, env: AIDPEnvironment, bucket_name: str) -> str:
 def bucket_uri(env: AIDPEnvironment, bucket_name: str, path: str = "") -> str:
     """Compose the canonical OCI Hadoop FS URI for a bucket path.
 
-    Example: oci://tpcds-benchmark-sf1@idseylbmv0mm/customer.parquet
+    Example: oci://tpcds-benchmark-sf1@<your-namespace>/customer.parquet
     """
     path = path.lstrip("/")
     return f"oci://{bucket_name}@{env.namespace}/{path}"

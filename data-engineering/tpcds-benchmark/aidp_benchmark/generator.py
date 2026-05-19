@@ -227,13 +227,15 @@ class TPCDSDataGenerator:
         return ns, region
 
     def _detect_storage_namespace_via_jvm(self) -> str:
-        """Extract the storage namespace from spark.sql.warehouse.dir.
+        """Extract storage namespace from cluster config or catalog DB properties.
 
-        The warehouse dir is an OCI URI of the form oci://bucket@<namespace>/...
-        so the namespace embedded there is always the correct storage namespace,
-        regardless of what the RP auth provider reports.
+        The RP auth provider's getNamespace() returns the auth namespace, which
+        differs from the storage namespace on some AIDP deployments. This method
+        finds the correct storage namespace by reading OCI URIs that the cluster
+        already knows about — warehouse dir first, then catalog DB properties.
         """
         import re
+        # warehouse dir works on some AIDP configs — try it first
         try:
             warehouse = self._spark.sparkContext._conf.get(
                 "spark.sql.warehouse.dir", "")
@@ -242,6 +244,25 @@ class TPCDSDataGenerator:
                 return m.group(1)
         except Exception:
             pass
+        # fall back to catalog DB properties — any AIDP catalog DB stores its
+        # location as oci://bucket@<namespace>/... which always has the right namespace
+        try:
+            dbs = ["default"] + [
+                r[0] for r in self._spark.sql("SHOW DATABASES").collect()[:5]
+            ]
+            for db in dbs:
+                try:
+                    for row in self._spark.sql(
+                            f"DESCRIBE DATABASE EXTENDED `{db}`").collect():
+                        m = re.search(r'oci://[^@]+@([^/]+)/', str(row))
+                        if m:
+                            logger.info(
+                                "Storage namespace detected from catalog db '%s'", db)
+                            return m.group(1)
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.debug("Catalog namespace detection failed: %s", e)
         return ""
 
     def _get_namespace_via_hadoop(self) -> str:
