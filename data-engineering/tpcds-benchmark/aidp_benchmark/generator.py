@@ -215,15 +215,34 @@ class TPCDSDataGenerator:
         provider = jvm.ResourcePrincipalAuthenticationDetailsProvider.builder().build()
         region = provider.getRegion().getRegionId()
 
-        # Namespace: read from Hadoop FS URI (bucket@namespace is in the URI)
-        # We need to make an API call to ObjectStorage.getNamespace().
-        # Simplest: use Hadoop FS to list root and extract — but that's complex.
-        # For now: allow the caller to pass namespace or we fall back to env var.
+        # getNamespace() via the Java RP provider returns the auth namespace (the
+        # tenancy used for Resource Principal), which differs from the storage
+        # namespace on some AIDP deployments. Read from warehouse.dir first —
+        # it contains the real storage namespace as oci://bucket@<namespace>/.
         ns = (self._namespace
+              or self._detect_storage_namespace_via_jvm()
               or os.environ.get("OCI_OBJECT_STORAGE_NAMESPACE", "")
               or self._get_namespace_via_hadoop())
 
         return ns, region
+
+    def _detect_storage_namespace_via_jvm(self) -> str:
+        """Extract the storage namespace from spark.sql.warehouse.dir.
+
+        The warehouse dir is an OCI URI of the form oci://bucket@<namespace>/...
+        so the namespace embedded there is always the correct storage namespace,
+        regardless of what the RP auth provider reports.
+        """
+        import re
+        try:
+            warehouse = self._spark.sparkContext._conf.get(
+                "spark.sql.warehouse.dir", "")
+            m = re.search(r'oci://[^@]+@([^/]+)/', warehouse)
+            if m:
+                return m.group(1)
+        except Exception:
+            pass
+        return ""
 
     def _get_namespace_via_hadoop(self) -> str:
         """Extract OCI namespace from the Hadoop FS configuration."""
