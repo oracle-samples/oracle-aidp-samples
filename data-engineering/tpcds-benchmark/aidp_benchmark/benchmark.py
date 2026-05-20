@@ -70,7 +70,7 @@ class AIDPBenchmark:
     def __init__(
         self,
         generator: TPCDSDataGenerator,
-        timeout_seconds: int = 3600,
+        timeout_seconds: int = 300,
         warmup_iterations: int = 0,
     ) -> None:
         self.generator = generator
@@ -152,34 +152,56 @@ class AIDPBenchmark:
                     self.generator.bucket_uri())
 
     def _run_once(self, spark, queries: dict[str, str], record: bool) -> list[QueryResult]:
-        """Run all 103 queries once. Returns per-query results when record=True."""
+        """Run all 103 queries once. Returns per-query results when record=True.
+
+        Each query runs in a daemon thread with a per-query timeout. If the query
+        exceeds timeout_seconds, Spark's cancelJobGroup() kills it and the query
+        is recorded as TIMEOUT rather than hanging the entire benchmark.
+        """
+        import threading
         results: list[QueryResult] = []
         total = len(queries)
         for i, qname in enumerate(sorted(queries), 1):
             sql = queries[qname]
             start = time.time()
-            status = "PASS"
-            error_msg = ""
-            rows = 0
-            plan = ""
-            try:
-                df = spark.sql(sql)
-                rows = df.count()  # D5 — never .collect() (driver crash at scale)
-                if record:
-                    # EXPLAIN EXTENDED for the result. Cheap; runs against the catalyst plan only.
-                    try:
-                        plan = "\n".join([r[0] for r in spark.sql(f"EXPLAIN EXTENDED {sql}").collect()])
-                    except Exception:
-                        plan = ""
-            except Exception as e:
-                status = "FAIL"
-                error_msg = str(e).split("\n", 1)[0][:300]
-                rows = 0
+            status, error_msg, rows, plan = "PASS", "", 0, ""
 
+            job_group = f"tpcds_{qname}"
+            spark.sparkContext.setJobGroup(job_group, f"TPC-DS {qname}", interruptOnCancel=True)
+
+            res, err = {}, {}
+
+            def run_query(sql=sql, res=res, err=err):
+                try:
+                    res["rows"] = spark.sql(sql).count()
+                    if record:
+                        try:
+                            res["plan"] = "\n".join(
+                                r[0] for r in spark.sql(f"EXPLAIN EXTENDED {sql}").collect()
+                            )
+                        except Exception:
+                            res["plan"] = ""
+                except Exception as e:
+                    err["msg"] = str(e).split("\n", 1)[0][:300]
+
+            t = threading.Thread(target=run_query, daemon=True)
+            t.start()
+            t.join(timeout=self.timeout_seconds)
+
+            if t.is_alive():
+                spark.sparkContext.cancelJobGroup(job_group)
+                t.join(5)
+                status, error_msg = "TIMEOUT", f"exceeded {self.timeout_seconds}s timeout"
+            elif "msg" in err:
+                status, error_msg = "FAIL", err["msg"]
+            else:
+                rows = res.get("rows", 0)
+                plan = res.get("plan", "")
+
+            spark.sparkContext.clearJobGroup()
             elapsed = round(time.time() - start, 3)
-            log_marker = "PASS" if status == "PASS" else "FAIL"
             logger.info("  [%3d/%d] %-8s %8.3fs  %s%s",
-                        i, total, qname, elapsed, log_marker,
+                        i, total, qname, elapsed, status,
                         f"  {error_msg}" if error_msg else "")
 
             if record:
