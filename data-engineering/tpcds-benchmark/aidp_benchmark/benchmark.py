@@ -198,7 +198,10 @@ class AIDPBenchmark:
                 rows = res.get("rows", 0)
                 plan = res.get("plan", "")
 
-            spark.sparkContext.clearJobGroup()
+            try:
+                spark.sparkContext.clearJobGroup()
+            except AttributeError:
+                spark.sparkContext.setJobGroup("", "")
             elapsed = round(time.time() - start, 3)
             logger.info("  [%3d/%d] %-8s %8.3fs  %s%s",
                         i, total, qname, elapsed, status,
