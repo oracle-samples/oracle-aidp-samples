@@ -27,7 +27,7 @@ classifiers = [
 # Customers running outside AIDP install pyspark themselves.
 dependencies = [
     "oci>=2.130",
-    "duckdb>=1.0",
+    "duckdb>=0.8,<1.0",
 ]
 
 [project.optional-dependencies]
