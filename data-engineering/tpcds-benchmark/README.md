@@ -1,12 +1,12 @@
 # AIDP TPC-DS Benchmark — Sample Notebook
 
-> **TL;DR:** Upload two wheel files to an OCI bucket → set `BUCKET` in Cell 2 → set `SF` in Cell 1 → Run All → results land in your AIDP Unified Catalog as Iceberg tables.
+> **TL;DR:** Copy the `tpcds-benchmark/` folder into your AIDP workspace → set `SF` in Cell 1 → Run All → results land in your AIDP Unified Catalog as Iceberg tables.
 
 ## What this notebook does
 
 Runs the official TPC-DS v4.0.0 benchmark against your AIDP cluster:
 
-1. Auto-detects your OCI namespace from the AIDP Unified Catalog (no hardcoding)
+1. Imports `aidp_benchmark` directly from the local folder — no wheel download needed
 2. Generates TPC-DS data via DuckDB `dsdgen` (single-node, SF ≤ 100)
 3. Uploads 24 Parquet files to `oci://tpcds-benchmark-sf{SF}/` (idempotent — skips on re-runs)
 4. Runs all 103 TPC-DS queries (99 + a/b splits) sequentially as a power test
@@ -20,59 +20,52 @@ Runs the official TPC-DS v4.0.0 benchmark against your AIDP cluster:
 ### 1. AIDP Workbench cluster
 - Python 3.11, Spark 3.5.x
 - Recommended shape for SF=1/10: AMD, 2 OCPUs, 32 GB memory, 200 GB block volume on the driver
-- No internet egress required — all dependencies are served from OCI Object Storage
 
-### 2. Two wheel files uploaded to an OCI bucket
+### 2. Local package — no wheel needed
 
-Download both files and upload them to an OCI bucket you control (e.g. `aidp-tpcds`):
-
-| File | Where to get it |
-|---|---|
-| `aidp_benchmark-0.1.2-py3-none-any.whl` | [GitHub Release — tpcds-benchmark-v1.2](https://github.com/oracle-samples/oracle-aidp-samples/releases/tag/tpcds-benchmark-v1.2) |
-| `duckdb-0.10.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` | [PyPI — duckdb 0.10.3](https://pypi.org/pypi/duckdb/0.10.3/json) or the same GitHub Release |
-
-Upload both to OCI Console → Object Storage → your bucket.
+The `aidp_benchmark/` Python package ships alongside this notebook in the same folder. Cell 2 adds the folder to `sys.path` so `import aidp_benchmark` works directly. No wheel file, no OCI bucket download.
 
 ### 3. OCI bucket for benchmark data
 
 Create a bucket named `tpcds-benchmark-sf{SF}` (e.g. `tpcds-benchmark-sf10`) in the same region and compartment as your cluster.
 
+**Option A — OCI Console:**
+Object Storage → Buckets → Create Bucket → name: `tpcds-benchmark-sf10`
+
+**Option B — OCI CLI (from your local machine with `~/.oci/config` configured):**
+```bash
+oci os bucket create \
+  --name tpcds-benchmark-sf10 \
+  --compartment-id <your-compartment-ocid> \
+  --namespace <your-namespace>
+```
+
 ### 4. IAM policy
 
-Your cluster's dynamic group needs `manage objects` on both buckets:
+Your cluster's dynamic group needs `manage objects` on the data bucket:
 
 ```
 allow dynamic-group <your-aidp-cluster-dg> to manage objects
   in compartment <your-compartment>
   where target.bucket.name = /tpcds-benchmark-sf*/
-
-allow dynamic-group <your-aidp-cluster-dg> to manage objects
-  in compartment <your-compartment>
-  where target.bucket.name = '<your-wheel-bucket>'
 ```
 
 ### 5. AIDP Unified Catalog
-The cluster's default Spark catalog must be the AIDP Unified Catalog (this is the default on all AIDP clusters — no action needed unless you customized it).
+The cluster's default Spark catalog must be the AIDP Unified Catalog (default on all AIDP clusters).
 
 ---
 
 ## How to run
 
-**Step 1 — Upload the notebook**
+**Step 1 — Get the folder into your AIDP workspace**
 
-Upload `aidp_benchmark_v1_2.ipynb` to your AIDP Workbench and attach your cluster.
+Clone the repo and upload the entire `tpcds-benchmark/` folder to your AIDP Workbench, or use the AIDP Git integration to clone directly. The notebook and the `aidp_benchmark/` package must be in the same directory.
 
-**Step 2 — Configure Cell 2**
+**Step 2 — Open the notebook and attach your cluster**
 
-Open Cell 2 and set `BUCKET` to the bucket where you uploaded the wheel files:
+Open `aidp_benchmark_v1_2.ipynb` and attach your AIDP cluster.
 
-```python
-BUCKET = "aidp-tpcds"   # ← change this to your bucket name
-```
-
-**Step 3 — Configure Cell 1**
-
-Set the scale factor:
+**Step 3 — Set the scale factor in Cell 1**
 
 ```python
 SF = 1   # start with 1 to validate end-to-end, then 10 or 100
@@ -106,13 +99,12 @@ Re-runs at the same SF skip data generation and go straight to queries.
 
 | Error | Cause | Fix |
 |---|---|---|
-| `RuntimeError: Cannot access bucket '...'` | Bucket doesn't exist or IAM policy missing | Create the bucket; check IAM policy covers both your wheel bucket and `tpcds-benchmark-sf*` |
-| `RuntimeError: duckdb .so not found` | Wrong duckdb wheel filename (Python version mismatch) | Ensure you uploaded the `cp311` Linux x86_64 wheel; your cluster must be Python 3.11 |
-| `ModuleNotFoundError: aidp_benchmark` | Cell 2 didn't complete or `BUCKET` is wrong | Re-run Cell 2; verify both wheel files are in the specified bucket |
+| `ModuleNotFoundError: aidp_benchmark` | Notebook not in same folder as `aidp_benchmark/` | Ensure the full `tpcds-benchmark/` folder is in your workspace, not just the notebook |
+| `RuntimeError: Cannot access bucket '...'` | Bucket doesn't exist or IAM policy missing | Create the bucket; verify IAM policy covers `tpcds-benchmark-sf*` |
 | `RuntimeError: Cannot auto-detect OCI namespace` | Catalog has no databases with OCI locations | Run `SHOW DATABASES` — at least one DB must have an OCI-backed location |
 | `OutOfMemoryError` in DuckDB at SF=100 | Driver memory too small | Use ≥ 32 GB driver memory |
 | `Disk full` during generation | Driver block volume too small | Use 200 GB+ block volume |
-| Cell 3 runs for >20 min at SF=1 | One query exceeded the 300s per-query timeout | Check Spark UI for stuck jobs; restart cluster if needed |
+| Cell 3 runs for >20 min at SF=1 | One query hit the 300s per-query timeout | Check Spark UI; restart cluster if needed |
 
 ---
 
