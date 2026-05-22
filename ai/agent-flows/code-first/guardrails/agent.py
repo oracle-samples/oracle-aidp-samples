@@ -6,7 +6,7 @@ Coverage:
   ┌────────────────────────────┬────────────────────────────────────────────┐
   │ Threat                     │ Enforced by                                │
   ├────────────────────────────┼────────────────────────────────────────────┤
-  │ PII in user input          │ OCI Guardrails (PII_DETECTION)             │
+  │ PII in user input          │ OCI Guardrails response BLOCK              │
   │ PII in agent reply         │ OCI Guardrails (PII_DETECTION)             │
   │ Prompt injection           │ OCI Guardrails (PROMPT_ATTACKS_PREVENTION) │
   │ Toxic / violent output     │ OCI Guardrails (CONTENT_MODERATION)        │
@@ -15,10 +15,9 @@ Coverage:
   └────────────────────────────┴────────────────────────────────────────────┘
 """
 
-from aidputils.agents.toolkit.agent_helper import init_oci_llm, pre_invoke_setup
+from aidputils.agents.toolkit.agent_helper import flow_setup, init_oci_llm
 from aidputils.agents.toolkit.configs import OCIAIConf
 from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 import logging
 import asyncio
@@ -30,9 +29,9 @@ logger = logging.getLogger("agent_with_guardrails")
 checkpointer = globals().get("checkpointer", None)
 
 compartment_ocid = "<OCID_OF_COMPARTMENT>"
-region = "<REGION>>"
+region = "<REGION>"
 endpoint = f"https://inference.generativeai.{region}.oci.oraclecloud.com"
-model_name = "<NAME OF MODEL>"
+model_id = "<ID OF MODEL>"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Guardrails configuration — the three v2-supported policy families.
@@ -120,7 +119,7 @@ llm_conf = OCIAIConf(
     compartment_id=compartment_ocid,
     model_args={},
     endpoint=endpoint,
-    model_id=model_name,
+    model_id=model_id,
     guardrails_config=guardrails_config,
 )
 
@@ -164,9 +163,10 @@ class GuardedAgent:
     """LangGraph ReAct agent guarded entirely by AIDP/OCI guardrails.
 
     No custom enforcement code. PII / injection / content moderation are
-    enforced by GuardedChatOCIGenAI (which wraps every chat call with an
-    apply_guardrails round-trip). Off-topic queries are enforced by the
-    LLM's compliance with the system prompt — best-effort, not auditable.
+    handled by GuardedChatOCIGenAI, which runs apply_guardrails around chat
+    calls and returns blocked responses with guardrail metadata. Off-topic
+    queries are enforced by the LLM's compliance with the system prompt —
+    best-effort, not auditable.
     """
 
     def __init__(self) -> None:
@@ -190,16 +190,21 @@ class GuardedAgent:
         )
 
     async def invoke(self, user_query: str, **kw):
-        """Run the agent. AIDP guardrails handle all enforcement transparently.
+        """Run the agent. AIDP guardrails handle user-visible enforcement.
 
-        Returns the standard LangGraph result dict. OCI violations land on
-        the last AIMessage's `additional_kwargs.violations`; off-topic
+        Returns the final LangGraph message only, so blocked inputs do not
+        echo the original user message in the response state. OCI violations
+        land on the last AIMessage's `additional_kwargs.violations`; off-topic
         refusals are just the LLM's normal output (no special metadata).
         """
-        config = pre_invoke_setup(**kw)
-        message = {"messages": [dict(HumanMessage(content=user_query))]}
+        message = {"messages": [{"role": "user", "content": user_query}]}
         try:
-            return await self.agent.ainvoke(input=message, config=config)
+            with flow_setup(**kw) as config:
+                agent_response = await self.agent.ainvoke(input=message, config=config)
+            return {
+                **agent_response,
+                "messages": agent_response.get("messages", [])[-1:],
+            }
         except Exception as e:
             logger.error("invoke failed: %s", e, exc_info=True)
             raise
