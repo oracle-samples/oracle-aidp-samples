@@ -6,7 +6,7 @@ Coverage:
   ┌────────────────────────────┬────────────────────────────────────────────┐
   │ Threat                     │ Enforced by                                │
   ├────────────────────────────┼────────────────────────────────────────────┤
-  │ PII in user input          │ OCI Guardrails response BLOCK              │
+  │ PII in user input          │ OCI Guardrails (PII_DETECTION, BLOCK)      │
   │ PII in agent reply         │ OCI Guardrails (PII_DETECTION)             │
   │ Prompt injection           │ OCI Guardrails (PROMPT_ATTACKS_PREVENTION) │
   │ Toxic / violent output     │ OCI Guardrails (CONTENT_MODERATION)        │
@@ -228,11 +228,12 @@ def summarize(result: dict) -> None:
     inspecting the reply text (e.g., matching the canonical refusal string).
     That's the cost of removing topic_gate: less reliable audit attribution.
     """
-    if not result or "messages" not in result:
+    messages = result.get("messages") if result else None
+    if not messages:
         print("  (no result)")
         return
 
-    last = result["messages"][-1]
+    last = messages[-1]
     kw = getattr(last, "additional_kwargs", {}) or {}
 
     guard_blocked = kw.get("guardrail_blocked", False)
@@ -245,7 +246,7 @@ def summarize(result: dict) -> None:
 
     for v in violations:
         score = v.get("score")
-        score_str = f" score={score}" if score is not None else ""
+        score_str = f" score={score}" if isinstance(score, (int, float)) and score > 0 else ""
         print(f"    - policy={v.get('policy_name')} type={v.get('policy_type')}{score_str}")
 
     text = last.content if isinstance(last.content, str) else str(last.content)
