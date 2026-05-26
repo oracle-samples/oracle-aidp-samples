@@ -44,6 +44,7 @@ Foundational examples to help you get up and running on AIDP Workbench.
 | [Access Object Storage Data](getting-started/Access_Object_Storage_Data.ipynb) | Read and write data from OCI Object Storage using direct access, external volumes, and external tables. |
 | [Analyse Data Using PySpark](getting-started/Analyse_Data_Using_PySpark.ipynb) | PySpark fundamentals: catalog and schema setup, table creation, data insertion, schema exploration, and matplotlib visualizations. |
 | [Analyse Data Using SQL](getting-started/Analyse_Data_Using_SQL.ipynb) | Core SQL operations on AIDP including DataFrame creation, transformations, aggregations, and simple visualizations. |
+| [ALH External Catalog MERGE](getting-started/ALH_ExternalCatalog_Merge.ipynb) | End-to-end MERGE workflow into an ALH table via an AIDP external catalog: insert/update/delete with merge keys and OOS-staging skip optimization. |
 
 #### Delta Lake
 
@@ -153,6 +154,19 @@ Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cr
 | [Streaming — Energy Delta Liquid Clustering](data-engineering/transformation/streaming/energy_delta_streaming_liquid_clustering_demo.ipynb) | Real-time smart grid monitoring with streaming Delta tables, anomaly detection, and statistical baselines for energy consumption. |
 | [Streaming — Manufacturing Delta Liquid Clustering](data-engineering/transformation/streaming/manufacturing_delta_streaming_liquid_clustering_demo.ipynb) | Continuous ingestion and clustering of manufacturing sensor data using Spark Structured Streaming and Delta Lake. |
 
+#### Cross-Format & External Table Interop
+
+| Sample | Description |
+|---|---|
+| [ADW External Table on Delta UniForm](data-engineering/adw-ext-table-on-uniform/README.md) | Automates recreating an ADW Iceberg external table against the latest UniForm-generated metadata file when a UniForm-enabled Delta table evolves — ADW + Python + a stored procedure that resolves the newest `vN.metadata.json`. |
+
+#### Other Utilities
+
+| Sample | Description |
+|---|---|
+| [DataFrame PII Masking with AI](data-engineering/transformation/masking/README.md) | PySpark utility that detects and masks PII columns using a pluggable `PIIChecker` abstraction — supports Anthropic Claude (Haiku/Sonnet/Opus) and OCI native models via Spark `query_model()`. |
+| [Partition-Aware Merge Generator](data-engineering/transformation/merge/README.md) | Helper utility for partition-aware merge operations on Spark DataFrames: PK-based updates, configurable update policies, deletes, and schema evolution — Delta-MERGE-like behaviour without requiring Delta. |
+
 ---
 
 ### AI & Machine Learning
@@ -173,9 +187,21 @@ Notebooks covering generative AI, NLP, ML model training, and LLM-powered analyt
 
 #### Agent Flows
 
-| Notebook | Description |
+| Sample | Description |
 |---|---|
 | [Agent Flow Schedule Trigger](ai/agent-flows/misc/agent-flow-schedule-trigger/task_notebook.ipynb) | Invoke AIDP agent flows via REST API using OCI request signing, demonstrating programmatic agent orchestration with custom message handling. |
+| [Invoke Agent Flows from APEX](ai/agent-flows/misc/invoke-agent-flows-from-apex/README.md) | Oracle APEX region plugin that adds a chat UI for AIDP agents, with persistent conversation history, async Oracle AQ-backed response processing, and conversation summarization. |
+| [Invoke Agent Flows from Streamlit](ai/agent-flows/misc/invoke-agent-flows-from-streamlit/README.md) | Streamlit chat app for AIDP agents with streaming responses, trace/span visualization, multiple auth modes (API key, security token, resource principal), and OCI Container Instance deployment. |
+
+#### Visual (No-Code) Agent Flows
+
+End-to-end labs showing the AIDP visual flow canvas authoring experience.
+
+| Sample | Description |
+|---|---|
+| [Hello World Agent](ai/agent-flows/visual-flow/hello-world/README.md) | Minimal conversational agent built on the visual flow canvas — the starting template that grounds answers on the model's training data. |
+| [Entertainment Industry Analyst](ai/agent-flows/visual-flow/entertainment-analyst/README.md) | Release & performance analyst combining RAG over internal playbooks/policies with strictly-defined parameterized SQL tools for read-only analytics. |
+| [ACME Pet Insurance Customer Support](ai/agent-flows/visual-flow/acme-insurance/README.md) | RAG-based customer support agent answering policy questions from PDF documents in a Knowledge Base. |
 
 #### Custom Tools
 
@@ -191,6 +217,7 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 
 | Sample | Description |
 |---|---|
+| [AIDP Chat Client — Python Library](ai/aidp_chat_client/README.md) | Reusable Python client for AIDP Chat Agent endpoints: streaming & non-streaming responses, API Key + Security Token auth, typed APIs, and a standalone test script for quick endpoint verification. |
 | [AIDP Agent Chat — Web UI](ai/aidp_chat_client/web_ui/README.md) | Browser chat UI for any deployed AIDP agent: a Flask proxy that handles OCI request signing plus a single-page HTML frontend. Includes a one-command deploy script for OCI Container Instances. |
 
 #### Code-First Agent Flows
@@ -198,6 +225,8 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | Sample | Description |
 |---|---|
 | [Multi-MCP Chat Agent](ai/agent-flows/code-first/multi-mcp-chat-agent/README.md) | Natural-language chat agent that fans out across Oracle Autonomous Database (Select AI MCP), Oracle Analytics Cloud (Logical SQL MCP), and Oracle Integration Cloud (project-scoped MCP). Each integration can be enabled or disabled independently via config. |
+| [ReAct Agent with RAG Tool](ai/agent-flows/code-first/react-with-rag-tool/README.md) | Simple code-authored ReAct agent that uses a RAG tool over PDFs stored in an AIDP Knowledge Base — runs as a code-first agent flow with the standard playground/test loop. |
+| [Supply Chain Agent](ai/supply_chain_agent/README.md) | Multi-agent system for supply-chain operations using OCI Generative AI (Grok-4) over AIDP catalog tables — data generation, table provisioning, and agent configuration walkthrough included. |
 
 ---
 
@@ -208,6 +237,14 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | [Data Code Generator](shared-utils/data_generator/data_code_generator_Example.ipynb) | Generate realistic multi-table synthetic datasets from a YAML configuration file, with CSV and JSON export support for testing and prototyping. |
 | [Data Quality Checker](shared-utils/data_quality/data_quality_example.ipynb) | Run comprehensive data quality checks including null, uniqueness, range, pattern, foreign key, and AI-powered semantic validation across single and multiple tables. |
 | [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
+
+---
+
+### Developer Tooling
+
+| Sample | Description |
+|---|---|
+| [Claude Code Plugins for AIDP](ai/claude-code-plugins/README.md) | Anthropic Claude Code plugins published by the Oracle AIDP team. Includes the `oracle-ai-data-platform-workbench-spark-connectors` plugin — 18 model-invokable skills connecting Spark notebooks to Oracle (ALH/ADW/ATP, ExaCS, Fusion, BICC, EPM, Essbase) and external (PostgreSQL, MySQL/HeatWave, SQL Server, Snowflake, ADLS Gen2, S3, OCI Streaming, Object Storage, Iceberg, REST/JDBC, Excel) sources. |
 
 ---
 
