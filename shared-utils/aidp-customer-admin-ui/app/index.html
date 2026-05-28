@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIDP Customer Workbench Usage</title>
+    <link rel="stylesheet" href="./customer-workbench.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="oracle-mark" aria-hidden="true"></span>
+        <span>AIDP Workbench</span>
+      </div>
+      <div class="topbar-meta">
+        <strong id="sourceBadge">Fixture</strong>
+        <span id="lastUpdated">Updated -</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="control-band" aria-label="Workbench selection">
+        <div>
+          <p class="breadcrumb">Home / Workbench usage</p>
+          <h1>Workspace Compute Usage</h1>
+        </div>
+        <form id="customerWorkbenchForm" class="workbench-form">
+          <label>
+            <span>AIDP OCID</span>
+            <input id="aiDataPlatformId" type="text" autocomplete="off" placeholder="ocid1.aidataplatform...">
+          </label>
+          <label>
+            <span>Region</span>
+            <select id="region">
+              <option value="phx">phx</option>
+              <option value="iad">iad</option>
+              <option value="ap-mumbai-1">ap-mumbai-1</option>
+              <option value="us-phoenix-1">us-phoenix-1</option>
+              <option value="us-ashburn-1">us-ashburn-1</option>
+            </select>
+          </label>
+          <button type="submit">Refresh</button>
+        </form>
+      </section>
+
+      <section id="customerNotice" class="notice" hidden></section>
+
+      <section id="ociSessionPanel" class="session-panel" hidden>
+        <div>
+          <span id="ociSessionState" class="session-state neutral">Session</span>
+          <h2>OCI CLI Session</h2>
+          <p id="ociSessionMessage"></p>
+          <code id="ociSessionCommand"></code>
+        </div>
+        <button id="checkOciSession" type="button">Check Session</button>
+      </section>
+
+      <section id="totals" class="metrics" aria-label="Workbench totals"></section>
+
+      <section class="workspace-layout">
+        <aside class="workspace-rail" aria-label="Workspaces">
+          <div class="panel-heading">
+            <h2>Workspaces</h2>
+          </div>
+          <div id="workspaceList" class="workspace-list"></div>
+        </aside>
+
+        <section class="workspace-detail" aria-label="Selected workspace usage">
+          <div class="detail-heading">
+            <div>
+              <h2 id="workspaceTitle">Workspace</h2>
+              <span>Compute clusters, notebook attachments, workflows, and cluster libraries</span>
+            </div>
+            <div class="filters">
+              <input id="queryFilter" type="search" autocomplete="off" placeholder="Filter clusters">
+              <select id="statusFilter" aria-label="Cluster status">
+                <option value="all">All clusters</option>
+                <option value="active">Active only</option>
+                <option value="inactive">Inactive only</option>
+              </select>
+            </div>
+          </div>
+          <p id="emptyState" class="empty" hidden>No clusters match the current filters.</p>
+          <div id="clusterGrid" class="cluster-grid"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./data/customer-workbench-fixture.js" defer></script>
+    <script src="./scripts/customer-workbench-api.js" defer></script>
+    <script src="./scripts/customer-workbench-app.js" defer></script>
+  </body>
+</html>
