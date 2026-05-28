@@ -1352,6 +1352,7 @@ create or replace package body acp_chat as
         l_user_name          acp_conversations.user_name%type;
         l_endpoint_url       acp_messages.endpoint_url%type;
         l_request_payload    clob;
+        l_headers_json       json_object_t := json_object_t();
         l_response           dbms_cloud_types.resp;
         l_response_payload   clob;
         l_response_body_json json_object_t;
@@ -1414,10 +1415,13 @@ create or replace package body acp_chat as
         if l_endpoint_url is null then
             raise_application_error(-20056, 'Message endpoint URL is missing for prompt response processing.');
         end if;
+        l_headers_json.put('Content-Type', 'application/json');
+        l_headers_json.put('x-session-id', l_session_key);
         l_response := dbms_cloud.send_request(
             credential_name => 'ACP_CHAT_CRED',
             uri             => l_endpoint_url,
             method          => dbms_cloud.method_post,
+            headers         => l_headers_json.to_clob(),
             body            => utl_raw.cast_to_raw(l_request_payload)
         );
 
