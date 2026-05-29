@@ -1,6 +1,5 @@
 # AIDP Customer Workbench Usage UI
 
-This folder contains the customer-facing AIDP Workbench usage UI separated from the service-operator compute-cluster admin prototype.
 
 The UI shows AIDP Workbench workspaces, compute clusters, active capacity, notebooks, workflows, and cluster-scoped special libraries. It can run from a local fixture or through a read-only local proxy that calls AIDP Workbench REST endpoints.
 
@@ -19,18 +18,6 @@ The UI shows AIDP Workbench workspaces, compute clusters, active capacity, noteb
 | `Containerfile` | Podman/Docker image for the customer UI. |
 | `compose.customer.yml` | Podman Compose service definition. |
 
-## What Is Excluded
-
-The service-operator admin UI and its privileged incident workflows are not part of this repo. Excluded files and behavior include:
-
-- `app/index.html` from the operator UI
-- operator compute-cluster search and OCID-first incident workflow
-- WorkRequests history and operation evidence views
-- DevOps MCP workflow-log lookup
-- dev-dot compute-cluster details enrichment
-- Lumberjack navigation links
-- incident handoff summaries
-- operator-only tests and fixtures
 
 ## Local Fixture Mode
 
