@@ -172,4 +172,35 @@ async function testOciSessionAdapter() {
   const status = await adapter.getStatus({ region: "phx" });
   assert.strictEqual(status.signedIn, true);
   assert.strictEqual(status.profile, "AIDP_CUSTOMER");
+
+  // A non-OK response that is itself a session status (e.g. 401 signedIn:false)
+  // is still returned as the status.
+  const signedOutAdapter = api.createOciSessionAdapter({
+    fetchImpl: async () => ({
+      ok: false,
+      status: 401,
+      async json() {
+        return { required: true, signedIn: false, message: "Sign-in required." };
+      }
+    })
+  });
+  const signedOut = await signedOutAdapter.getStatus({ region: "phx" });
+  assert.strictEqual(signedOut.signedIn, false);
+  assert.strictEqual(signedOut.required, true);
+
+  // A bare error body (no session / no signedIn) must surface as an error rather
+  // than masquerade as a status object with undefined fields.
+  const erroringAdapter = api.createOciSessionAdapter({
+    fetchImpl: async () => ({
+      ok: false,
+      status: 500,
+      async json() {
+        return { code: "INTERNAL_SERVER_ERROR", message: "boom", retryable: false };
+      }
+    })
+  });
+  await assert.rejects(
+    () => erroringAdapter.getStatus({ region: "phx" }),
+    (error) => error && error.code === "INTERNAL_SERVER_ERROR"
+  );
 }

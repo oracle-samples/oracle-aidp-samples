@@ -17,6 +17,8 @@ testServiceApiCustomerWorkbenchRoute().then(() => {
 }).then(() => {
   return testRequestHandlerReturns500OnUnexpectedError();
 }).then(() => {
+  return testOciRawRequestTimeoutIsNotResolvedAsSuccess();
+}).then(() => {
   console.log("customer workbench proxy tests passed");
 }).catch((error) => {
   console.error(error);
@@ -185,6 +187,39 @@ async function testRequestHandlerReturns500OnUnexpectedError() {
 
     assert.strictEqual(response.statusCode, 500);
     assert.strictEqual(response.body.code, "INTERNAL_SERVER_ERROR");
+    assert.strictEqual(response.body.retryable, false);
+  } finally {
+    await close(proxy);
+  }
+}
+
+async function testOciRawRequestTimeoutIsNotResolvedAsSuccess() {
+  const proxy = createServer({
+    mode: "oci-raw-request",
+    ociProfile: "AIDP_CUSTOMER",
+    fixtures: [],
+    execFileImpl: (command, args, options, callback) => {
+      if (args[0] === "session" && args[1] === "validate") {
+        callback(null, "Session is valid until 2026-05-15T20:00:00Z\n", "");
+        return;
+      }
+      // Simulate a timeout-killed OCI CLI process that nonetheless flushed a
+      // complete, parseable JSON document to stdout before being terminated.
+      // The timeout must win: a killed process is a failure even when its output
+      // happens to parse, so this must surface as TIMEOUT and not a 200 success.
+      const killError = new Error("Command timed out");
+      killError.killed = true;
+      callback(killError, '{"status":"200 OK","data":{"items":[]}}', "");
+    }
+  });
+  await listen(proxy);
+
+  try {
+    const baseUrl = `http://127.0.0.1:${proxy.address().port}`;
+    const response = await getJson(`${baseUrl}/api/aidp-customer/workbench?region=phx&aiDataPlatformId=${ENCODED_AIDP_ID}`);
+
+    assert.strictEqual(response.statusCode, 504);
+    assert.strictEqual(response.body.code, "TIMEOUT");
   } finally {
     await close(proxy);
   }

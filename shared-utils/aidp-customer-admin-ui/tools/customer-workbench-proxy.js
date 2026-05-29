@@ -129,7 +129,7 @@ function createServer({
         sendJson(response, 500, errorBody(
           "INTERNAL_SERVER_ERROR",
           "Customer Workbench proxy request failed.",
-          true
+          false
         ));
         return;
       }
@@ -581,14 +581,25 @@ function execFileJson(execFileImpl, command, args, timeoutMs, commandLabel = "OC
     }, (error, stdout, stderr) => {
       const parsed = parseJson(stdout);
       if (error) {
+        // A timeout-killed process may have written partial JSON to stdout; treat it
+        // as a failure rather than resolving with a truncated/incomplete response.
+        if (error.killed) {
+          reject(proxyError(
+            "TIMEOUT",
+            summarizeCommandError(stderr || stdout || error.message, { timedOut: true, commandLabel }),
+            504,
+            true
+          ));
+          return;
+        }
         if (parsed) {
           resolve(parsed);
           return;
         }
         reject(proxyError(
-          error.killed ? "TIMEOUT" : "UPSTREAM_UNAVAILABLE",
-          summarizeCommandError(stderr || stdout || error.message, { timedOut: error.killed, commandLabel }),
-          error.killed ? 504 : 502,
+          "UPSTREAM_UNAVAILABLE",
+          summarizeCommandError(stderr || stdout || error.message, { timedOut: false, commandLabel }),
+          502,
           true
         ));
         return;

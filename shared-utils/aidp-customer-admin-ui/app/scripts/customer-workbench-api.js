@@ -80,8 +80,20 @@
         const payload = await response.json().catch(() => {
           throw adapterError("INVALID_RESPONSE", "OCI session status lookup returned invalid JSON.");
         });
-        if (!response.ok && payload?.session) {
-          return payload.session;
+        if (!response.ok) {
+          if (payload?.session) {
+            return payload.session;
+          }
+          // Only treat the body as a session status when it actually carries one
+          // (e.g. a 401 with signedIn:false). A bare error body ({code,message,...})
+          // must surface as an error, not masquerade as an unknown-but-OK status.
+          if (payload && typeof payload === "object" && "signedIn" in payload) {
+            return payload;
+          }
+          throw adapterError(
+            payload?.code || "SESSION_STATUS_ERROR",
+            payload?.message || `OCI session status lookup failed (${response.status}).`
+          );
         }
         return payload;
       }
