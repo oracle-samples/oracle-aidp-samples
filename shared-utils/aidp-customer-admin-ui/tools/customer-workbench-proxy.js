@@ -4,6 +4,7 @@
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
+const { randomUUID } = require("crypto");
 const { execFile } = require("child_process");
 const { URL } = require("url");
 
@@ -104,24 +105,36 @@ function createServer({
   };
 
   return http.createServer(async (request, response) => {
-    const requestUrl = new URL(request.url, "http://localhost");
+    try {
+      const requestUrl = new URL(request.url, "http://localhost");
 
-    if (request.method !== "GET") {
-      sendJson(response, 405, errorBody("METHOD_NOT_ALLOWED", "Only read-only GET requests are supported."));
-      return;
+      if (request.method !== "GET") {
+        sendJson(response, 405, errorBody("METHOD_NOT_ALLOWED", "Only read-only GET requests are supported."));
+        return;
+      }
+
+      if (requestUrl.pathname === OCI_SESSION_STATUS_API_PATH) {
+        await handleGetOciSessionStatus(requestUrl, response, { proxyMode, config });
+        return;
+      }
+
+      if (requestUrl.pathname === CUSTOMER_WORKBENCH_API_PATH) {
+        await handleGetCustomerWorkbench(requestUrl, response, { proxyMode, config });
+        return;
+      }
+
+      serveStaticFile(requestUrl.pathname, response, appDir, defaultStaticPage);
+    } catch (error) {
+      if (!response.headersSent && !response.writableEnded) {
+        sendJson(response, 500, errorBody(
+          "INTERNAL_SERVER_ERROR",
+          "Customer Workbench proxy request failed.",
+          true
+        ));
+        return;
+      }
+      response.destroy(error);
     }
-
-    if (requestUrl.pathname === OCI_SESSION_STATUS_API_PATH) {
-      await handleGetOciSessionStatus(requestUrl, response, { proxyMode, config });
-      return;
-    }
-
-    if (requestUrl.pathname === CUSTOMER_WORKBENCH_API_PATH) {
-      await handleGetCustomerWorkbench(requestUrl, response, { proxyMode, config });
-      return;
-    }
-
-    serveStaticFile(requestUrl.pathname, response, appDir, defaultStaticPage);
   });
 }
 
@@ -355,7 +368,7 @@ async function fetchServiceApiAidpWorkbenchGet(config, request, pathName) {
   const url = aidpWorkbenchUrl(config, request, pathName);
   const headers = {
     Accept: "application/json",
-    "opc-request-id": `aidp-customer-workbench-${Date.now()}`
+    "opc-request-id": `aidp-customer-workbench-${randomUUID()}`
   };
   if (config.aidpAuthHeader) {
     headers.Authorization = config.aidpAuthHeader;

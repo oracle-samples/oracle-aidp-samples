@@ -15,6 +15,8 @@ testServiceApiCustomerWorkbenchRoute().then(() => {
 }).then(() => {
   return testCustomerWorkbenchDefaultPage();
 }).then(() => {
+  return testRequestHandlerReturns500OnUnexpectedError();
+}).then(() => {
   console.log("customer workbench proxy tests passed");
 }).catch((error) => {
   console.error(error);
@@ -81,6 +83,7 @@ async function testServiceApiCustomerWorkbenchRoute() {
     assert.ok(upstreamRequests.every((request) => request.method === "GET"));
     assert.ok(upstreamRequests.every((request) => request.authorization === "Bearer test-token"));
     assert.ok(upstreamRequests.every((request) => request.opcRequestId?.startsWith("aidp-customer-workbench-")));
+    assert.strictEqual(new Set(upstreamRequests.map((request) => request.opcRequestId)).size, upstreamRequests.length);
   } finally {
     await close(proxy);
     await close(upstream);
@@ -165,6 +168,23 @@ async function testCustomerWorkbenchDefaultPage() {
 
     assert.strictEqual(response.statusCode, 200);
     assert.ok(response.body.includes("<title>AIDP Customer Workbench Usage</title>"));
+  } finally {
+    await close(proxy);
+  }
+}
+
+async function testRequestHandlerReturns500OnUnexpectedError() {
+  const proxy = createServer({
+    appDir: null
+  });
+  await listen(proxy);
+
+  try {
+    const baseUrl = `http://127.0.0.1:${proxy.address().port}`;
+    const response = await getJson(`${baseUrl}/`);
+
+    assert.strictEqual(response.statusCode, 500);
+    assert.strictEqual(response.body.code, "INTERNAL_SERVER_ERROR");
   } finally {
     await close(proxy);
   }
