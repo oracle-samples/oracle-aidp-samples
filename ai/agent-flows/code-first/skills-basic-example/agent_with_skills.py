@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """
 SchoolGradeAgentWithSkills
-
-Variant of school_grade_agent.py that uses explicit skills metadata records.
-Discovery is driven by the provided `skills` list and does not list/read files
-at initialization time.
 """
 
 from __future__ import annotations
@@ -70,7 +66,7 @@ class SchoolGradeAgentWithEmbededSkills:
         # Determine default skill search locations (project + user) 
         # Build a SkillCatalog from discovered directories 
         self.catalog = discover_skill_catalog(skill_folder_whitelist=None)
-        #Append available skills summary and routing rules to system prompt. 
+        # Append available skills summary and routing rules to system prompt. 
         # Provide factory helpers for workspace-driven middleware construction. 
         self.skill_middleware = SkillMiddleware(self.catalog)
         # This method returns the skill discovery tools – activate_skill, list_skill_files, 
