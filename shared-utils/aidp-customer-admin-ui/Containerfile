@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+
+FROM registry.access.redhat.com/ubi9/nodejs-20-minimal:latest
+
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    PORT=8083 \
+    HOST=0.0.0.0 \
+    AIDP_PROXY_MODE=fixture
+
+COPY app ./app
+COPY tools ./tools
+
+EXPOSE 8083
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "const port=process.env.PORT||8083; fetch('http://127.0.0.1:'+port+'/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "tools/customer-workbench-proxy.js"]
