@@ -1,0 +1,2 @@
+scikit-learn>=1.2
+shap>=0.42

@@ -1,0 +1,261 @@
+# Retail industry pack — demonstrates all 6 Qualifire validation types
+# against a sales-fact + inventory + products + stores warehouse.
+#
+# This YAML is the declarative twin of the pack's pytest scenarios in
+# tests/test_e2e_industries/retail/test_retail_e2e.py. The parity test
+# `test_config_yaml_inventory_matches_pytest_scenarios` asserts the
+# (dataset, validation.type, validation.name) inventory stays in sync.
+# Thresholds, filters, and hyperparameters are NOT compared — they are
+# illustrative here and may diverge from test fixtures to keep the
+# file readable.
+
+owner: "retail-data-quality"
+bu: "retail"
+system_table: "catalog.retail.qualifire_history"
+
+datasets:
+
+  # -------------------------------------------------------------------
+  # SLO — sale_date freshness
+  # -------------------------------------------------------------------
+  - name: "retail_slo_pass"
+    table: "retail.sales_fact"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT4H"
+          error: "PT8H"
+
+  - name: "retail_slo_fail"
+    table: "retail.sales_fact"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT4H"
+          error: "PT8H"
+
+  # -------------------------------------------------------------------
+  # Threshold — row count + null-pid share
+  # -------------------------------------------------------------------
+  - name: "retail_threshold_pass"
+    table: "retail.sales_fact"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_row_count: "COUNT(*)"
+          filter: "sale_date = '{{ ds }}'"
+        rules:
+          - metric: "daily_row_count"
+            thresholds:
+              error: { min: 100 }
+
+  - name: "retail_threshold_fail"
+    table: "retail.sales_fact"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            null_pid_pct: "SUM(CASE WHEN product_id IS NULL THEN 1 ELSE 0 END) * 100.0 / COUNT(*)"
+        rules:
+          - metric: "null_pid_pct"
+            # Plan §Retail #4: null-rate on product_id ≤ 0.5% → fail.
+            # The seeded fixture injects 1% nulls → triggers ERROR.
+            thresholds:
+              error: { max: 0.5 }
+
+  # -------------------------------------------------------------------
+  # Drift — avg amount vs prior 3 seven-day windows
+  # -------------------------------------------------------------------
+  - name: "retail_drift_pass"
+    table: "retail.sales_fact"
+    validations:
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_amount: "AVG(amount)"
+        rules:
+          - metric: "avg_amount"
+            compare:
+              past_values: 3
+              step: "P7D"
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+
+  - name: "retail_drift_fail"
+    table: "retail.sales_fact"
+    validations:
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_amount: "AVG(amount)"
+        rules:
+          - metric: "avg_amount"
+            compare:
+              past_values: 3
+              step: "P7D"
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+
+  # -------------------------------------------------------------------
+  # Trend — Prophet forecast on daily revenue
+  # -------------------------------------------------------------------
+  - name: "retail_trend_pass"
+    table: "retail.sales_fact"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_revenue: "SUM(amount)"
+        rules:
+          - metric: "daily_revenue"
+            model:
+              history_count: 30       # plan §417
+              step: "P1D"
+              changepoint_prior_scale: 0.05
+
+  - name: "retail_trend_fail"
+    table: "retail.sales_fact"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_revenue: "SUM(amount)"
+        rules:
+          - metric: "daily_revenue"
+            model:
+              history_count: 30       # plan §417
+              step: "P1D"
+              changepoint_prior_scale: 0.05
+
+  # -------------------------------------------------------------------
+  # Shape — Isolation Forest on daily samples
+  # -------------------------------------------------------------------
+  - name: "retail_shape_pass"
+    table: "retail.sales_fact"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "sale_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          contamination: 0.1
+          explain: false
+          drop_complex: true
+        thresholds:
+          warning: { anomaly_score: 0.6 }
+          error: { anomaly_score: 0.8 }
+
+  - name: "retail_shape_fail"
+    table: "retail.sales_fact"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "sale_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          contamination: 0.1
+          explain: false
+          drop_complex: true
+        thresholds:
+          warning: { anomaly_score: 0.15 }
+          error: { anomaly_score: 0.30 }
+
+  # -------------------------------------------------------------------
+  # Query JOIN — category revenue from sales × products
+  # -------------------------------------------------------------------
+  - name: "retail_query_join"
+    query: |
+      SELECT p.category,
+             SUM(s.amount) AS category_revenue
+      FROM   retail.sales_fact s
+      JOIN   retail.products_dim p
+        ON   s.product_id = p.product_id
+      GROUP BY p.category
+    dimensions: ["category"]
+    measures: ["category_revenue"]
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            total_revenue: "SUM(category_revenue)"
+        rules:
+          - metric: "total_revenue"
+            # Plan §Retail #11: category-revenue roll-up must clear a
+            # fleet-level revenue floor (≥ €X).
+            thresholds:
+              error: { min: 10000.0 }
+
+  # -------------------------------------------------------------------
+  # Pattern — Random Forest two-sample + SHAP
+  # -------------------------------------------------------------------
+  - name: "retail_pattern_pass"
+    table: "retail.sales_fact"
+    validations:
+      - type: "pattern"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "sale_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: false
+          drop_complex: true
+          exclude_columns: ["sale_id", "sale_date", "updated_at"]
+        thresholds:
+          warning: { auc: 0.65 }
+          error:   { auc: 0.80 }
+
+  - name: "retail_pattern_fail"
+    table: "retail.sales_fact"
+    validations:
+      - type: "pattern"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "sale_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: true
+          drop_complex: true
+          exclude_columns: ["sale_id", "sale_date", "updated_at"]
+        thresholds:
+          warning: { auc: 0.60 }
+          error:   { auc: 0.80 }

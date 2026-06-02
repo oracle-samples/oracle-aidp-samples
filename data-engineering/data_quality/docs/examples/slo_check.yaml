@@ -1,0 +1,56 @@
+# Example: SLO freshness check
+# Monitors data freshness and alerts if data is stale
+
+owner: "data-engineering"
+bu: "analytics"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  email:
+    type: email
+    smtp_host: "smtp.company.com"
+    smtp_port: 587
+    recipients: ["oncall@company.com"]
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  - name: "events_freshness"
+    table: "catalog.schema.events"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "event_timestamp"
+        thresholds:
+          warning: "PT4H"
+          error: "PT8H"
+        notify:
+          warning: ["email"]
+          error: ["email", "slack"]
+
+  - name: "orders_freshness"
+    table: "catalog.schema.orders"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "delta_log"
+        thresholds:
+          warning: "PT2H"
+          error: "PT6H"
+        notify:
+          error: ["slack"]
+
+  - name: "custom_freshness"
+    table: "catalog.schema.inventory"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "custom_sql"
+          sql: "SELECT MAX(last_modified) FROM catalog.schema.inventory WHERE warehouse_id = 'W1'"
+        thresholds:
+          warning: "P1D"
+          error: "P2D"
+        notify:
+          error: ["email"]

@@ -1,0 +1,77 @@
+# Example: Historical comparison
+# Compare current metrics against past values to detect drift
+
+owner: "data-engineering"
+bu: "marketing"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  - name: "campaign_metrics"
+    table: "catalog.schema.campaign_events"
+    partition_ts: "'{{ ds }}'"
+    filter: "event_date = '{{ ds }}'"
+    validations:
+      # Compare against last 4 weekly values
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            event_count: "COUNT(*)"
+            avg_conversion: "AVG(conversion_rate)"
+            total_spend: "SUM(spend)"
+        rules:
+          - metric: "event_count"
+            compare:
+              past_values: 4
+              step: "P7D"
+              missing_strategy: "ignore"
+            thresholds:
+              warning: { deviation_pct: 30 }
+              error: { deviation_pct: 60 }
+          - metric: "avg_conversion"
+            compare:
+              past_values: 4
+              step: "P7D"
+              missing_strategy: "ignore"
+            thresholds:
+              warning: { z_score: 2.0 }
+              error: { z_score: 3.0 }
+          - metric: "total_spend"
+            compare:
+              past_values: 4
+              step: "P7D"
+              missing_strategy: "substitute"
+            thresholds:
+              # Signed bounds — symmetric numbers (`50`) keep the
+              # back-compat absolute-bound semantics. The dict form
+              # `{min, max}` lets you express asymmetry — here we
+              # care more about underspending (lower bound tighter)
+              # than overshooting:
+              warning:
+                deviation_pct: { min: -25, max: 50 }
+              error:
+                deviation_pct: { min: -50, max: 100 }
+
+          # Day-over-day rate-of-change — alert when spend swings
+          # more than 30% from yesterday in either direction.
+          # ``rate_of_change_pct`` is a separate signed measure from
+          # ``deviation_pct`` (which compares to the trailing window
+          # mean) — useful when you want to catch ops mistakes
+          # (forgot to push a campaign) vs slow drift.
+          - metric: "total_spend"
+            compare:
+              past_values: 1
+              step: "P1D"
+            thresholds:
+              warning:
+                rate_of_change_pct: { min: -30, max: 30 }
+              error:
+                rate_of_change_pct: { min: -60, max: 60 }
+        notify:
+          warning: ["slack"]
+          error: ["slack"]

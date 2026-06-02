@@ -1,0 +1,36 @@
+# Self-contained: every dependency listed explicitly.
+# `-r` indirection removed because some target environments (notably
+# the AIDP Workbench `pip install -r` flow) do not honor recursive
+# requirements references reliably.
+#
+# pyspark intentionally NOT listed here. AIDP Workbench provisions
+# Spark out-of-band; co-installing pyspark via `pip install -r
+# requirements.txt` would overwrite the pre-provisioned runtime.
+# Local devs who need pyspark install it separately (`pip install
+# pyspark>=3.5`) or via the `qualifire[spark]` extra.
+#
+# Lean install is in `requirements-core.txt` (just pydantic /
+# jinja2 / pyyaml / requests — covers SLO + threshold + drift +
+# custom-query against a Spark backend that's already provisioned).
+
+# Core
+pydantic>=2.0
+jinja2>=3.0
+pyyaml>=6.0
+requests>=2.28
+
+# Pandas SQL path (PandasBackend.execute_sql)
+pandasql>=0.7.3
+
+# Forecast — Prophet for trend validator
+prophet>=1.1
+
+# Anomaly — Isolation Forest + SHAP for shape/pattern validators
+scikit-learn>=1.2
+shap>=0.42
+
+# Visualisation — interactive dashboard's inline-Plotly bundle path +
+# chart notebooks under tests/manual/. Optional at runtime; the CDN
+# form of the interactive dashboard works without them.
+plotly>=5.0
+matplotlib>=3.7
