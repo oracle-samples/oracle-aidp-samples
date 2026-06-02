@@ -61,8 +61,7 @@ class RecencyCollector(Collector):
         if self.strategy == "max_column":
             where = f" WHERE {filter_expr}" if filter_expr else ""
             sql = f"SELECT MAX(`{self.column}`) AS max_ts FROM {table}{where}"
-            row = backend.execute_sql(sql).collect()[0]
-            val = row[0]
+            val = self._first_scalar(backend.execute_sql(sql))
             if val is None:
                 raise ValueError(f"No data found for MAX({self.column}) in {table}")
             if isinstance(val, str):
@@ -87,8 +86,7 @@ class RecencyCollector(Collector):
 
         elif self.strategy == "custom_sql":
             rendered = context.render(self.sql)
-            row = backend.execute_sql(rendered).collect()[0]
-            val = row[0]
+            val = self._first_scalar(backend.execute_sql(rendered))
             if val is None:
                 raise ValueError(f"Custom SQL returned NULL for recency of {table}")
             if isinstance(val, str):
@@ -97,3 +95,17 @@ class RecencyCollector(Collector):
 
         else:
             raise ValueError(f"Unknown recency strategy: {self.strategy}")
+
+    @staticmethod
+    def _first_scalar(result: Any) -> Any:
+        """First column of the first row, for a Spark or pandas result.
+
+        Spark ``execute_sql`` returns a DataFrame with ``.collect()``;
+        ``PandasBackend.execute_sql`` returns a ``pd.DataFrame`` that has
+        no such method. Mirror the ``hasattr(df, "collect")`` guard used
+        by ``AggregationCollector`` / ``MetricsCollector`` so recency
+        checks work on both backends.
+        """
+        if hasattr(result, "collect"):
+            return result.collect()[0][0]
+        return result.iloc[0, 0]

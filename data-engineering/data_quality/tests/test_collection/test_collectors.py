@@ -91,6 +91,37 @@ class TestRecencyCollector:
         results = collector.collect(backend, "t", QualifireContext())
         assert results[0].metric_value == datetime(2024, 6, 15, 10, 0, 0)
 
+    def test_max_column_pandas_backend(self):
+        """PandasBackend.execute_sql returns a pd.DataFrame (no .collect()).
+        Recency must extract the scalar via the hasattr guard rather than
+        raising AttributeError (regression for the Pandas-backend break)."""
+        import pandas as pd
+        from qualifire.collection.recency import RecencyCollector
+
+        ts = datetime(2024, 6, 15, 10, 0, 0)
+        backend = MagicMock()
+        backend.execute_sql.return_value = pd.DataFrame({"max_ts": [ts]})
+
+        collector = RecencyCollector(strategy="max_column", column="updated_at")
+        results = collector.collect(backend, "db.table", QualifireContext())
+        assert results[0].metric_value == ts
+
+    def test_custom_sql_pandas_backend(self):
+        """custom_sql strategy on the Pandas backend extracts the scalar
+        instead of raising AttributeError (regression)."""
+        import pandas as pd
+        from qualifire.collection.recency import RecencyCollector
+
+        ts = datetime(2024, 6, 15, 10, 0, 0)
+        backend = MagicMock()
+        backend.execute_sql.return_value = pd.DataFrame({"ts": [ts]})
+
+        collector = RecencyCollector(
+            strategy="custom_sql", sql="SELECT MAX(ts) FROM t"
+        )
+        results = collector.collect(backend, "t", QualifireContext())
+        assert results[0].metric_value == ts
+
     def test_delta_log_strategy(self):
         from qualifire.collection.recency import RecencyCollector
 

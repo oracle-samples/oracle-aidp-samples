@@ -390,6 +390,28 @@ class TestCacheSemantics:
         with pytest.raises(RuntimeError, match="PySpark is required"):
             engine._cache_table("t", storage_level="MEMORY_AND_DISK")
 
+    def test_cache_materialization_failure_unpersists(self) -> None:
+        """If count() raises after a successful persist(), the orphaned
+        DataFrame is unpersisted before returning None — otherwise it would
+        leak in the Spark cache for the rest of the session (the caller only
+        _uncache()s a non-None return)."""
+        backend = MagicMock()
+        backend.spark = MagicMock()
+        mock_df = MagicMock()
+        mock_df.persist.return_value = mock_df
+        mock_df.count.side_effect = RuntimeError("simulated OOM during materialization")
+        backend.execute_sql.return_value = mock_df
+
+        engine = QualifireEngine(
+            backend=backend, storage=None, context=QualifireContext(),
+            config=QualifireConfig(owner="o", bu="b", system_table="",
+                                   datasets=[DatasetConfig(name="d", table="t")]),
+        )
+        result = engine._cache_table("t", storage_level="MEMORY_AND_DISK")
+        assert result is None
+        mock_df.persist.assert_called_once()
+        mock_df.unpersist.assert_called_once()
+
 
 # --- P4.5: drop_temp_view on the Backend Protocol ----------------------------
 

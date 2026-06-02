@@ -1073,6 +1073,7 @@ class QualifireEngine:
                 "backend; install with: pip install 'qualifire[spark]'"
             ) from e
 
+        df = None
         try:
             level = getattr(StorageLevel, storage_level, StorageLevel.MEMORY_AND_DISK)
             df = self.backend.execute_sql(f"SELECT * FROM {table}")
@@ -1083,6 +1084,12 @@ class QualifireEngine:
             return df
         except Exception as e:
             logger.warning("Failed to cache table %s (Spark error): %s", table, e)
+            # ``persist`` may have registered ``df`` in the cache before
+            # ``count()`` failed. The caller only ``_uncache``s a non-None
+            # return, so release it here to avoid orphaning it for the
+            # rest of the session.
+            if df is not None:
+                self._uncache(df)
             return None
 
     @staticmethod

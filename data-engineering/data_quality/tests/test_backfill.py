@@ -216,6 +216,14 @@ class TestBackfillRejections:
         with pytest.raises(QualifireConfigError, match="data=True is only supported"):
             qf.backfill(config, partition_ts="2026-04-01", data=True)
 
+    def test_config_none_rejected(self, tmp_path):
+        """``config`` is required: backfill resolves datasets/validations
+        from it. Passing None raises rather than silently reusing storage
+        (matches the docstring contract)."""
+        qf = _make_qf(tmp_path)
+        with pytest.raises(QualifireConfigError, match="requires a config"):
+            qf.backfill(partition_ts="2026-04-01")
+
     def test_non_wap_constant_partition_ts_rejected(self, tmp_path):
         qf = _make_qf(tmp_path)
         ds = DatasetConfig(

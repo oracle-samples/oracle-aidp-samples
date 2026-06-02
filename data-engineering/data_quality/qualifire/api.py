@@ -706,10 +706,10 @@ class Qualifire:
         ``dataset.table`` filtered to the partition value.
 
         Args:
-            config: Optional ``QualifireConfig`` or path to a config
-                file. When provided, storage is (re)initialized to
-                match. When ``None``, the instance's existing storage
-                is used.
+            config: ``QualifireConfig`` or path to a config file.
+                Required — ``backfill`` resolves the datasets /
+                validations to run from it and (re)initializes storage
+                to match. Passing ``None`` raises ``QualifireConfigError``.
             partition_ts: Single partition (string / datetime), list
                 of partitions, or ``(start, end)`` tuple expanded by
                 each dataset's effective ``partition_step``. Range
