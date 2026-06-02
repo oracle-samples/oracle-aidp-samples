@@ -1,0 +1,138 @@
+# Example: Complete config using all validation types
+# Demonstrates all four pillars on a single dataset
+
+owner: "data-engineering-team"
+bu: "finance"
+system_table: "catalog.schema.qualifire_history"
+system_table_backend: "external_catalog"
+dataset_parallelism: 2                        # run datasets in parallel
+
+context:
+  environment: "production"
+
+notifications:
+  email:
+    type: email
+    smtp_host: "smtp.company.com"
+    smtp_port: 587
+    recipients:
+      - "team@company.com"
+      - "oncall@company.com"
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  - name: "sales_daily"
+    table: "catalog.schema.sales"
+    partition_ts: "'{{ ds }}'"
+    filter: "sale_date = '{{ ds }}'"
+    cache: true                           # cache for faster multi-validation reads
+    cache_storage_level: "MEMORY_AND_DISK"
+    validation_parallelism: 3               # run validations concurrently
+    validations:
+
+      # 1. SLO — Is the data fresh?
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT4H"
+          error: "PT8H"
+        notify:
+          on_success: ["email"]               # optional: confirm freshness is OK
+          warning: ["email"]
+          error: ["email", "slack"]
+
+      # 2. Threshold — Are key metrics within expected bounds?
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            row_count: "COUNT(*)"
+            avg_sale: "AVG(sale_amount)"
+            null_pct: "SUM(CASE WHEN customer_id IS NULL THEN 1 ELSE 0 END) * 100.0 / COUNT(*)"
+        rules:
+          - metric: "row_count"
+            thresholds:
+              warning: { min: 5000 }
+              error: { min: 1000 }
+          - metric: "avg_sale"
+            thresholds:
+              warning: { min: 50, max: 500 }
+              error: { min: 10 }
+          - metric: "null_pct"
+            thresholds:
+              warning: { max: 2.0 }
+              error: { max: 5.0 }
+        notify:
+          error: ["email", "slack"]
+
+      # 3. Historical — Is today's data consistent with recent history?
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_sale: "AVG(sale_amount)"
+            row_count: "COUNT(*)"
+        rules:
+          - metric: "avg_sale"
+            compare:
+              past_values: 4
+              step: "P7D"
+              missing_strategy: "ignore"
+            thresholds:
+              warning: { deviation_pct: 25 }
+              error: { deviation_pct: 50 }
+          - metric: "row_count"
+            compare:
+              past_values: 4
+              step: "P7D"
+            thresholds:
+              warning: { deviation_pct: 30 }
+              error: { deviation_pct: 60 }
+        notify:
+          warning: ["email"]
+          error: ["email", "slack"]
+
+      # 4. Forecast — Does today's value fit the seasonal pattern?
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_revenue: "SUM(sale_amount)"
+        rules:
+          - metric: "daily_revenue"
+            model:
+              history_count: 90
+              step: "P1D"
+              changepoint_prior_scale: 0.05
+              seasonality_mode: "multiplicative"
+              interval_width:
+                warning: 0.80
+                error: 0.95
+        notify:
+          warning: ["email"]
+          error: ["email", "slack"]
+
+      # 5. Anomaly Detection — Are there unexpected patterns?
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 10000
+          slice_column: "sale_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 100
+          contamination: "auto"
+          explain: true
+          drop_complex: true
+        thresholds:
+          warning: { anomaly_score: 0.6 }
+          error: { anomaly_score: 0.8 }
+        notify:
+          error: ["email", "slack"]

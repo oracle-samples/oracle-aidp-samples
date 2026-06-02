@@ -1,0 +1,36 @@
+# AIDP Workbench install set — the minimum delta required on top of
+# AIDP's pre-provisioned compute environment.
+#
+# Why this is small: AIDP compute already ships with pandas, numpy,
+# pyarrow, requests, pyyaml, pydantic, scikit-learn, and pyspark. The
+# only packages qualifire needs that AIDP does NOT pre-provision
+# (or provisions at versions older than what we test against) are the
+# five below.
+#
+#   - jinja2  — used by every validator config that renders {{ ds }}
+#               or operator-supplied filter templates.
+#   - prophet — Forecast validator.
+#   - shap    — Shape (Isolation Forest) and pattern-check (Random
+#               Forest two-sample) validators' explainability path,
+#               consumed by the value-drift-explainer.
+#   - plotly  — Interactive HTML dashboard (inline-bundled).
+#   - matplotlib — Notebook chart helpers in
+#               qualifire.reporting.plots.
+#
+# IMPORTANT: do NOT add pandas / numpy / pyspark / pydantic /
+# scikit-learn here. AIDP pre-provisions them; co-installing
+# overwrites the platform-tested version and breaks the pre-built
+# Arrow / Spark integration. If your AIDP image is missing one of
+# them, raise that with the AIDP team rather than patching it here.
+#
+# Local development uses ``requirements-local.txt`` (the full set
+# pinned for non-AIDP environments — pydantic, pyyaml, requests,
+# pandasql, scikit-learn, etc.) plus the segmented files
+# (``requirements-core.txt``, ``requirements-forecast.txt``, …) for
+# selective installs.
+
+jinja2>=3.0
+prophet>=1.1
+shap>=0.42
+plotly>=5.0
+matplotlib>=3.7

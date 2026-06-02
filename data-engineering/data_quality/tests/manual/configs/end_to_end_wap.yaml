@@ -1,0 +1,153 @@
+# End-to-end demo — WAP roll-up dataset D3 (revenue.daily_summary).
+#
+# This config is run once per simulated day (after D1+D2 are loaded
+# and validated). The write_sql joins the *just-loaded* partition of
+# retail.sales_fact and marketing.campaign_events into a single
+# rolled-up row per day, lands it in a staging table, runs
+# threshold + rate-of-change checks, and publishes only if both
+# pass. partition_ts on the run level so the WAP-staged dataset
+# carries `'{{ ds }}'` into the system table — drift's
+# partition-anchored history read needs it.
+#
+# ----------------------------------------------------------------
+# What runs per simulated day, and what to expect
+# ----------------------------------------------------------------
+# D3 (revenue.daily_summary, one row per day, computed via WAP):
+#
+#   write_sql → staging temp view → audit (validate) → publish
+#
+#   The WRITE phase materialises a single rolled-up row from
+#   D1+D2's just-loaded partition. The AUDIT phase runs:
+#
+#   1. Threshold (`summary_floors`)
+#        - `combined_revenue >= 5000`   (error)  / `>=30000` (warning)
+#        - `total_sales_rows >= 100`    (error)
+#        - `total_sessions    >= 50`    (error) / `>=500`  (warning)
+#      Stable days PASS; the early days may WARN as the seeded
+#      revenue (~30K) is just at the threshold.
+#
+#   2. Drift (`summary_rate_of_change`)
+#        - `rate_of_change_pct ∈ [-30%, +30%]` (warning)
+#        - `rate_of_change_pct ∈ [-60%, +60%]` (error)
+#      PASS for incremental days; WARN/ERROR when the seeder
+#      ramps the inputs and the day-over-day combined_revenue
+#      jumps far enough.
+#
+#   PUBLISH only happens if both checks land at < ERROR. A failing
+#   day rolls back — `revenue.daily_summary` doesn't get the row,
+#   protecting downstream consumers from bad input.
+# ----------------------------------------------------------------
+
+owner: "data-quality-demo"
+bu: "demo"
+system_table: "{{ system_db }}"
+system_table_backend: "sqlite"
+
+# Run-level partition_ts so the WAP dataset's staging view inherits
+# it. Required because ``_run_wap`` builds the audit-phase
+# DatasetConfig from just (name, table, validations) — the dataset's
+# own ``partition_ts`` doesn't propagate to the staged validations,
+# so ``_resolve_partition_ts_expr`` falls back to this run-level
+# value. Without it: collection rows land with NULL partition_ts,
+# drift's anchor-based history read can't compute
+# ``anchor − 1·P1D``, and the dashboard has no x-axis stamp.
+#
+# ``partition_step`` is intentionally NOT set at the run level: it's
+# only load-bearing for backfill / replay (``qf.backfill(...)``).
+# The drift rule below carries its own ``compare.step: P1D``, which
+# is what's used during forward execution.
+partition_ts: "'{{ ds }}'"
+
+datasets:
+
+  # =========================================================
+  # Dataset 3 — revenue.daily_summary  (WAP)
+  # =========================================================
+  - name: "revenue_daily_summary"
+    # cache=True keeps staging in a Spark temp view rather than a
+    # managed Hive serde table. Hive serde paths can race on the
+    # local Derby metastore in this notebook ("Input path does not
+    # exist" on read-back) — temp views sidestep that entirely.
+    cache: true
+    cache_storage_level: "MEMORY_AND_DISK"
+    wap:
+      target_table: "revenue.daily_summary"
+      sql: |
+        SELECT
+          '{{ ds }}'                                 AS summary_date,
+          COALESCE(s.total_sales_amount, 0.0)        AS total_sales_amount,
+          COALESCE(s.total_sales_rows,    0)         AS total_sales_rows,
+          COALESCE(c.total_conversion_value, 0.0)    AS total_conversion_value,
+          COALESCE(c.total_sessions,         0)      AS total_sessions,
+          COALESCE(s.total_sales_amount, 0.0) +
+            COALESCE(c.total_conversion_value, 0.0)  AS combined_revenue,
+          CURRENT_TIMESTAMP()                        AS published_at
+        FROM
+          (SELECT SUM(amount)  AS total_sales_amount,
+                  COUNT(*)     AS total_sales_rows
+             FROM retail.sales_fact
+            WHERE sale_date = '{{ ds }}') s
+        CROSS JOIN
+          (SELECT SUM(conversion_value) AS total_conversion_value,
+                  SUM(sessions)         AS total_sessions
+             FROM marketing.campaign_events
+            WHERE event_date = '{{ ds }}') c
+      write_options:
+        # ``append`` so each day's run adds a row instead of
+        # clobbering history. We don't partition the target — keeps
+        # the demo's metastore-side bookkeeping simple; the
+        # ``summary_date`` column is still indexed by validators via
+        # ``partition_ts``.
+        mode: "append"
+    validations:
+
+      # 1. Threshold — combined_revenue floor + sanity counts.
+      - type: "threshold"
+        name: "summary_floors"
+        collection:
+          type: "aggregation"
+          expressions:
+            combined_revenue: "SUM(combined_revenue)"
+            total_sales_rows: "SUM(total_sales_rows)"
+            total_sessions: "SUM(total_sessions)"
+        rules:
+          - metric: "combined_revenue"
+            thresholds:
+              warning: { min: 30000.0 }
+              error:   { min: 5000.0 }
+          - metric: "total_sales_rows"
+            thresholds:
+              error: { min: 100 }
+          - metric: "total_sessions"
+            thresholds:
+              warning: { min: 500 }
+              error:   { min: 50 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 2. Drift — day-over-day rate of change on combined_revenue.
+      # past_values=1 + step=P1D ⇒ compare against yesterday's WAP-
+      # published row. ``rate_of_change_pct`` is the day-over-day
+      # signed delta (vs immediate-prior); we want symmetric ±60%
+      # to catch ops mistakes (forgot to push, double-published).
+      - type: "drift"
+        name: "summary_rate_of_change"
+        collection:
+          type: "aggregation"
+          expressions:
+            combined_revenue: "SUM(combined_revenue)"
+        rules:
+          - metric: "combined_revenue"
+            compare:
+              past_values: 1
+              step: "P1D"
+              missing_strategy: "ignore"
+            thresholds:
+              warning:
+                rate_of_change_pct: { min: -30, max: 30 }
+              error:
+                rate_of_change_pct: { min: -60, max: 60 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]

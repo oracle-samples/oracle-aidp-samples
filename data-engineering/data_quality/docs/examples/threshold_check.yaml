@@ -1,0 +1,48 @@
+# Example: Threshold-based validation
+# Static bounds on aggregated metrics
+
+owner: "data-engineering"
+bu: "finance"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  email:
+    type: email
+    smtp_host: "smtp.company.com"
+    smtp_port: 587
+    recipients: ["finance-data@company.com"]
+
+datasets:
+  - name: "sales_thresholds"
+    table: "catalog.schema.sales"
+    partition_ts: "'{{ ds }}'"
+    filter: "sale_date = '{{ ds }}'"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            row_count: "COUNT(*)"
+            avg_amount: "AVG(sale_amount)"
+            max_amount: "MAX(sale_amount)"
+            null_pct: "SUM(CASE WHEN customer_id IS NULL THEN 1 ELSE 0 END) * 100.0 / COUNT(*)"
+            unique_customers: "APPROX_COUNT_DISTINCT(customer_id)"
+        rules:
+          - metric: "row_count"
+            thresholds:
+              warning: { min: 5000 }
+              error: { min: 1000 }
+          - metric: "avg_amount"
+            thresholds:
+              warning: { min: 50, max: 500 }
+              error: { min: 10, max: 5000 }
+          - metric: "null_pct"
+            thresholds:
+              warning: { max: 2.0 }
+              error: { max: 5.0 }
+          - metric: "unique_customers"
+            thresholds:
+              error: { min: 100 }
+        notify:
+          warning: ["email"]
+          error: ["email"]

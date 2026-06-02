@@ -1,0 +1,268 @@
+# Life Sciences industry pack — clinical-trial lab results + adverse
+# events, indexed by patient / site dimensions.
+#
+# Declarative twin of tests/test_e2e_industries/life_sciences/
+# test_life_sciences_e2e.py; the pack's parity test keeps the
+# (dataset, validation.type, validation.name) inventory in sync.
+# Thresholds and collection filters are illustrative and may differ
+# from the pytest scenario's seeded-data calibrations.
+
+owner: "clinops-data-quality"
+bu: "life_sciences"
+system_table: "catalog.trial.qualifire_history"
+
+datasets:
+
+  # --- SLO -----------------------------------------------------------
+  - name: "ls_slo_pass"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT6H"
+          error: "PT12H"
+
+  - name: "ls_slo_fail"
+    table: "trial.adverse_events_fact"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT6H"
+          error: "PT12H"
+
+  # --- Threshold -----------------------------------------------------
+  - name: "ls_threshold_pass"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_row_count: "COUNT(*)"
+          filter: "result_date = '{{ ds }}'"
+        rules:
+          - metric: "daily_row_count"
+            thresholds:
+              error: { min: 50 }
+
+  - name: "ls_threshold_fail"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            high_ratio: "CAST(SUM(CASE WHEN flag='HIGH' THEN 1 ELSE 0 END) AS DOUBLE) / COUNT(*)"
+        rules:
+          - metric: "high_ratio"
+            thresholds:
+              error: { max: 0.05 }
+
+  # --- Drift (per-assay, plan §LS #5,6) ------------------------------
+  - name: "ls_drift_pass"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_value_glucose: "AVG(CASE WHEN assay = 'glucose' THEN value END)"
+            avg_value_hemoglobin: "AVG(CASE WHEN assay = 'hemoglobin' THEN value END)"
+            avg_value_creatinine: "AVG(CASE WHEN assay = 'creatinine' THEN value END)"
+        rules:
+          - metric: "avg_value_glucose"
+            compare: { past_values: 3, step: "P7D" }
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+          - metric: "avg_value_hemoglobin"
+            compare: { past_values: 3, step: "P7D" }
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+          - metric: "avg_value_creatinine"
+            compare: { past_values: 3, step: "P7D" }
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+
+  - name: "ls_drift_fail"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_value_glucose: "AVG(CASE WHEN assay = 'glucose' THEN value END)"
+            avg_value_hemoglobin: "AVG(CASE WHEN assay = 'hemoglobin' THEN value END)"
+            avg_value_creatinine: "AVG(CASE WHEN assay = 'creatinine' THEN value END)"
+        rules:
+          - metric: "avg_value_glucose"
+            compare: { past_values: 3, step: "P7D" }
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+          - metric: "avg_value_hemoglobin"
+            compare: { past_values: 3, step: "P7D" }
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+          - metric: "avg_value_creatinine"
+            compare: { past_values: 3, step: "P7D" }
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+
+  # --- Trend ---------------------------------------------------------
+  - name: "ls_trend_pass"
+    table: "trial.adverse_events_fact"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_events: "COUNT(*)"
+        rules:
+          - metric: "daily_events"
+            model:
+              history_count: 30       # plan §417
+              step: "P1D"
+              changepoint_prior_scale: 0.5
+
+  - name: "ls_trend_fail"
+    table: "trial.adverse_events_fact"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_events: "COUNT(*)"
+        rules:
+          - metric: "daily_events"
+            model:
+              history_count: 30       # plan §417
+              step: "P1D"
+              changepoint_prior_scale: 0.5
+
+  # --- Shape ---------------------------------------------------------
+  - name: "ls_shape_pass"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "result_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          contamination: 0.1
+          explain: false
+          drop_complex: true
+        thresholds:
+          warning: { anomaly_score: 0.6 }
+          error: { anomaly_score: 0.8 }
+
+  - name: "ls_shape_fail"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "result_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          contamination: 0.1
+          explain: false
+          drop_complex: true
+          # Note: alert_on_schema_change is not set — single-table
+          # sample collection can't produce current-vs-past column
+          # divergence. The anomaly_ratio gate catches the NaN
+          # pattern rename + value bias. See
+          # tests/test_e2e_industries/life_sciences/test_life_sciences_e2e.py::test_shape_fail.
+        thresholds:
+          warning: { anomaly_score: 0.01 }
+          error: { anomaly_score: 0.02 }
+
+  # --- Query JOIN — orphan patient_id check, plan §LS #11 ------------
+  - name: "ls_query_join"
+    query: |
+      SELECT l.patient_id AS fact_patient_id,
+             p.patient_id AS dim_patient_id,
+             l.value
+      FROM   trial.lab_results_fact l
+      LEFT JOIN trial.patients_dim p
+        ON   l.patient_id = p.patient_id
+    dimensions: ["fact_patient_id"]
+    measures: ["value"]
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            orphan_count: "SUM(CASE WHEN dim_patient_id IS NULL THEN 1 ELSE 0 END)"
+        rules:
+          - metric: "orphan_count"
+            thresholds:
+              error: { max: 0 }
+
+  # --- Pattern -------------------------------------------------------
+  - name: "ls_pattern_pass"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "pattern"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "result_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: false
+          drop_complex: true
+          exclude_columns: ["result_id", "result_date", "updated_at",
+                            "event_id", "event_date"]
+        thresholds:
+          warning: { auc: 0.65 }
+          error:   { auc: 0.80 }
+
+  - name: "ls_pattern_fail"
+    table: "trial.lab_results_fact"
+    validations:
+      - type: "pattern"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "result_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: true
+          drop_complex: true
+          exclude_columns: ["result_id", "result_date", "updated_at",
+                            "event_id", "event_date"]
+        thresholds:
+          warning: { auc: 0.60 }
+          error:   { auc: 0.80 }

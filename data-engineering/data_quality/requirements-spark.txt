@@ -1,0 +1,9 @@
+# Spark backend — only needed for local development or environments
+# that don't already provision Spark.
+#
+# IMPORTANT: AIDP Workbench provisions Spark out-of-band. Do NOT install
+# this on AIDP — co-installing pyspark there overwrites the
+# pre-provisioned runtime. Use this on local dev / CI / any environment
+# where you need a Spark-capable PySpark from PyPI.
+
+pyspark>=3.5

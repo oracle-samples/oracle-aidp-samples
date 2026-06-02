@@ -1,0 +1,58 @@
+# Example: Write-Audit-Publish pattern
+# Validates data before publishing to production
+
+owner: "data-engineering"
+bu: "finance"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  email:
+    type: email
+    smtp_host: "smtp.company.com"
+    smtp_port: 587
+    recipients: ["finance-data@company.com"]
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  # SQL-driven WAP with caching for fast multi-validation reads
+  - name: "daily_sales_publish"
+    cache: true                         # cache staging data as temp view
+    cache_storage_level: "MEMORY_ONLY"
+    validation_parallelism: 2             # run validations concurrently
+    wap:
+      sql: |
+        SELECT
+          sale_id, customer_id, product_id,
+          sale_amount, sale_date, region,
+          CURRENT_TIMESTAMP() AS processed_at
+        FROM raw_catalog.schema.sales_raw
+        WHERE sale_date = '{{ ds }}'
+      target_table: "catalog.schema.sales_prod"
+      write_options:
+        mode: "overwrite"
+        partitionBy: ["sale_date"]
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            row_count: "COUNT(*)"
+            null_customers: "SUM(CASE WHEN customer_id IS NULL THEN 1 ELSE 0 END)"
+            avg_amount: "AVG(sale_amount)"
+        rules:
+          - metric: "row_count"
+            thresholds:
+              warning: { min: 5000 }
+              error: { min: 100 }
+          - metric: "null_customers"
+            thresholds:
+              error: { max: 0 }   # No null customer IDs allowed
+          - metric: "avg_amount"
+            thresholds:
+              warning: { min: 20, max: 1000 }
+              error: { min: 1 }
+        notify:
+          warning: ["email"]
+          error: ["email", "slack"]

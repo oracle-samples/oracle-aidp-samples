@@ -1,0 +1,246 @@
+# Financial Services industry pack — retail-banking transactions +
+# daily market prices, indexed by accounts/merchants.
+#
+# Declarative twin of
+# tests/test_e2e_industries/financial_services/test_financial_services_e2e.py.
+# The pack's parity test keeps (dataset, validation.type,
+# validation.name) inventory in sync with pytest; thresholds and
+# collection filters are illustrative (prod-like) and may differ
+# from the pytest scenario's seeded-data calibrations.
+
+owner: "banking-data-quality"
+bu: "retail_banking"
+system_table: "catalog.bank.qualifire_history"
+
+datasets:
+
+  # --- SLO -----------------------------------------------------------
+  - name: "fs_slo_pass"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT1H"
+          error: "PT4H"
+
+  - name: "fs_slo_fail"
+    table: "bank.market_prices_fact"
+    validations:
+      - type: "slo"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT1H"
+          error: "PT4H"
+
+  # --- Threshold -----------------------------------------------------
+  - name: "fs_threshold_pass"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_row_count: "COUNT(*)"
+          filter: "txn_ts >= '{{ ds }}' AND txn_ts < '{{ next_ds }}'"
+        rules:
+          - metric: "daily_row_count"
+            thresholds:
+              error: { min: 150 }
+
+  - name: "fs_threshold_fail"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            negative_count: "SUM(CASE WHEN amount < 0 THEN 1 ELSE 0 END)"
+        rules:
+          - metric: "negative_count"
+            thresholds:
+              error: { max: 0 }
+
+  # --- Drift ---------------------------------------------------------
+  - name: "fs_drift_pass"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_amount: "AVG(amount)"
+        rules:
+          - metric: "avg_amount"
+            compare:
+              past_values: 3
+              step: "P7D"
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+
+  - name: "fs_drift_fail"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            avg_amount: "AVG(amount)"
+        rules:
+          - metric: "avg_amount"
+            compare:
+              past_values: 3
+              step: "P7D"
+            thresholds:
+              warning: { deviation_pct: { min: -25, max: 25 } }
+              error: { deviation_pct: { min: -50, max: 50 } }
+
+  # --- Trend ---------------------------------------------------------
+  - name: "fs_trend_pass"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_net_flow: "SUM(amount)"
+        rules:
+          - metric: "daily_net_flow"
+            model:
+              history_count: 30       # plan §417
+              step: "P1D"
+              changepoint_prior_scale: 0.5
+
+  - name: "fs_trend_fail"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_net_flow: "SUM(amount)"
+        rules:
+          - metric: "daily_net_flow"
+            model:
+              history_count: 30       # plan §417
+              step: "P1D"
+              changepoint_prior_scale: 0.5
+
+  # --- Shape ---------------------------------------------------------
+  - name: "fs_shape_pass"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "txn_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          contamination: 0.1
+          explain: false
+          drop_complex: true
+        thresholds:
+          warning: { anomaly_score: 0.6 }
+          error: { anomaly_score: 0.8 }
+
+  - name: "fs_shape_fail"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "txn_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          contamination: 0.1
+          explain: false
+          drop_complex: true
+        thresholds:
+          warning: { anomaly_score: 0.01 }
+          error: { anomaly_score: 0.02 }
+
+  # --- Query JOIN — transactions × merchants on MCC -----------------
+  - name: "fs_query_join"
+    query: |
+      SELECT m.mcc,
+             COUNT(*)       AS txn_count,
+             SUM(t.amount)  AS mcc_volume
+      FROM   bank.transactions_fact t
+      JOIN   bank.merchants_dim m ON t.merchant_id = m.merchant_id
+      GROUP BY m.mcc
+    dimensions: ["mcc"]
+    measures: ["txn_count", "mcc_volume"]
+    validations:
+      - type: "threshold"
+        collection:
+          type: "aggregation"
+          expressions:
+            total_volume: "SUM(mcc_volume)"
+        rules:
+          - metric: "total_volume"
+            # Plan §FS #11: MCC-category aggregate threshold on joined
+            # transaction volume (not row count). A regression that
+            # silently drops amounts would pass a COUNT gate; the
+            # SUM gate catches it.
+            thresholds:
+              error: { min: 10000.0 }
+
+  # --- Pattern -------------------------------------------------------
+  - name: "fs_pattern_pass"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "pattern"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "txn_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: false
+          drop_complex: true
+          exclude_columns: ["txn_id", "txn_ts", "updated_at"]
+        thresholds:
+          warning: { auc: 0.65 }
+          error:   { auc: 0.80 }
+
+  - name: "fs_pattern_fail"
+    table: "bank.transactions_fact"
+    validations:
+      - type: "pattern"
+        collection:
+          type: "sample"
+          n_records: 500
+          slice_column: "txn_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P7D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: true
+          drop_complex: true
+          exclude_columns: ["txn_id", "txn_ts", "updated_at"]
+        thresholds:
+          warning: { auc: 0.60 }
+          error:   { auc: 0.80 }

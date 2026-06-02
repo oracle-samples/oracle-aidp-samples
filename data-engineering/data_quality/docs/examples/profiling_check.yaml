@@ -1,0 +1,86 @@
+# Example: Column profiling with granular stat control
+# Single-pass, type-aware profiling with per-column overrides
+
+owner: "data-engineering"
+bu: "analytics"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  # Basic profiling — all stats, all columns
+  - name: "orders_full_profile"
+    table: "catalog.schema.orders"
+    partition_ts: "'{{ ds }}'"
+    filter: "order_date = '{{ ds }}'"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "profiling"
+        rules:
+          - metric: "amount.null_pct"
+            thresholds:
+              warning: { max: 2.0 }
+              error: { max: 5.0 }
+          - metric: "customer_id.approx_distinct"
+            thresholds:
+              warning: { min: 1000 }
+          - metric: "status.empty_pct"
+            thresholds:
+              error: { max: 1.0 }
+
+  # Selective profiling — only specific columns, no expensive stats
+  - name: "orders_lightweight"
+    table: "catalog.schema.orders"
+    filter: "order_date = '{{ ds }}'"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "profiling"
+          columns: ["amount", "customer_id", "status"]
+          exclude_stats: ["top_k", "skewness", "kurtosis", "variance"]
+          top_k: 0
+        rules:
+          - metric: "amount.null_pct"
+            thresholds:
+              error: { max: 5.0 }
+          - metric: "amount.p50"
+            thresholds:
+              warning: { min: 10, max: 500 }
+
+  # Per-column overrides — different stats for different columns
+  - name: "orders_targeted"
+    table: "catalog.schema.orders"
+    filter: "order_date = '{{ ds }}'"
+    validations:
+      - type: "threshold"
+        collection:
+          type: "profiling"
+          exclude_stats: ["top_k"]          # globally disable top_k
+
+          column_profiles:
+            customer_id:
+              stats: ["count", "null_count", "approx_distinct"]   # only these
+            amount:
+              exclude_stats: ["skewness", "kurtosis"]             # skip these
+            notes:
+              exclude_stats: ["top_k", "avg_length"]              # skip these
+            # status, region, etc.: use global defaults (no top_k)
+
+          quantiles: [0.10, 0.25, 0.50, 0.75, 0.90]
+        rules:
+          - metric: "customer_id.null_count"
+            thresholds:
+              error: { max: 0 }
+          - metric: "amount.p10"
+            thresholds:
+              warning: { min: 5.0 }
+          - metric: "amount.p90"
+            thresholds:
+              warning: { max: 1000.0 }
+        notify:
+          warning: ["slack"]
+          error: ["slack"]

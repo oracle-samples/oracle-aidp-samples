@@ -1,0 +1,273 @@
+# End-to-end demo — source datasets D1 (retail.sales_fact) and D2
+# (marketing.campaign_events), each with a focused mix of validators.
+#
+# This config is run once per simulated day; the notebook stamps
+# `{{ ds }}` with the partition being processed. Notification routes
+# point at `inbox`, an in-memory channel registered programmatically
+# by the notebook so alerts print instead of hitting Slack/email.
+#
+# ----------------------------------------------------------------
+# What runs per simulated day, and what to expect
+# ----------------------------------------------------------------
+# D1 (retail.sales_fact, 500 rows seeded for the partition):
+#   1. SLO         — recency on `updated_at`. Rows are stamped with
+#                    wall-clock ``now`` so this PASSes every day.
+#   2. Threshold   — `row_count` floor (warn<400, error<100). Always
+#                    PASSes for the seeded 500 rows.
+#   3. Drift       — `avg_amount` vs the past 3 daily means. Stable
+#                    days PASS; once the seeder ramps the mean (days
+#                    11–14) this fires WARN/ERROR.
+#   4. Profiling   — per-column null share + approx-distinct.
+#                    Profile WARN/ERROR fires when the seeder bumps
+#                    `null_pid_rate` or accidentally reduces region
+#                    cardinality.
+#   5. Pattern     — RF two-sample classifier (today vs past 3 days).
+#                    Stable days PASS (AUC ~0.5); ramped days WARN
+#                    or ERROR as the distributions diverge.
+#
+# D2 (marketing.campaign_events, 200 rows seeded for the partition):
+#   1. Threshold   — per-channel floors via `dimensions: [channel]`.
+#                    Each of 4 channels gets its own row in the
+#                    system table.
+#   2. Forecast    — Prophet on total daily `sessions`. PASS while
+#                    sessions stay near the trained baseline; WARN
+#                    or ERROR when the seeder ramps them.
+#   3. Pattern     — same shape as D1's pattern, on raw event rows.
+# ----------------------------------------------------------------
+
+owner: "data-quality-demo"
+bu: "demo"
+system_table: "{{ system_db }}"
+system_table_backend: "sqlite"
+
+datasets:
+
+  # =========================================================
+  # Dataset 1 — retail.sales_fact
+  # =========================================================
+  # SLO + threshold + drift + pattern. Each validator owns a
+  # different metric so a regression in one doesn't mask another.
+  # NOTE: no dataset-level ``filter:``. The sampler's history logic
+  # AND-combines that filter into past-slice predicates too —
+  # ``sale_date = '{{ ds }}'`` would then exclude every past day
+  # the pattern check needs to compare against (n_past=0). Each
+  # aggregation collector scopes itself with its own
+  # ``collection.filter`` instead, leaving the sampler free to
+  # walk past slices on its own ``slice_column``/``slice_value``.
+  - name: "retail_sales_fact"
+    table: "retail.sales_fact"
+    partition_ts: "'{{ ds }}'"
+    validations:
+
+      # 1. SLO — freshness on updated_at column. ``updated_at``
+      # tracks wall-clock landing time of each row (the seeders
+      # stamp it with the current run's ``datetime.now()`` so the
+      # historical-backfill simulation doesn't trip the SLO).
+      - type: "slo"
+        name: "sales_freshness"
+        recency:
+          strategy: "max_column"
+          column: "updated_at"
+        thresholds:
+          warning: "PT24H"
+          error: "PT72H"
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 2. Threshold — row_count floor.
+      - type: "threshold"
+        name: "sales_row_count_floor"
+        collection:
+          type: "aggregation"
+          filter: "sale_date = '{{ ds }}'"
+          expressions:
+            row_count: "COUNT(*)"
+        rules:
+          - metric: "row_count"
+            thresholds:
+              warning: { min: 400 }
+              error: { min: 100 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 3. Drift — on avg_amount (different column from threshold).
+      # past_values=3 + step=P1D ⇒ anchor − 1d, − 2d, − 3d.
+      - type: "drift"
+        name: "sales_amount_drift"
+        collection:
+          type: "aggregation"
+          filter: "sale_date = '{{ ds }}'"
+          expressions:
+            avg_amount: "AVG(amount)"
+        rules:
+          - metric: "avg_amount"
+            compare:
+              past_values: 3
+              step: "P1D"
+              missing_strategy: "ignore"
+            thresholds:
+              warning:
+                deviation_pct: { min: -10, max: 10 }
+              error:
+                deviation_pct: { min: -50, max: 25 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 4. Profiling — single-pass per-column stats (null %, approx
+      # distinct, quantiles, etc.). Each emitted metric name is
+      # ``<column>.<stat>``; threshold rules cite them directly.
+      # Expected outcomes against the seeded data:
+      #   - ``product_id.null_pct``: WARNs once null_pid_rate is
+      #     bumped to 0.5%/2% in the last few days (warning: 1%,
+      #     error: 5%).
+      #   - ``region.approx_distinct``: stays at 4 (us/uk/jp/de) —
+      #     drops below 4 would WARN, below 2 would ERROR.
+      #   - ``amount.null_pct``: 0 always (the seeder never emits
+      #     a NULL amount); this is the "guard" rule that should
+      #     never trip.
+      - type: "threshold"
+        name: "sales_profile"
+        description: |
+          Profiling collector — surfaces per-column null share,
+          approx-distinct, and quantiles in one pass. Used here as a
+          lightweight schema/quality guard alongside the heavier
+          drift / pattern checks.
+        collection:
+          type: "profiling"
+          filter: "sale_date = '{{ ds }}'"
+          # Trim the stat menu so the system table doesn't fill up
+          # with metrics we have no rules on. Quantiles are kept
+          # because operators often want them downstream.
+          columns: ["amount", "product_id", "region"]
+          exclude_stats: ["top_k", "skewness", "kurtosis", "variance"]
+          top_k: 0
+        rules:
+          - metric: "amount.null_pct"
+            thresholds:
+              warning: { max: 0.1 }
+              error:   { max: 1.0 }
+          - metric: "product_id.null_pct"
+            thresholds:
+              warning: { max: 1.0 }
+              error:   { max: 5.0 }
+          - metric: "region.approx_distinct"
+            thresholds:
+              warning: { min: 4 }
+              error:   { min: 2 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 5. Pattern — RF two-sample on today vs. last 3 days.
+      - type: "pattern"
+        name: "sales_pattern"
+        collection:
+          type: "sample"
+          n_records: 300
+          slice_column: "sale_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P1D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: true
+          drop_complex: true
+          exclude_columns: ["sale_id", "sale_date", "updated_at"]
+        thresholds:
+          warning: { auc: 0.70 }
+          error:   { auc: 0.85 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+  # =========================================================
+  # Dataset 2 — marketing.campaign_events
+  # =========================================================
+  # Threshold (custom-SQL aggregation with `dimensions`) + forecast
+  # + pattern. ``table`` source (not ``query:``) so the sample
+  # collector (used by ``pattern``) can find ``event_date`` on the
+  # raw rows — a pre-aggregated query result wouldn't have it.
+  - name: "marketing_campaign_events"
+    table: "marketing.campaign_events"
+    partition_ts: "'{{ ds }}'"
+    # No dataset-level ``filter:`` — see D1's note. Each
+    # aggregation collector scopes itself.
+    validations:
+
+      # 1. Threshold — per-channel floors. ``dimensions: [channel]``
+      # is the "custom SQL containing dimensions" pattern: the
+      # validator wraps the expressions in a GROUP BY channel and
+      # produces one verdict per channel.
+      - type: "threshold"
+        name: "per_channel_floors"
+        collection:
+          type: "aggregation"
+          filter: "event_date = '{{ ds }}'"
+          dimensions: ["channel"]
+          expressions:
+            events: "COUNT(*)"
+            sessions: "SUM(sessions)"
+            converted: "SUM(conversions)"
+        rules:
+          - metric: "events"
+            thresholds:
+              warning: { min: 30 }
+              error:   { min: 5 }
+          - metric: "sessions"
+            thresholds:
+              warning: { min: 200 }
+              error:   { min: 20 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 2. Forecast — Prophet on total daily sessions (different
+      # column from threshold, per the spec).
+      - type: "trend"
+        name: "total_sessions_forecast"
+        collection:
+          type: "aggregation"
+          filter: "event_date = '{{ ds }}'"
+          expressions:
+            sessions_total: "SUM(sessions)"
+        rules:
+          - metric: "sessions_total"
+            model:
+              history_count: 14
+              step: "P1D"
+              changepoint_prior_scale: 0.5
+              interval_width:
+                warning: 0.80
+                error: 0.95
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]
+
+      # 3. Pattern — RF two-sample on today vs. past 3 days.
+      - type: "pattern"
+        name: "campaign_pattern"
+        collection:
+          type: "sample"
+          n_records: 200
+          slice_column: "event_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 3
+            step: "P1D"
+        model:
+          n_estimators: 50
+          cv_folds: 2
+          explain: true
+          drop_complex: true
+          exclude_columns: ["event_id", "event_date", "event_ts"]
+        thresholds:
+          warning: { auc: 0.70 }
+          error:   { auc: 0.85 }
+        notify:
+          warning: ["inbox"]
+          error: ["inbox"]

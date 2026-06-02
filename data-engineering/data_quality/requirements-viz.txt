@@ -1,0 +1,13 @@
+# Visualisation extras — used by:
+#   - `generate_interactive_html(inline_plotly_js=True)` — bundles the
+#     Plotly JS into the HTML so it renders inside sandboxed notebook
+#     iframes (VS Code) where the CDN <script> would be blocked. The
+#     CDN form (default) works without these packages.
+#   - tests/manual/dashboard_charts.ipynb — hard dependency on plotly
+#     and matplotlib for the executive + steward chart suite.
+
+# pandas>=2.2 is required for groupby().apply(include_groups=False) used
+# by the aggregate dashboard helpers in qualifire.reporting.plots.
+pandas>=2.2
+plotly>=5.0
+matplotlib>=3.7

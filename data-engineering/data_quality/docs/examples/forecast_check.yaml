@@ -1,0 +1,52 @@
+# Example: Prophet forecast validation
+# Dynamic thresholds that adapt to trends and seasonality
+# Requires: pip install 'qualifire[forecast]'
+
+owner: "data-engineering"
+bu: "ecommerce"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  email:
+    type: email
+    smtp_host: "smtp.company.com"
+    smtp_port: 587
+    recipients: ["ecom-data@company.com"]
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  - name: "daily_revenue"
+    table: "catalog.schema.orders"
+    partition_ts: "'{{ ds }}'"
+    filter: "order_date = '{{ ds }}'"
+    validations:
+      - type: "trend"
+        collection:
+          type: "aggregation"
+          expressions:
+            daily_revenue: "SUM(order_total)"
+            order_count: "COUNT(*)"
+        rules:
+          - metric: "daily_revenue"
+            model:
+              history_count: 90
+              step: "P1D"
+              changepoint_prior_scale: 0.05
+              seasonality_prior_scale: 10.0
+              seasonality_mode: "multiplicative"  # revenue scales with growth
+              interval_width:
+                warning: 0.80
+                error: 0.95
+          - metric: "order_count"
+            model:
+              history_count: 60
+              step: "P1D"
+              changepoint_prior_scale: 0.1  # more reactive for counts
+              interval_width:
+                warning: 0.80
+                error: 0.95
+        notify:
+          warning: ["email"]
+          error: ["email", "slack"]

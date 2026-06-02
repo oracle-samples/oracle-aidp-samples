@@ -1,0 +1,39 @@
+# Example: Isolation Forest anomaly detection
+# Detects unknown unknowns across all columns
+# Requires: pip install 'qualifire[anomaly]'
+
+owner: "data-engineering"
+bu: "payments"
+system_table: "catalog.schema.qualifire_history"
+
+notifications:
+  slack:
+    type: slack
+    webhook_url: "https://hooks.slack.com/services/T.../B.../xxx"
+
+datasets:
+  - name: "transactions_anomaly"
+    table: "catalog.schema.transactions"
+    partition_ts: "'{{ ds }}'"
+    validations:
+      - type: "shape"
+        collection:
+          type: "sample"
+          n_records: 10000
+          slice_column: "txn_date"
+          slice_value: "{{ ds }}"
+          history:
+            past_dates: 4
+            step: "P7D"
+        model:
+          n_estimators: 100
+          contamination: "auto"
+          explain: true
+          drop_complex: false
+          alert_on_schema_change: true
+        thresholds:
+          warning: { anomaly_score: 0.5 }
+          error: { anomaly_score: 0.7 }
+        notify:
+          warning: ["slack"]
+          error: ["slack"]

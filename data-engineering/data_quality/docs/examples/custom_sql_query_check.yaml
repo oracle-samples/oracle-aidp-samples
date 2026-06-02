@@ -1,0 +1,112 @@
+# Custom SQL Query Check
+#
+# Validates metrics derived from a multi-table join. The query
+# result is materialized as a temp view; validations run against it
+# like any table-based dataset.
+#
+# Two patterns are demonstrated together:
+#   (1) GLOBAL ROLL-UP — re-aggregate the per-region rows into a
+#       single global metric (SUM/COUNT) for a one-shot check.
+#   (2) PER-DIMENSION THRESHOLD — keep the per-region rows and
+#       declare `dimensions: ["region"]` so each region is a
+#       separate row in the system table with its own threshold.
+#
+# Both patterns are valid; pick whichever matches the alert you
+# actually want. Mixing them in one rule (e.g. `SUM(metric)` AS the
+# rule's metric, then per-region thresholds) is a common bug — the
+# SUM rolls up to a single value, so per-region thresholds never
+# fire.
+
+owner: "data-platform"
+bu: "revenue"
+system_table: "catalog.schema.qf_history"
+
+datasets:
+  - name: "cross_table_revenue"
+    partition_ts: "'{{ ds }}'"
+    query: |
+      SELECT
+        o.region,
+        SUM(o.quantity * p.price)         AS total_revenue,
+        COUNT(DISTINCT o.order_id)         AS order_count,
+        AVG(o.quantity * p.price)          AS avg_order_value
+      FROM catalog.schema.orders o
+      JOIN catalog.schema.products p
+        ON o.product_id = p.product_id
+      WHERE o.order_date = '{{ ds }}'
+      GROUP BY o.region
+    dimensions:
+      - region
+    measures:
+      - total_revenue
+      - order_count
+      - avg_order_value
+    cache: true
+
+    validations:
+
+      # Pattern (1): GLOBAL ROLL-UP — one alert when the company-wide
+      # number drops below floor. SUM() collapses all regions into a
+      # single number; the threshold fires once for the whole dataset.
+      - type: "threshold"
+        name: "global_revenue_floor"
+        collection:
+          type: "aggregation"
+          expressions:
+            global_revenue: "SUM(total_revenue)"
+            region_count: "COUNT(*)"
+        rules:
+          - metric: "global_revenue"
+            thresholds:
+              warning: { min: 100000 }
+              error:   { min: 50000 }
+          - metric: "region_count"
+            thresholds:
+              error: { min: 1 }
+        notify:
+          error: ["oncall_slack", "exec_email"]
+
+      # Pattern (2): PER-DIMENSION THRESHOLD — alert per region. The
+      # `dimensions: [region]` tells the engine to keep one row per
+      # region; the threshold fires independently for each.
+      - type: "threshold"
+        name: "per_region_revenue_floor"
+        collection:
+          type: "aggregation"
+          expressions:
+            region_revenue: "SUM(total_revenue)"
+          dimensions: ["region"]
+        rules:
+          - metric: "region_revenue"
+            thresholds:
+              warning: { min: 25000 }
+              error:   { min: 10000 }
+        notify:
+          warning: ["regional_team_email"]
+          error:   ["oncall_slack"]
+
+      # Drift on the per-region average order value. Signed bounds:
+      # negative-only on `deviation_pct` because we care about the
+      # downside (drop in AOV); positive swings are fine.
+      - type: "drift"
+        name: "per_region_aov_drift"
+        collection:
+          type: "aggregation"
+          expressions:
+            region_aov: "AVG(avg_order_value)"
+          dimensions: ["region"]
+        rules:
+          - metric: "region_aov"
+            compare:
+              past_values: 4
+              step: P7D
+              missing_strategy: ignore
+            thresholds:
+              warning:
+                deviation_pct:      { min: -25 }
+                rate_of_change_pct: { min: -30, max: 30 }
+              error:
+                deviation_pct: { min: -50 }
+        notify:
+          warning: ["regional_team_email"]
+          error:   ["oncall_slack"]
