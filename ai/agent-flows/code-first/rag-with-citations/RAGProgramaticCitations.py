@@ -283,11 +283,13 @@ def append_citations_block(result: dict) -> None:
     # Inline markers the model was told to emit, e.g. "[ref=s294d835a]".
     inline_cite_re = re.compile(r"\[ref=([^\]]+)\]")
 
-    # Defensively strip any "Sources"/"References"/"Citations" tail the model wrote
-    # on its own, so only our authoritative, scored block remains.
+    # Defensively strip any "Sources"/"References"/"Citations" section the model
+    # wrote on its own, so only our authoritative, scored block remains. The
+    # keyword must START a line (a real header) — anchored with re.MULTILINE — so
+    # the same words used mid-sentence in the answer are left intact.
     body = re.sub(
-        r"\n*\s*(?:\*\*|__)?\s*(?:sources|references|citations)\b[^\n]*\n.*\Z",
-        "", target.content, flags=re.IGNORECASE | re.DOTALL,
+        r"^[ \t]*(?:\*\*|__)?[ \t]*(?:sources|references|citations)\b[^\n]*\n.*\Z",
+        "", target.content, flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
     ).rstrip()
 
     # refs in the order the model first cites them inline.
