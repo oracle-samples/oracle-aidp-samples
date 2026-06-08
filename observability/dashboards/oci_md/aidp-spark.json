@@ -1,0 +1,2968 @@
+[
+  {
+    "providerId": "management-dashboard",
+    "providerName": "Management Dashboard",
+    "providerVersion": "3.0.0",
+    "dashboardId": "aidp-spark",
+    "compartmentId": "__COMPARTMENT_OCID__",
+    "displayName": "OCI AIDP \u2014 Spark (executor-level)",
+    "description": "Per-executor OCI Data Flow compute metrics (executorId=driver,1..n) for the AI Data Platform. Pick an AIDP Instance + Cluster to isolate one compute; series are grouped by executor. CPU/Memory/GC/FileSystem are %, Disk/Network are bytes.",
+    "isOobDashboard": false,
+    "isShowInHome": false,
+    "isFavorite": false,
+    "isShowDescription": true,
+    "metadataVersion": "2.0",
+    "screenImage": "",
+    "nls": {},
+    "type": "normal",
+    "uiConfig": {
+      "isFilteringEnabled": true,
+      "isRefreshEnabled": true,
+      "isTimeRangeEnabled": true
+    },
+    "dataConfig": [],
+    "featuresConfig": {
+      "crossService": {
+        "shared": true
+      }
+    },
+    "drilldownConfig": [],
+    "parametersConfig": [
+      {
+        "savedSearchId": "OOBSS-management-dashboard-compartment-filter",
+        "displayName": "Compartment",
+        "width": 3,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": false,
+          "isActiveCompartment": "true"
+        },
+        "name": "compartmentId",
+        "localStorageKey": "compartmentId"
+      },
+      {
+        "savedSearchId": "OOBSS-management-dashboard-region-filter",
+        "displayName": "Region",
+        "width": 2,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": true
+        },
+        "name": "regionName",
+        "localStorageKey": "regionName"
+      },
+      {
+        "name": "time",
+        "displayName": "Time",
+        "src": "$(context.time)"
+      },
+      {
+        "savedSearchId": "flt-aidp",
+        "displayName": "AIDP Instance",
+        "width": 4,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": true,
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "regionName": "$(dashboard.params.regionName)"
+        },
+        "name": "aidp",
+        "localStorageKey": "aidp"
+      },
+      {
+        "savedSearchId": "flt-cluster",
+        "displayName": "Cluster Name",
+        "width": 3,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": true,
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "regionName": "$(dashboard.params.regionName)"
+        },
+        "name": "cluster",
+        "localStorageKey": "cluster"
+      }
+    ],
+    "tiles": [
+      {
+        "row": 0,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-00",
+        "displayName": "CPU Utilization %",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 0,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-01",
+        "displayName": "Memory Utilization %",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 5,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-02",
+        "displayName": "File System Utilization %",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 5,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-03",
+        "displayName": "GC CPU Utilization %",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 10,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-04",
+        "displayName": "JVM Heap Used",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 10,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-05",
+        "displayName": "Disk Read Bytes/s",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 15,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-06",
+        "displayName": "Disk Write Bytes/s",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 15,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-07",
+        "displayName": "Network Receive Bytes/s",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 20,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-08",
+        "displayName": "Network Transmit Bytes/s",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 20,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-09",
+        "displayName": "Active Tasks",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 25,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-10",
+        "displayName": "Completed Tasks (driver)",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 25,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-11",
+        "displayName": "Failed Tasks (driver)",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 30,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-12",
+        "displayName": "Total Tasks",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 30,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-13",
+        "displayName": "Shuffle Read Bytes",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 35,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "spark-ss-14",
+        "displayName": "Shuffle Write Bytes",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "cluster": "$(dashboard.params.cluster)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      }
+    ],
+    "savedSearches": [
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "flt-aidp",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "AIDP Instance",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "FILTER_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          },
+          "serviceTypes": [
+            "management-dashboard"
+          ]
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "d1",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "datalakeId",
+              "metricName": "CpuUtilization",
+              "namespace": "oracle_aidataplatform",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          },
+          {
+            "name": "d2",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "datalakeId",
+              "metricName": "CpuUtilization",
+              "namespace": "oracle_datalake",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "d1",
+                "d2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "filterName": "aidp",
+          "storageKey": "aidp",
+          "localStorageKey": "aidp",
+          "parameterFieldName": "aidp",
+          "vizFilterType": "genericFilter",
+          "genericFilterInfo": {
+            "selectionMode": "single",
+            "firstOption": {
+              "label": "All",
+              "value": "*"
+            },
+            "placeholder": "All"
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            },
+            "valueFormat": {
+              "type": "object"
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter",
+                "parametersMap": {
+                  "selectionMode": "multiple"
+                }
+              }
+            },
+            "valueFormat": {
+              "type": "array"
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "flt-cluster",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Cluster Name",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "FILTER_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          },
+          "serviceTypes": [
+            "management-dashboard"
+          ]
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "d1",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "resourceName",
+              "metricName": "CpuUtilization",
+              "namespace": "oracle_aidataplatform",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          },
+          {
+            "name": "d2",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "resourceName",
+              "metricName": "CpuUtilization",
+              "namespace": "oracle_datalake",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "d1",
+                "d2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "filterName": "cluster",
+          "storageKey": "cluster",
+          "localStorageKey": "cluster",
+          "parameterFieldName": "cluster",
+          "vizFilterType": "genericFilter",
+          "genericFilterInfo": {
+            "selectionMode": "single",
+            "firstOption": {
+              "label": "All",
+              "value": "*"
+            },
+            "placeholder": "All"
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            },
+            "valueFormat": {
+              "type": "object"
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter",
+                "parametersMap": {
+                  "selectionMode": "multiple"
+                }
+              }
+            },
+            "valueFormat": {
+              "type": "array"
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-00",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "CPU Utilization %",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "CpuUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "CpuUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Percent",
+                "dataMax": 100,
+                "viewportMax": 100
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-01",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Memory Utilization %",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "MemoryUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "MemoryUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Percent",
+                "dataMax": 100,
+                "viewportMax": 100
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-02",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "File System Utilization %",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "FileSystemUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "FileSystemUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Percent",
+                "dataMax": 100,
+                "viewportMax": 100
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-03",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "GC CPU Utilization %",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "GcCpuUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "GcCpuUtilization[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Percent",
+                "dataMax": 100,
+                "viewportMax": 100
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-04",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "JVM Heap Used",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "JvmHeapUsed[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "JvmHeapUsed[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "bytes"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-05",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Disk Read Bytes/s",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "DiskReadBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "DiskReadBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Bytes/s"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-06",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Disk Write Bytes/s",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "DiskWriteBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "DiskWriteBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Bytes/s"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-07",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Network Receive Bytes/s",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "NetworkReceiveBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "NetworkReceiveBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Bytes/s"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-08",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Network Transmit Bytes/s",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "NetworkTransmitBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "NetworkTransmitBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).rate()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "Bytes/s"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-09",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Active Tasks",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "ActiveTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "ActiveTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).mean()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-10",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Completed Tasks (driver)",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "TotalCompletedTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "TotalCompletedTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-11",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Failed Tasks (driver)",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "TotalFailedTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "TotalFailedTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-12",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Total Tasks",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "TotalTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "TotalTasks[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-13",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Shuffle Read Bytes",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "shuffleTotalBytesRead[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "shuffleTotalBytesRead[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "bytes"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "spark-ss-14",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Shuffle Write Bytes",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "s1",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "TotalShuffleWriteBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "s2",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_datalake",
+              "mql": "TotalShuffleWriteBytes[5m]{{ '$(params.cluster)'!=''&&'$(params.cluster)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\",resourceName =~ \"$(params.cluster)\"}' : '{resourceName =~ \"$(params.cluster)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{datalakeId =~ \"$(params.aidp)\"}' : '') }}.grouping(datalakeId,resourceName,executorId).sum()"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "s1",
+                "s2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "chartInfo": {
+            "colorBy": "dimensions.executorId",
+            "series": "dimensions.executorId",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "bytes"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "cluster",
+            "displayName": "cluster",
+            "defaultFilterIds": [
+              "flt-cluster"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-cluster"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
