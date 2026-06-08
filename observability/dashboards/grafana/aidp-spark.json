@@ -41,7 +41,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "percent"
+          "unit": "percent",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -141,7 +142,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "percent"
+          "unit": "percent",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -241,7 +243,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "percent"
+          "unit": "percent",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -341,7 +344,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "percent"
+          "unit": "percent",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -441,7 +445,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "bytes"
+          "unit": "bytes",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -543,7 +548,56 @@
           },
           "unit": "Bps"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Read \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Read \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Write \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Write \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -697,7 +751,56 @@
           },
           "unit": "Bps"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Rx \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Rx \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Tx \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Tx \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -861,7 +964,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "short"
+          "unit": "short",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -963,7 +1067,56 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Completed \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Completed \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failed \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failed \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1115,7 +1268,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "short"
+          "unit": "short",
+          "displayName": "${__field.name}"
         },
         "overrides": []
       },
@@ -1217,7 +1371,56 @@
           },
           "unit": "bytes"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Read \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Read \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Write \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Write \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,

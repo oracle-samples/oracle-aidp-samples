@@ -17,6 +17,9 @@
   "panels": [
     {
       "collapsed": false,
+      "fieldConfig": {
+        "overrides": []
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -25,10 +28,7 @@
       },
       "id": 1,
       "title": "GenAI / LLM  (filter: AI Compute Name + Agent Flow)",
-      "type": "row",
-      "fieldConfig": {
-        "overrides": []
-      }
+      "type": "row"
     },
     {
       "datasource": {
@@ -44,6 +44,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -117,6 +118,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -192,7 +194,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "LLM In \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "LLM Out \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -292,7 +319,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Agent In \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Agent Out \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -392,7 +444,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Cached \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Reasoning \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -490,6 +567,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "ms"
         },
         "overrides": []
@@ -564,7 +642,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Success \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failure \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -650,6 +753,9 @@
     },
     {
       "collapsed": false,
+      "fieldConfig": {
+        "overrides": []
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -658,10 +764,7 @@
       },
       "id": 9,
       "title": "Agent Tools  (per-tool metrics \u2014 no agentFlowKey; filtered by AI Compute Name only)",
-      "type": "row",
-      "fieldConfig": {
-        "overrides": []
-      }
+      "type": "row"
     },
     {
       "datasource": {
@@ -679,7 +782,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Success \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failure \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -777,7 +905,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Success \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failure \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -875,7 +1028,32 @@
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Success \u00b7 ${__field.name}"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Failure \u00b7 ${__field.name}"
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -971,6 +1149,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -1031,6 +1210,9 @@
     },
     {
       "collapsed": false,
+      "fieldConfig": {
+        "overrides": []
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1039,10 +1221,7 @@
       },
       "id": 14,
       "title": "Sessions & Endpoints  (filter: AI Compute Name + Agent Flow)",
-      "type": "row",
-      "fieldConfig": {
-        "overrides": []
-      }
+      "type": "row"
     },
     {
       "datasource": {
@@ -1058,6 +1237,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -1131,6 +1311,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "ms"
         },
         "overrides": []
@@ -1204,6 +1385,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -1277,6 +1459,7 @@
             "showPoints": "never",
             "spanNulls": true
           },
+          "displayName": "${__field.name}",
           "unit": "ms"
         },
         "overrides": []
