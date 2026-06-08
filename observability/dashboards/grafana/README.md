@@ -5,9 +5,9 @@ built on the **OCI Metrics** datasource plugin.
 
 | File | Dashboard | Variables |
 |---|---|---|
-| `aidp-spark.json` | **Spark (Executor-level)** — Data Flow compute, per executor/driver | Data Source, Tenancy, Compartment, Region, AIDP Instance, Cluster |
-| `aidp-workflow-jobs.json` | **Workflow Jobs** — job run durations + status | Data Source, Tenancy, Compartment, Region, AIDP Instance, Job |
-| `aidp-ai-platform.json` | **AI Platform** — GenAI / agent tooling & sessions | Data Source, Tenancy, Compartment, Region, AI Compute, Agent Flow |
+| `aidp-spark.json` | **Spark (Executor-level)** — Data Flow compute, per executor/driver | Data Source, Tenancy, Compartment, Region, AIDP Instance, Cluster, **Cluster Key** |
+| `aidp-workflow-jobs.json` | **Workflow Jobs** — job run durations + status | Data Source, Tenancy, Compartment, Region, AIDP Instance, Job, **Job ID** |
+| `aidp-ai-platform.json` | **AI Platform** — GenAI / agent tooling & sessions | Data Source, Tenancy, Compartment, Region, AI Compute, **Compute Key**, Agent Flow |
 
 All three are **portable**: the datasource is referenced through a `Data Source` template variable
 (`${ds}`), and there are no hardcoded tenancy/region/OCID values. See
@@ -46,17 +46,20 @@ done
 - **Combination isolation:** each query ANDs the selected values via `dimensionValues`
   (`datalakeId/resourceId =~ "${aidp}"` **AND** `resourceName/jobName =~ "${...}"`), so a specific
   AIDP + Cluster/Job isolates that resource within that AIDP.
-- **Single-dimension `groupBy` only:** the OCI Metrics plugin (v6.5.4) breaks on multi-dimension
-  `groupBy` (it emits a field per dimension *value*), and its frames carry **no labels** — so
-  `legendFormat` `{{dimensionName}}` tokens render literally. Each panel therefore groups by **one**
-  dimension and the legend is that dimension's value (no custom `legendFormat`):
-  - **Spark** → `groupBy(executorId)` → legend `driver`, `1`, `2`, … (per executor/driver).
+- **One value per legend line (plugin limitation):** the OCI Metrics plugin (v6.5.4) **ignores
+  `legendFormat`**, breaks on multi-dimension `groupBy`, and attaches **only the grouped dimension**
+  as a series label (grouping by a key carries the key, not the name). Legends are therefore set with
+  Grafana **`displayName` field overrides** (`${__field.name}` = the grouped value), one dimension per
+  line:
+  - **Spark** → `groupBy(executorId)` → `driver`, `1`, `2`, … (per executor/driver).
   - **Jobs** → `groupBy(jobName)` / `groupBy(status)`.
-  - **AI** → `groupBy(computeClusterId)` (a `renameByRegex` transform shortens it to `…<last8>`),
-    because `computeClusterName` is **not unique** and GenAI metrics carry no AIDP/workspace dimension —
-    this guarantees same-named computes stay distinct lines.
-  The AIDP/cluster context comes from the **filter selection** (the plugin can't combine dimensions
-  into one legend). Pick an AIDP + Cluster to focus the dense per-executor view.
+  - **AI** → `groupBy(computeClusterName)`.
+  Combined panels (Disk Read/Write, Network Rx/Tx, Tasks, GenAI Success/Failure, tokens In/Out, …)
+  prefix the metric per query via the same override — e.g. `Read · driver`, `Success · ‹compute›`.
+  Because a key and a name can't both appear on one line, every dashboard ships **both a name and a key
+  dropdown** — **Cluster / Cluster Key**, **Job / Job ID**, **AI Compute / Compute Key** — so you can
+  filter by the key to disambiguate same-named entities. Pick an AIDP + Cluster to focus the dense
+  per-executor Spark view.
 - **No workspace variable:** the telemetry exposes no workspace dimension on any metric family.
 - **Dropdown lists don't cascade:** the OCI Metrics plugin's `dimensions()` macro returns each
   dimension's full, un-joined value list, so picking an AIDP narrows the **data**, not the contents of

@@ -45,8 +45,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "ms",
-          "displayName": "${__field.name}"
+          "displayName": "${__field.name}",
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -88,7 +88,7 @@
           ],
           "groupBy": "jobName",
           "interval": "[5m]",
-          "legendFormat": "{{jobName}}",
+          "legendFormat": "",
           "metric": "JobRunDuration",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -135,8 +135,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "ms",
-          "displayName": "${__field.name}"
+          "displayName": "${__field.name}",
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -178,7 +178,7 @@
           ],
           "groupBy": "status",
           "interval": "[5m]",
-          "legendFormat": "{{status}}",
+          "legendFormat": "",
           "metric": "JobRunDuration",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -209,8 +209,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "unit": "short",
-          "displayName": "${__field.name}"
+          "displayName": "${__field.name}",
+          "unit": "short"
         },
         "overrides": []
       },
@@ -252,7 +252,7 @@
           ],
           "groupBy": "status",
           "interval": "[5m]",
-          "legendFormat": "{{status}}",
+          "legendFormat": "",
           "metric": "JobRunDuration",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
