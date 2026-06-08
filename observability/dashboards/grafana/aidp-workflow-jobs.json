@@ -17,6 +17,10 @@
   "panels": [
     {
       "collapsed": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -25,11 +29,7 @@
       },
       "id": 1,
       "title": "Job & Workspace Runs  (filter: AIDP Instance + Job Name)",
-      "type": "row",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "type": "row"
     },
     {
       "datasource": {
@@ -87,7 +87,7 @@
           ],
           "groupBy": "jobName",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{jobName}}",
           "metric": "JobRunDuration",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -102,11 +102,14 @@
         }
       ],
       "title": "Job Run Duration",
-      "transformations": [],
       "type": "timeseries"
     },
     {
       "collapsed": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -115,11 +118,7 @@
       },
       "id": 4,
       "title": "Breakdown by Status",
-      "type": "row",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "type": "row"
     },
     {
       "datasource": {
@@ -177,7 +176,7 @@
           ],
           "groupBy": "status",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{status}}",
           "metric": "JobRunDuration",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -192,7 +191,6 @@
         }
       ],
       "title": "Job Run Duration by Status",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -251,7 +249,7 @@
           ],
           "groupBy": "status",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{status}}",
           "metric": "JobRunDuration",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -266,7 +264,6 @@
         }
       ],
       "title": "Job Runs (count) by Status",
-      "transformations": [],
       "type": "timeseries"
     }
   ],
@@ -479,6 +476,7 @@
         "type": "query"
       },
       {
+        "allValue": "*",
         "current": {
           "selected": true,
           "text": "All",
@@ -498,8 +496,7 @@
         "refresh": 1,
         "regex": "/jobId(?: - |=\\\")(?<value>[^\\\"]+)/",
         "sort": 1,
-        "type": "query",
-        "allValue": "*"
+        "type": "query"
       }
     ]
   },

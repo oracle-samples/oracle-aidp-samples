@@ -41,7 +41,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "percent"
         },
         "overrides": []
@@ -84,7 +83,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "CpuUtilization",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -111,7 +110,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "CpuUtilization",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -126,7 +125,6 @@
         }
       ],
       "title": "CPU Utilization %",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -143,7 +141,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "percent"
         },
         "overrides": []
@@ -186,7 +183,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "MemoryUtilization",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -213,7 +210,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "MemoryUtilization",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -228,7 +225,6 @@
         }
       ],
       "title": "Memory Utilization %",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -245,7 +241,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "percent"
         },
         "overrides": []
@@ -288,7 +283,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "FileSystemUtilization",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -315,7 +310,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "FileSystemUtilization",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -330,7 +325,6 @@
         }
       ],
       "title": "File System Utilization %",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -347,7 +341,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "percent"
         },
         "overrides": []
@@ -390,7 +383,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "GcCpuUtilization",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -417,7 +410,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "GcCpuUtilization",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -432,7 +425,6 @@
         }
       ],
       "title": "GC CPU Utilization %",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -449,7 +441,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "bytes"
         },
         "overrides": []
@@ -492,7 +483,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "JvmHeapUsed",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -519,7 +510,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "JvmHeapUsed",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -534,7 +525,6 @@
         }
       ],
       "title": "JVM Heap Used",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -553,56 +543,7 @@
           },
           "unit": "Bps"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Read \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Read \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Write \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Write \u00b7 ${__field.name}"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -642,7 +583,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Read \u00b7 {{executorId}}",
           "metric": "DiskReadBytes",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -669,7 +610,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Read \u00b7 {{executorId}}",
           "metric": "DiskReadBytes",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -696,7 +637,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Write \u00b7 {{executorId}}",
           "metric": "DiskWriteBytes",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -723,7 +664,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Write \u00b7 {{executorId}}",
           "metric": "DiskWriteBytes",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -738,7 +679,6 @@
         }
       ],
       "title": "Disk Throughput (Read/Write)",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -757,56 +697,7 @@
           },
           "unit": "Bps"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Rx \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Rx \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Tx \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Tx \u00b7 ${__field.name}"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -846,7 +737,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Rx \u00b7 {{executorId}}",
           "metric": "NetworkReceiveBytes",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -873,7 +764,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Rx \u00b7 {{executorId}}",
           "metric": "NetworkReceiveBytes",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -900,7 +791,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Tx \u00b7 {{executorId}}",
           "metric": "NetworkTransmitBytes",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -927,7 +818,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Tx \u00b7 {{executorId}}",
           "metric": "NetworkTransmitBytes",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -942,7 +833,6 @@
         }
       ],
       "title": "Network Throughput (Rx/Tx)",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -971,7 +861,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -1014,7 +903,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "ActiveTasks",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -1041,7 +930,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "ActiveTasks",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -1056,7 +945,6 @@
         }
       ],
       "title": "Active Tasks",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -1075,56 +963,7 @@
           },
           "unit": "short"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Completed \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Completed \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Failed \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Failed \u00b7 ${__field.name}"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -1164,7 +1003,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Completed \u00b7 {{executorId}}",
           "metric": "TotalCompletedTasks",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -1191,7 +1030,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Completed \u00b7 {{executorId}}",
           "metric": "TotalCompletedTasks",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -1218,7 +1057,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Failed \u00b7 {{executorId}}",
           "metric": "TotalFailedTasks",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -1245,7 +1084,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Failed \u00b7 {{executorId}}",
           "metric": "TotalFailedTasks",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -1260,7 +1099,6 @@
         }
       ],
       "title": "Tasks Completed vs Failed",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -1277,7 +1115,6 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "displayName": "${clusterkey} \u00b7 ${__field.name}",
           "unit": "short"
         },
         "overrides": []
@@ -1320,7 +1157,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "TotalTasks",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -1347,7 +1184,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "{{executorId}}",
           "metric": "TotalTasks",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -1362,7 +1199,6 @@
         }
       ],
       "title": "Total Tasks",
-      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -1381,56 +1217,7 @@
           },
           "unit": "bytes"
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "A"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Read \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "B"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Read \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "C"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Write \u00b7 ${__field.name}"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byFrameRefID",
-              "options": "D"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "${clusterkey} \u00b7 Write \u00b7 ${__field.name}"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -1470,7 +1257,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Read \u00b7 {{executorId}}",
           "metric": "shuffleTotalBytesRead",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -1497,7 +1284,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Read \u00b7 {{executorId}}",
           "metric": "shuffleTotalBytesRead",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -1524,7 +1311,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Write \u00b7 {{executorId}}",
           "metric": "TotalShuffleWriteBytes",
           "namespace": "oracle_aidataplatform",
           "queryText": "",
@@ -1551,7 +1338,7 @@
           ],
           "groupBy": "executorId",
           "interval": "[5m]",
-          "legendFormat": "",
+          "legendFormat": "Write \u00b7 {{executorId}}",
           "metric": "TotalShuffleWriteBytes",
           "namespace": "oracle_datalake",
           "queryText": "",
@@ -1566,7 +1353,6 @@
         }
       ],
       "title": "Shuffle Bytes (Read/Write)",
-      "transformations": [],
       "type": "timeseries"
     }
   ],
