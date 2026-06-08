@@ -78,9 +78,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "llm.requests",
@@ -97,15 +98,6 @@
         }
       ],
       "title": "LLM Requests",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -159,9 +151,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "total_tokens",
@@ -178,15 +171,6 @@
         }
       ],
       "title": "Total Tokens",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -240,9 +224,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "total_tokens_input_to_llm",
@@ -266,9 +251,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "total_tokens_output_from_llm",
@@ -285,15 +271,6 @@
         }
       ],
       "title": "Tokens In/Out \u2014 LLM",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -347,9 +324,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "total_tokens_input_to_agent",
@@ -373,9 +351,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "total_tokens_output_from_agent",
@@ -392,15 +371,6 @@
         }
       ],
       "title": "Tokens In/Out \u2014 Agent",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -454,9 +424,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "llm.tokens.cached",
@@ -480,9 +451,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "llm.tokens.reasoning",
@@ -499,15 +471,6 @@
         }
       ],
       "title": "Tokens Cached / Reasoning",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -560,9 +523,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "gen_ai.client.operation.duration",
@@ -579,15 +543,6 @@
         }
       ],
       "title": "GenAI Client Operation Duration",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -641,9 +596,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "gen_ai_api_success_counter",
@@ -667,9 +623,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "gen_ai_api_failure_counter",
@@ -686,15 +643,6 @@
         }
       ],
       "title": "GenAI API Success vs Failure",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -759,9 +707,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "rag_tool_success_counter",
@@ -784,9 +733,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "rag_tool_failure_counter",
@@ -803,15 +753,6 @@
         }
       ],
       "title": "RAG Tool Success vs Failure",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -864,9 +805,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "sql_tool_success_counter",
@@ -889,9 +831,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "sql_tool_failure_counter",
@@ -908,15 +851,6 @@
         }
       ],
       "title": "SQL Tool Success vs Failure",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -969,9 +903,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "sql_tool_connection_pool_success_counter",
@@ -994,9 +929,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "sql_tool_connection_pool_failure_counter",
@@ -1013,15 +949,6 @@
         }
       ],
       "title": "SQL Conn Pool Success vs Failure",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1074,9 +1001,10 @@
             "uid": "${ds}"
           },
           "dimensionValues": [
-            "computeClusterName =~ \"${aicompute:pipe}\""
+            "computeClusterName =~ \"${aicompute:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "prompt_tool_success_counter",
@@ -1093,15 +1021,6 @@
         }
       ],
       "title": "Prompt Tool Success",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1167,9 +1086,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "total_sessions",
@@ -1186,15 +1106,6 @@
         }
       ],
       "title": "Total Sessions",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1248,9 +1159,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "sessions_duration",
@@ -1267,15 +1179,6 @@
         }
       ],
       "title": "Session Duration",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1329,9 +1232,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "request_count",
@@ -1348,15 +1252,6 @@
         }
       ],
       "title": "Request Count",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     },
     {
@@ -1410,9 +1305,10 @@
           },
           "dimensionValues": [
             "computeClusterName =~ \"${aicompute:pipe}\"",
-            "agentFlowKey =~ \"${agentflow:pipe}\""
+            "agentFlowKey =~ \"${agentflow:pipe}\"",
+            "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterId",
+          "groupBy": "computeClusterKey",
           "interval": "[5m]",
           "legendFormat": "",
           "metric": "endpoint_latency",
@@ -1429,15 +1325,6 @@
         }
       ],
       "title": "Endpoint Latency",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": "ocid1\\.[a-z0-9.]+?([a-z0-9]{8})$",
-            "renamePattern": "\u2026$1"
-          }
-        }
-      ],
       "type": "timeseries"
     }
   ],
@@ -1589,6 +1476,29 @@
         "regex": "/computeClusterName(?: - |=\")(?<value>[^\"]+)/",
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "dimensions($region,$compartment,$nsv_aicompute,$dmet_aicompute,$rgv)",
+        "includeAll": true,
+        "label": "Compute Key",
+        "multi": true,
+        "name": "computekey",
+        "options": [],
+        "query": "dimensions($region,$compartment,$nsv_aicompute,$dmet_aicompute,$rgv)",
+        "refresh": 1,
+        "regex": "/computeClusterKey(?: - |=\\\")(?<value>[^\\\"]+)/",
+        "sort": 1,
+        "type": "query",
+        "allValue": "*"
       },
       {
         "current": {

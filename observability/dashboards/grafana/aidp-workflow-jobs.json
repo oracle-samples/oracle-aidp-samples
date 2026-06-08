@@ -25,7 +25,11 @@
       },
       "id": 1,
       "title": "Job & Workspace Runs  (filter: AIDP Instance + Job Name)",
-      "type": "row"
+      "type": "row",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
       "datasource": {
@@ -78,7 +82,8 @@
           },
           "dimensionValues": [
             "resourceId =~ \"${instance:pipe}\"",
-            "jobName =~ \"${job:pipe}\""
+            "jobName =~ \"${job:pipe}\"",
+            "jobId =~ \"${jobid:pipe}\""
           ],
           "groupBy": "jobName",
           "interval": "[5m]",
@@ -110,7 +115,11 @@
       },
       "id": 4,
       "title": "Breakdown by Status",
-      "type": "row"
+      "type": "row",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
     },
     {
       "datasource": {
@@ -163,7 +172,8 @@
           },
           "dimensionValues": [
             "resourceId =~ \"${instance:pipe}\"",
-            "jobName =~ \"${job:pipe}\""
+            "jobName =~ \"${job:pipe}\"",
+            "jobId =~ \"${jobid:pipe}\""
           ],
           "groupBy": "status",
           "interval": "[5m]",
@@ -236,7 +246,8 @@
           },
           "dimensionValues": [
             "resourceId =~ \"${instance:pipe}\"",
-            "jobName =~ \"${job:pipe}\""
+            "jobName =~ \"${job:pipe}\"",
+            "jobId =~ \"${jobid:pipe}\""
           ],
           "groupBy": "status",
           "interval": "[5m]",
@@ -466,6 +477,29 @@
         "regex": "/jobName(?: - |=\")(?<value>[^\"]+)/",
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "dimensions($region,$compartment,$nsv_job,$dmet_job,$rgv)",
+        "includeAll": true,
+        "label": "Job ID",
+        "multi": true,
+        "name": "jobid",
+        "options": [],
+        "query": "dimensions($region,$compartment,$nsv_job,$dmet_job,$rgv)",
+        "refresh": 1,
+        "regex": "/jobId(?: - |=\\\")(?<value>[^\\\"]+)/",
+        "sort": 1,
+        "type": "query",
+        "allValue": "*"
       }
     ]
   },
