@@ -1,0 +1,754 @@
+[
+  {
+    "providerId": "management-dashboard",
+    "providerName": "Management Dashboard",
+    "providerVersion": "3.0.0",
+    "dashboardId": "aidp-jobs",
+    "compartmentId": "__COMPARTMENT_OCID__",
+    "displayName": "OCI AIDP \u2014 Workflow Jobs",
+    "description": "Workflow job & workspace run durations for the AI Data Platform. Pick an AIDP Instance + Job to isolate. JobRunDuration is dimensioned by job; WorkspaceRunDuration records the same run duration at the workspace/instance scope. Duration is ms.",
+    "isOobDashboard": false,
+    "isShowInHome": false,
+    "isFavorite": false,
+    "isShowDescription": true,
+    "metadataVersion": "2.0",
+    "screenImage": "",
+    "nls": {},
+    "type": "normal",
+    "uiConfig": {
+      "isFilteringEnabled": true,
+      "isRefreshEnabled": true,
+      "isTimeRangeEnabled": true
+    },
+    "dataConfig": [],
+    "featuresConfig": {
+      "crossService": {
+        "shared": true
+      }
+    },
+    "drilldownConfig": [],
+    "parametersConfig": [
+      {
+        "savedSearchId": "OOBSS-management-dashboard-compartment-filter",
+        "displayName": "Compartment",
+        "width": 3,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": false,
+          "isActiveCompartment": "true"
+        },
+        "name": "compartmentId",
+        "localStorageKey": "compartmentId"
+      },
+      {
+        "savedSearchId": "OOBSS-management-dashboard-region-filter",
+        "displayName": "Region",
+        "width": 2,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": true
+        },
+        "name": "regionName",
+        "localStorageKey": "regionName"
+      },
+      {
+        "name": "time",
+        "displayName": "Time",
+        "src": "$(context.time)"
+      },
+      {
+        "savedSearchId": "flt-aidp",
+        "displayName": "AIDP Instance",
+        "width": 4,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": true,
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "regionName": "$(dashboard.params.regionName)"
+        },
+        "name": "aidp",
+        "localStorageKey": "aidp"
+      },
+      {
+        "savedSearchId": "flt-job",
+        "displayName": "Job Name",
+        "width": 3,
+        "state": "DEFAULT",
+        "parametersMap": {
+          "isStoreInLocalStorage": true,
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "regionName": "$(dashboard.params.regionName)"
+        },
+        "name": "job",
+        "localStorageKey": "job"
+      }
+    ],
+    "tiles": [
+      {
+        "row": 0,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "jobs-ss-00",
+        "displayName": "Job Run Duration",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "job": "$(dashboard.params.job)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 0,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "jobs-ss-01",
+        "displayName": "Job Run Duration by Status",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "job": "$(dashboard.params.job)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      },
+      {
+        "row": 5,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "jobs-ss-02",
+        "displayName": "Job Runs (count) by Status",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "job": "$(dashboard.params.job)",
+          "aidp": "$(dashboard.params.aidp)"
+        }
+      }
+    ],
+    "savedSearches": [
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "flt-aidp",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "AIDP Instance",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "FILTER_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          },
+          "serviceTypes": [
+            "management-dashboard"
+          ]
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "d1",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "datalakeId",
+              "metricName": "CpuUtilization",
+              "namespace": "oracle_aidataplatform",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          },
+          {
+            "name": "d2",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "datalakeId",
+              "metricName": "CpuUtilization",
+              "namespace": "oracle_datalake",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          },
+          {
+            "name": "u",
+            "type": "transformUnion",
+            "parameters": {
+              "dependents": [
+                "d1",
+                "d2"
+              ]
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "u",
+          "filterName": "aidp",
+          "storageKey": "aidp",
+          "localStorageKey": "aidp",
+          "parameterFieldName": "aidp",
+          "vizFilterType": "genericFilter",
+          "genericFilterInfo": {
+            "selectionMode": "single",
+            "firstOption": {
+              "label": "All",
+              "value": "*"
+            },
+            "placeholder": "All"
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            },
+            "valueFormat": {
+              "type": "object"
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter",
+                "parametersMap": {
+                  "selectionMode": "multiple"
+                }
+              }
+            },
+            "valueFormat": {
+              "type": "array"
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "flt-job",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Job Name",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "FILTER_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          },
+          "serviceTypes": [
+            "management-dashboard"
+          ]
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "vals",
+            "type": "monitoringDimensionDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "dimension": "jobName",
+              "metricName": "JobRunDuration",
+              "namespace": "oracle_aidataplatform",
+              "preventDefaultTransform": true,
+              "regionName": "$(params.regionName)"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "vals",
+          "filterName": "job",
+          "storageKey": "job",
+          "localStorageKey": "job",
+          "parameterFieldName": "job",
+          "vizFilterType": "genericFilter",
+          "genericFilterInfo": {
+            "selectionMode": "single",
+            "firstOption": {
+              "label": "All",
+              "value": "*"
+            },
+            "placeholder": "All"
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            },
+            "valueFormat": {
+              "type": "object"
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter",
+                "parametersMap": {
+                  "selectionMode": "multiple"
+                }
+              }
+            },
+            "valueFormat": {
+              "type": "array"
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "jobs-ss-00",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Job Run Duration",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "JobRunDuration[5m]{{ '$(params.job)'!=''&&'$(params.job)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{resourceId =~ \"$(params.aidp)\",jobName =~ \"$(params.job)\"}' : '{jobName =~ \"$(params.job)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{resourceId =~ \"$(params.aidp)\"}' : '') }}.grouping(jobName).mean()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.jobName",
+            "series": "dimensions.jobName",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "ms"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "job",
+            "displayName": "job",
+            "defaultFilterIds": [
+              "flt-job"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-job"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "jobs-ss-01",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Job Run Duration by Status",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "JobRunDuration[5m]{{ '$(params.job)'!=''&&'$(params.job)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{resourceId =~ \"$(params.aidp)\",jobName =~ \"$(params.job)\"}' : '{jobName =~ \"$(params.job)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{resourceId =~ \"$(params.aidp)\"}' : '') }}.grouping(status).mean()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.status",
+            "series": "dimensions.status",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {
+                "title": "ms"
+              }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "job",
+            "displayName": "job",
+            "defaultFilterIds": [
+              "flt-job"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-job"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "jobs-ss-02",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Job Runs (count) by Status",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "JobRunDuration[5m]{{ '$(params.job)'!=''&&'$(params.job)'!='*' ? ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{resourceId =~ \"$(params.aidp)\",jobName =~ \"$(params.job)\"}' : '{jobName =~ \"$(params.job)\"}') : ('$(params.aidp)'!=''&&'$(params.aidp)'!='*' ? '{resourceId =~ \"$(params.aidp)\"}' : '') }}.grouping(status).count()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.status",
+            "series": "dimensions.status",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "job",
+            "displayName": "job",
+            "defaultFilterIds": [
+              "flt-job"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-job"
+              }
+            }
+          },
+          {
+            "name": "aidp",
+            "displayName": "aidp",
+            "defaultFilterIds": [
+              "flt-aidp"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aidp"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

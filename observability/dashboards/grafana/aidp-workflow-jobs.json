@@ -1,0 +1,513 @@
+{
+  "id": null,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "aidp"
+      ],
+      "targetBlank": false,
+      "title": "AIDP Dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "title": "Job & Workspace Runs  (filter: AIDP Instance + Job Name)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "oci-metrics-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "displayName": "${__field.name}",
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "compartment": "$compartment",
+          "compartmentName": "$compartment",
+          "datasource": {
+            "type": "oci-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "dimensionValues": [
+            "resourceId =~ \"${instance:pipe}\"",
+            "jobName =~ \"${job:pipe}\"",
+            "jobId =~ \"${jobid:pipe}\""
+          ],
+          "groupBy": "jobName",
+          "interval": "[5m]",
+          "legendFormat": "",
+          "metric": "JobRunDuration",
+          "namespace": "oracle_aidataplatform",
+          "queryText": "",
+          "queryTextRaw": "",
+          "rawQuery": false,
+          "refId": "A",
+          "region": "$region",
+          "statistic": "avg()",
+          "tenancy": "$tenancy",
+          "tenancyName": "$tenancy",
+          "tenancymode": "single"
+        }
+      ],
+      "title": "Job Run Duration",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 4,
+      "title": "Breakdown by Status",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "oci-metrics-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "displayName": "${__field.name}",
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "compartment": "$compartment",
+          "compartmentName": "$compartment",
+          "datasource": {
+            "type": "oci-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "dimensionValues": [
+            "resourceId =~ \"${instance:pipe}\"",
+            "jobName =~ \"${job:pipe}\"",
+            "jobId =~ \"${jobid:pipe}\""
+          ],
+          "groupBy": "status",
+          "interval": "[5m]",
+          "legendFormat": "",
+          "metric": "JobRunDuration",
+          "namespace": "oracle_aidataplatform",
+          "queryText": "",
+          "queryTextRaw": "",
+          "rawQuery": false,
+          "refId": "A",
+          "region": "$region",
+          "statistic": "avg()",
+          "tenancy": "$tenancy",
+          "tenancyName": "$tenancy",
+          "tenancymode": "single"
+        }
+      ],
+      "title": "Job Run Duration by Status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "oci-metrics-datasource",
+        "uid": "${ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "displayName": "${__field.name}",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "compartment": "$compartment",
+          "compartmentName": "$compartment",
+          "datasource": {
+            "type": "oci-metrics-datasource",
+            "uid": "${ds}"
+          },
+          "dimensionValues": [
+            "resourceId =~ \"${instance:pipe}\"",
+            "jobName =~ \"${job:pipe}\"",
+            "jobId =~ \"${jobid:pipe}\""
+          ],
+          "groupBy": "status",
+          "interval": "[5m]",
+          "legendFormat": "",
+          "metric": "JobRunDuration",
+          "namespace": "oracle_aidataplatform",
+          "queryText": "",
+          "queryTextRaw": "",
+          "rawQuery": false,
+          "refId": "A",
+          "region": "$region",
+          "statistic": "count()",
+          "tenancy": "$tenancy",
+          "tenancyName": "$tenancy",
+          "tenancymode": "single"
+        }
+      ],
+      "title": "Job Runs (count) by Status",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": [
+    "aidp",
+    "oracle_aidataplatform"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "label": "Data Source",
+        "name": "ds",
+        "query": "oci-metrics-datasource",
+        "refresh": 1,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "DEFAULT",
+          "value": "DEFAULT/"
+        },
+        "includeAll": false,
+        "label": "Tenancy",
+        "multi": false,
+        "name": "tenancy",
+        "options": [
+          {
+            "selected": true,
+            "text": "DEFAULT",
+            "value": "DEFAULT/"
+          }
+        ],
+        "query": "DEFAULT : DEFAULT/",
+        "type": "custom"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "compartments()",
+        "includeAll": false,
+        "label": "Compartment",
+        "multi": false,
+        "name": "compartment",
+        "options": [],
+        "query": "compartments()",
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "regions($tenancy)",
+        "includeAll": false,
+        "label": "Region",
+        "multi": false,
+        "name": "region",
+        "options": [],
+        "query": "regions($tenancy)",
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "_",
+          "value": "_"
+        },
+        "hide": 2,
+        "name": "rgv",
+        "options": [
+          {
+            "selected": true,
+            "text": "_",
+            "value": "_"
+          }
+        ],
+        "query": "_",
+        "type": "constant"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "oracle_aidataplatform|oracle_datalake",
+          "value": "oracle_aidataplatform|oracle_datalake"
+        },
+        "hide": 2,
+        "name": "nsv_instance",
+        "options": [
+          {
+            "selected": true,
+            "text": "oracle_aidataplatform|oracle_datalake",
+            "value": "oracle_aidataplatform|oracle_datalake"
+          }
+        ],
+        "query": "oracle_aidataplatform|oracle_datalake",
+        "type": "constant"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "CpuUtilization",
+          "value": "CpuUtilization"
+        },
+        "hide": 2,
+        "name": "dmet_instance",
+        "options": [
+          {
+            "selected": true,
+            "text": "CpuUtilization",
+            "value": "CpuUtilization"
+          }
+        ],
+        "query": "CpuUtilization",
+        "type": "constant"
+      },
+      {
+        "allValue": "ocid1.*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "dimensions($region,$compartment,$nsv_instance,$dmet_instance,$rgv)",
+        "includeAll": true,
+        "label": "AIDP Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": "dimensions($region,$compartment,$nsv_instance,$dmet_instance,$rgv)",
+        "refresh": 1,
+        "regex": "/datalakeId(?: - |=\")(?<value>[^\"]+)/",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "oracle_aidataplatform",
+          "value": "oracle_aidataplatform"
+        },
+        "hide": 2,
+        "name": "nsv_job",
+        "options": [
+          {
+            "selected": true,
+            "text": "oracle_aidataplatform",
+            "value": "oracle_aidataplatform"
+          }
+        ],
+        "query": "oracle_aidataplatform",
+        "type": "constant"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "JobRunDuration",
+          "value": "JobRunDuration"
+        },
+        "hide": 2,
+        "name": "dmet_job",
+        "options": [
+          {
+            "selected": true,
+            "text": "JobRunDuration",
+            "value": "JobRunDuration"
+          }
+        ],
+        "query": "JobRunDuration",
+        "type": "constant"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "dimensions($region,$compartment,$nsv_job,$dmet_job,$rgv)",
+        "includeAll": true,
+        "label": "Job Name",
+        "multi": true,
+        "name": "job",
+        "options": [],
+        "query": "dimensions($region,$compartment,$nsv_job,$dmet_job,$rgv)",
+        "refresh": 1,
+        "regex": "/jobName(?: - |=\")(?<value>[^\"]+)/",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": "*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "oci-metrics-datasource",
+          "uid": "${ds}"
+        },
+        "definition": "dimensions($region,$compartment,$nsv_job,$dmet_job,$rgv)",
+        "includeAll": true,
+        "label": "Job ID",
+        "multi": true,
+        "name": "jobid",
+        "options": [],
+        "query": "dimensions($region,$compartment,$nsv_job,$dmet_job,$rgv)",
+        "refresh": 1,
+        "regex": "/jobId(?: - |=\\\")(?<value>[^\\\"]+)/",
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "AIDP \u2014 Workflow Jobs",
+  "uid": "aidp-user-application"
+}
