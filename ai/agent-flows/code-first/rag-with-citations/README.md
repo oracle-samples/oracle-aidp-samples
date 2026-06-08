@@ -131,7 +131,11 @@ Both files are standalone agent flows — deploy **one** of them per agent flow.
    `<oci-region>`, `<your-catalog-name>`, `<your-schema-name>`,
    `<your-knowledge-base-name>`, and `<oci-genai-model-id>` (choose a model
    available in your region — OCI Generative AI model availability is
-   region-specific).
+   region-specific). `RAGProgramaticCitations.py` sets the model in two places:
+   `rag_tool_model_id` (RAGTool's internal synthesis, which is discarded — a
+   fast, inexpensive model works well) and `agent_model_id` (composes the final
+   cited answer — prefer a stronger model); both default to the
+   `<oci-genai-model-id>` placeholder.
 5. Set that file as the **entry file**.
 6. Attach an AI compute.
 7. Run the Python file, then test the agent from the **Test** tab of your agent

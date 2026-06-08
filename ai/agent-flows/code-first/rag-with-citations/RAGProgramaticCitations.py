@@ -55,9 +55,16 @@ region = "<oci-region>"
 catalog = "<your-catalog-name>"
 schema = "<your-schema-name>"
 knowledge_base = "<your-knowledge-base-name>"
-# Pick a model that is available in YOUR region (availability is region-specific).
+# Pick model(s) available in YOUR region (availability is region-specific).
 # See the OCI Generative AI docs for the model IDs offered in each region.
-model_id = "<oci-genai-model-id>"
+# Two models are configured independently:
+#   - rag_tool_model_id — the LLM inside RAGTool. Its generated answer is
+#     discarded (fusion_pdf_reader keeps only the retrieved chunks), so a fast,
+#     inexpensive model is a good fit here and keeps each tool call quick.
+#   - agent_model_id — the LLM the agent uses to compose the final cited answer
+#     the user sees; prefer a stronger model here for answer quality.
+rag_tool_model_id = "<oci-genai-model-id>"
+agent_model_id = "<oci-genai-model-id>"
 endpoint = f"https://inference.generativeai.{region}.oci.oraclecloud.com"
 
 MIN_CHUNK_SCORE = 0.62
@@ -99,7 +106,7 @@ rag_conf = AIDPToolConf(
         "knowledgeBase": knowledge_base,
         "top_k": 5,
         "llm": {
-            "model_id": model_id,
+            "model_id": rag_tool_model_id,
             "model_provider": "generic",
             "compartment_id": compartment_ocid,
             "endpoint": endpoint
@@ -174,7 +181,7 @@ llm_conf = OCIAIConf(
     compartment_id=compartment_ocid,
     model_args={},
     endpoint=endpoint,
-    model_id=model_id,
+    model_id=agent_model_id,
     guardrails_config={
         "name": "Default Guardrails",
         "description": "Default empty guardrails configuration",
@@ -284,13 +291,21 @@ def append_citations_block(result: dict) -> None:
     inline_cite_re = re.compile(r"\[ref=([^\]]+)\]")
 
     # Defensively strip any "Sources"/"References"/"Citations" section the model
-    # wrote on its own, so only our authoritative, scored block remains. The
-    # keyword must START a line (a real header) — anchored with re.MULTILINE — so
-    # the same words used mid-sentence in the answer are left intact.
-    body = re.sub(
-        r"^[ \t]*(?:\*\*|__)?[ \t]*(?:sources|references|citations)\b[^\n]*\n.*\Z",
-        "", target.content, flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
-    ).rstrip()
+    # wrote on its own, so only our authoritative, scored block remains. We match
+    # ONLY a real header line — either decorated (**Sources**, ## Sources) or the
+    # bare keyword followed by a colon (Sources:) — anchored to the start of a line
+    # (re.MULTILINE). A line that merely begins with the word as prose ("Sources of
+    # this data are ...") is NOT a header, so it is left intact and the inline
+    # [ref=...] citations within the answer are preserved.
+    sources_section_re = re.compile(
+        r"^[ \t]*(?:-{3,}[ \t]*\n[ \t]*)?"                 # optional '---' rule before the header
+        r"(?:"
+        r"(?:\#{1,6}[ \t]*(?:\*\*|__)?|(?:\*\*|__))[ \t]*(?:sources|references|citations)\b[^\n]*"  # decorated header (## or **)
+        r"|(?:sources|references|citations)[ \t]*:[ \t]*"                                           # bare 'Sources:' header
+        r")(?:\n.*)?\Z",                                   # then everything to the end of the answer
+        flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    body = sources_section_re.sub("", target.content).rstrip()
 
     # refs in the order the model first cites them inline.
     cited_order, seen = [], set()
