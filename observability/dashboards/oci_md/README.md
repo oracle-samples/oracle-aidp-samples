@@ -70,7 +70,13 @@ After import, open **Observability & Management → Dashboards** (filter to your
 - **AI Compute uniqueness:** AI panels group by `computeClusterId` so AI Computes that share a name stay
   distinct lines (the engine has no AIDP dimension to label them by).
 - **Distinct dropdown values:** dimension dropdowns set `preventDefaultTransform: true` so each value
-  appears **once** (a cluster name shared across many AIDPs isn't repeated per metric stream).
+  appears **once** per namespace (a cluster name shared across many AIDPs isn't repeated per metric
+  stream). *Known cosmetic quirk:* the Cluster dropdown **unions** `oracle_aidataplatform` (current) and
+  `oracle_datalake` (legacy) so all clusters are selectable, and OCI MD doesn't dedupe **across** that
+  union — so a name present in **both** namespaces (e.g. `Default Master Catalog Compute`) shows **twice**
+  (once per namespace). Both entries filter identically, so it's harmless; it's most visible in regions
+  where the current namespace has only that one cluster (e.g. Mumbai) and hidden among many in regions
+  where the current namespace is rich (e.g. Ashburn).
 - **No workspace dropdown:** the telemetry exposes no workspace dimension on any metric family.
 - **Dropdown lists don't cascade:** the dimension dropdown only sends `{namespace, metricName}` to
   ListMetrics (any `dimensionFilters` is stripped), so picking an AIDP narrows the **data**, not the
