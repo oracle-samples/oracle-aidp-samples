@@ -85,7 +85,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "llm.requests",
@@ -159,7 +159,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "total_tokens",
@@ -257,7 +257,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "total_tokens_input_to_llm",
@@ -284,7 +284,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "total_tokens_output_from_llm",
@@ -382,7 +382,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "total_tokens_input_to_agent",
@@ -409,7 +409,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "total_tokens_output_from_agent",
@@ -507,7 +507,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "llm.tokens.cached",
@@ -534,7 +534,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "llm.tokens.reasoning",
@@ -607,7 +607,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "gen_ai.client.operation.duration",
@@ -705,7 +705,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "gen_ai_api_success_counter",
@@ -732,7 +732,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "gen_ai_api_failure_counter",
@@ -844,7 +844,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "rag_tool_success_counter",
@@ -870,7 +870,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "rag_tool_failure_counter",
@@ -967,7 +967,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "sql_tool_success_counter",
@@ -993,7 +993,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "sql_tool_failure_counter",
@@ -1090,7 +1090,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "sql_tool_connection_pool_success_counter",
@@ -1116,7 +1116,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "sql_tool_connection_pool_failure_counter",
@@ -1189,7 +1189,7 @@
             "computeClusterName =~ \"${aicompute:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "prompt_tool_success_counter",
@@ -1278,7 +1278,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "total_sessions",
@@ -1352,7 +1352,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "sessions_duration",
@@ -1426,7 +1426,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "request_count",
@@ -1500,7 +1500,7 @@
             "agentFlowKey =~ \"${agentflow:pipe}\"",
             "computeClusterKey =~ \"${computekey:pipe}\""
           ],
-          "groupBy": "computeClusterKey",
+          "groupBy": "computeClusterName",
           "interval": "[5m]",
           "legendFormat": "{{computeClusterKey}}",
           "metric": "endpoint_latency",
