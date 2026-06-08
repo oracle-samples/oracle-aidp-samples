@@ -76,7 +76,8 @@ After import, open **Observability & Management → Dashboards** (filter to your
   ListMetrics (any `dimensionFilters` is stripped), so picking an AIDP narrows the **data**, not the
   contents of the other dropdowns.
 - OCI MD chart legends key on a **single** dimension (e.g. `executorId`); AIDP/cluster context comes
-  from the filter selection. (The Grafana version shows a richer multi-token legend.)
+  from the filter selection. (The Grafana version is the same — its plugin also keys the legend on a
+  single dimension's value.)
 
 ## Implementation notes
 The per-panel filter is a **top-level `{{ }}`** 4-case nested-ternary (each branch a literal MQL
