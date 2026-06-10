@@ -1,0 +1,5 @@
+# Python packages for AIDP Instance-Principal JDBC connectivity
+oci>=2.120.0          # OCI SDK — mints the instance-principal federation token + ephemeral key
+JPype1>=1.7.0         # JVM bridge used by JayDeBeApi (requires Python 3.8+)
+JayDeBeApi>=1.2.3     # DB-API 2.0 wrapper around the JDBC driver
+cryptography>=3.4     # serialize the ephemeral session key to PEM (also an oci dependency)
