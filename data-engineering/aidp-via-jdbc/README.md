@@ -8,7 +8,7 @@ VM's **OCI Instance Principal** — no IAM user, no API signing key, no password
 > **Instance Principal**. There is no OCI Resource Principal involved as an
 > identity (a plain compute VM does not have one). The **Resource‑Principal
 > (RPST) mechanism is reused only as the driver's transport** for the Instance
-> Principal's token. See [Instance Principal vs Resource Principal](#instance-principal-vs-resource-principal-what-is-actually-used).
+> Principal's token. See [Instance Principal vs Resource Principal](#instance-principal-vs-resource-principal).
 
 It is meant to run on an OCI compute instance whose instance principal is in a
 **dynamic group that is mapped to an AIDP role**. The script runs a SQL query
@@ -59,7 +59,7 @@ short-lived temp directory and deleted when the script exits.
 > session-token profile. The Resource-Principal env-var path above is the one
 > that works.
 
-## Instance Principal vs Resource Principal — what is actually used
+## Instance Principal vs Resource Principal
 
 This sample legitimately involves **both terms**, in two distinct roles, so it
 is worth being precise:
@@ -146,6 +146,7 @@ All options are settable by flag or environment variable:
 | `--jar` | `SIMBA_JDBC_JAR` | `./SparkJDBC2.6.18.2065.jar` |
 | `--jvm` | `JVM_PATH` | auto-discovered `libjvm` |
 | `--query` | `AIDP_QUERY` | `SHOW DATABASES` |
+| `--max-rows` | `AIDP_MAX_ROWS` | `100` (output is bounded; prints `truncated` if exceeded) |
 
 ### Expected output
 
@@ -167,8 +168,9 @@ python connect_aidp_instance_principal.py \
 
 ## Security notes
 
-- The federation token and ephemeral private key are written to a `0600`
-  temp directory and **removed on exit** (`finally`). Nothing is persisted.
+- The federation token and ephemeral private key are each written to a `0600`
+  file inside a `0700` temp directory, and the directory is **removed on exit**
+  (`finally`). Nothing is persisted.
 - Instance-principal tokens are **short-lived**. This sample mints a fresh one
   per run, so it is ideal for short queries/jobs. A long-running process would
   need to refresh the token and reconnect.
