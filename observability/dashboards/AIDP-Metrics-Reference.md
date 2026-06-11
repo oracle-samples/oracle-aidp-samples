@@ -104,6 +104,12 @@ Key dropdown to disambiguate, and (Grafana) an Agent Flow filter.
 > meanings/units above are taken from that spec. `total_tokens` is the sum of the input + output token
 > counters. Items marked *(inferred)* are not unit-annotated at the source.
 
+> **Region / version availability.** Not every AI-Platform metric is emitted by every runtime version or in
+> every region. In particular the **agent-scope token counters** (`total_tokens_input_to_agent`,
+> `total_tokens_output_from_agent`) and some **`*_failure_counter`** series (e.g.
+> `sql_tool_connection_pool_failure_counter`) may be absent in a given tenancy/region. The dashboards chart
+> the full set for completeness; an absent metric renders **no data** rather than an error.
+
 ---
 
 ## 4. Dimensions

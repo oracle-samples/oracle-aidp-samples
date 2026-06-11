@@ -430,6 +430,86 @@
           "regionName": "$(dashboard.params.regionName)",
           "aicompute": "$(dashboard.params.aicompute)"
         }
+      },
+      {
+        "row": 45,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "ai-ss-18",
+        "displayName": "GenAI API Failure",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "aicompute": "$(dashboard.params.aicompute)"
+        }
+      },
+      {
+        "row": 45,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "ai-ss-19",
+        "displayName": "RAG Tool Failure",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "aicompute": "$(dashboard.params.aicompute)"
+        }
+      },
+      {
+        "row": 50,
+        "column": 0,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "ai-ss-20",
+        "displayName": "Tokens Input to Agent",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "aicompute": "$(dashboard.params.aicompute)"
+        }
+      },
+      {
+        "row": 50,
+        "column": 6,
+        "width": 6,
+        "height": 5,
+        "savedSearchId": "ai-ss-21",
+        "displayName": "Tokens Output from Agent",
+        "description": null,
+        "state": "DEFAULT",
+        "nls": {},
+        "uiConfig": {},
+        "dataConfig": [],
+        "drilldownConfig": [],
+        "parametersMap": {
+          "compartmentId": "$(dashboard.params.compartmentId)",
+          "time": "$(dashboard.params.time)",
+          "regionName": "$(dashboard.params.regionName)",
+          "aicompute": "$(dashboard.params.aicompute)"
+        }
       }
     ],
     "savedSearches": [
@@ -2612,6 +2692,482 @@
               "yAxis": {
                 "title": "ms"
               }
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "aicompute",
+            "displayName": "aicompute",
+            "defaultFilterIds": [
+              "flt-aicompute"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aicompute"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "ai-ss-18",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "GenAI API Failure",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "gen_ai_api_failure_counter[5m]{{ '$(params.aicompute)'!=''&&'$(params.aicompute)'!='*' ? '{computeClusterName =~ \"$(params.aicompute)\"}' : '' }}.grouping(computeClusterId,computeClusterName).sum()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.computeClusterName",
+            "series": "dimensions.computeClusterName",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "aicompute",
+            "displayName": "aicompute",
+            "defaultFilterIds": [
+              "flt-aicompute"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aicompute"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "ai-ss-19",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "RAG Tool Failure",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "rag_tool_failure_counter[5m]{{ '$(params.aicompute)'!=''&&'$(params.aicompute)'!='*' ? '{computeClusterName =~ \"$(params.aicompute)\"}' : '' }}.grouping(computeClusterId,computeClusterName).sum()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.computeClusterName",
+            "series": "dimensions.computeClusterName",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "aicompute",
+            "displayName": "aicompute",
+            "defaultFilterIds": [
+              "flt-aicompute"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aicompute"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "ai-ss-20",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Tokens Input to Agent",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "total_tokens_input_to_agent[5m]{{ '$(params.aicompute)'!=''&&'$(params.aicompute)'!='*' ? '{computeClusterName =~ \"$(params.aicompute)\"}' : '' }}.grouping(computeClusterId,computeClusterName).sum()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.computeClusterName",
+            "series": "dimensions.computeClusterName",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
+            }
+          }
+        },
+        "parametersConfig": [
+          {
+            "name": "compartmentId",
+            "displayName": "Compartment",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-compartment-filter"
+            ],
+            "editUi": {
+              "inputType": "compartmentSelect"
+            }
+          },
+          {
+            "name": "time",
+            "displayName": "Time",
+            "required": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-time-selector-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-time-selector-filter"
+              }
+            }
+          },
+          {
+            "name": "regionName",
+            "displayName": "Region",
+            "hidden": true,
+            "defaultFilterIds": [
+              "OOBSS-management-dashboard-region-filter"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "OOBSS-management-dashboard-region-filter"
+              }
+            }
+          },
+          {
+            "name": "aicompute",
+            "displayName": "aicompute",
+            "defaultFilterIds": [
+              "flt-aicompute"
+            ],
+            "editUi": {
+              "inputType": "savedSearch",
+              "filterTile": {
+                "filterId": "flt-aicompute"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "providerId": "management-dashboard",
+        "providerName": "Management Dashboard",
+        "providerVersion": "3.0.0",
+        "id": "ai-ss-21",
+        "compartmentId": "__COMPARTMENT_OCID__",
+        "displayName": "Tokens Output from Agent",
+        "description": "",
+        "isOobSavedSearch": false,
+        "metadataVersion": "2.0",
+        "screenImage": "",
+        "nls": {},
+        "type": "WIDGET_SHOW_IN_DASHBOARD",
+        "featuresConfig": {
+          "crossService": {
+            "shared": true
+          }
+        },
+        "widgetTemplate": "visualizations/chartWidgetTemplate.html",
+        "widgetVM": "visualizations/chartWidget",
+        "dataConfig": [
+          {
+            "name": "telemetry",
+            "type": "monitoringDataSource",
+            "parameters": {
+              "compartmentId": "$(params.compartmentId)",
+              "regionName": "$(params.regionName)",
+              "startTime": "$(params.time.start)",
+              "endTime": "$(params.time.end)",
+              "namespace": "oracle_aidataplatform",
+              "mql": "total_tokens_output_from_agent[5m]{{ '$(params.aicompute)'!=''&&'$(params.aicompute)'!='*' ? '{computeClusterName =~ \"$(params.aicompute)\"}' : '' }}.grouping(computeClusterId,computeClusterName).sum()"
+            }
+          }
+        ],
+        "uiConfig": {
+          "defaultDataSource": "telemetry",
+          "chartInfo": {
+            "colorBy": "dimensions.computeClusterName",
+            "series": "dimensions.computeClusterName",
+            "group": "aggregatedDatapoints.timestamp",
+            "value": "aggregatedDatapoints.value",
+            "x": "aggregatedDatapoints.timestamp",
+            "jetConfig": {
+              "coordinateSystem": "cartesian",
+              "type": "lineWithArea",
+              "orientation": "vertical",
+              "timeAxisType": "mixedFrequency",
+              "stack": "off",
+              "dataCursor": "on",
+              "legend": {
+                "position": "end",
+                "rendered": true
+              },
+              "xAxis": {
+                "viewportMin": "$(params.time.start)",
+                "viewportMax": "$(params.time.end)",
+                "tickLabel": {
+                  "isOciDateConverter": true
+                }
+              },
+              "yAxis": {}
             }
           }
         },
