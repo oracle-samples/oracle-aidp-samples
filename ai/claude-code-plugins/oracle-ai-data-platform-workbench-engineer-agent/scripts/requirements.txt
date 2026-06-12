@@ -1,0 +1,6 @@
+# Dependencies for the bundled aidp_sql.py helper (the plugin's only code).
+# Install with:  python -m pip install -r scripts/requirements.txt
+oci>=2.131.0
+requests>=2.31.0
+websocket-client>=1.7.0
+cryptography>=42.0.0

@@ -8,7 +8,8 @@ Each subdirectory is a self-contained plugin (with its own `.claude-plugin/plugi
 
 | Plugin | What it does |
 |---|---|
-| [`oracle-ai-data-platform-workbench-spark-connectors`](oracle-ai-data-platform-workbench-spark-connectors/) | 18 model-invokable skills connecting Oracle AI Data Platform Workbench Spark notebooks to Oracle (ALH/ADW/ATP, ExaCS, Fusion ERP, BICC, EPM Cloud, Essbase) and external (PostgreSQL, MySQL/HeatWave, SQL Server, Snowflake, Azure ADLS Gen2, AWS S3, OCI Streaming, Object Storage, Iceberg, generic REST/JDBC, Excel) data sources. |
+| [`oracle-ai-data-platform-workbench-engineer-agent`](oracle-ai-data-platform-workbench-engineer-agent/) | A 37-skill natural-language agent that operates the **entire** AIDP Workbench — catalog discovery, Spark-SQL + full Delta DDL/DML, ingestion, profiling/quality, pipelines, clusters, Spark-UI debugging, governance (roles/credentials/Delta Sharing/MLOps/audit), and AI (Agent Flows + guardrails, Knowledge Base RAG, high-code LangGraph agents). Signature: LLM-in-SQL via `ai_generate()` + cross-source federation in one Spark session. Runs via the official `aidp` CLI / `oci raw-request` (api_key **or** session-token auth). |
+| [`oracle-ai-data-platform-workbench-spark-connectors`](oracle-ai-data-platform-workbench-spark-connectors/) | 25 model-invokable skills (23 connectors + bootstrap + routing) connecting Oracle AI Data Platform Workbench Spark notebooks to Oracle (ALH/ADW/ATP, ExaCS, Fusion ERP, BICC, EPM Cloud, Essbase) and external (PostgreSQL, MySQL/HeatWave, SQL Server, Snowflake, Azure ADLS Gen2, AWS S3, OCI Streaming, Object Storage, Iceberg, generic REST/JDBC, Excel) data sources. |
 
 ## Installing
 
