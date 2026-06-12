@@ -5,7 +5,7 @@
 
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-engineer-agent`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-engineer-agent).
 > End users install via Anthropic's community marketplace (see [Install](#install)), which sources from this
-> canonical Oracle-org location; `ahmedawan-oracle/claude-code-plugins` is a personal pre-release mirror.
+> canonical Oracle-org location.
 
 Operate the entire Oracle AI Data Platform (AIDP) Workbench in natural language — a **37-skill** agent
 (not a single-engine orchestrator). It discovers your catalog into a grounding cache (FK/join hints +
@@ -26,26 +26,7 @@ AIDP REST API; interactive Spark-SQL / notebook cells run via the bundled `scrip
 > **Status:** **v0.5.0** — 37 skills across the AIDP data-engineering lifecycle (api_key **or** session-token auth). Endpoint + verification log:
 > [references/rest-endpoint-map.md](./references/rest-endpoint-map.md); change history: [CHANGELOG](./CHANGELOG.md).
 
-## Why this vs a pipeline orchestrator
-
-| Capability | This plugin | Astronomer (data-engineering / astronomer-data-agents) |
-|---|---|---|
-| Core scope | Operates an **entire AI data platform** — lakehouse + Spark compute + governance + AI/agents + MLOps + federation (37 skills) | Orchestrates **one engine** (Apache Airflow) + warehouse-read helpers |
-| Pipeline orchestration | Author DAG + cron, run, monitor, repair/retry/parameterize | **Theirs** — Airflow DAG authoring + failure RCA |
-| Airflow 2→3 migration · dbt · data lineage (incl. column-level) | Not offered (ours migrates **Databricks→AIDP**) | **Theirs** |
-| Full lakehouse SQL DDL/DML + Delta maintenance | CREATE…MERGE / OPTIMIZE / VACUUM / time-travel | Warehouse-read oriented |
-| Compute provisioning | Clusters + Compute/AI Compute, notebooks, Spark-UI debug | Astro/Airflow runtime |
-| **LLM-in-SQL (`ai_generate`)** | **Yes** | No equivalent |
-| **AI Agent Flows + guardrails** | **Yes** (13 node types) | No equivalent |
-| **Knowledge Bases / RAG + high-code agents** | **Yes** | No equivalent |
-| **Cross-source federation** | **Yes** (one Spark session) | No |
-| Platform governance | Roles, credentials, Delta Sharing, audit, MLOps, Git, bundles | Airflow connections/variables/pools |
-
-> Honest scope note: pipeline-orchestration depth, dbt/Cosmos, Airflow 2→3 migration, and data lineage
-> (including column-level) are Astronomer's strengths — this plugin is **additive** to your Oracle stack, not
-> a replacement for them or for Oracle FDI/OAC/OTBI/BIP.
-
----
+> **Additive to your Oracle stack** — complementary to Oracle FDI / OAC / OTBI / BIP, not a replacement.
 
 ## What it does
 
@@ -90,13 +71,6 @@ claude plugin marketplace add anthropics/claude-plugins-community
 claude plugin install  oracle-ai-data-platform-workbench-engineer-agent
 ```
 > Helper deps auto-install on first session (SessionStart hook) — no manual `pip` needed.
-
-Or from the personal development mirror (latest pre-release commits):
-
-```bash
-claude plugin marketplace add ahmedawan-oracle/claude-code-plugins
-claude plugin install  oracle-ai-data-platform-workbench-engineer-agent@oracle-ai-data-platform-workbench-suite
-```
 
 Then run the one-time bootstrap and catalog discovery:
 
@@ -173,7 +147,7 @@ PLUGIN: oracle-ai-data-platform-workbench-engineer-agent (37 skills)
 
 ### One-time setup (install + 2 commands)
 ```
-claude plugin marketplace add anthropics/claude-plugins-community     # (dev mirror: ahmedawan-oracle/claude-code-plugins)
+claude plugin marketplace add anthropics/claude-plugins-community
 claude plugin install  oracle-ai-data-platform-workbench-engineer-agent
    │
    ▼ first session: SessionStart hook auto-installs helper deps (oci/requests/websocket-client/cryptography)
@@ -219,10 +193,6 @@ NL request → [ROUTER] classify intent → select skill
   if present, is an optional accelerator only.
 - **No fabrication** — Preview/LA endpoints, the `ai_generate` signature, and federation semantics are
   flagged for live verification; nothing is asserted as confirmed without a recorded live result.
-
-## Out of scope (by design)
-- OCI networking (VCN/NAT/ACL), OAC registration, data lineage (no AIDP lineage API), and source-DB
-  connectors (use the spark-connectors plugin). DFL/Maxwell internals are excluded.
 
 ## License
 [MIT](./LICENSE) © 2026 Oracle Corporation

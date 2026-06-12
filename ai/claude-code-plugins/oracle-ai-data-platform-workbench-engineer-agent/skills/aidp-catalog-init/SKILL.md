@@ -6,7 +6,7 @@ description: One-time AIDP catalog discovery that writes a cached, version-contr
 # `aidp-catalog-init` — build the catalog grounding file
 
 Walk the AIDP catalog tree and generate `.aidp/catalog.md` — the cached, user-editable grounding file that
-makes subsequent NL-to-SQL fast and accurate (mirrors Astronomer's `warehouse-init` → `.astro/warehouse.md`).
+makes subsequent NL-to-SQL fast and accurate.
 Discovery is **pure control-plane** — **no SQL, no compute** (except optional `--with-counts`, which uses
 the bundled SQL helper). Self-contained: **no aidp MCP required**.
 

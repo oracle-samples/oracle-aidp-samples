@@ -36,8 +36,7 @@ All notable changes to this plugin are documented here. Format loosely follows
 
 Public-directory polish ahead of submission to the official plugin directory (docs/metadata only; no skill change):
 - Rewrote the `plugin.json` / `marketplace.json` `description` and the README hero into tighter, wow-factor copy
-  led by "Run your entire AI data platform in English" + a "Why this vs a pipeline orchestrator" comparison
-  table (honest — Airflow / dbt / data lineage / 2→3-migration credited to Astronomer).
+  led by "Run your entire AI data platform in English".
 - **Removed the `author` field** from `plugin.json` so no personal "Made by" renders on the directory card; set
   the copyright holder + marketplace `owner` to "Oracle Corporation"; moved the maker credit (Forward Deployed
   Engineering) into an internal `NOTICE` file (not surfaced on the listing).
