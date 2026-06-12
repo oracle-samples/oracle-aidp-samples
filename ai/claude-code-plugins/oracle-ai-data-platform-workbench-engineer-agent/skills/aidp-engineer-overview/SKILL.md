@@ -66,7 +66,7 @@ does not require a bootstrap of any MCP server to run.
   via that plugin's **`aidp-connectors-bootstrap`** skill (pushes it to `/Workspace/Shared` via the AIDP MCP;
   if the MCP can't reach the instance, upload manually). A single external source needs only that connector
   skill (then author/run via `aidp-notebooks`); `aidp-federate` composes several for cross-source joins.
-- **OCI networking** (VCN/NAT/ACL), **OAC** dashboards/registration, **DFL/Maxwell** — not handled here.
+- **OCI networking** (VCN/NAT/ACL) and **OAC** dashboards/registration — not handled here.
 
 ## Shared environment & auth rules (every skill inherits these)
 - **Engine precedence — self-contained, no MCP/private-repo dependency.** For every CONTROL-PLANE op

@@ -38,7 +38,7 @@ is required.
 - Common AIDP gotchas to apply during porting: `compute:///` defaultFS (executors can't write the driver
   FS; size APIs return 0 — measure via `oci://`), manifest commit semantics for external tables, and the
   `clusterName`-UUID pitfall when wiring jobs.
-- Keep scope to AIDP-native migration. DFL/Maxwell, OAC, and OCI networking are out of scope.
+- Keep scope to AIDP-native migration. OAC and OCI networking are out of scope.
 - This is a guided, human-confirmed process — no bulk automated conversion claims.
 
 ## References
