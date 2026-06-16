@@ -167,6 +167,12 @@ Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cr
 | [DataFrame PII Masking with AI](data-engineering/transformation/masking/README.md) | PySpark utility that detects and masks PII columns using a pluggable `PIIChecker` abstraction — supports Anthropic Claude (Haiku/Sonnet/Opus) and OCI native models via Spark `query_model()`. |
 | [Partition-Aware Merge Generator](data-engineering/transformation/merge/README.md) | Helper utility for partition-aware merge operations on Spark DataFrames: PK-based updates, configurable update policies, deletes, and schema evolution — Delta-MERGE-like behaviour without requiring Delta. |
 
+#### Miscellaneous
+
+| Sample | Description |
+|---|---|
+| [Working with Table Properties](data-engineering/miscellaneous/README.md) | Manage Spark SQL table properties on a managed Delta table — set, read, overwrite, and remove properties, and store structured JSON metadata as a property value. |
+
 ---
 
 ### AI & Machine Learning

@@ -47,10 +47,11 @@ spark.sql("ALTER TABLE <catalog>.<schema>.<table> UNSET TBLPROPERTIES IF EXISTS 
 - A Spark environment with Delta support (e.g. AIDP Workbench with an active compute).
 - An active Spark session (`spark`) — already provided inside an AIDP notebook.
 
-## Tested environment
+## Environment
 
-- AIDP Workbench
-- Apache Spark 3.5.0 + Delta Lake
+The notebook outputs were captured from a run in **AIDP Workbench**, whose Spark
+runtime is Apache Spark 3.5.0 with Delta Lake. The operations are standard Spark
+SQL and not specific to that version.
 
 ## Cleanup
 
