@@ -76,7 +76,7 @@ You're moving a Databricks workload onto AIDP and want Claude Code to drive the 
 ### Via Anthropic's community marketplace (recommended)
 
 ```
-/plugin marketplace add anthropics/claude-code-plugins
+/plugin marketplace add anthropics/claude-plugins-community
 /plugin install oracle-ai-data-platform-workbench-databricks-migrator
 ```
 
