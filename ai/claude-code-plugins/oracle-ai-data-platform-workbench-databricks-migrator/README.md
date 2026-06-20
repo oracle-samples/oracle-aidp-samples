@@ -9,7 +9,6 @@
 This plugin is **knowledge-only** — it teaches Claude *how* to drive the migrator. The migrator's Python source is a separate Oracle toolkit you check out locally; this plugin makes it discoverable and operable in natural language.
 
 > **Status:** **v0.1.0** — first public release.
-> **Additive to your Oracle stack** — complementary to Oracle FDI / OAC / OTBI / BIP, not a replacement.
 
 ---
 
