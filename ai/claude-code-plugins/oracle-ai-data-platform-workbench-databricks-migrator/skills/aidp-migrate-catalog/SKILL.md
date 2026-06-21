@@ -1,6 +1,6 @@
 ---
 name: aidp-migrate-catalog
-description: Migrate Databricks Unity Catalog / HMS schemas + tables onto AIDP. Two-stage extract→rewrite→replay pipeline. The rewriter applies 18 DDL rules (3-part→2-part flatten, s3://→oci:// via bucket-map, USING DELTA→USING parquet, delta.* catch-all scrub, MV/streaming rejection, CREATE SCHEMA COMMENT-colon strip). Batched single-WebSocket DDL replay works around AIDP's per-statement-discard quirk. Use BEFORE aidp-migrate-job — schemas must exist before notebook reads.
+description: Migrate Databricks Unity Catalog / HMS schemas + tables onto AIDP. Two-stage extract→rewrite→replay pipeline. The rewriter applies 18 DDL rules (3-part→2-part flatten, s3://→oci:// via bucket-map, source-format preserved (Delta stays Delta) with delta.* property scrub, MV/streaming rejection, CREATE SCHEMA COMMENT-colon strip). Batched single-WebSocket DDL replay works around AIDP's per-statement-discard quirk. Use BEFORE aidp-migrate-job — schemas must exist before notebook reads.
 ---
 
 # `aidp-migrate-catalog` — Unity Catalog / HMS → AIDP DDL migration
@@ -104,7 +104,7 @@ Full details in [references/ddl-rewrite-rules.md](../../references/ddl-rewrite-r
 |---|---|
 | 3-part name flatten | `<src_cat>.<schema>.<table>` → `<schema>.<table>` (AIDP defaults to single-catalog `default`) |
 | `s3://` → `oci://` rewrite | `s3://<bucket>/<path>` → `oci://<bucket>@<namespace>/<path>` via bucket-map |
-| `USING DELTA` → `USING parquet` | AIDP cluster lakehouse is Parquet-default; Delta requires extra cluster libs |
+| Source format preserved | Default `--target-using` is None → Delta stays Delta. AIDP supports Delta natively. Pass `--target-using parquet` to deliberately convert. |
 | `delta.*` property strip | All `delta.minReaderVersion`, `delta.minWriterVersion`, etc. dropped |
 | `spark.sql.*` property strip | Reserved cluster-level configs, can't be set in DDL |
 | `pipelines.*` property strip | DLT-specific, not applicable |

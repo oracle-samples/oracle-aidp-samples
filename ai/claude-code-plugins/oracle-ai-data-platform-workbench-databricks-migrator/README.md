@@ -34,7 +34,7 @@ Unity Catalog / HMS schemas + tables (DDL)   ──┐
 External s3:// table locations             ──┘            18 rewrite rules:
                                                           • 3-part → 2-part name flatten
                                                           • s3://→oci:// via bucket-map
-                                                          • USING DELTA → USING parquet
+                                                          • source format preserved (Delta stays Delta)
                                                           • delta.* / spark.sql.* catch-all scrub
                                                           • MV / streaming rejection
                                                           • CREATE SCHEMA COMMENT-colon strip

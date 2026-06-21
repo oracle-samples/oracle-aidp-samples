@@ -72,16 +72,21 @@ The migrator's `translate_path()` helper handles this.
 
 ## Storage format
 
-### Rule 6: `USING DELTA` → `USING parquet`
+### Rule 6: Source storage format **preserved** (Delta stays Delta)
 
 ```
--- IN:
+-- IN  (Databricks UC, Delta-backed table):
 CREATE TABLE ... USING DELTA
--- OUT:
-CREATE TABLE ... USING parquet
+TBLPROPERTIES ('delta.minReaderVersion'='2', 'delta.minWriterVersion'='5', 'description'='…')
+
+-- OUT (AIDP, Delta preserved):
+CREATE TABLE ... USING DELTA
+TBLPROPERTIES ('description'='…')
 ```
 
-AIDP clusters default-bundle Parquet. Delta is supported but requires extra cluster libraries; the migrator stays Parquet-first unless the cluster has been explicitly outfitted. Override via a future `--keep-delta` flag if your cluster has Delta installed.
+The catalog rewriter **does not downgrade Delta tables**. The CLI default is `--target-using None`, which means *preserve the source storage format*: Delta stays Delta, Parquet stays Parquet, Iceberg stays Iceberg. AIDP supports Delta natively. To deliberately convert (e.g. Delta → Parquet for a cluster without the Delta library), pass `--target-using parquet` explicitly.
+
+All `delta.*` table properties ARE still stripped (see Rule 9 below) — Delta-runtime metadata (`delta.minReaderVersion`, `delta.feature.*`, `delta.lastCommitTimestamp`, …) is Delta-managed and cannot be set as a CREATE-time `TBLPROPERTIES`. The new Delta table inherits its own runtime defaults at create time. So Rule 6 = preserve source format; Rule 9 = scrub Delta-managed properties so the CREATE doesn't reject them.
 
 ### Rule 7: `USING ICEBERG` → kept (Iceberg is supported)
 
@@ -213,7 +218,7 @@ TBLPROPERTIES (
 COMMENT 'team:platform owner:alice';
 ```
 
-After rewriter (assuming `<src_cat>` is in the manifest and `<src_bucket>` maps to `<oci_bucket>@<oci_ns>`):
+After rewriter (assuming `<src_cat>` is in the manifest and `<src_bucket>` maps to `<oci_bucket>@<oci_ns>`, default `--target-using None` preserves the source `DELTA` format):
 
 ```sql
 CREATE TABLE <schema>.<events>
@@ -223,13 +228,15 @@ CREATE TABLE <schema>.<events>
   amount DECIMAL(18,2),
   event_date DATE
 )
-USING parquet
+USING DELTA
 PARTITIONED BY (event_date)
 LOCATION 'oci://<oci_bucket>@<oci_ns>/<schema>/<events>'
 TBLPROPERTIES (
   'description' = 'event log'
 );
 ```
+
+(Pass `--target-using parquet` to deliberately convert to `USING parquet` instead.)
 
 Note: the COMMENT clause is preserved on `CREATE TABLE` (only `CREATE SCHEMA` strips COMMENTs with colons).
 

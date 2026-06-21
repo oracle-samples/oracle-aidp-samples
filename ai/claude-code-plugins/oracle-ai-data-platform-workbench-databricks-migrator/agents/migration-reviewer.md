@@ -27,7 +27,7 @@ For each cell:
 7. **Builtins shadowing.** `from pyspark.sql.functions import *` left in WITHOUT a corresponding `import builtins` and re-aliased `sum`.
 8. **Comment-only cells gone wrong.** Cells reduced to `pass # AIDP: empty cell guard` — these are migrator stubs left when a cell couldn't be fixed; flag for review.
 9. **`%run` paths.** Should be absolute on AIDP, not relative — flag leftover `./` or `../` prefixes.
-10. **Output schema migration.** `.write.format("delta")` should be `.write.format("parquet")` unless the cluster has the Delta library installed.
+10. **Output schema migration.** `.write.format("delta")` is kept as-is — AIDP supports Delta natively and the migrator preserves source format. Flag the INVERSE case: a notebook that was originally written for Delta but got rewritten to `.write.format("parquet")` during migration (which would downgrade Delta semantics). Surface as a candidate cell for a fixup_cell rewind.
 
 ## Output template
 
