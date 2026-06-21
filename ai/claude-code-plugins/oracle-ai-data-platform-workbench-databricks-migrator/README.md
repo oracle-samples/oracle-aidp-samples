@@ -209,6 +209,6 @@ MIT — see [`LICENSE`](./LICENSE).
 
 ## Core developers
 
-- **Sid Rao** (Oracle)
+- **Sid Rao** (Oracle Agentic AI Development)
 - **Ahmed Awan** — Forward Deployed Engineering (Oracle)
 - **Nishant Patel** — Forward Deployed Engineering (Oracle)
