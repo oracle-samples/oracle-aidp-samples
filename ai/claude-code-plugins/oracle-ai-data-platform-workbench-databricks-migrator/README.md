@@ -207,6 +207,8 @@ This plugin **does not collect, store, transmit, or share any user data**. Every
 
 MIT — see [`LICENSE`](./LICENSE).
 
-## Made by
+## Core developers
 
-Ahmed Awan (Forward Deployed Engineering), Oracle.
+- **Sid Rao** (Oracle)
+- **Ahmed Awan** — Forward Deployed Engineering (Oracle)
+- **Nishant Patel** (Oracle)
