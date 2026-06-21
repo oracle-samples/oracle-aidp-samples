@@ -211,4 +211,4 @@ MIT — see [`LICENSE`](./LICENSE).
 
 - **Sid Rao** (Oracle)
 - **Ahmed Awan** — Forward Deployed Engineering (Oracle)
-- **Nishant Patel** (Oracle)
+- **Nishant Patel** — Forward Deployed Engineering (Oracle)
