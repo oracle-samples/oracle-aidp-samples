@@ -27,8 +27,8 @@ Each skill is a single-file Markdown SKILL.md with a clear "When to use" trigger
 ### What gets automated end-to-end
 
 ```
-Databricks workspace                                    AIDP DataLake (Spark 3.5.0)
-─────────────────────                                   ──────────────────────────
+Databricks workspace                                    AIDP DataLake
+─────────────────────                                   ──────────────
 Unity Catalog / HMS schemas + tables (DDL)   ──┐
    │                                           ├──→  Catalog migration (batched DDL replay)
 External s3:// table locations             ──┘            18 rewrite rules:
