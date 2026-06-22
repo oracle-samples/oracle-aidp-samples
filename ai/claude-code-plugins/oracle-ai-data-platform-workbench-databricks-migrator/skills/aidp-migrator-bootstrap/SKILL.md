@@ -76,10 +76,18 @@ curl -s -H "..." \
 
 Expect `Active`. Acceptable transient states are `Starting`, `Updating`. If `Stopped` or `Failed`, instruct the user to start the cluster from AIDP console before any Pass-2 run.
 
-> Curl with `auth=signer` (the migrator's helper) is the proper way; if the user wants an exact one-liner, suggest it in Python:
+> Curl with `auth=signer` (the migrator's helper) is the proper way; if the user wants an exact one-liner, suggest it in Python (fill the four placeholder values from your `env-coords.md`):
 > ```python
 > import oci, requests
-> cfg = oci.config.from_file(profile_name="<profile>")
+>
+> # Fill these from env-coords.md (see references/env-coords.md):
+> profile = "<your-profile-name>"
+> base    = "<AIDP_BASE>"          # e.g. https://aidp.<region>.oci.oraclecloud.com/20240831
+> lake    = "<DATALAKE_OCID>"
+> ws      = "<WORKSPACE_UUID>"
+> cl      = "<CLUSTER_ID>"
+>
+> cfg = oci.config.from_file(profile_name=profile)
 > signer = oci.signer.Signer(cfg["tenancy"], cfg["user"], cfg["fingerprint"], cfg["key_file"])
 > r = requests.get(f"{base}/dataLakes/{lake}/workspaces/{ws}/clusters/{cl}", auth=signer)
 > print(r.json().get("lifecycleState"))
