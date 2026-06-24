@@ -1,0 +1,14 @@
+{
+  "connector": "aidp-fusion-rest",
+  "auth": "basic",
+  "rows": 229,
+  "schema": ["row_json"],
+  "first_row_field_count": 80,
+  "sample_supplier": "Lee Supplies",
+  "timestamp_utc": 1777213835,
+  "result": "PASS",
+  "target_pod": "fa-etap-dev5-saasfademo1.ds-fa.oraclepdemos.com",
+  "fusion_user": "Casey.Brown",
+  "resource_path": "/fscmRestApi/resources/11.13.18.05/suppliers",
+  "notes": "Fusion REST end-to-end via HTTP Basic. fetch_paged() returned 229 supplier rows (paged ≤499/page). Materialized as single-column row_json Spark DataFrame because Fusion responses contain nested structs (links, addresses) that PySpark schema inference can't merge. Helper rows_to_spark_dataframe has a known bug for nested data — flagged for fix."
+}

@@ -1,0 +1,24 @@
+{
+  "connector": "aidp-aws-s3",
+  "auth": "AWS access key (s3a:// via SimpleAWSCredentialsProvider)",
+  "result": "PASS",
+  "rows": 2,
+  "schema": ["id", "name"],
+  "target": "s3a://test-data-sep3-2025/csv/sample.csv",
+  "bucket": "test-data-sep3-2025",
+  "summary": "End-to-end live test against AWS S3. AIDP cluster's NAT egress reaches `s3.amazonaws.com:443` (and the bucket's vhost-style FQDN) directly. Read 2 rows from a customer-provided sample CSV.",
+  "what_validated": [
+    "Cluster -> s3.amazonaws.com TCP reachability via NAT egress (proves AWS S3 is in the same 'public-internet' tier the cluster reaches)",
+    "Spark Hadoop S3A filesystem registration via runtime-load + Configuration.setClassLoader pattern",
+    "AWS Signature V4 signing via SimpleAWSCredentialsProvider with access key + secret",
+    "Read returned 2 rows with correct CSV schema (id NUMERIC, name STRING)"
+  ],
+  "key_lessons": [
+    "Cluster has NEITHER `org.apache.hadoop.fs.s3a.S3AFileSystem` NOR `aws-java-sdk-bundle` pre-installed for S3A operations.",
+    "Runtime-load both `hadoop-aws-3.3.4.jar` and `aws-java-sdk-bundle-1.12.262.jar` from Maven Central (matched to cluster's Hadoop 3.3.4).",
+    "Two-step setup: (1) build URLClassLoader covering both jars + set on Hadoop Configuration via `hconf.setClassLoader(ucl)` — a step beyond the Postgres/MySQL DriverManager pattern, since FileSystem lookup uses Configuration's classloader rather than DriverManager. (2) `spark._jsc.addJar(jar)` for executor distribution.",
+    "Use SimpleAWSCredentialsProvider with explicit access.key + secret.key, NOT default-AWS-chain (which would look for IAM role / env vars / ~/.aws/credentials)."
+  ],
+  "skill_correctness": "scripts/oracle_ai_data_platform_connectors/aidataplatform.aidataplatform_options() unit-tested for the s3a:// path. The `aidp-aws-s3` SKILL.md should now lead with the runtime-load pattern (Option A) — promote it from the existing implicit assumption that hadoop-aws is pre-installed.",
+  "timestamp_utc": 1777297746
+}

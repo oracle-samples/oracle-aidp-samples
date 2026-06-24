@@ -1,0 +1,11 @@
+{
+  "connector": "aidp-sqlserver",
+  "auth": "AIDP `aidataplatform` (type=SQLSERVER) — Spark JDBC plain user/password",
+  "result": "NOT RUN",
+  "rows": null,
+  "schema": null,
+  "decision": "Ship as-is with example notebook (2026-04-27). Connector code and example are shape-correct against the official `oracle-aidp-samples` Read_Write_External_Ecosystem_Connectors.ipynb. OCI does not offer a managed SQL Server service, so a customer-supplied SQL Server (Azure SQL DB, AWS RDS for SQL Server, or self-hosted) is the only test path.",
+  "skill_correctness": "scripts/oracle_ai_data_platform_connectors/aidataplatform.aidataplatform_options() unit-tested for type=SQLSERVER. examples/sqlserver_read.ipynb option shape matches the official oracle-aidp-samples SQL Server pattern.",
+  "to_validate_at_runtime_for_a_customer": "Set SQLSERVER_HOST/SQLSERVER_PORT/SQLSERVER_USER/SQLSERVER_PASSWORD/SQLSERVER_DB/SQLSERVER_TABLE env vars, run examples/sqlserver_read.ipynb. The aidataplatform format handler is pre-installed on AIDP clusters with the SQL Server JDBC bundled.",
+  "timestamp_utc": null
+}

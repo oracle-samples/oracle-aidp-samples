@@ -1,0 +1,63 @@
+{
+  "name": "oracle-ai-data-platform-workbench-spark-connectors",
+  "version": "0.5.0",
+  "description": "Oracle AI Data Platform Workbench Spark connectors for Codex. Includes 23 connector skills for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources.",
+  "author": {
+    "name": "Ahmed Awan"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "spark",
+    "jdbc",
+    "lakehouse",
+    "autonomous-database",
+    "atp",
+    "adw",
+    "exacs",
+    "fusion",
+    "epm",
+    "essbase",
+    "kafka",
+    "streaming",
+    "object-storage",
+    "iceberg",
+    "postgresql",
+    "mysql",
+    "sqlserver",
+    "snowflake",
+    "adls",
+    "s3",
+    "rest",
+    "connector",
+    "peoplesoft",
+    "siebel",
+    "salesforce",
+    "hive",
+    "pushdown",
+    "catalog"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Oracle AIDP Spark Connectors",
+    "shortDescription": "Spark connector skills for Oracle AI Data Platform Workbench.",
+    "longDescription": "Connect Oracle AI Data Platform Workbench Spark notebooks to Oracle Autonomous Database, ExaCS, Fusion, BICC, EPM, Essbase, OCI Streaming, Object Storage, Iceberg, PostgreSQL, MySQL, SQL Server, Hive, Salesforce, Snowflake, Azure ADLS Gen2, AWS S3, generic REST, custom JDBC, Excel, and related sources. The plugin provides model-invokable skills, helper code, examples, and tests for producing notebook-ready Spark, JDBC, REST, streaming, and file access snippets.",
+    "developerName": "Oracle AI Data Platform",
+    "category": "Data",
+    "capabilities": [
+      "Skills",
+      "Code"
+    ],
+    "websiteURL": "https://github.com/oracle-samples/oracle-aidp-samples",
+    "privacyPolicyURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors/PRIVACY.md",
+    "defaultPrompt": [
+      "Set up AIDP Spark connectors in this workspace.",
+      "Connect my AIDP notebook to Autonomous Database.",
+      "Generate a Spark connector snippet for Salesforce."
+    ],
+    "brandColor": "#C74634"
+  }
+}

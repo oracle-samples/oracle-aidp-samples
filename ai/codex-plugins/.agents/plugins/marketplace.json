@@ -27,6 +27,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Data"
+    },
+    {
+      "name": "oracle-ai-data-platform-workbench-spark-connectors",
+      "source": {
+        "source": "local",
+        "path": "./plugins/oracle-ai-data-platform-workbench-spark-connectors"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data"
     }
   ]
 }
