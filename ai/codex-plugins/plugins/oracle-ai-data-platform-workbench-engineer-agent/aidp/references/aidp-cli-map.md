@@ -8,7 +8,7 @@ Python/TS/Java; PyPI/npm/Maven "coming soon"). It is public, Oracle-supported, a
 1. **Official `aidp <group> <command>`** when the CLI is installed (preferred — supported + versioned).
 2. **`oci raw-request`** against the same `aidp.<region>` REST API as the fallback when the CLI isn't present
    or doesn't expose the operation (see [`oci-raw-request.md`](oci-raw-request.md) / [`no-mcp-rest-map.md`](no-mcp-rest-map.md)).
-3. **`scripts/aidp_sql.py`** for interactive Spark-SQL / notebook **cell execution** — the official CLI/SDK
+3. **`$HOME/.aidp/aidp_sql.py`** for interactive Spark-SQL / notebook **cell execution** — the official CLI/SDK
    does **not** execute cells (its Notebook group is files + sessions only; running a notebook is job-based).
 
 Global CLI flags: `--profile`/`-p` (default `DEFAULT`), `--auth api_key|security_token|instance_principal|resource_principal`
@@ -29,15 +29,15 @@ Discover with `aidp command-groups`, `aidp search <term>`, `aidp help <group>`.
 |---|---|---|
 | `aidp-catalog-init` / `aidp-catalog-explore` | `catalog list\|get\|create\|update\|delete\|refresh\|test-connection` · `schema list\|get\|list-tables\|get-table\|list-views\|get-view` | REST `GET /catalogs`,`/schemas?catalogKey=`,`/tables?catalogKey=&schemaKey=` |
 | `aidp-ingest-file-to-table` | `schema generate-temp-file-upload-target` → `schema infer`/`infer-with-preview` → `schema create-data-table`/`create-table` (also `retrieve-par`) | REST upload/infer/create |
-| `aidp-analyzing-data` / `profiling-tables` / `data-quality` / `ai-sql` / `federate` / `verified-queries` | (no CLI cell-exec) — use **`scripts/aidp_sql.py`** for `spark.sql(...)` / `ai_generate(...)` | `scripts/aidp_sql.py` |
-| `aidp-sql-ddl` | (no CLI cell-exec) — DDL/DML + Delta maintenance via **`scripts/aidp_sql.py`** (CREATE/INSERT/UPDATE/DELETE/MERGE/OPTIMIZE/VACUUM/time-travel — live-verified) | `scripts/aidp_sql.py` |
+| `aidp-analyzing-data` / `profiling-tables` / `data-quality` / `ai-sql` / `federate` / `verified-queries` | (no CLI cell-exec) — use **`$HOME/.aidp/aidp_sql.py`** for `spark.sql(...)` / `ai_generate(...)` | `$HOME/.aidp/aidp_sql.py` |
+| `aidp-sql-ddl` | (no CLI cell-exec) — DDL/DML + Delta maintenance via **`$HOME/.aidp/aidp_sql.py`** (CREATE/INSERT/UPDATE/DELETE/MERGE/OPTIMIZE/VACUUM/time-travel — live-verified) | `$HOME/.aidp/aidp_sql.py` |
 | `aidp-table-management` | `catalog create\|update\|delete\|refresh\|test-connection` · `schema create-table\|update-table\|delete-table\|refresh-table\|create-view\|create\|delete` | REST `…/catalogs`,`/schemas`,`/tables`,`/views` (+ SQL DDL via `aidp-sql-ddl`) |
-| `aidp-notebooks` | files: `notebook create-content\|get-content\|update-content\|modify-content\|delete-content\|export-contents`; sessions: `notebook create-session\|get-session\|list-sessions\|patch-session\|delete-session` | cell exec → `scripts/aidp_sql.py` |
+| `aidp-notebooks` | files: `notebook create-content\|get-content\|update-content\|modify-content\|delete-content\|export-contents`; sessions: `notebook create-session\|get-session\|list-sessions\|patch-session\|delete-session` | cell exec → `$HOME/.aidp/aidp_sql.py` |
 | `aidp-workspace-files` | `workspace-object create\|get\|head\|list\|update\|copy\|move\|rename\|delete\|upload-with-par\|download-with-par` | REST notebook contents API |
 | `aidp-volumes` | `volume list\|get\|create\|update\|delete\|list-files\|make-dir\|update-dir\|delete-dir\|upload-file[-with-par]\|download-file[-with-par]\|delete-file` | REST `/volumes?catalogKey=&schemaKey=` |
 | `aidp-pipelines` | `workflow create-job\|update-job\|get-job\|list-jobs\|delete-job\|create-job-run\|get-job-run\|list-job-runs\|list-recent-job-runs\|cancel-job-run[s]\|repair-job-run\|list-task-runs\|get-task-run\|fetch-output\|export-task-run-output` | REST `/workspaces/{ws}/jobs…` |
 | `aidp-cluster-ops` | `cluster list\|get\|get-default\|create\|update\|delete\|start\|stop\|restart\|list-libraries\|patch-library\|download-logs\|search-logs\|summarize-metrics-data` | REST `…/clusters…` (start/stop need `{}` body) |
-| `aidp-spark-debugging` | `cluster search-logs\|download-logs\|summarize-metrics-data` | Spark-UI via `scripts/aidp_sql.py` (kernel-side `spark.sparkContext.uiWebUrl + /api/v1/...`) |
+| `aidp-spark-debugging` | `cluster search-logs\|download-logs\|summarize-metrics-data` | Spark-UI via `$HOME/.aidp/aidp_sql.py` (kernel-side `spark.sparkContext.uiWebUrl + /api/v1/...`) |
 | `aidp-credentials` | `credentials list\|get\|create\|update\|delete` | REST `/credentials` (Preview) |
 | `aidp-data-sharing` | `delta-share create\|get\|list\|update\|delete\|manage-access\|manage-data-asset\|manage-permission\|list-data-assets\|list-permissions` + `create-recipient\|get-recipient\|list-recipients\|update-recipient\|delete-recipient\|manage-recipient-permission\|list-recipient-*` | REST `/shares`,`/recipients` (LIVE-VERIFIED 200) |
 | `aidp-roles-access` | `role list\|get\|create\|update\|delete\|add-member\|remove-member\|list-permissions` · per-resource `*-permissions` / `manage-permission` (catalog/schema/**table**/**view**/cluster/volume/workspace/workspace-object) · **Job/Workflow** grants via `workflow list-job-permissions \| manage-job-permission <ws> <JOB-KEY> --body` (body = `{assignees:{type,targets},permissions:[…]}`, **not** the generic `{principals,permission,action}` — confirm enum live; CLI README `workflow manage-job-permission` + SDK `assign_job_permission_details.py`) · masking = restricted views (no masking API — probed 404) | REST `/roles…` (LIVE-VERIFIED 200) · job grants `…/workspaces/{ws}/jobs/{key}/permissions` |

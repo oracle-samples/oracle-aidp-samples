@@ -2,8 +2,10 @@
 """SessionStart hook for the AIDP Engineer Agent Codex plugin.
 
 Stages the bundled Spark-SQL helper (the plugin's `aidp/` dir) to `~/.aidp/` so every skill's
-`$HOME/.aidp/aidp_sql.py` reference resolves, and best-effort installs the helper's Python deps.
-Idempotent and safe to run every session. Cross-platform (uses the interpreter running the hook).
+`$HOME/.aidp/aidp_sql.py` reference resolves, then runs the staged readiness check
+(`~/.aidp/check_env.py`) which installs the helper's Python deps (only if missing) and reports
+OCI readiness. Idempotent and safe to run every session. Cross-platform (uses the interpreter
+running the hook).
 
 If your environment can't run this hook (e.g. `python3` isn't on PATH), run it manually once:
     python "<plugin-root>/hooks/session_start.py"
@@ -33,22 +35,22 @@ def stage():
     return True
 
 
-def install_deps():
-    req = os.path.join(dst, "requirements.txt")
-    if not os.path.exists(req):
+def check_env():
+    """Run the staged readiness check (installs deps if missing + reports OCI readiness)."""
+    checker = os.path.join(dst, "check_env.py")
+    if not os.path.exists(checker):
         return
     try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", req],
-                       capture_output=True, timeout=300)
+        subprocess.run([sys.executable, checker], timeout=300)  # its banner flows to stdout
     except Exception:
-        pass  # best-effort; the helper still imports if deps are already present
+        pass  # best-effort; never block the session on the readiness check
 
 
 def main():
     try:
         if stage():
-            install_deps()
-            print("[aidp] helper staged to ~/.aidp - ready. "
+            check_env()
+            print("[aidp] helper staged to ~/.aidp. "
                   "Set AIDP_REGION / AIDP_DATALAKE / AIDP_WORKSPACE / AIDP_CLUSTER (or fill ~/.codex/AGENTS.md).")
     except Exception as e:  # never block the session on a hook failure
         print(f"[aidp] stage warning: {e}. Run hooks/session_start.py manually, or the bundle install.sh.",

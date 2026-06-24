@@ -4,14 +4,14 @@
 > - **Control-plane** ops (catalogs, schemas, tables, clusters, jobs, workspaces, roles, volumes, files,
 >   credentials, sharing, git, bundle, mlops, models, agent-flows) run via `oci raw-request` against the
 >   AIDP REST API — see `oci-raw-request.md` and `no-mcp-rest-map.md`.
-> - **Interactive Spark-SQL / notebook cells** run via the bundled helper `scripts/aidp_sql.py`
+> - **Interactive Spark-SQL / notebook cells** run via the bundled helper `$HOME/.aidp/aidp_sql.py`
 >   (mints a UPST from the api_key DEFAULT profile, auto-creates a scratch notebook, returns JSON with
 >   status/outputs/spark_job_ids). No `AIDP_SESSION` and no MCP required.
 >
 > If an `aidp` MCP server happens to be configured, you **MAY** use its tools as a convenience — they
 > mirror the REST control-plane endpoints and the `aidp_sql.py` SQL path one-to-one. But this is purely
 > an accelerator: nothing in the plugin assumes the MCP is present, and no skill should be framed as
-> needing it. When in doubt, use `oci raw-request` (control-plane) or `scripts/aidp_sql.py` (SQL).
+> needing it. When in doubt, use `oci raw-request` (control-plane) or `$HOME/.aidp/aidp_sql.py` (SQL).
 
 The tool list below is kept **for reference only** — it maps each MCP tool to the REST/helper path the
 plugin actually relies on. (Tool names are verbatim from the MCP server's `docs/mcp_server.md`; the

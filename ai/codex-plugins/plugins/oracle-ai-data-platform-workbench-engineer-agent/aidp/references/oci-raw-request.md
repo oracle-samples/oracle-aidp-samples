@@ -58,7 +58,7 @@ Customers without an api_key use an `oci session authenticate` **session-token p
 Spark-SQL — with no api_key anywhere:
 - **Control-plane (`oci raw-request` / `aidp` CLI):** add `--auth security_token --profile <SESSION>` to any
   call — identical calls to the api_key path, just a different signer. The `aidp` CLI takes `--auth security_token`.
-- **Interactive Spark-SQL (`scripts/aidp_sql.py`):** pass the session profile as the **base** `--profile`
+- **Interactive Spark-SQL (`$HOME/.aidp/aidp_sql.py`):** pass the session profile as the **base** `--profile`
   (e.g. `--profile MYSESSION`). The helper auto-detects the `security_token_file`, signs REST with a
   `SecurityTokenSigner`, and **reuses the session token directly for the WebSocket — no UPST mint** (LIVE-VERIFIED
   2026-06-12: a session profile is detected, signed, and fails only on token *expiry*, never the old api_key

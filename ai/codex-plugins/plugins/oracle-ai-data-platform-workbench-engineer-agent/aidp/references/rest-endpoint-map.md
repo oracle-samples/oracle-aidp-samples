@@ -45,7 +45,7 @@ Path shape: `https://aidp.<region>.oci.oraclecloud.com/<API_VERSION>/<PATH_PREFI
 
 The plugin is self-contained: catalog, notebooks (file ops), jobs, clusters, volumes, tables, roles, and
 all governance categories run via `oci raw-request` against the endpoints above — **no MCP required**.
-Interactive Spark-SQL runs via the bundled `scripts/aidp_sql.py` (see `no-mcp-rest-map.md`). If an `aidp`
+Interactive Spark-SQL runs via the bundled `$HOME/.aidp/aidp_sql.py` (see `no-mcp-rest-map.md`). If an `aidp`
 MCP happens to be configured, its tools mirror these endpoints and may be used as an optional accelerator
 (`mcp-tool-map.md`) — but the plugin never assumes one exists.
 
@@ -88,7 +88,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   GET  …/{ontologies, workspaces/<WS>/ontologies}            → 404 (Ontologies NOT programmatic here — UI-only)
   GET  …/userSettings                                         → 200 ; …/credentials → 400 (route exists) ; mlflow experiments/search → 404 (Preview)
   repair: POST …/workspaces/<WS>/jobRuns/<runKey>/actions/repair (RepairJobRunDetails) — path from SDK workflow_client, not write-probed
-  SQL write grammar (via scripts/aidp_sql.py on USER cluster): CREATE/INSERT/UPDATE/DELETE/MERGE/OPTIMIZE/
+  SQL write grammar (via $HOME/.aidp/aidp_sql.py on USER cluster): CREATE/INSERT/UPDATE/DELETE/MERGE/OPTIMIZE/
      VACUUM/DESCRIBE HISTORY/VERSION AS OF/DROP all un-wrapped → status:ok, error:None [aidp-sql-ddl ✅ VERIFIED]
 
 2026-06-10  FINAL-QA cross-instance pass. env: tpcds (region us-ashburn-1), DataLake …oc1.iad.<DATALAKE_OCID_REDACTED>…,
@@ -123,7 +123,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   list_roles 200 (AI_DATA_PLATFORM_ADMIN, AUDITOR) — cross-checked vs REST /roles, identical (MCP/REST parity ✅)
   list_agent_flows 200 'No agent flows found' (valid empty, consistent with ws-scoped agentFlows items=0)
   list_volumes 400 Bad request on …/volumes (deterministic, 2× retry)   [volumes ⚠️ route reachable, rejects bare list]
-  -- sql-exec (aidp_skilltest, scripts/aidp_sql.py, profile DEFAULT) --
+  -- sql-exec (aidp_skilltest, $HOME/.aidp/aidp_sql.py, profile DEFAULT) --
   spark.sql SELECT COUNT(*) FROM default.default.deal_procurement_lifecycle_fact → ok, value 50, job 506   [analyzing-data ✅]
   spark.sql SELECT ai_generate('openai.gpt-5.4','reply with the single word OK') → ok, text 'OK', job 507   [ai-sql ✅]
   -> Net: GA categories + models-catalog + catalog/schema/table CRUD + Spark SELECT + ai_generate all LIVE on a
@@ -155,7 +155,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   bare HTTP …/notebook/api/contents CRUD → 500 (list) / 404 (put/get/delete) for api_key raw-request — use WebSocket helper / PAR.
   -- spark-debugging (kernel-side Spark UI REST: uiWebUrl + /api/v1) --
   /applications · /jobs · /allexecutors · /environment → 200 (1 app, 120 jobs, 2 executors)
-  -- data-plane (scripts/aidp_sql.py on de_agent_cluster) --
+  -- data-plane ($HOME/.aidp/aidp_sql.py on de_agent_cluster) --
   SHOW TABLES · GROUP BY · profiling (min/max/avg/null%) · data-quality (not-null+uniqueness) · DESCRIBE ·
      CREATE VIEW · JOIN (federate) · ai_generate('openai.gpt-5.4') → all ok with real results
   NOTE: brand-new clusters intermittently return "Command execution failed on compute cluster" on a busy default
@@ -177,7 +177,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 ```
 2026-06-12  PR#1 (v0.4.4 tester-feedback) CLAIM RE-VERIFICATION — independent THIRD instance, maintainer pass.
             env: tpcds (region us-ashburn-1), DataLake …oc1.iad.<DATALAKE_OCID_REDACTED>…, workspace <WORKSPACE_ID_REDACTED>,
-            cluster `tpcds` key <CLUSTER_ID_REDACTED> (ACTIVE); oci raw-request --profile DEFAULT (api_key) + scripts/aidp_sql.py.
+            cluster `tpcds` key <CLUSTER_ID_REDACTED> (ACTIVE); oci raw-request --profile DEFAULT (api_key) + $HOME/.aidp/aidp_sql.py.
   -- DOC-2: default guardrails (lake-scoped) --
   GET …/20240831/dataLakes/<OCID>/agentFlowGuardrails → 200, EXACTLY 5 items (CONFIRMS the v0.4.4 aidp-agent-flows table):
      CONTENT_MODERATION        | USER_REQUEST   | BLOCK   (Content Moderation prevention)
@@ -195,7 +195,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   spark.sql('SHOW TABLES IN default.default') → ok (returns the TPC-DS table list)
      → CONFIRMS the v0.4.4 aidp-analyzing-data caveat for the SHOW TABLES SQL command.
   -- helper quirk (separate follow-up, as PR#1 itself flagged) --
-  scripts/aidp_sql.py reports a cell that throws AnalysisException as {"status":"ok","error":null} with the
+  $HOME/.aidp/aidp_sql.py reports a cell that throws AnalysisException as {"status":"ok","error":null} with the
      traceback only in the stderr stream — reproduced here on the `SHOW TABLES IN default` cell. Not yet fixed.
   -- UX-2: cluster displayName charset (NOW VERIFIED — was tester-reported) --
   POST …/workspaces/<WS>/clusters {displayName:"etl-cluster", …} → 400 InvalidParameter, EXACT message:
@@ -207,7 +207,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 2026-06-12  BUG-1 FRESH-INSTANCE REPRO ATTEMPT — provisioned a brand-new DataLake to test the first-DDL claim.
             env: NEW DataLake `bug1_fresh_repro` (…oc1.iad.<DATALAKE_OCID_REDACTED>…, created+ACTIVE 2026-06-12),
             default workspace `bug1_ws` (<WORKSPACE_ID_REDACTED>), fresh USER cluster `bug1_cluster` (<CLUSTER_ID_REDACTED>, ACTIVE);
-            oci ai-data-platform CLI to provision; scripts/aidp_sql.py for the DDL.
+            oci ai-data-platform CLI to provision; $HOME/.aidp/aidp_sql.py for the DDL.
   -- BUG-1: first bare CREATE TABLE on a genuinely fresh instance --
   spark.sql('CREATE TABLE default.default.bug1_probe (id INT, name STRING) USING DELTA')  → status ok, spark_job 0,
         NO ArrayIndexOutOfBoundsException; `SHOW TABLES IN default.default` then lists `default.bug1_probe`.
@@ -219,14 +219,14 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 
 ```
 2026-06-12  PR#2 (v0.5.0) MAINTAINER RE-VERIFICATION — env: tpcds (us-ashburn-1), DataLake …<DATALAKE_OCID_REDACTED>…,
-            workspace <WORKSPACE_ID_REDACTED>, cluster `tpcds` <CLUSTER_ID_REDACTED> (ACTIVE); oci raw-request --profile DEFAULT (api_key) + scripts/aidp_sql.py.
+            workspace <WORKSPACE_ID_REDACTED>, cluster `tpcds` <CLUSTER_ID_REDACTED> (ACTIVE); oci raw-request --profile DEFAULT (api_key) + $HOME/.aidp/aidp_sql.py.
   -- catalog-extractor correction (the PR's headline doc fix) --
   GET …/20240831/dataLakes/<OCID>/extractors          → 200 {"items":[]}              (CONFIRMS the correct path)
   GET …/20240831/dataLakes/<OCID>/metadataExtractors  → 404 NotAuthorizedOrNotFound   (CONFIRMS the old note probed the WRONG path)
   -- Spark-UI gateway proxy (control-plane alternative to kernel-side uiWebUrl) --
   GET https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/sparkui/<CLUSTER_ID_REDACTED>/api/v1/applications
       → 200, running app (appSparkVersion 3.5.0, completed:false, sparkUser dataflow)  (CONFIRMS the gateway proxy)
-  -- session-token auth code (scripts/aidp_sql.py) --
+  -- session-token auth code ($HOME/.aidp/aidp_sql.py) --
   api_key DEFAULT:  spark.sql('SELECT 1') → status ok, real spark_job  (REGRESSION PASS — api_key path byte-for-byte unchanged).
   session AIDP_SESSION:  helper takes the session branch (builds a SecurityTokenSigner, NO KeyError); create_session 401'd only
       because the local session token was EXPIRED + non-refreshable headlessly — construction is correct, expiry is the only failure.

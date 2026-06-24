@@ -5,6 +5,8 @@
   "author": {
     "name": "Oracle"
   },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-engineer-agent",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
   "license": "MIT",
   "keywords": [
     "oracle",
@@ -23,6 +25,9 @@
     "longDescription": "Discover -> ask in plain English -> AI inside SQL -> optimize & time-travel -> govern & ship, all on a live AIDP lakehouse. MCP-optional: control-plane via the official aidp CLI / oci raw-request, interactive Spark SQL via a bundled helper. A SessionStart hook stages the helper to ~/.aidp on first run.",
     "developerName": "Oracle",
     "category": "Data",
+    "websiteURL": "https://www.oracle.com/data-platform/",
+    "privacyPolicyURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-engineer-agent/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/LICENSE.txt",
     "capabilities": [
       "Read",
       "Write"

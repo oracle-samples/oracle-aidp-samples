@@ -7,7 +7,7 @@
 This map backs the fallback path: every discovery / catalog / cluster / job / governance skill runs
 via `oci raw-request` (auth + base URL in [`oci-raw-request.md`](oci-raw-request.md)) — **no MCP and no
 `ai-data-engineer-agent` repo required**. Interactive **Spark-SQL** runs via the bundled
-[`scripts/aidp_sql.py`](../scripts/aidp_sql.py) helper (see below). An `aidp` MCP, if one happens to be
+[`$HOME/.aidp/aidp_sql.py`](../aidp_sql.py) helper (see below). An `aidp` MCP, if one happens to be
 configured, is an **optional accelerator** only — never assumed.
 
 > **LIVE-VERIFIED 2026-06-09** (tenancy `<TENANCY>`, us-ashburn-1, `oci raw-request --profile DEFAULT`,
@@ -42,7 +42,7 @@ Base: `https://aidp.<region>.oci.oraclecloud.com/20240831/dataLakes/<dataLakeOci
 > Per-endpoint params (`catalogKey`, `schemaKey`, …) are required — a bare path returns
 > `400 InvalidParameter: query param X must not be null`, which tells you the missing param.
 
-## Interactive Spark SQL: the bundled `scripts/aidp_sql.py` helper
+## Interactive Spark SQL: the bundled `$HOME/.aidp/aidp_sql.py` helper
 Spark-SQL cells run on a Spark kernel over **WebSocket** (Jupyter v5.3) — a protocol plain `oci
 raw-request` (HTTP) can't speak. The plugin ships its own helper for this, so no MCP is needed:
 
@@ -71,12 +71,12 @@ interactive helper:
 2. Create a Job for it: `POST /workspaces/<ws>/jobs` (NOTEBOOK_TASK), then
    `POST …/jobs/<key>/actions/run`.
 3. Poll the run (`GET …/jobRuns/<id>`), then read the task output / the result file.
-This is pure `oci raw-request` but **async and heavier** than `scripts/aidp_sql.py`. Prefer the helper
+This is pure `oci raw-request` but **async and heavier** than `$HOME/.aidp/aidp_sql.py`. Prefer the helper
 for interactive work.
 
 ## Bottom line
 - **Control plane** (discovery, catalog, clusters, jobs, roles, sharing, models, governance) → primary
   engine is `oci raw-request`. Works today, self-contained, no MCP.
-- **Interactive Spark-SQL** → bundled `scripts/aidp_sql.py` helper (live-verified). Job-based path is the
+- **Interactive Spark-SQL** → bundled `$HOME/.aidp/aidp_sql.py` helper (live-verified). Job-based path is the
   async secondary option.
 - An `aidp` MCP is an optional accelerator only — never required, never assumed.

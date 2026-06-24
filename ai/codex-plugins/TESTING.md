@@ -17,6 +17,13 @@ Expected marketplace name:
 oracle-aidp-codex
 ```
 
+> **Path resolution (verified, codex-cli 0.141.0):** Codex resolves each plugin's
+> `source.path` in `.agents/plugins/marketplace.json` relative to the **marketplace
+> root** (the `ai/codex-plugins` dir / sparse subdir you add), *not* relative to the
+> manifest file's own directory. So `"path": "./plugins/<name>"` correctly resolves to
+> `ai/codex-plugins/plugins/<name>`. Confirm with `codex plugin list` — the PATH column
+> should point at `…/ai/codex-plugins/plugins/<name>`.
+
 ## Install Engineer Agent
 
 ```bash

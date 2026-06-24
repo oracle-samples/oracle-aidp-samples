@@ -10,9 +10,9 @@ This plugin **does not collect, store, transmit, or share any user data**. Every
 
 ## What the plugin does
 
-The plugin ships **37 Claude Code skills** (Markdown files with frontmatter) and **two bundled Python helpers**
-(`scripts/aidp_sql.py` for interactive Spark-SQL over the Jupyter WebSocket, `scripts/check_env.py` for a
-one-time dependency/readiness check). When invoked, the skills run the AIDP control plane via the official
+The plugin ships **37 Codex skills** (Markdown files with frontmatter) and **two bundled Python helpers**
+(`aidp/aidp_sql.py` for interactive Spark-SQL over the Jupyter WebSocket, `aidp/check_env.py` for a
+one-time dependency/readiness check; both staged to `~/.aidp/` on SessionStart). When invoked, the skills run the AIDP control plane via the official
 Oracle `aidp` CLI (or an `oci raw-request` fallback) and interactive Spark-SQL via the helper — all against
 **your own** AIDP DataLake, workspace, and cluster. A local grounding cache (`.aidp/catalog.md`,
 `.aidp/semantic.md`, `.aidp/verified-queries.md`) is written into your project directory only.
@@ -37,7 +37,7 @@ Oracle `aidp` CLI (or an `oci raw-request` fallback) and interactive Spark-SQL v
 ## Data flow
 
 ```
-You (Claude Code) → plugin skill (Markdown + local Python helpers)
+You (Codex) → plugin skill (Markdown + local Python helpers)
                   → official aidp CLI / oci raw-request / Jupyter WebSocket
                   → YOUR Oracle AI Data Platform tenancy (REST + Spark cluster)
 ```
@@ -46,7 +46,7 @@ There is no party between you and your AIDP tenancy. The plugin author has no vi
 
 ## Marketplace install / update
 
-When you `/plugin marketplace add` and `/plugin install` from the public GitHub repo, Claude Code clones the
+When you `codex plugin marketplace add` and `codex plugin add` from the public GitHub repo, Codex clones the
 repo from GitHub. That clone is governed by
 [GitHub's privacy policy](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
 The plugin author has no visibility into that clone activity.

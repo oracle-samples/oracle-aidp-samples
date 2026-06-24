@@ -2,7 +2,7 @@
 
 A per-project store of **persisted, re-runnable** data-quality rules. Each rule pairs a target
 table/column with a rule type and a **violation-SQL** that returns the count of bad rows (PASS when 0).
-`aidp-data-quality` registers rules here, re-runs the violation-SQL via the bundled `scripts/aidp_sql.py`
+`aidp-data-quality` registers rules here, re-runs the violation-SQL via the bundled `$HOME/.aidp/aidp_sql.py`
 helper (no MCP required), and records the last pass/fail result — the same "trusted asset" pattern as
 `.aidp/verified-queries.md`, applied to quality checks instead of NL-to-SQL.
 

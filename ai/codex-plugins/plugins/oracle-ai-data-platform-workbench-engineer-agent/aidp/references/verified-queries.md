@@ -8,7 +8,7 @@ Maintained by `aidp-verified-queries`.
 > **Quality gate (critical):** a *wrong* verified query makes accuracy WORSE. Every pair MUST pass
 > validation — (1) syntactically valid Spark SQL, (2) executes on the cluster, (3) actually answers the
 > stated question — before it is marked `verified: true`. `aidp-verified-queries` runs the SQL via the
-> bundled `scripts/aidp_sql.py` helper (no MCP required) and refuses to mark a failing/irrelevant pair as verified.
+> bundled `$HOME/.aidp/aidp_sql.py` helper (no MCP required) and refuses to mark a failing/irrelevant pair as verified.
 
 ## File format
 
