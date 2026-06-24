@@ -1,0 +1,36 @@
+{
+  "name": "oracle-ai-data-platform-workbench-engineer-agent",
+  "version": "0.1.0+codex.20260623113518",
+  "description": "Run the full Oracle AI Data Platform (AIDP) data-engineering surface from Codex in natural language - 37 skills: discover catalog, ask in English, AI-in-SQL, optimize/time-travel, pipelines, clusters, governance, agent flows, MLOps, migration. Self-contained (OCI CLI + api_key DEFAULT profile); the AIDP MCP is an optional accelerator.",
+  "author": {
+    "name": "Oracle"
+  },
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "ai-data-platform",
+    "data-engineering",
+    "spark",
+    "lakehouse",
+    "sql",
+    "delta"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Oracle AI Data Platform - Engineer Agent",
+    "shortDescription": "Full AIDP data-engineering surface in natural language (37 skills).",
+    "longDescription": "Discover -> ask in plain English -> AI inside SQL -> optimize & time-travel -> govern & ship, all on a live AIDP lakehouse. MCP-optional: control-plane via the official aidp CLI / oci raw-request, interactive Spark SQL via a bundled helper. A SessionStart hook stages the helper to ~/.aidp on first run.",
+    "developerName": "Oracle",
+    "category": "Data",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Set up and verify my AIDP connection.",
+      "Map my catalog - what data do I have?",
+      "What were my total net store sales, and how are sales spread across stores?"
+    ]
+  }
+}

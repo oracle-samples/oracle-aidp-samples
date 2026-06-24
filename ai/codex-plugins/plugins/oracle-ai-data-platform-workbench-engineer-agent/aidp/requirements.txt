@@ -1,0 +1,7 @@
+# Dependencies for the bundled aidp_sql.py helper.
+# The SessionStart hook installs these automatically after staging to ~/.aidp.
+# Manual: python -m pip install -r ~/.aidp/requirements.txt
+oci>=2.131.0
+requests>=2.31.0
+websocket-client>=1.7.0
+cryptography>=42.0.0
