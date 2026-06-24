@@ -18,12 +18,11 @@ import glob
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-import os as _os
-AIDP_BASE = _os.environ.get("AIDP_BASE") or f"https://aidp.{_os.environ.get('OCI_REGION', '<OCI_REGION>')}.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = _os.environ.get("AIDP_DATALAKE_OCID") or "<DATALAKE_OCID>"
-WORKSPACE_ID = _os.environ.get("AIDP_WORKSPACE_ID") or "<WORKSPACE_ID>"
+AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
+DATALAKE_OCID = "<DATALAKE_OCID>"
+WORKSPACE_ID = "<WORKSPACE_ID>"
 OCI_PROFILE = "CUSTOMER"
-DEFAULT_CLUSTER = _os.environ.get("AIDP_CLUSTER_ID") or "<CLUSTER_ID>"
+DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
 
 def build_wheel():

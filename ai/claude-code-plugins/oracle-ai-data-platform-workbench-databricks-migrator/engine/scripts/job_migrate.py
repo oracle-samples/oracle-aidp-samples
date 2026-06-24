@@ -1137,7 +1137,7 @@ CRITICAL - MLFLOW:
      (import mlflow, MlflowClient(), mlflow.start_run(), etc.). Databricks pre-imports mlflow
      so notebooks may use it without an explicit import. If there is no `import mlflow`, add it:
        import mlflow
-       mlflow.set_tracking_uri("https://admin:lyDh%3DBS%5DHkhoGu1%3C@mlflow-oci.prod.customer-sa.in")
+       mlflow.set_tracking_uri("https://admin:<MLFLOW_PASSWORD>@<MLFLOW_HOST>")
      Do not repeat in later cells.
   3. Convert MLflow 2.x deprecated APIs to 3.x equivalents when they fail:
      - get_latest_versions(name, stages=['Production']) → get_model_version_by_alias(name, "production")
@@ -1207,8 +1207,8 @@ Assumption: every ScyllaDB keyspace is mirrored to the AIDP metastore as a schem
 `scylla_<keyspace>` (the original keyspace name prefixed with `scylla_` for easy
 identification). Every Scylla table is registered as a Spark table with the SAME table
 name. Reference shape:  spark.sql("…  scylla_$keyspace.$table  …").
-Concrete example: Scylla keyspace `ds_app_events` → AIDP metastore schema
-`scylla_ds_app_events`; table `foo` → `scylla_ds_app_events.foo`.
+Concrete example: Scylla keyspace `sample_keyspace` → AIDP metastore schema
+`scylla_sample_keyspace`; table `foo` → `scylla_sample_keyspace.foo`.
 
 THIS IS A TEMPORARY MAPPING. Mark every migrated cell with this header (immediately
 after the %scala magic line):
@@ -1465,7 +1465,7 @@ CODE FIXES (direct replacements, no data loss):
   If a table name is 2-part (schema.table), try default.schema.table.
   If a table name is 3-part with catalog `main` (or any source catalog that does not exist on
   AIDP), replace ONLY the catalog with `default`, keeping schema and table unchanged
-  (e.g. main.ceal_fde_team.t -> default.ceal_fde_team.t). These are the ONLY fixes.
+  (e.g. main.sample_schema.t -> default.sample_schema.t). These are the ONLY fixes.
   Tables match exactly or they don't exist — do NOT explore, search variations, or guess names.
   If a table appears in VERIFIED TABLES as EXISTS, trust it — do NOT re-check.
   If a table does NOT exist after the 3-part name fix, use make_note to record it and keep
@@ -3906,7 +3906,7 @@ def _rewrite_internal_paths(source: str, migrated_base: str, notebook_path: str 
     source = _rewrite_dbutils_api_renames(source)
 
     # Deterministic source-catalog → default remap in string literals (e.g.
-    # SCHEMA = "main.ceal_fde_team"). _to_three_part only catches call idents;
+    # SCHEMA = "main.sample_schema"). _to_three_part only catches call idents;
     # this fixes literals in the SAVED notebook so they don't fail at runtime.
     # No-op unless register_catalog_remap() was called (needs catalog manifest).
     source = _apply_catalog_remap(source)
@@ -4284,13 +4284,13 @@ def _to_three_part(ident: str) -> tuple:
 # ── Catalog-name remap in STRING LITERALS (source catalog → default) ──
 # _to_three_part only rewrites table-API/SQL *call* identifiers it can see in
 # the source. It cannot touch a string-literal assignment like
-#   SCHEMA = "main.ceal_fde_team"
+#   SCHEMA = "main.sample_schema"
 # that is later used to build a table name via an f-string. At exec time the
 # write-redirect masks this (so migration passes), but the SAVED notebook keeps
 # `main.` and FAILS at real runtime (no `main` catalog on AIDP). We fix the
 # SAVED code with an EXACT replacement driven by the catalog-migration manifest
 # (known source names only → zero over-match; generic, not a hardcoded catalog).
-_CATALOG_REMAP: Dict[str, str] = {}   # "main.ceal_fde_team" -> "default.ceal_fde_team"
+_CATALOG_REMAP: Dict[str, str] = {}   # "main.sample_schema" -> "default.sample_schema"
 
 
 def register_catalog_remap(manifest_path: str, default_catalog: str = "default") -> None:
@@ -4602,8 +4602,8 @@ def _preprocess_scala_cell_source(source: str, dep_path_map: dict = None) -> str
 
         # Substitutions below ALWAYS emit `scylla_<keyspace>` as the schema name. The
         # ScyllaDB keyspace is mirrored to the AIDP metastore as a schema prefixed with
-        # `scylla_` for easy identification (e.g. ds_app_events →
-        # scylla_ds_app_events). Original keyspace identifier is preserved
+        # `scylla_` for easy identification (e.g. sample_keyspace →
+        # scylla_sample_keyspace). Original keyspace identifier is preserved
         # inside the prefix — Scala s-string interpolation handles the rest: a literal
         # "scylla_" + "$keyspaceVar" + ".<table>" → at runtime "scylla_<actualKeyspace>.<table>".
 

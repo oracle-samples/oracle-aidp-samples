@@ -226,9 +226,9 @@ print('copy_jars.sh written and made executable')
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.customer.datascience.feature_lib.Constants', 'FeatureLib'),
-    ('com.customer.datascience.feature_lib2.ConcurrentFLHandler', 'FeatureLib2'),
-    ('com.customer.util_a.decryptor.Decryptor', 'Decryptor'),
+    ('com.example.featurelib.Constants', 'FeatureLib'),
+    ('com.example.featurelib.ConcurrentHandler', 'FeatureLib2'),
+    ('com.example.util.Decryptor', 'Decryptor'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
 for class_name, label in tests:

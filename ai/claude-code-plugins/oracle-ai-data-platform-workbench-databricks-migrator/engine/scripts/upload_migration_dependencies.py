@@ -22,10 +22,9 @@ import requests
 
 # ─── Configuration ────────────────────────────────────────────────────
 
-import os as _os
-AIDP_BASE = _os.environ.get("AIDP_BASE") or f"https://aidp.{_os.environ.get('OCI_REGION', '<OCI_REGION>')}.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = _os.environ.get("AIDP_DATALAKE_OCID") or "<DATALAKE_OCID>"
-WORKSPACE_ID = _os.environ.get("AIDP_WORKSPACE_ID") or "<WORKSPACE_ID>"
+AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
+DATALAKE_OCID = "<DATALAKE_OCID>"
+WORKSPACE_ID = "<WORKSPACE_ID>"
 TARGET_FOLDER = "migration-dependencies"
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

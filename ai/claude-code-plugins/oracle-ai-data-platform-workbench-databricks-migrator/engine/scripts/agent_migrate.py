@@ -558,7 +558,7 @@ AIDP metastore as a schema named `scylla_<keyspace>` (original keyspace prefixed
 `scylla_` for identification); every Scylla table is registered as a Spark table with the
 SAME table name. Schema = `scylla_<keyspace>`; table name preserved; reference shape
 spark.sql("…  scylla_$keyspace.$table  …").
-Example: Scylla `ds_app_events.foo` → AIDP metastore `scylla_ds_app_events.foo`.
+Example: Scylla `sample_keyspace.foo` → AIDP metastore `scylla_sample_keyspace.foo`.
 
 If the failure traces back to a Cassandra pattern that wasn't fully migrated, apply the
 substitutions below (preserve %scala magic if present — do NOT port to Python):
@@ -1030,7 +1030,7 @@ KNOWN AIDP ERROR PATTERNS — fix these directly, don't investigate:
   If a table name is 2-part (schema.table), try default.schema.table.
   If a table name is 3-part with catalog `main` (or any source catalog that does not exist on
   AIDP), replace ONLY the catalog with `default`, keeping schema and table unchanged
-  (e.g. main.ceal_fde_team.t -> default.ceal_fde_team.t). These are the ONLY fixes.
+  (e.g. main.sample_schema.t -> default.sample_schema.t). These are the ONLY fixes.
   Do NOT explore, search, or guess alternative table names. Tables match exactly or they don't exist.
   If the 3-part name also fails, use make_note to record the missing table and keep original code.
 - ModuleNotFoundError / No module named:
@@ -1152,7 +1152,7 @@ OCI_PATH_TOOLS = [
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "The table name or partial name to search for. Example: 'interactions', 'loan_dues', 'allocation'"
+                    "description": "The table name or partial name to search for. Example: 'interactions', 'sample_events', 'allocation'"
                 }
             },
             "required": ["query"],
@@ -1184,7 +1184,7 @@ OCI_PATH_TOOLS = [
             "properties": {
                 "table_name": {
                     "type": "string",
-                    "description": "Fully qualified table name. Example: 'collection.loan_dues_all', 'default.my_table'"
+                    "description": "Fully qualified table name. Example: 'collection.sample_events_all', 'default.my_table'"
                 }
             },
             "required": ["table_name"],
@@ -1245,11 +1245,11 @@ OCI_PATH_TOOLS = [
                         "properties": {
                             "variable": {
                                 "type": "string",
-                                "description": "Name of the variable in the cell (e.g. 'uw_fct_date_list', 'start_date')."
+                                "description": "Name of the variable in the cell (e.g. 'partition_date_list', 'start_date')."
                             },
                             "is_list": {
                                 "type": "boolean",
-                                "description": "True if the variable is a list of dates (e.g. uw_fct_date_list = ['2026-04-01', ...]); False if it's a single date string."
+                                "description": "True if the variable is a list of dates (e.g. partition_date_list = ['2026-04-01', ...]); False if it's a single date string."
                             },
                             "max_dates": {
                                 "type": "integer",
@@ -1503,7 +1503,7 @@ async def _handle_scan_sensitive_info(notebook_path: str, session, log_fn=None) 
         ("internal_endpoint", r'internal-host\.example|internal-gateway.example'),
         ("databricks_api", r'azuredatabricks\.net|api/2\.0/jobs'),
         # MLflow tracking URI with embedded credentials (user:password@host)
-        # e.g. mlflow.set_tracking_uri("https://admin:secret@mlflow-oci.prod.customer-sa.in")
+        # e.g. mlflow.set_tracking_uri("https://admin:secret@<MLFLOW_HOST>")
         ("mlflow_embedded_creds", r'mlflow\.set_tracking_uri\s*\([^)]*://[^:]+:[^@]+@'),
     ]
 
@@ -2466,7 +2466,7 @@ The cell's CODE is correct. The problem is that the cell hardcodes specific date
 
   1. The fully-qualified TABLE the cell is reading from (e.g. "default.db.tbl").
   2. The COLUMN in that table that the cell is filtering by date (e.g. "load_date", "partition_date").
-  3. The cell-scope VARIABLES that hold the date filter values (e.g. "uw_fct_date_list", "start_date").
+  3. The cell-scope VARIABLES that hold the date filter values (e.g. "partition_date_list", "start_date").
 
 You have these tools:
   - describe_table: get schema of a Spark table (use to confirm the date column name and type).
@@ -2481,7 +2481,7 @@ When you have identified all three pieces, call the submit_data_recovery_plan to
 Rules:
   - Do NOT modify the cell's code. The framework will inject a test-only override at execution time; the saved cell stays as-is.
   - Confirm the table actually exists via describe_table or run_on_cluster BEFORE submitting. If the table genuinely doesn't exist, don't submit — let the cell fail through the normal path.
-  - is_list=true: variable is a list of date strings (e.g. `uw_fct_date_list = ['2026-04-01', '2026-04-02', ...]`). max_dates: how many recent available dates to include (3-14 typical).
+  - is_list=true: variable is a list of date strings (e.g. `partition_date_list = ['2026-04-01', '2026-04-02', ...]`). max_dates: how many recent available dates to include (3-14 typical).
   - is_list=false: variable is a single date string (e.g. `start_date = "2026-04-01"`). max_dates: always 1 in this case.
   - Date format: use whatever format the table's column uses (typically YYYY-MM-DD).
   - If multiple cell-scope variables need overrides (e.g. start_date AND end_date), include all of them in overrides.
@@ -2508,7 +2508,7 @@ async def attempt_data_recovery(
 
         # === AIDP_DATA_RECOVERY_OVERRIDE_BEGIN (test-only — not saved) ===
         # Source table: <fq>, date column: <col>, dates: <values from cluster>
-        uw_fct_date_list = ['2024-12-08', '2024-12-07', ...]
+        partition_date_list = ['2024-12-08', '2024-12-07', ...]
         start_date = '2024-12-08'
         # === AIDP_DATA_RECOVERY_OVERRIDE_END ===
 

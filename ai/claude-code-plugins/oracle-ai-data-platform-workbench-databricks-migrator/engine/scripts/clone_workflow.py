@@ -36,8 +36,8 @@ from aidp_executor import get_oci_signer, REGION_MAP
 
 # ─── Defaults (CUSTOMER environment) ──────────────────────────────────────
 
-DEFAULT_LAKE_OCID = _os.environ.get("AIDP_DATALAKE_OCID") or "<DATALAKE_OCID>"
-DEFAULT_WORKSPACE_ID = _os.environ.get("AIDP_WORKSPACE_ID") or "<WORKSPACE_ID>"
+DEFAULT_LAKE_OCID = "<DATALAKE_OCID>"
+DEFAULT_WORKSPACE_ID = "<WORKSPACE_ID>"
 DEFAULT_OCI_PROFILE = "CUSTOMER"
 
 

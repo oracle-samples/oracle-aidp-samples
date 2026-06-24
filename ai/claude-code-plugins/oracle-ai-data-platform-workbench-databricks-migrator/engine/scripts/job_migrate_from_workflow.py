@@ -385,7 +385,7 @@ async def main():
     jm.OUTPUT_BASE = args.output_base
 
     # Load source-catalog → default name remap from the catalog manifest so
-    # string-literal catalog refs (e.g. SCHEMA = "main.ceal_fde_team") are
+    # string-literal catalog refs (e.g. SCHEMA = "main.sample_schema") are
     # deterministically rewritten in the saved notebooks (not left to the LLM).
     if args.catalog_manifest:
         jm.register_catalog_remap(args.catalog_manifest)
