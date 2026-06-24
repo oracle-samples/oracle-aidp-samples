@@ -45,7 +45,7 @@ Cross-reference each finding to a gotcha number in `references/gotchas.md`.
 | Cell | Construct | Risk | Gotcha # |
 |---|---|---|---|
 | 5 | `from pyspark.sql.functions import *` | shadows `builtins.sum` | #3 |
-| 12 | `entity_decrypt(...)` | AWS Secrets Manager — no OCI equiv | #1 |
+| 12 | `legacy_decrypt(...)` | AWS Secrets Manager — no OCI equiv | #1 |
 | 18 | `dbutils.notebook.run("./helpers", ...)` | path with trailing `./` | #7 |
 
 ## Manual-conversion recommendations
@@ -53,7 +53,7 @@ Cross-reference each finding to a gotcha number in `references/gotchas.md`.
 For each risk, name the cell + the specific fix:
 
 - Cell 5: change `from pyspark.sql.functions import *` to `import pyspark.sql.functions as F`.
-- Cell 12: replace `entity_decrypt(<arg>)` with a passthrough or a sandbox stub — migrator does this if `--catalog-manifest` includes the UDF.
+- Cell 12: replace `legacy_decrypt(<arg>)` with a passthrough or a sandbox stub — migrator does this if `--catalog-manifest` includes the UDF.
 - ...
 
 ## Pass-2 expected behavior

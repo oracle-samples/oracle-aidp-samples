@@ -1,43 +1,49 @@
 # Privacy Policy
 
 **Plugin:** `oracle-ai-data-platform-workbench-databricks-migrator`
-**Effective:** 2026-06-20
+**Effective:** 2026-06-24
 
 ## Summary
 
-This plugin **does not collect, store, transmit, or share any user data**. It is a **knowledge-only** plugin — Markdown SKILL files, slash commands, agents, and reference docs — that teach Claude how to drive a separate Oracle migration toolkit you check out locally. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy and **your own** Databricks workspace.
+This plugin **does not collect, store, transmit, or share any user data**. It is a **self-contained** plugin that ships the full migrator engine bundled under `engine/`. Everything runs locally against **your own** Oracle AI Data Platform (AIDP) tenancy and **your own** Databricks workspace.
 
 ## What the plugin ships
 
-- **10 SKILL.md** files (Markdown with frontmatter).
-- **4 slash commands** (Markdown).
-- **2 specialist agents** (Markdown).
-- **5 reference docs** (Markdown — DDL rewrite rules, gotchas, env-coords scaffold, JOB_REPORT.md format, CLI map).
+- **10 SKILL.md** files (Markdown with frontmatter) under `skills/`.
+- **4 slash commands** (Markdown) under `commands/`.
+- **2 specialist agents** (Markdown) under `agents/`.
+- **5 reference docs** (Markdown) under `references/` — DDL rewrite rules, gotchas, env-coords scaffold, `JOB_REPORT.md` format, CLI map.
+- **The full Python migration engine** bundled under `engine/`:
+  - `engine/scripts/` (38 Python files) — `job_migrate.py`, `agent_migrate.py`, `cluster_session.py`, `aidp_executor.py`, `build_dag.py`, `check_data_availability.py`, `migrate_catalog.py`, `extract_catalog_databricks.py`, `acceptance_contract.py`, etc.
+  - `engine/aidp_compat/` (21 Python files) — drop-in `dbutils` compatibility shim for AIDP clusters.
+  - `engine/schemas/` — JSON schemas (acceptance contract).
+  - `engine/setup.py`, `engine/requirements.txt` — Python package metadata + deps.
+  - `engine/run_migration.sh` — generic convenience script.
 
-That's it. No bundled Python code, no third-party telemetry, no MCP server.
+No bundled credentials, no telemetry, no MCP server, no third-party network calls beyond the user's own infrastructure + their chosen model provider.
 
 ## What the plugin does at runtime
 
-When you invoke a skill, Claude follows the skill's Markdown instructions to call the **migrator's CLI** (which lives in a separate Oracle toolkit you cloned locally) with the right arguments. Examples of what the migrator itself does:
+When you invoke a skill, Claude follows the skill's Markdown instructions to call the **bundled migrator engine** at `${CLAUDE_PLUGIN_ROOT}/engine/scripts/...` with the right arguments. Examples of what the engine itself does:
 
-- Reads notebooks from your Databricks workspace via the Databricks REST API (under your token).
-- Calls the AIDP REST API (under your OCI profile) to upload migrated `.ipynb` files, register jobs, and start cluster sessions.
-- Opens a Spark WebSocket to your AIDP cluster to execute Databricks-rewritten cells live + verify outputs.
-- Invokes Claude with tool use (your `ANTHROPIC_API_KEY`) to rewrite Databricks-specific APIs cell by cell and self-correct on failures.
+- Reads notebooks from your Databricks workspace via the Databricks REST API (under **your** Databricks PAT).
+- Calls the AIDP REST API (under **your** OCI profile) to upload migrated `.ipynb` files, register jobs, and start cluster sessions.
+- Opens a Spark WebSocket to **your** AIDP cluster to execute Databricks-rewritten cells live + verify outputs.
+- Invokes Claude with tool use (under **your** `ANTHROPIC_API_KEY`) to rewrite Databricks-specific APIs cell by cell and self-correct on failures.
 
-All of this is under your own credentials, against your own infrastructure, **with no involvement from the plugin author**.
+All of this is under **your own** credentials, against **your own** infrastructure, with no involvement from the plugin author.
 
 ## What the plugin does NOT do
 
 - **No telemetry.** The plugin sends nothing to the author or to any third party. No analytics, no error reporting, no usage metrics.
-- **No credential collection.** OCI authentication, Databricks PATs, and `ANTHROPIC_API_KEY` are read from your local environment by the migrator scripts. The plugin's SKILL Markdown files cannot collect or transmit them.
+- **No credential collection.** OCI authentication, Databricks PATs, and `ANTHROPIC_API_KEY` are read from **your** local environment by the bundled engine. The plugin cannot collect or transmit them.
 - **No phone-home.** The skills make no outbound calls to the author. Every network call goes to **your** Databricks workspace, **your** AIDP REST endpoint, and Anthropic's API under **your** key.
 
 ## Data flow
 
 ```
 You (Claude Code) → plugin skill (Markdown only)
-                  → migrator CLI (Python, in your local clone)
+                  → bundled engine (${CLAUDE_PLUGIN_ROOT}/engine/scripts/...)
                   → YOUR Databricks workspace + YOUR AIDP tenancy + Anthropic API (your key)
 ```
 
@@ -49,7 +55,7 @@ When you `/plugin marketplace add` and `/plugin install` from the public GitHub 
 
 ## Contact
 
-For questions about this privacy policy, open an issue at <https://github.com/oracle-samples/oracle-aidp-samples/issues>.
+For questions about this privacy policy, open an issue at <https://github.com/ahmedawan-oracle/oci-aidp-databricks-validator/issues>.
 
 ## Changes
 

@@ -35,7 +35,7 @@ The cells replayed start at the absolute history index 12 — could be in the SA
 When the migration is done and the user wants to "fix this one cell":
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --only-tasks <task_key> \
