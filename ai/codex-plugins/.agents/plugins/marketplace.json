@@ -1,0 +1,32 @@
+{
+  "name": "oracle-aidp-codex",
+  "interface": {
+    "displayName": "Oracle AI Data Platform - Codex"
+  },
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-workbench-databricks-migrator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/oracle-ai-data-platform-workbench-databricks-migrator"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    },
+    {
+      "name": "oracle-ai-data-platform-workbench-engineer-agent",
+      "source": {
+        "source": "local",
+        "path": "./plugins/oracle-ai-data-platform-workbench-engineer-agent"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data"
+    }
+  ]
+}
