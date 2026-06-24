@@ -16,7 +16,7 @@ Pass-2 of the migrator is expensive (live cluster time + Claude-with-tool-use to
 ## Invocation
 
 ```bash
-python3 scripts/check_data_availability.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py \
   --root "<databricks-workspace-path>" \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -28,7 +28,7 @@ python3 scripts/check_data_availability.py \
 Or for the workflow-shape input (matches [`aidp-build-dag`](../aidp-build-dag/SKILL.md)'s workflow path):
 
 ```bash
-python3 scripts/check_data_availability_for_workflow.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability_for_workflow.py \
   --job-id <databricks-job-id> \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \

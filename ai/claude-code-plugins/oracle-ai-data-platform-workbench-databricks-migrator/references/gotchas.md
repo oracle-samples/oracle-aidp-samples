@@ -4,7 +4,7 @@
 
 ---
 
-## Gotcha #1 — `entity_decrypt` / `decrypt_raw_data` UDF
+## Gotcha #1 — `legacy_decrypt` / `decrypt_data` UDF
 
 **What breaks:** notebooks reference a UDF backed by AWS Secrets Manager. AIDP has no equivalent.
 
@@ -13,7 +13,7 @@
 - If output is used, replace with a passthrough stub via `synthetic_overrides.toml`:
   ```toml
   [[mock_udf]]
-  name = "entity_decrypt"
+  name = "legacy_decrypt"
   strategy = "passthrough"
   return_type = "string"
   ```
@@ -205,4 +205,4 @@
 | `NameError: name '<var>' is not defined` in a parameter context | #10 / #15 |
 | `S3 bucket "<name>" not found in OCI bucket mapping` | #14 |
 | `object datastax is not a member of package com` | #13 |
-| `entity_decrypt is not defined` / `AWS Secrets Manager` | #1 |
+| `legacy_decrypt is not defined` / `AWS Secrets Manager` | #1 |

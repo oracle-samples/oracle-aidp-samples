@@ -23,7 +23,7 @@ This is the main event. Pass-1 fixes the code, Pass-2 proves it runs.
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-python3 scripts/job_migrate.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -35,7 +35,7 @@ python3 scripts/job_migrate.py \
 
 For the workflow-shape variant (preserves the Databricks Job task DAG):
 ```bash
-python3 scripts/job_migrate_from_workflow.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate_from_workflow.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \

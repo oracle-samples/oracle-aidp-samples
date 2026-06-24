@@ -9,7 +9,7 @@ Light wrapper over [`aidp-check-data`](../skills/aidp-check-data/SKILL.md). Use 
 ## Workflow
 
 1. Find an existing manifest at `reports/<job>_manifest.json`. If none, ask the user to build one via [`/migrate-job`](./migrate-job.md) Phase 1, OR run [`aidp-build-dag`](../skills/aidp-build-dag/SKILL.md).
-2. Invoke `scripts/check_data_availability.py` (or `_for_workflow.py` if the manifest came from a Databricks Job ID).
+2. Invoke `${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py` (or `_for_workflow.py` if the manifest came from a Databricks Job ID).
 3. Output a 3-section summary: TABLES (OK / MISSING / EMPTY), PATHS (same), and a remediation tip per category.
 
 ## Args

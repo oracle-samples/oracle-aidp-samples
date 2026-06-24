@@ -79,7 +79,7 @@ anthropic_api_key_env: "ANTHROPIC_API_KEY"              # set via env, NOT in th
 The skills generate commands like this — every coordinate above maps to a `--flag`:
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py \
   --manifest reports/<job>_manifest.json \
   --cluster $cluster_id \
   --aidp-base $aidp_base_url \

@@ -6,7 +6,7 @@
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-databricks-migrator`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-databricks-migrator).
 > End users install via Anthropic's community marketplace (see [Install](#install)).
 
-This plugin is **knowledge-only** — it teaches Claude *how* to drive the migrator. The migrator's Python source is a separate Oracle toolkit you check out locally; this plugin makes it discoverable and operable in natural language.
+This plugin is **self-contained** — it ships the full Python migrator engine bundled under `engine/`. After install, skills invoke the engine via `${CLAUDE_PLUGIN_ROOT}/engine/scripts/...` — no separate clone required.
 
 > **Status:** **v0.1.0** — first public release.
 
@@ -94,17 +94,17 @@ The `ahmedawan-oracle/claude-code-plugins` umbrella marketplace tracks pre-relea
 
 ## Prerequisites
 
-This plugin is **knowledge-only** — it does not bundle the migrator's Python source. To actually run the migrations, you need:
+This plugin is **self-contained** — the full migrator engine (`scripts/`, `aidp_compat/`, schemas, `requirements.txt`, `setup.py`) ships bundled under `engine/`. After install, skills invoke the engine via `${CLAUDE_PLUGIN_ROOT}/engine/scripts/...`. To actually run a migration you still need:
 
-1. **The AIDP Databricks Migration Toolkit** — a separate Oracle toolkit. Clone the migrator repo (your Oracle FDE team or Customer Success contact provides the URL) into your workstation:
+1. **Python deps** — one-time install in any Python 3.10+ environment:
    ```bash
-   git clone <migrator-repo-url> oci-aidp-databricks-validator
-   cd oci-aidp-databricks-validator
-   pip install -r requirements.txt
+   pip install -r ${CLAUDE_PLUGIN_ROOT}/engine/requirements.txt
    ```
-2. **OCI authentication** — `~/.oci/config` with either an `api_key` profile (recommended for unattended runs) or an `oci session authenticate` session-token profile (for interactive notebooks). The migrator reads whichever profile the operator selects via `--oci-profile`.
-3. **An ACTIVE AIDP cluster** — the migrator's Pass-2 execute/verify/fix loop talks to a live cluster via WebSocket. The cluster must be in `Active` state before invoking `job_migrate.py`.
-4. **An `ANTHROPIC_API_KEY` env var** — the migrator uses Claude with tool use under the hood for each cell rewrite + verify. Each migrated job spends a few minutes of Claude-with-tool-use time.
+   (Or `cd ${CLAUDE_PLUGIN_ROOT}/engine && pip install -e .`.)
+2. **OCI authentication** — `~/.oci/config` with either an `api_key` profile (recommended for unattended runs) or an `oci session authenticate` session-token profile (for interactive notebooks). The engine reads whichever profile you select via `--oci-profile`.
+3. **An ACTIVE AIDP cluster** — the engine's Pass-2 execute/verify/fix loop talks to a live cluster via WebSocket. The cluster must be in `Active` state before invoking `job_migrate.py`.
+4. **An `ANTHROPIC_API_KEY` env var** — the engine uses Claude with tool use under the hood for each cell rewrite + verify. Each migrated job spends a few minutes of Claude-with-tool-use time.
+5. **An `env-coords.md`** — see [references/env-coords.md](./references/env-coords.md) for the scaffold the skills thread through (DataLake OCID, workspace UUID, cluster ID, AIDP base URL, OCI profile name).
 
 Once those are in place, the plugin's skills know how to invoke each entrypoint — Claude Code will run the right CLI commands in the right order based on your natural-language ask.
 
@@ -173,12 +173,12 @@ Everything flows through the migrator's CLI:
 
 ```bash
 # Inventory & plan
-python3 scripts/build_dag.py --root <workspace-path> --job-name <name> --output reports/<name>_manifest.json
-python3 scripts/check_data_availability.py --root <workspace-path> --cluster <cluster-id>
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py --root <workspace-path> --job-name <name> --output reports/<name>_manifest.json
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py --root <workspace-path> --cluster <cluster-id>
 
 # Execute
 export ANTHROPIC_API_KEY=sk-ant-...
-python3 scripts/job_migrate.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py \
   --manifest reports/<name>_manifest.json \
   --cluster <cluster-id> \
   --aidp-base https://aidp.<region>.oci.oraclecloud.com/20240831 \
@@ -188,8 +188,8 @@ python3 scripts/job_migrate.py \
   --oci-profile <profile-name>
 
 # Catalog (separate flow)
-python3 scripts/extract_catalog_databricks.py --catalogs <catalog> --schemas-only "<catalog>:<schema>" --out reports/catalog_pack.json
-python3 scripts/migrate_catalog.py --pack reports/catalog_pack.json --cluster <cluster-id> --aidp-base ... --datalake-ocid ...
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/extract_catalog_databricks.py --catalogs <catalog> --schemas-only "<catalog>:<schema>" --out reports/catalog_pack.json
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py --pack reports/catalog_pack.json --cluster <cluster-id> --aidp-base ... --datalake-ocid ...
 ```
 
 The skills tell Claude when to call each + how to thread args from the env-coords reference into them.

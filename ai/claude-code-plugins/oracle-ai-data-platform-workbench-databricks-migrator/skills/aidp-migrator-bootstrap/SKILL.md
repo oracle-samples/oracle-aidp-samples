@@ -32,10 +32,11 @@ Save these into a `env-coords.md` file at the project root, gitignored. Every ot
 
 ### 1. Python prereqs
 
+The migrator engine ships bundled with this plugin under `${CLAUDE_PLUGIN_ROOT}/engine/`. Install its Python dependencies once:
+
 ```bash
-cd <migrator-repo-root>
 python3 --version          # 3.10+
-pip install -r requirements.txt
+pip install -r ${CLAUDE_PLUGIN_ROOT}/engine/requirements.txt
 ```
 
 Expected packages: `oci`, `requests`, `websocket-client`, `anthropic`, `cryptography`. If any is missing, install + retry.

@@ -19,13 +19,13 @@ The migrator ships two DAG builders. Pick based on input shape:
 
 | Input | Entrypoint |
 |---|---|
-| **Path-based**: a folder of `.ipynb` / `.py` notebooks the user wants migrated | `scripts/build_dag.py` |
-| **Workflow-based**: a Databricks Job ID whose tasks the user wants migrated, preserving the task DAG | `scripts/build_dag_from_workflow.py` |
+| **Path-based**: a folder of `.ipynb` / `.py` notebooks the user wants migrated | `${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py` |
+| **Workflow-based**: a Databricks Job ID whose tasks the user wants migrated, preserving the task DAG | `${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag_from_workflow.py` |
 
 ## Path-based invocation
 
 ```bash
-python3 scripts/build_dag.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py \
   --root "<databricks-workspace-path>" \
   --job-name "<MyJob>" \
   --output reports/<MyJob>_manifest.json
@@ -40,7 +40,7 @@ The builder follows `%run` chains AND `dbutils.notebook.run(...)` calls to build
 ## Workflow-based invocation
 
 ```bash
-python3 scripts/build_dag_from_workflow.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag_from_workflow.py \
   --job-id <databricks-job-id> \
   --output reports/<MyJob>_manifest.json
 ```
