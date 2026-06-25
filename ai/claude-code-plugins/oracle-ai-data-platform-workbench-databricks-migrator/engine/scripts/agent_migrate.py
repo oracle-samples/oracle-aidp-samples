@@ -447,7 +447,7 @@ CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta table
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
 ORC, CSV, JSON, Iceberg, or any non-Delta format. codebases commonly call
-DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
+DESCRIBE DETAIL on parquet tables (e.g. a writer-wrapper function looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
 
@@ -661,14 +661,14 @@ would make the cell pass:
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
     `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', '<oci_backup_bucket>_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
-    (NameError), defining a fresh copy of the customer's `def createTable(...)`
+    (NameError), defining a fresh copy of the user's `def createTable(...)`
     locally in the cell is FORBIDDEN — that copy is NOT what the call site sees
     (the cell-text redirect has already changed the arg), AND if the rewrite missed
     something, the inline copy writes to whatever database_name was passed. The
     forbidden names: createTable, saveTable,
     
     writeTable, write_to_delta,
-    process_source, drop_database, drop_table, delete_table. If any of these are
+    drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded — that's a systemic recovery, not
     a per-cell fix.

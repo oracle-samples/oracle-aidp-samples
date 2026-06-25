@@ -58,92 +58,15 @@ except Exception as e:
     print(f"FAIL: {e}")
 """),
 
-    # ─── customer_jar_a ────────────────────────────
-    ("customer_jar_a: Class loading", """
-classes = [
-    "com.example.app_a.ClassA",
-    "com.example.app_a.ClassB",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    ("customer_jar_a: Instantiation test", """
-try:
-    constants = sc._jvm.com.example.app_a.ClassA
-    # Try accessing a static field or method
-    print(f"OK: customer_jar_a sample class class accessible")
-    # List available methods
-    methods = [m.getName() for m in constants.getClass().getMethods()][:10]
-    print(f"   Methods: {methods}")
-except Exception as e:
-    print(f"FAIL: Cannot access customer_jar_a sample class - {str(e)[:200]}")
-"""),
-
-    # ─── customer_jar_b ───────────────────────────────────────
-    ("customer_jar_b: Class loading", """
-classes = [
-    "com.example.app_b.ClassA",
-    "com.example.app_b.ClassB",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    # ─── customer_jar_c ───────────────────────────────────────
-    ("customer_jar_c: Class loading", """
-try:
-    cls = sc._jvm.java.lang.Class.forName("com.example.app_c.ClassA")
-    print("OK: customer_jar_c sample class loaded")
-except Exception as e:
-    print(f"FAIL: customer_jar_c sample class - {str(e)[:100]}")
-"""),
-
-    # ─── customer_jar_d (parser) ──────────────────────────────────────────
-    ("parser_jar: Class loading", """
-classes = [
-    "com.example.parserlib.ClassA",
-    "com.example.parserlib.gen.ClassB",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    # ─── customer_jar_6 (decryption sample) ───────────────────────────────────────
-    ("customer_jar_6: Class loading", """
-classes = [
-    "com.example.app.ClassA",
-    "com.example.app.UdfRegistrar",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    ("customer_jar_6: Instantiation", """
-try:
-    sample_cls = sc._jvm.com.example.app.ClassA
-    print(f"OK: customer_jar_6 sample-class accessible")
-    methods = [m.getName() for m in encryptor.getClass().getDeclaredMethods()][:10]
-    print(f"   Methods: {methods}")
-except Exception as e:
-    print(f"FAIL: {str(e)[:200]}")
-"""),
+    # ─── Project-specific JARs (edit per project) ───
+    # Example entry — replace with your own JAR's classes:
+    # ("my_jar: Class loading", """
+    # try:
+    #     cls = sc._jvm.java.lang.Class.forName("com.your.app.YourClass")
+    #     print("OK: YourClass loaded")
+    # except Exception as e:
+    #     print(f"FAIL: {str(e)[:100]}")
+    # """),
 
     # ─── Scala Logging ───────────────────────────────────────────
     ("Scala Logging: Class loading", """

@@ -99,14 +99,9 @@ print('requirements.txt written')
 import shutil, os, time
 
 jars = [
-    ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
-    ('/Workspace/customer_jar_1.jar', 'customer_jar_1.jar'),
-    ('/Workspace/<workspace_jars>/customer_jar_2.jar', 'customer_jar_2.jar'),
-    ('/Workspace/<workspace_jars>/customer_jar_3.jar', 'customer_jar_3.jar'),
-    ('/Workspace/customer_jar_4.jar', 'customer_jar_4.jar'),
-    ('/Workspace/<workspace_jars>/customer_jar_5.jar', 'customer_jar_5.jar'),
-    ('/Workspace/<workspace_jars>/customer_jar_6.jar', 'customer_jar_6.jar'),
-    ('/Workspace/jars/scala-logging_2.12-3.9.5.jar', 'scala-logging_2.12-3.9.5.jar'),
+    # Edit per project. Example structure: (source_workspace_path, dest_jar_name).
+    # ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
+    # ('/Workspace/jars/your_jar.jar', 'your_jar.jar'),
 ]
 
 ws_dir = '/Workspace/migration-dependencies/jars'
@@ -187,10 +182,8 @@ print('copy_jars.sh written and made executable')
         # Step 6: Test JAR class loading
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
+    # Edit per project. Add (fully-qualified-class-name, display-label) for each JAR to verify.
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.app.ClassMain', 'customer_jar_1'),
-    ('com.example.app.HandlerImpl', 'customer_jar_2'),
-    ('com.example.app.Decryptor', 'customer_jar_6'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
 for class_name, label in tests:

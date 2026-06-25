@@ -161,7 +161,7 @@ Once those are in place, the plugin's skills know how to invoke each entrypoint 
 |---|---|
 | [`references/ddl-rewrite-rules.md`](./references/ddl-rewrite-rules.md) | The 18 DDL rewrite rules the catalog migrator applies, with input/output examples. |
 | [`references/gotchas.md`](./references/gotchas.md) | 15 Databricks → AIDP gotchas + fix recipes. |
-| [`references/env-coords.template.md`](./references/env-coords.template.md) | Scaffold for the customer's environment coordinates (DataLake OCID, workspace UUID, etc.). Fill once, refer to in every skill. |
+| [`references/env-coords.template.md`](./references/env-coords.template.md) | Scaffold for your environment coordinates (DataLake OCID, workspace UUID, etc.). Fill once, refer to in every skill. |
 | [`references/job-report-format.md`](./references/job-report-format.md) | How to parse `JOB_REPORT.md` to extract per-cell pass/fail/fix counts. |
 | [`references/cli-map.md`](./references/cli-map.md) | Each migrator CLI entrypoint mapped to its purpose + canonical invocation. |
 

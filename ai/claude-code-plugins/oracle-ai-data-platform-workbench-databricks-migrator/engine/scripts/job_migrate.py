@@ -655,14 +655,14 @@ gets persisted to the saved notebook forever. Specifically FORBIDDEN:
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
     `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', '<oci_backup_bucket>_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
-    (NameError), defining a fresh copy of the customer's `def createTable(...)`
+    (NameError), defining a fresh copy of the user's `def createTable(...)`
     locally in the cell is FORBIDDEN — that copy is NOT what the call site sees
     (the cell-text redirect has already changed the arg), AND if the rewrite missed
     something, the inline copy writes to whatever database_name was passed. The
     forbidden names: createTable, saveTable,
     
     writeTable, write_to_delta,
-    process_source, drop_database, drop_table, delete_table. If any of these are
+    drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded — that's a systemic recovery, not
     a per-cell fix.
@@ -711,7 +711,7 @@ CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta table
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
 ORC, CSV, JSON, Iceberg, or any non-Delta format. codebases commonly call
-DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
+DESCRIBE DETAIL on parquet tables (e.g. a writer-wrapper function looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
 
@@ -759,7 +759,7 @@ Context:
 - All required JARs are on classpath (Hudi, your custom JARs, parser, UDF)
 
 CRITICAL — NEVER use direct JVM Hadoop FileSystem calls in migrated notebooks:
-The following patterns FAIL in customer's scheduled workflow runs and MUST NOT appear in any
+The following patterns FAIL in scheduled workflow runs and MUST NOT appear in any
 migrated cell:
   spark._jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
   spark.sparkContext._jsc.hadoopConfiguration()  # when used to construct an FS object
@@ -866,7 +866,7 @@ They will NOT be sent to you for migration. Do NOT modify Slack/notification cod
 CRITICAL - DBFS PATH TRANSLATION (/dbfs/ and dbfs:/):
 In Databricks, /dbfs/ and dbfs:/ are filesystem views of DBFS (backed by S3 mounts).
 In AIDP, the equivalent Volume is mounted at /Volumes/{catalog}/{schema}/dbfs/
-(catalog and schema both default to 'default' in the customer's AIDP environment).
+(catalog and schema both default to 'default' in the user's AIDP environment).
 
 Translation rules — apply to ALL path strings in the cell, including f-strings and variables:
   /dbfs/FileStore/x  →  /Volumes/default/default/dbfs/FileStore/x
@@ -1530,7 +1530,7 @@ _CONFIG_MARKER = "# AIDP performance configuration"
 # date variables. The cell then runs with the overrides; on success, the
 # cell is tagged OK_DATA_SUBSTITUTED. The override block is BRACKETED by
 # these markers so it can be reliably stripped before the migrated cell is
-# saved to disk — the saved notebook must contain the customer's ORIGINAL
+# saved to disk — the saved notebook must contain the user's ORIGINAL
 # date filter, not our test-only substitution.
 _DATA_RECOVERY_BEGIN = "# === AIDP_DATA_RECOVERY_OVERRIDE_BEGIN (test-only — not saved) ==="
 _DATA_RECOVERY_END   = "# === AIDP_DATA_RECOVERY_OVERRIDE_END ==="
@@ -1549,7 +1549,7 @@ def _strip_data_recovery_block(source: str) -> str:
 
     Used before persisting a migrated cell to disk so the override (which
     exists only to make migration-time execution succeed) does NOT end up in
-    the customer's saved notebook. Safe to call on sources that don't have
+    the user's saved notebook. Safe to call on sources that don't have
     the block — it's a no-op in that case. Fail-safe: requires both markers
     to strip; an orphan BEGIN with no END is left intact (rather than
     swallowing the rest of the cell).
@@ -1653,7 +1653,7 @@ def _is_write_cell(source: str) -> bool:
 #
 # Redirect targets:
 #   • Tables: default.<oci_backup_bucket>_overwrite.<db>_<tbl>
-#             where <db>_<tbl> comes from canonicalizing the customer's
+#             where <db>_<tbl> comes from canonicalizing the user's
 #             identifier (1-/2-/3-part → 3-tuple → schema_table). Catalog
 #             is dropped because AIDP only uses "default" anyway.
 #   • Paths:  oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/<orig-suffix>
@@ -1664,7 +1664,7 @@ def _is_write_cell(source: str) -> bool:
 #   • A read of `T` consults the redirect map. If a prior cell in this job
 #     wrote to `T`, the read substitutes to `T'` (the redirect target).
 #   • If `T` was NEVER written by the tool in this job, the read is left
-#     as-is (reads customer's production — non-destructive).
+#     as-is (reads the user's production — non-destructive).
 #   • Net effect: tool never WRITES to production. Reads of "not-yet-
 #     redirected" targets go to production. Downstream cells that depend
 #     on the appended/inserted data see only what the tool itself wrote
@@ -2393,7 +2393,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
     #   spark.sql() can't parse a string that is *only* a comment, raising
     #   RuntimeException. Substitution is safer: the DROP still executes,
     #   but against our temp table (which the tool created earlier), so
-    #   customer's real table is untouched and our temp table cleans up.
+    #   the user's real table is untouched and our temp table cleans up.
     #   The writer-wrapper interceptor (drop_database/drop_table/delete_table)
     #   already provides an additional layer for wrapper-form DROPs.
     def _sql_op_sub(match):
@@ -2435,7 +2435,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
 def _apply_read_redirects(exec_code: str) -> str:
     """For every read target in `exec_code`, if it's in the redirect map
     (because a prior write registered it), substitute the redirect.
-    Targets NOT in the map are left as-is — they read from the customer's
+    Targets NOT in the map are left as-is — they read from the user's
     production (read-only, non-destructive)."""
     if not exec_code or (not _write_redirect_table_map and not _write_redirect_path_map):
         return exec_code
@@ -2506,7 +2506,7 @@ def get_write_redirect_summary() -> Dict:
 #   createTable(df, table_name="x", database_name="real_db", ...)
 # because the actual write is hidden inside the function body.
 #
-# This block installs **runtime monkey-patches** on the customer's
+# This block installs **runtime monkey-patches** on the user's
 # wrapper functions in the kernel namespace. After a dep notebook
 # defines `createTable`, we replace `globals()["createTable"]` with a
 # thin wrapper that rewrites `database_name`/`bucket_name`/path args
@@ -2607,7 +2607,7 @@ def _build_writer_interceptor_install_code(catalog: dict) -> str:
         "\n"
         "def _aidp_redirect_path(p):\n"
         "    # Only redirect OCI URIs. Leave /Volumes/, /Workspace/, relative paths,\n"
-        "    # bare filenames, and non-OCI URIs unchanged (the customer's wrapper may\n"
+        "    # bare filenames, and non-OCI URIs unchanged (the user's wrapper may\n"
         "    # treat these specially and our rewrite would change semantics).\n"
         "    if not isinstance(p, str) or not p.strip():\n"
         "        return p\n"
@@ -4254,7 +4254,7 @@ def _to_three_part(ident: str) -> tuple:
         # explicitly listed in the catalog-remap manifest. We used to remap
         # every non-'default' catalog unconditionally, which silently destroyed
         # references to legitimate non-default catalogs (e.g. 'samples.tpch.x'
-        # or a customer's 'analytics.gold.orders'). Now the operator opts in
+        # or a user's 'analytics.gold.orders'). Now the operator opts in
         # per-catalog via --catalog-manifest.
         if parts[0].lower() == "default":
             return ident, False
@@ -7818,7 +7818,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             if local_module_src_roots:
                 syspath_src = (
                     "# AIDP local-module sys.path — added automatically by migration tool.\n"
-                    "# Mirrors the customer's in-tree .py source so package-style imports\n"
+                    "# Mirrors the user's in-tree .py source so package-style imports\n"
                     "# (e.g. `from modules.config import system_config`) resolve when this\n"
                     "# notebook is cloned/executed.\n"
                     "import sys as _sys\n"
