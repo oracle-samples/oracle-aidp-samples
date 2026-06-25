@@ -70,12 +70,12 @@ omegaconf>=2.3.0"""
 # JARs: source path on workspace -> destination name
 JARS = [
     ("/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar", "hudi-spark3.5-bundle_2.12-0.15.0.jar"),
-    ("/Workspace/feature_lib_assembly.jar", "feature_lib_assembly.jar"),
-    ("/Workspace/<customer_jars>/featurelib2_assembly.jar", "featurelib2_assembly.jar"),
-    ("/Workspace/<customer_jars>/feature_lib3_assembly.jar", "feature_lib3_assembly.jar"),
-    ("/Workspace/message_parser_assembly.jar", "message_parser_assembly.jar"),
-    ("/Workspace/<production_jars>/decryptor_assembly.jar", "decryptor_assembly.jar"),
-    ("/Workspace/<production_jars>/decrypt_udf.jar", "Spark_Decrypt_UDF_1.0.2_Final.jar"),
+    ("/Workspace/customer_jar_1.jar", "customer_jar_1.jar"),
+    ("/Workspace/<customer_jars>/customer_jar_2.jar", "customer_jar_2.jar"),
+    ("/Workspace/<customer_jars>/customer_jar_3.jar", "customer_jar_3.jar"),
+    ("/Workspace/customer_jar_4.jar", "customer_jar_4.jar"),
+    ("/Workspace/<production_jars>/customer_jar_5.jar", "customer_jar_5.jar"),
+    ("/Workspace/<production_jars>/customer_jar_6.jar", "Spark_Decrypt_UDF_1.0.2_Final.jar"),
     ("/Workspace/jars/scala-logging_2.12-3.9.5.jar", "scala-logging_2.12-3.9.5.jar"),
 ]
 
@@ -138,12 +138,12 @@ import shutil, os, time
 
 jars = [
     ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
-    ('/Workspace/feature_lib_assembly.jar', 'feature_lib_assembly.jar'),
-    ('/Workspace/<customer_jars>/featurelib2_assembly.jar', 'featurelib2_assembly.jar'),
-    ('/Workspace/<customer_jars>/feature_lib3_assembly.jar', 'feature_lib3_assembly.jar'),
-    ('/Workspace/message_parser_assembly.jar', 'message_parser_assembly.jar'),
-    ('/Workspace/<production_jars>/decryptor_assembly.jar', 'decryptor_assembly.jar'),
-    ('/Workspace/<production_jars>/decrypt_udf.jar', 'Spark_Decrypt_UDF_1.0.2_Final.jar'),
+    ('/Workspace/customer_jar_1.jar', 'customer_jar_1.jar'),
+    ('/Workspace/<customer_jars>/customer_jar_2.jar', 'customer_jar_2.jar'),
+    ('/Workspace/<customer_jars>/customer_jar_3.jar', 'customer_jar_3.jar'),
+    ('/Workspace/customer_jar_4.jar', 'customer_jar_4.jar'),
+    ('/Workspace/<production_jars>/customer_jar_5.jar', 'customer_jar_5.jar'),
+    ('/Workspace/<production_jars>/customer_jar_6.jar', 'Spark_Decrypt_UDF_1.0.2_Final.jar'),
     ('/Workspace/jars/scala-logging_2.12-3.9.5.jar', 'scala-logging_2.12-3.9.5.jar'),
 ]
 
@@ -226,8 +226,8 @@ print('copy_jars.sh written and made executable')
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.featurelib.Constants', 'FeatureLib'),
-    ('com.example.featurelib.ConcurrentHandler', 'FeatureLib2'),
+    ('com.example.app.Constants', 'FeatureLib'),
+    ('com.example.app.ConcurrentPrimaryHandler', 'FeatureLib2'),
     ('com.example.util.Decryptor', 'Decryptor'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]

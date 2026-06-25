@@ -21,7 +21,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
 DATALAKE_OCID = "<DATALAKE_OCID>"
 WORKSPACE_ID = "<WORKSPACE_ID>"
-OCI_PROFILE = "CUSTOMER"
+OCI_PROFILE = "DEFAULT"
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
 

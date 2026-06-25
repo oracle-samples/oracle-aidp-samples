@@ -61,8 +61,8 @@ except Exception as e:
     # ─── Feature Generation Library A ────────────────────────────
     ("Feature Library A: Class loading", """
 classes = [
-    "com.example.featurelib_a.ClassA",
-    "com.example.featurelib_a.ClassB",
+    "com.example.app_a.ClassA",
+    "com.example.app_a.ClassB",
 ]
 for cls_name in classes:
     try:
@@ -74,7 +74,7 @@ for cls_name in classes:
 
     ("Feature Library A: Instantiation test", """
 try:
-    constants = sc._jvm.com.example.featurelib_a.ClassA
+    constants = sc._jvm.com.example.app_a.ClassA
     # Try accessing a static field or method
     print(f"OK: Feature Library A ClassA class accessible")
     # List available methods
@@ -87,8 +87,8 @@ except Exception as e:
     # ─── Feature Library B ───────────────────────────────────────
     ("Feature Library B: Class loading", """
 classes = [
-    "com.example.featurelib_b.ClassA",
-    "com.example.featurelib_b.ClassB",
+    "com.example.app_b.ClassA",
+    "com.example.app_b.ClassB",
 ]
 for cls_name in classes:
     try:
@@ -101,7 +101,7 @@ for cls_name in classes:
     # ─── Feature Library C ───────────────────────────────────────
     ("Feature Library C: Class loading", """
 try:
-    cls = sc._jvm.java.lang.Class.forName("com.example.featurelib_c.ClassA")
+    cls = sc._jvm.java.lang.Class.forName("com.example.app_c.ClassA")
     print("OK: Feature Library C ClassA loaded")
 except Exception as e:
     print(f"FAIL: Feature Library C ClassA - {str(e)[:100]}")

@@ -26,29 +26,29 @@ AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
 DATALAKE_OCID = "<DATALAKE_OCID>"
 WORKSPACE_ID = "<WORKSPACE_ID>"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
-OCI_PROFILE = "CUSTOMER"
+OCI_PROFILE = "DEFAULT"
 
 # Known JARs on the workspace (from enumeration)
 WORKSPACE_JARS = [
-    "Databricks Jars/Production Jar/feature_lib2_1_0_7_assembly.jar",
-    "Databricks Jars/Production Jar/feature_lib2_assembly_1_5_2.jar",
-    "Databricks Jars/Production Jar/feature_lib2_assembly_2_3_1_Collection.jar",
-    "Databricks Jars/Production Jar/feature_lib2_assembly_2_5_1_Collection.jar",
-    "Databricks Jars/Production Jar/decrypt_udf.jar",
-    "Databricks Jars/Production Jar/spark_decrypt_udf_1_0_6_Fi-7b19f.jar",
-    "Databricks Jars/Production Jar/decryptor_assembly.jar",
+    "Databricks Jars/Production Jar/customer_jar_2.jar",
+    "Databricks Jars/Production Jar/customer_jar_2_v152.jar",
+    "Databricks Jars/Production Jar/customer_jar_2_v231.jar",
+    "Databricks Jars/Production Jar/customer_jar_2_v251.jar",
+    "Databricks Jars/Production Jar/customer_jar_6.jar",
+    "Databricks Jars/Production Jar/customer_jar_6_v106.jar",
+    "Databricks Jars/Production Jar/customer_jar_5.jar",
     "Databricks Jars/Production Jar/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
     "Databricks Jars/spark-listener-jars/spark-eventlistener-1.0.4.jar",
     "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
     "jars/scala-logging_2.12-3.9.5.jar",
-    "jars/feature_lib_assembly_1_4_4.jar",
-    "jars/spark_decrypt_udf_1_0_6_Fi-7b19f.jar",
+    "jars/customer_jar_1_v144.jar",
+    "jars/customer_jar_6_v106.jar",
     "jars/spark-cassandra-connector_2.13-3.5.1.jar",
-    "message_parser_assembly.jar",
-    "feature_lib_assembly_1_4_4.jar",
-    "feature_lib_assembly.jar",
-    "CUSTOMER_JARS/featurelib2_assembly.jar",
-    "CUSTOMER_JARS/feature_lib3_assembly.jar",
+    "customer_jar_4.jar",
+    "customer_jar_1_v144.jar",
+    "customer_jar_1.jar",
+    "CUSTOMER_JARS/customer_jar_2.jar",
+    "CUSTOMER_JARS/customer_jar_3.jar",
 ]
 
 

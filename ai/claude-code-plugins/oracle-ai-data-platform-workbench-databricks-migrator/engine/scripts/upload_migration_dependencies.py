@@ -34,12 +34,12 @@ LOCAL_JARS_DIR = os.path.join(PROJECT_DIR, "jars")
 # JARs to upload (source path on workspace -> local downloaded copy)
 REQUIRED_JARS = {
     "hudi-spark3.5-bundle_2.12-0.15.0.jar": "Hudi Spark 3.5 bundle",
-    "feature_lib_assembly.jar": "Customer FEATURE_LIB feature generation",
-    "featurelib2_assembly.jar": "Customer Feature Library",
-    "feature_lib3_assembly.jar": "Customer FeatureLib3",
-    "message_parser_assembly.jar": "Customer MessageParser",
-    "decryptor_assembly.jar": "Customer Data Decryptor",
-    "decrypt_udf.jar": "DecryptUDF",
+    "customer_jar_1.jar": "Customer JAR 1",
+    "customer_jar_2.jar": "Customer Feature Library",
+    "customer_jar_3.jar": "Customer JAR 3",
+    "customer_jar_4.jar": "Customer JAR 4",
+    "customer_jar_5.jar": "Customer JAR 5",
+    "customer_jar_6.jar": "DecryptUDF",
     "scala-logging_2.12-3.9.5.jar": "Scala Logging (transitive dep)",
 }
 

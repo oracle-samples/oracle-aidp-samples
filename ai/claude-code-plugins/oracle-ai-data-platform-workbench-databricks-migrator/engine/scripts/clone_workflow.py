@@ -38,7 +38,7 @@ from aidp_executor import get_oci_signer, REGION_MAP
 
 DEFAULT_LAKE_OCID = "<DATALAKE_OCID>"
 DEFAULT_WORKSPACE_ID = "<WORKSPACE_ID>"
-DEFAULT_OCI_PROFILE = "CUSTOMER"
+DEFAULT_OCI_PROFILE = "DEFAULT"
 
 
 def tprint(*args, **kwargs):
@@ -48,7 +48,7 @@ def tprint(*args, **kwargs):
 
 def _get_region(lake_ocid):
     parts = lake_ocid.split(".")
-    region_code = parts[3] if len(parts) > 3 else "bom"
+    region_code = parts[3] if len(parts) > 3 else "iad"
     return REGION_MAP.get(region_code, "<OCI_REGION>")
 
 

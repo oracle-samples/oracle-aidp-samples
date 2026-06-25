@@ -47,7 +47,7 @@ from build_dag_from_workflow import (
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_LAKE_OCID = "<DATALAKE_OCID>"
 DEFAULT_WORKSPACE_ID = "<WORKSPACE_ID>"
-DEFAULT_OCI_PROFILE = "CUSTOMER"
+DEFAULT_OCI_PROFILE = "DEFAULT"
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
 # ─── Bucket → Namespace Mapping ────────────────────────────────────

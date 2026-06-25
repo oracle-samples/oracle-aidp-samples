@@ -98,7 +98,7 @@ def _get_region(lake_ocid):
     """Extract region from AIDP Lake OCID."""
     from aidp_executor import REGION_MAP
     parts = lake_ocid.split(".")
-    region_code = parts[3] if len(parts) > 3 else "bom"
+    region_code = parts[3] if len(parts) > 3 else "iad"
     return REGION_MAP.get(region_code, "<OCI_REGION>")
 
 
