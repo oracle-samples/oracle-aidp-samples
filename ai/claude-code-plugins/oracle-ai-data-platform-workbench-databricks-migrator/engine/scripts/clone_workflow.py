@@ -34,7 +34,7 @@ import requests as http_requests
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from aidp_executor import get_oci_signer, REGION_MAP
 
-# ─── Defaults (CUSTOMER environment) ──────────────────────────────────────
+# ─── Defaults (placeholder values — set via CLI flags) ──────────────────────────────────────
 
 DEFAULT_LAKE_OCID = "<DATALAKE_OCID>"
 DEFAULT_WORKSPACE_ID = "<WORKSPACE_ID>"
@@ -270,11 +270,11 @@ def main():
     parser.add_argument("--dry-run", action="store_true",
                         help="Print payload without creating the workflow")
     parser.add_argument("--lake-ocid", default=DEFAULT_LAKE_OCID,
-                        help="AIDP lake OCID (default: CUSTOMER)")
+                        help="AIDP lake OCID (default: <DATALAKE_OCID>)")
     parser.add_argument("--workspace-id", default=DEFAULT_WORKSPACE_ID,
-                        help="AIDP workspace UUID (default: CUSTOMER)")
+                        help="AIDP workspace UUID (default: <WORKSPACE_ID>)")
     parser.add_argument("--oci-profile", default=DEFAULT_OCI_PROFILE,
-                        help="OCI config profile (default: CUSTOMER)")
+                        help="OCI config profile (default: DEFAULT)")
     args = parser.parse_args()
 
     # Step 1: Fetch existing workflow

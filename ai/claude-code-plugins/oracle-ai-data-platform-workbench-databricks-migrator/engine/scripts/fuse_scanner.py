@@ -61,7 +61,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"mlflow\.log_artifact\s*\(",
             r"mlflow\.set_tracking_uri\s*\(",
             r"mlflow\.set_experiment\s*\(",
-            r"/Users/\S+@customer\.com/",  # Databricks user-namespace experiment paths
+            r"/Users/\S+@example\.com/",  # Generic Databricks user-namespace pattern (e.g. /Users/alice@example.com/)
             r"azuredatabricks://",
             r"databricks://",
         ],

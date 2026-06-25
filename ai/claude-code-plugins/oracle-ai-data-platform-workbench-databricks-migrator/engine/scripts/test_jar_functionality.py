@@ -121,7 +121,7 @@ for cls_name in classes:
         print(f"FAIL: {cls_name} - {str(e)[:100]}")
 """),
 
-    # ─── Decryptor Library ───────────────────────────────────────
+    # ─── Customer JAR 6 ───────────────────────────────────────
     ("CustomerJar6: Class loading", """
 classes = [
     "com.example.app.ClassA",
@@ -138,7 +138,7 @@ for cls_name in classes:
     ("CustomerJar6: Instantiation", """
 try:
     encryptor = sc._jvm.com.example.app.ClassA
-    print(f"OK: Decryptor ClassA accessible")
+    print(f"OK: CustomerJar6 ClassA accessible")
     methods = [m.getName() for m in encryptor.getClass().getDeclaredMethods()][:10]
     print(f"   Methods: {methods}")
 except Exception as e:

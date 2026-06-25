@@ -38,7 +38,7 @@ WORKSPACE_JARS = [
     "<workspace_jars>/customer_jar_6_v1.jar",
     "<workspace_jars>/customer_jar_5.jar",
     "<workspace_jars>/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
-    "Databricks Jars/spark-listener-jars/spark-eventlistener-1.0.4.jar",
+    "<workspace_jars>/spark-listener-jars/spark-eventlistener-1.0.4.jar",
     "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
     "jars/scala-logging_2.12-3.9.5.jar",
     "jars/customer_jar_1_v1.jar",
