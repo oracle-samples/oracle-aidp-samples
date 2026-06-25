@@ -20,7 +20,7 @@ The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 10 
 Inside an already-running migration, Claude can call the `fixup_cell` tool:
 
 ```
-fixup_cell(start_index=12, why="cell 11 redefined `Basedata` to use a different schema; replay downstream so the new var flows through")
+fixup_cell(start_index=12, why="cell 11 redefined `<base_table>` to use a different schema; replay downstream so the new var flows through")
 ```
 
 This is the in-process mode. It:

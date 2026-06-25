@@ -513,7 +513,7 @@ async def main():
                         help="AIDP cluster ID (required)")
     parser.add_argument("--graph-only", action="store_true", help="Just print the dependency graph")
     parser.add_argument("--output", help="Output file for manifest entry (default: stdout)")
-    # AIDP environment — override these for non-Customer deployments
+    # AIDP environment — override these for deployments using different defaults
     parser.add_argument("--lake-ocid", default=DEFAULT_LAKE_OCID, required=DEFAULT_LAKE_OCID is None,
                         help="AIDP data lake OCID (required)")
     parser.add_argument("--workspace-id", default=DEFAULT_WORKSPACE_ID, required=DEFAULT_WORKSPACE_ID is None,

@@ -2,7 +2,7 @@
 """
 Job Pre-flight: Discovery & Resolution
 ========================================
-Parses the 23 Databricks job definitions, resolves all notebook paths,
+Parses the Databricks job definitions, resolves all notebook paths,
 discovers child notebooks, inspects init scripts, and produces a manifest.
 
 Usage:

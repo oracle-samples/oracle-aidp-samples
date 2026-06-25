@@ -84,7 +84,7 @@ FUSE_PATTERNS = [
         # Two open(..., "r") or open(..., "rb") calls in the same cell.
         # FUSE can evict the inode cache between the first and second read,
         # causing FileNotFoundError on the second open even though the file exists.
-        # Confirmed: dicretizer_quality23.txt in ExampleJob job.
+        # Confirmed: example_input.txt in ExampleJob job.
         "name": "volumes_double_read",
         "pattern": r"open\s*\([^)]+['\"]r[b]?['\"]\)",
         "followup": r"open\s*\([^)]+['\"]r[b]?['\"]\)",
@@ -250,7 +250,7 @@ RISK_PATTERNS = [
     },
     {
         "name": "legacy_udf",
-        "pattern": r"legacy_decrypt|LegacyDecrypt|legacy_encrypt|LegacyEncrypt",
+        "pattern": r"legacy_(decrypt|encrypt)|Legacy(Decrypt|Encrypt)",
         "severity": "HIGH",
         "fix": (
             "legacy_decrypt/legacy_encrypt UDF requires AWS Secrets Manager keys — not available on OCI. "
@@ -463,7 +463,7 @@ def detect_stale_lazy_eval_risks(all_sources: List[str]) -> Dict[int, List[dict]
 #
 # Also occurs within a class when the same file is read in two methods.
 # Fix: use safe_read_file(path) from aidp_compat — retries with delay on eviction.
-# Confirmed: dicretizer_quality23.txt in ExampleJob notebook.
+# Confirmed: example_input.txt in ExampleJob notebook.
 
 # Match: open("path", "r") or open("path", "rb") — capture the path literal
 _FILE_READ_LITERAL_RE = re.compile(
@@ -945,7 +945,7 @@ async def analyze_notebook_cells(
                             plan["changes_needed"].append(
                                 f"Table {table} exists but has EMPTY SCHEMA (0 columns) — "
                                 f"data not synced to AIDP. Add to "
-                                f"/Workspace/dbc/datafiles/tables_to_migrate.csv and wait "
+                                f"/Workspace/<deploy_dir>/datafiles/tables_to_migrate.csv and wait "
                                 f"for hourly sync, or contact infra team."
                             )
                 elif result == "MISSING":
@@ -954,7 +954,7 @@ async def analyze_notebook_cells(
                         if table in plan.get("table_refs", []):
                             plan["changes_needed"].append(
                                 f"Table {table} NOT FOUND in AIDP catalog. "
-                                f"Add to /Workspace/dbc/datafiles/tables_to_migrate.csv "
+                                f"Add to /Workspace/<deploy_dir>/datafiles/tables_to_migrate.csv "
                                 f"with its S3 source path and wait for hourly sync."
                             )
                 else:

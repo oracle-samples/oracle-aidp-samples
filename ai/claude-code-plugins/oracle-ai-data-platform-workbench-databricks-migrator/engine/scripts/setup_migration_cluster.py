@@ -226,8 +226,8 @@ print('copy_jars.sh written and made executable')
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.app.Constants', 'CustomerJar1'),
-    ('com.example.app.ConcurrentPrimaryHandler', 'CustomerJar2'),
+    ('com.example.app.ClassMain', 'CustomerJar1'),
+    ('com.example.app.HandlerImpl', 'CustomerJar2'),
     ('com.example.app.Decryptor', 'CustomerJar6'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]

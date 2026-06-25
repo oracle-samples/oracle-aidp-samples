@@ -2,7 +2,7 @@
 """
 Job Migration Orchestrator
 ============================
-Migrates 23 Databricks jobs to AIDP with:
+Migrates Databricks jobs to AIDP with:
 - DAG-ordered execution within each job
 - Claude Opus for analysis, migration, and fixing
 - Real execution on AIDP cluster (ALL cells including writes)
@@ -710,7 +710,7 @@ aidp_compat, or OCI SDK — keep the function signature identical so callers don
 CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta tables:
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
-ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
+ORC, CSV, JSON, Iceberg, or any non-Delta format. codebases commonly call
 DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
@@ -756,7 +756,7 @@ Context:
   FORBIDDEN: oci.auth.signers.get_resource_principals_signer() — resource principal has known
   failure modes on AIDP and MUST NEVER be used. If customer code already uses the API-key init
   pattern (oci.config.from_file pointing under /Workspace/), PRESERVE that init code unchanged.
-- All Customer JARs are on classpath (Hudi, customer JAR 1, customer JAR 2, ExampleApp, parser, UDF)
+- All required JARs are on classpath (Hudi, customer JAR 1, customer JAR 2, ExampleApp, parser, UDF)
 
 CRITICAL — NEVER use direct JVM Hadoop FileSystem calls in migrated notebooks:
 The following patterns FAIL in customer's scheduled workflow runs and MUST NOT appear in any
@@ -924,7 +924,7 @@ If the cell_plan flags a table as MISSING or EMPTY_SCHEMA, the cell WILL fail at
 DO NOT attempt to fix this in code — it requires data infra action.
 
 For MISSING tables: Table not in AIDP catalog. Must be added to
-/Workspace/dbc/datafiles/tables_to_migrate.csv (format: ref_name,s3_source_path)
+/Workspace/<deploy_dir>/datafiles/tables_to_migrate.csv (format: ref_name,s3_source_path)
 and wait for the hourly scheduled sync job.
 
 For EMPTY_SCHEMA tables: Table shell registered but DESCRIBE returns 0 columns — data
@@ -1387,7 +1387,7 @@ DATA SOURCE REPLACEMENTS (must produce equivalent data):
     import oci, os
     _config_path = '/Workspace/testing/param/ai_notebook_migration/config'
     if not os.path.exists(_config_path):
-        _config_path = '/Workspace/dbc/config'
+        _config_path = '/Workspace/<deploy_dir>/config'
     _oci_config = oci.config.from_file(file_location=_config_path)
     _os_client = oci.object_storage.ObjectStorageClient(_oci_config)
 
@@ -1435,7 +1435,7 @@ do NOT attempt to make the call work. Instead, on the FIRST attempt:
 
 Detect by ANY of these signals:
 - Direct Databricks REST API calls: requests.post/get to /api/2.0/jobs/*, /api/2.0/clusters/*
-- Hardcoded Databricks job_id (large integer like 938951762375103) in any function call
+- Hardcoded Databricks job_id (large integer like <DATABRICKS_JOB_ID>) in any function call
 - Wrapper functions that trigger Databricks jobs: run_job(), trigger_job(), submit_job(), etc.
   with job_id or run_name parameters
 - AWS Secrets Manager / boto3.client('secretsmanager')
@@ -1445,7 +1445,7 @@ Detect by ANY of these signals:
 Pattern:
   # --- STUBBED: Databricks job trigger not available on AIDP ---
   # Original:
-  # job_result = run_job({"run_name": model_name, "job_id": 938951762375103, ...})
+  # job_result = run_job({"run_name": model_name, "job_id": <DATABRICKS_JOB_ID>, ...})
   #
   # Stub: preserve downstream dependency contract
   job_result = {"status": "STUBBED", "note": "Databricks job trigger not available on AIDP"}
@@ -1471,7 +1471,7 @@ CODE FIXES (direct replacements, no data loss):
   If a table does NOT exist after the 3-part name fix, use make_note to record it and keep
   original code. Do NOT try workarounds like CSV files or alternative sources.
 - DELETE FROM / UPDATE / MERGE statements: Keep code as-is — do NOT rewrite.
-  These are customer logic and must be preserved exactly. Skip execution during migration
+  These are source-side logic and must be preserved exactly. Skip execution during migration
   (destructive operations can cause data loss). Validate syntax only.
 - spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", ...):
   Replace with .option("mergeSchema", "true") on the write call
@@ -1648,7 +1648,7 @@ def _is_write_cell(source: str) -> bool:
 # During migration tool execution, every write/INSERT/UPDATE/DELETE/MERGE/
 # CREATE/DROP/TRUNCATE on a real OCI path or catalog table is redirected to
 # a TOOL-OWNED destination so customer production data is never touched.
-# The SAVED notebook keeps the customer's original paths/tables intact;
+# The SAVED notebook keeps the original paths/tables intact;
 # only the cluster-executed code (`exec_code`) is rewritten.
 #
 # Redirect targets:
@@ -1668,7 +1668,7 @@ def _is_write_cell(source: str) -> bool:
 #   • Net effect: tool never WRITES to production. Reads of "not-yet-
 #     redirected" targets go to production. Downstream cells that depend
 #     on the appended/inserted data see only what the tool itself wrote
-#     (not the union with prior production data). Customer accepts this
+#     (not the union with prior production data). Operators may accept this
 #     because at customer-runtime the original code reads/writes production
 #     as intended.
 #
@@ -2385,7 +2385,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
     # ── SQL DDL/DML ──
     # All DDL/DML ops (CREATE/INSERT/UPDATE/DELETE/MERGE/DROP/ALTER/TRUNCATE)
     # go through the same identifier-substitution path: redirect the table
-    # identifier to oracle_ai_automation_overwrite.<db>_<tbl>. Customer data
+    # identifier to oracle_ai_automation_overwrite.<db>_<tbl>. source data
     # is never touched because the SQL now references the tool's temp schema.
     #
     # Why DROP TABLE no longer gets replaced with a no-op comment:
@@ -2497,7 +2497,7 @@ def get_write_redirect_summary() -> Dict:
 
 
 # ============================================================
-# Customer Writer-Wrapper Interceptors (runtime, kernel-side)
+# Writer-Wrapper Interceptors (runtime, kernel-side)
 # ============================================================
 #
 # Cell-text write redirects (above) catch inline writes like
@@ -2906,7 +2906,7 @@ def _ns_for_oci_bucket(oci_bucket: str):
 def _apply_s3_translations(source: str) -> str:
     """Deterministically replace s3[a]://bucket/path → oci://oci-bucket@namespace/path.
 
-    Rule (per Customer convention):
+    Rule (per the source convention):
       - OCI bucket name = oci-<s3_bucket>
       - Namespace ALWAYS from the bucket→tenancy mapping
         (config/oci_bucket_tenancy_mapping.json) — the single source of truth.
@@ -2921,7 +2921,7 @@ def _apply_s3_translations(source: str) -> str:
         scheme = m.group(1)   # 's3' or 's3a'
         bucket = m.group(2)
         path   = m.group(3)   # everything after bucket/
-        # Customer naming convention: oci-<s3_bucket_name>
+        # source naming convention: oci-<s3_bucket_name>
         oci_b = f"oci-{bucket}"
         # Namespace ALWAYS from the bucket→tenancy mapping; default tenancy ns
         # only as a last resort for buckets absent from the mapping.
@@ -3279,7 +3279,7 @@ _DATABRICKS_MARKERS = (
     "notebook.exit(",
     "notebook.run(",
     "notebook.getcontext(",
-    # Customer location-extraction patterns (per AIDP body-swap rule)
+    # source location-extraction patterns (per AIDP body-swap rule)
     "describe formatted",
     "describe extended",
     # DESCRIBE DETAIL is Delta-only; AIDP fails for non-Delta tables.
@@ -4005,7 +4005,7 @@ def _add_missing_imports(source: str) -> str:
 # ── Databricks job-trigger rewriting ───────────────────────────────────
 #
 # Rewrites Databricks job invocations to call the AIDP-equivalent job via
-# /Workspace/dbc/invoke_job1.run_job_and_wait. Confirmed signature
+# /Workspace/<deploy_dir>/invoke_job1.run_job_and_wait. Confirmed signature
 # (verified by reading invoke_job1.py 2026-05-05):
 #
 #   run_job_and_wait(job_id: str, params: list = [], poll_interval=30, timeout=3600)
@@ -4014,7 +4014,7 @@ def _add_missing_imports(source: str) -> str:
 # build_dag_from_workflow.py:386. We convert at runtime so the original
 # notebook_params dict (which may reference variables) is preserved.
 #
-# Detection patterns (V1 — most common in Customer notebooks):
+# Detection patterns (V1 — most common in source notebooks):
 #   1. job_call(<int_or_var>, <params_expr>)
 #   2. job_calling(<int_or_var>, ...)
 #   3. call_job_internal(<int_or_var>, <params_expr>, ...)
@@ -4059,13 +4059,13 @@ _AIDP_UNMAPPED_TEMPLATE = """\
 {indent}print("[Oracle migration] SKIPPED Databricks job {db_id}: no AIDP mapping in manifest db_to_aidp_job_map — see JOB_REPORT.md")"""
 
 # ── AIDP run_job_and_wait helper (inlined into every notebook that uses it) ──
-# Mirrors /Workspace/dbc/invoke_job1.run_job_and_wait so migrated notebooks
+# Mirrors /Workspace/<deploy_dir>/invoke_job1.run_job_and_wait so migrated notebooks
 # don't depend on that file existing. URL constants are substituted from the
 # toolkit's runtime config (AIDP_BASE / DATALAKE_OCID / WORKSPACE_ID) so the
 # helper is fully wired up at injection time.
 _AIDP_INVOKE_HELPER_TEMPLATE = '''\
 # Oracle tool modification: inlined AIDP run_job_and_wait helper
-# (mirrors /Workspace/dbc/invoke_job1.py — kept self-contained so the migrated
+# (mirrors /Workspace/<deploy_dir>/invoke_job1.py — kept self-contained so the migrated
 # notebook works without depending on that file existing on the cluster)
 def _aidp_run_job_and_wait(job_id, params=None, poll_interval=30, timeout=3600):
     """Submit an AIDP job and block until it finishes. Returns the final
@@ -4112,7 +4112,7 @@ def _build_aidp_invoke_helper() -> str:
     """Build the inlined helper source with workspace/region URL substituted in."""
     aidp_ws_url = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}"
     return _AIDP_INVOKE_HELPER_TEMPLATE.format(
-        oci_config_path="/Workspace/dbc/config",
+        oci_config_path="/Workspace/<deploy_dir>/config",
         oci_config_profile="DEFAULT",
         aidp_ws_url=aidp_ws_url,
     )
@@ -4826,7 +4826,7 @@ def _preprocess_cell_source(source: str, dep_path_map: dict = None) -> str:
     # with body excluding any quote.
     #
     # Why this was REMOVED — Bug B (root-cause):
-    # Customer notebooks frequently deactivate code blocks by wrapping them
+    # source notebooks frequently deactivate code blocks by wrapping them
     # in `'''...'''`. When the FIRST line of such a block contains an inner
     # string literal (e.g., `'''lomlo = spark.read.format('org.apache.hudi')...`),
     # the regex's non-greedy body stops at the first internal `'`, and that
@@ -5045,7 +5045,7 @@ def _ensure_dbutils_import(cells: list) -> list:
 def _ensure_invoke_job_helper(cells: list) -> list:
     """If any cell calls _aidp_run_job_and_wait, inject the helper definition
     once at the top of the notebook so the migrated notebook is self-contained
-    (no dependency on /Workspace/dbc/invoke_job1.py existing).
+    (no dependency on /Workspace/<deploy_dir>/invoke_job1.py existing).
 
     Idempotent — skips if the helper definition is already present.
     """
@@ -6304,7 +6304,7 @@ else:
             if local_mirror_root_dst:
                 mirror_ctx = (
                     "\n=== LOCAL MODULE SOURCE MIRROR ===\n"
-                    f"Customer source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
+                    f"the source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
                     f"Mirror copy (writable, ALL patches go here): {local_mirror_root_dst}\n"
                     "Rules:\n"
                     f"- sys.path is already configured to load local modules from {local_mirror_root_dst}.\n"
@@ -7211,7 +7211,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                         migration_notes.append(
                             f"Cell {i}: OK_DATA_SUBSTITUTED — code validated on cluster "
                             f"using dates substituted from upstream table; "
-                            f"customer's original date filter saved unchanged"
+                            f"original date filter saved unchanged"
                         )
                     elif attempt > 0:
                         cells_fixed += 1
@@ -7420,7 +7420,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                 # the upstream table, query the table for actually available
                 # dates, and build an EXEC-only override block. The override
                 # is prepended to the cell on retry; the saved cell stays
-                # byte-identical to the customer's original.
+                # byte-identical to the original.
                 # READ_ONLY restriction: WRITE cells (saveAsTable, .write.*,
                 # etc.) are NEVER given substituted dates — a write with
                 # wrong dates would corrupt destinations.
@@ -7466,7 +7466,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                         if local_mirror_root_dst:
                             fix_context += (
                                 "\n\n=== LOCAL MODULE SOURCE MIRROR ===\n"
-                                f"Customer source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
+                                f"the source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
                                 f"Mirror copy (writable, ALL patches go here): {local_mirror_root_dst}\n"
                                 f"- sys.path already loads local modules from {local_mirror_root_dst}.\n"
                                 "- If you need to patch a local .py file (syntax fix, comment out Databricks-only code),\n"
@@ -7560,7 +7560,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                 # Databricks / half AIDP. Opus is NOT called on these cells —
                 # verification is impossible after a hard failure, so we keep
                 # things cheap/fast and rely on deterministic transforms only.
-                # Customer can hand-polish anything tricky after data is restored.
+                # Operators can hand-polish anything tricky after data is restored.
                 remaining = total_cells - i - 1
                 log.log(f"JOB FAILED: stopping execution, code-only migrating {remaining} remaining cells (no Opus, no execution)")
                 for j in range(i + 1, total_cells):
@@ -7607,7 +7607,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             log.log(f"WARNING: migrated notebook has {len(migrated_cells)} cells, original has {total_cells} — possible cell loss")
 
         # ── Optional acceptance contract (post-cell-pass drain check) ──
-        # Pattern adapted from codex-plugin-oci-aidp-migration-workbench
+        # Pattern adapted from prior internal pattern
         # aidp-batch-stream-acceptance skill. Runs only when (a) caller passed
         # a contract dict, (b) all cells passed, and (c) execution is live
         # (run_all=True). Maintains back-compat: absent contract = no-op.
@@ -7699,7 +7699,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             test_report += (
                 "Every write/INSERT/UPDATE/DELETE/MERGE/CREATE/DROP during tool execution was "
                 "redirected to a tool-owned destination so customer production data was never touched. "
-                "The saved notebook KEEPS the customer's original paths/tables — these redirects "
+                "The saved notebook KEEPS the original paths/tables — these redirects "
                 "applied to cluster execution only.\n\n"
             )
             if _wr["tables"]:
@@ -9207,7 +9207,7 @@ else:
             # ensure_migrated() recursively migrates sub-deps and caches them in
             # _migration_cache, but only returns the top-level migrated path.
             # Without this, _inline_child_notebook can't resolve nested %run paths
-            # (e.g. 00_Parameters.ipynb -> %run ./Job_Slack_Utils) because they're
+            # (e.g. <00_parameters>.ipynb -> %run ./<shared_utils_notebook>) because they're
             # not direct deps of the task notebook.
             transitive_added = 0
             for cached_norm, cached_path in _migration_cache.items():
@@ -9430,7 +9430,7 @@ async def main():
                         help="(Deprecated/ignored) S3→OCI bucket mapping is now supplied via "
                              "load_bucket_mapping(); this flag is kept only for backward "
                              "compatibility with older invocations.")
-    # AIDP environment — override these for non-Customer deployments
+    # AIDP environment — override these for deployments using different defaults
     parser.add_argument("--aidp-base", default=AIDP_BASE,
                         help="AIDP REST endpoint base URL (default: %(default)s)")
     parser.add_argument("--datalake-ocid", default=DATALAKE_OCID, required=DATALAKE_OCID is None,

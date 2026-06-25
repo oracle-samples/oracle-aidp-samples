@@ -37,7 +37,7 @@ WORKSPACE_JARS = [
     "<workspace_jars>/customer_jar_6.jar",
     "<workspace_jars>/customer_jar_6_v1.jar",
     "<workspace_jars>/customer_jar_5.jar",
-    "<workspace_jars>/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
+    "<workspace_jars>/deprecated_hudi_spark_bundle.jar",
     "<workspace_jars>/spark-listener-jars/spark-eventlistener-1.0.4.jar",
     "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
     "jars/scala-logging_2.12-3.9.5.jar",
@@ -108,7 +108,7 @@ def analyze_jar(jar_path: str) -> dict:
             if any("scala/collection/immutable" in n for n in names):
                 result["has_scala_stdlib"] = True
 
-            # Look for Customer-specific packages
+            # Look for customer-specific packages
             customer_classes = [n for n in class_files if "com/example/" in n]
             customer_packages = set()
             for c in customer_classes:
@@ -231,7 +231,7 @@ def main():
         compat = analysis["compatibility"]
         classes = analysis.get("class_count", 0)
         customer = len(analysis.get("customer_packages", []))
-        print(f"[{compat}] {classes} classes, {customer} Customer packages")
+        print(f"[{compat}] {classes} classes, {customer} customer-specific packages")
 
         if analysis.get("potential_conflicts"):
             for c in analysis["potential_conflicts"]:

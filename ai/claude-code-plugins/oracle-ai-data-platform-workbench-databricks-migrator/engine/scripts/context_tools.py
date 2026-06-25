@@ -166,7 +166,7 @@ async def verify_table_schema(session, table_name: str) -> str:
     (0 columns) when the underlying data hasn't been synced. DESCRIBE returns
     an empty DataFrame. Every query against such tables fails silently.
 
-    Confirmed: analytics.ss_gi_claims_all_tbl in Customer migration (2026-04-10).
+    Confirmed: <schema>.<table> in a real migration (example).
 
     Returns:
         'EXISTS:<N>cols' if table has N columns (healthy),

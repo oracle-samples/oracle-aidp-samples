@@ -21,7 +21,7 @@ For each cell:
 1. **Write-mode drift.** Original had `.mode("overwrite")` — migrated has `.mode("append")` or vice versa.
 2. **Schema drift.** Original wrote 12 columns — migrated writes 11 or 13.
 3. **Path drift.** Original `s3://bucket/path` — migrated should be `oci://bucket@ns/path`. Flag any leftover `s3://` paths.
-4. **Hardcoded identifiers.** Customer-specific catalog / schema names hardcoded in literals that the migrator was supposed to remap via `--catalog-manifest`.
+4. **Hardcoded identifiers.** source-specific catalog / schema names hardcoded in literals that the migrator was supposed to remap via `--catalog-manifest`.
 5. **Dead Databricks-isms.** `dbutils.fs.*`, `dbutils.secrets.*`, `dbutils.widgets.*`, `dbutils.notebook.run` left in unchanged (should be rewritten or shimmed via aidp_compat).
 6. **Wrong `%sql` cell handling.** AIDP supports `%sql` natively — flag any conversion to `spark.sql(...)` that lost SQL features (e.g. multi-statement, comment lines).
 7. **Builtins shadowing.** `from pyspark.sql.functions import *` left in WITHOUT a corresponding `import builtins` and re-aliased `sum`.

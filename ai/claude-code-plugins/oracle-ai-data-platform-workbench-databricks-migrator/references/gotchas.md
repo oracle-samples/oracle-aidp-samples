@@ -4,7 +4,7 @@
 
 ---
 
-## Gotcha #1 — `legacy_decrypt` / `decrypt_data` UDF
+## Gotcha #1 — legacy decrypt UDFs
 
 **What breaks:** notebooks reference a UDF backed by AWS Secrets Manager. AIDP has no equivalent.
 
@@ -13,7 +13,7 @@
 - If output is used, replace with a passthrough stub via `synthetic_overrides.toml`:
   ```toml
   [[mock_udf]]
-  name = "legacy_decrypt"
+  name = "<legacy_secret_udf>"
   strategy = "passthrough"
   return_type = "string"
   ```
@@ -114,13 +114,13 @@
 
 ---
 
-## Gotcha #10 — `get_parameter_value` undefined when `00_Parameters.ipynb` reduces to a stub
+## Gotcha #10 — `<param_lookup_helper>` undefined when `<00_parameters>.ipynb` reduces to a stub
 
-**What breaks:** Pass-1 dep migration reduces a parameter-bootstrap notebook to a stub (e.g. just imports). Downstream cells call `get_parameter_value(...)` → `NameError`.
+**What breaks:** Pass-1 dep migration reduces a parameter-bootstrap notebook to a stub (e.g. just imports). Downstream cells call `<param_lookup_helper>(...)` → `NameError`.
 
 **Fix recipe:**
-- Migrator inlines a `get_parameter_value` helper at the cell USE site (not at import time) when it detects the call without a corresponding definition.
-- Manual fix: prepend a code cell that defines `get_parameter_value` from `dbutils.widgets.get` semantics.
+- Migrator inlines a `<param_lookup_helper>` helper at the cell USE site (not at import time) when it detects the call without a corresponding definition.
+- Manual fix: prepend a code cell that defines `<param_lookup_helper>` from `dbutils.widgets.get` semantics.
 
 ---
 
@@ -176,14 +176,14 @@
 
 ---
 
-## Gotcha #15 — `base_table_post` NameError when `00_Parameters.ipynb` stub doesn't define it
+## Gotcha #15 — `<base_table_var>` NameError when `<00_parameters>.ipynb` stub doesn't define it
 
-**What breaks:** same family as Gotcha #10. The source parameter notebook defines `base_table_post`, but the migrator's stub-reduction dropped that line.
+**What breaks:** same family as Gotcha #10. The source parameter notebook defines `<base_table_var>`, but the migrator's stub-reduction dropped that line.
 
 **Fix recipe:**
 - Migrator detects the cell-level NameError + inlines:
   ```python
-  base_table_post = locals().get('base_table_post', '<sandbox_schema>.Basedata')
+  <base_table_var> = locals().get('<base_table_var>', '<sandbox_schema>.<base_table>')
   ```
 - Manual fix: prepend a cell that defines all expected globals before the consuming cell.
 

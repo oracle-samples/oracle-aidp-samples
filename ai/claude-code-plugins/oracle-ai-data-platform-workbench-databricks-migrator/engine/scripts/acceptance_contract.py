@@ -5,7 +5,7 @@ specific workload, beyond "all cells executed without error". A contract is
 opt-in: notebooks without one continue to use the existing PASS/PARTIAL/FAIL
 verification path unchanged.
 
-Pattern adapted from the codex-plugin-oci-aidp-migration-workbench
+Pattern adapted from the prior internal pattern
 `aidp-batch-stream-acceptance` skill — specifically the consecutive-zero-window
 convergence rule, which guards against false positives caused by brief
 zero-readings between streaming micro-batches.
@@ -14,7 +14,7 @@ Contract format (sibling YAML file or inline in manifest):
 
     acceptance_contract:
       pending_count_sql: |
-        SELECT COUNT(*) FROM crl.file_state
+        SELECT COUNT(*) FROM example_schema.file_state
         WHERE state IN ('PENDING_SILVER', 'PROCESSING')
       zero_window: 2          # require N consecutive zero readings
       sleep_between_s: 30     # seconds between probes
@@ -26,7 +26,7 @@ Outcomes:
   - SKIPPED: no contract declared (caller decides what to do)
 
 Behavior:
-  - Contract is OPTIONAL; absent = no-op (back-compat for the 463-notebook Customer corpus)
+  - Contract is OPTIONAL; absent = no-op (back-compat for the original notebook corpus)
   - Runs AFTER the final cell of a notebook has passed all existing verification
   - Reuses the migrator's existing AIDPSession singleton — no new connections
   - Reports each attempt's count + final verdict in JOB_REPORT.md

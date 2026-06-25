@@ -60,7 +60,7 @@ class BucketRouter:
             ``{prefix}-{NN}`` zero-padded to ``shard_width`` digits
             (default 2). e.g. ``customer-mig-00`` ... ``customer-mig-15``.
         num_shards: Number of shard buckets in the pool. 8-16 is a good
-            starting range for the Customer 2,500-job migration -- size to
+            starting range for the a large-scale migration -- size to
             divide your target sustained PUT/sec by the per-bucket budget
             you negotiated with the OCI account team.
         namespace: OCI Object Storage namespace (tenancy-level). All

@@ -27,7 +27,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 ### Security / governance
 
 - Deep adversarial scan across the whole engine + plugin returns 0 hits on all 21 leakage patterns.
-- Customer-specific output artifacts (`reports/`, `dbx_export/`) removed from the source repo.
+- Source customer output artifacts (`reports/`, `dbx_export/`) removed from the source repo.
 
 ## [0.1.0] — 2026-06-20 (initial release)
 

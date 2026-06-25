@@ -177,7 +177,7 @@ def resolve_migrated_path(original_path, registry):
         if entry and entry.get("migrated_path"):
             return entry["migrated_path"]
 
-    # Fallback: last 2 path segments (e.g. Early_Rewards/notebook.ipynb)
+    # Fallback: last 2 path segments (e.g. sample_jobs/notebook.ipynb)
     parts = key.replace("\\", "/").split("/")
     if len(parts) >= 2:
         rel2 = "/".join(parts[-2:])

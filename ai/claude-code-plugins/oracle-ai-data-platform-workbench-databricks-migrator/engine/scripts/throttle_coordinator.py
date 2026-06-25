@@ -1,15 +1,15 @@
 """
 Cross-Process Migration Throttle Coordinator
 =============================================
-A file-backed token bucket so N parallel migration processes (e.g. 2,500
+A file-backed token bucket so N parallel migration processes (e.g. many
 ``run_migration.sh`` invocations) coordinate without a central server.
 
 Why
 ---
 The Databricks->AIDP migration toolkit is single-job-per-process. Scaling
-to 2,500 jobs is done by launching processes in parallel. That works for
+to many jobs is done by launching processes in parallel. That works for
 the orchestration layer but NOT for the underlying OCI Object Storage,
-which has per-bucket request-rate limits. Without coordination, all 2,500
+which has per-bucket request-rate limits. Without coordination, all many
 processes try to run simultaneously, the cluster issues thousands of
 parallel PutObject calls per second, the OCI Java SDK's CircuitBreaker
 trips, and entire jobs fail with::
@@ -213,7 +213,7 @@ class ThrottleCoordinator:
     """File-backed cross-process token-bucket coordinator.
 
     Args:
-        budget: Initial maximum concurrent leases. For Customer 2,500-job
+        budget: Initial maximum concurrent leases. For large-scale
             scale, calibrate from per-bucket budget * num_buckets / avg
             ops-per-job. Start at 32-48 and tune from observed CB rate.
         state_path: Path to the shared state JSON file. Default

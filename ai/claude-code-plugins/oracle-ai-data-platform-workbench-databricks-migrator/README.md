@@ -8,7 +8,7 @@
 
 This plugin is **self-contained** — it ships the full Python migrator engine bundled under `engine/`. After install, skills invoke the engine via `${CLAUDE_PLUGIN_ROOT}/engine/scripts/...` — no separate clone required.
 
-> **Status:** **v0.1.0** — first public release.
+> **Status:** **v0.2.0** — self-contained release (engine bundled).
 
 ---
 

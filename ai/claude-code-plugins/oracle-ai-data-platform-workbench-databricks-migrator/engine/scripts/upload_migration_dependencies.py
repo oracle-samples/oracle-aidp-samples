@@ -9,7 +9,7 @@ This is a self-contained script that future migrators can run
 whenever dependencies change.
 
 Usage:
-    python3 upload_migration_dependencies.py [--profile CUSTOMER]
+    python3 upload_migration_dependencies.py [--profile DEFAULT]
 """
 
 import json
@@ -35,7 +35,7 @@ LOCAL_JARS_DIR = os.path.join(PROJECT_DIR, "jars")
 REQUIRED_JARS = {
     "hudi-spark3.5-bundle_2.12-0.15.0.jar": "Hudi Spark 3.5 bundle",
     "customer_jar_1.jar": "Customer JAR 1",
-    "customer_jar_2.jar": "Customer Feature Library",
+    "customer_jar_2.jar": "customer_jar_2",
     "customer_jar_3.jar": "Customer JAR 3",
     "customer_jar_4.jar": "Customer JAR 4",
     "customer_jar_5.jar": "Customer JAR 5",

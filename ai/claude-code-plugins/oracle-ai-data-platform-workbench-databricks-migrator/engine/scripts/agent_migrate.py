@@ -307,7 +307,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
 
 ## AIDP Environment (confirmed by testing):
 - Pre-installed JARs: Delta Lake 3.2, Avro, OCI HDFS connector (BmcFilesystem)
-- Installed JARs: Hudi 0.15.0, the customer JAR bundle, Scala Logging
+- Installed JARs: Hudi 0.15.0, the bundled customer JARs, Scala Logging
 - Pre-installed Python: pandas 2.3.3, numpy 2.4.2, requests, oci, nbformat, ray 2.54, slack_sdk, boto3, delta, IPython
 - Installed Python (via requirements.txt): matplotlib, scikit-learn, xgboost, seaborn, plotly, tqdm, etc.
 - MLflow may NOT be pre-installed — install with pip install mlflow (no version pin) if needed
@@ -446,7 +446,7 @@ time. If a table is broken, leave the table read as-is and let the runtime error
 CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta tables:
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
-ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
+ORC, CSV, JSON, Iceberg, or any non-Delta format. codebases commonly call
 DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
@@ -1008,7 +1008,7 @@ do NOT attempt another fix on the call itself. Instead:
 
 Detect by ANY of these signals:
 - Direct Databricks REST API calls: requests.post/get to /api/2.0/jobs/*, /api/2.0/clusters/*
-- Hardcoded Databricks job_id (large integer like 938951762375103) in any function call
+- Hardcoded Databricks job_id (large integer like <DATABRICKS_JOB_ID>) in any function call
 - Wrapper functions that trigger Databricks jobs: run_job(), trigger_job(), submit_job(), etc.
 - AWS Secrets Manager / boto3.client('secretsmanager')
 - Databricks cluster policies / dbutils.secrets
@@ -1017,7 +1017,7 @@ Detect by ANY of these signals:
 Example:
   # --- STUBBED: Databricks job trigger not available on AIDP ---
   # Original:
-  # job_result = run_job({"run_name": model_name, "job_id": 938951762375103, ...})
+  # job_result = run_job({"run_name": model_name, "job_id": <DATABRICKS_JOB_ID>, ...})
   job_result = {"status": "STUBBED", "note": "Databricks job trigger not available on AIDP"}
   print("STUBBED: Databricks job trigger — original code in comments above")
 If unsure what downstream cells need, use get_cell_history to check before stubbing.
@@ -1052,7 +1052,7 @@ KNOWN AIDP ERROR PATTERNS — fix these directly, don't investigate:
   If side-effect only: add print("AIDP: Skipped — internal AWS endpoint not reachable")
   If it fetches data: use run_on_cluster + explore_path to find that data in OCI first
 - "Table does not support deletes" / DELETE FROM / UPDATE / MERGE:
-  Keep code as-is — do NOT rewrite. These are customer logic. Skip execution during migration
+  Keep code as-is — do NOT rewrite. These are source-side logic. Skip execution during migration
   (destructive operations can cause data loss). Validate syntax only.
 - NoCredentialsError from boto3 / botocore:
   No AWS credentials on AIDP. Use describe_table/explore_path to find the data in the AIDP catalog
@@ -1437,7 +1437,7 @@ OCI_PATH_TOOLS = [
     },
     {
         "name": "scan_sensitive_info",
-        "description": "Scan a notebook file for hardcoded sensitive info: Databricks API tokens (dapi...), Slack tokens/webhooks, internal Customer endpoints (internal-host.example, internal-gateway.example), and Databricks REST API calls. Returns list of matches with cell index, pattern type, and matched line. Use this when migrating cells that may have hardcoded credentials or internal AWS endpoint calls.",
+        "description": "Scan a notebook file for hardcoded sensitive info: Databricks API tokens (dapi...), Slack tokens/webhooks, internal endpoints (internal-host.example, internal-gateway.example), and Databricks REST API calls. Returns list of matches with cell index, pattern type, and matched line. Use this when migrating cells that may have hardcoded credentials or internal AWS endpoint calls.",
         "strict": True,
         "input_schema": {
             "type": "object",
@@ -2447,7 +2447,7 @@ The code field must contain ONLY valid executable Python."""
 # attempt_data_recovery() to get a one-shot override block that substitutes
 # the cell's date-filter variables with dates that ACTUALLY have data in the
 # upstream table. The override is prepended to the cell's exec code ONLY;
-# the saved cell stays byte-identical to the customer's original.
+# the saved cell stays byte-identical to the original.
 #
 # Flow:
 #   1. Opus inspects the cell + error, uses describe_table / run_on_cluster
@@ -3139,7 +3139,7 @@ async def main():
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)
     parser.add_argument("--notebook", help="Single notebook path")
-    # AIDP environment — override these for non-Customer deployments
+    # AIDP environment — override these for deployments using different defaults
     parser.add_argument("--aidp-base", default=AIDP_BASE,
                         help="AIDP REST endpoint base URL (default: %(default)s)")
     parser.add_argument("--datalake-ocid", default=DATALAKE_OCID,

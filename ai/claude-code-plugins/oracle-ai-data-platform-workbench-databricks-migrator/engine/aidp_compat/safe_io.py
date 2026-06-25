@@ -227,7 +227,7 @@ def safe_read_modify_write_parquet(spark, path: str, transform_fn, **write_kwarg
 
 
 # Default target Parquet file size in MB. 256 MB matches Delta's
-# tuneFileSizesForRewrites guidance and is large enough that a 2,500-job
+# tuneFileSizesForRewrites guidance and is large enough that a large-scale
 # wave does not flood Object Storage with thousands of <1 MB part files.
 DEFAULT_TARGET_FILE_MB = 256
 

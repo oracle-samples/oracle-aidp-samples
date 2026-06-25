@@ -59,7 +59,7 @@ except Exception as e:
 """),
 
     # ─── Feature Generation Library A ────────────────────────────
-    ("Feature Library A: Class loading", """
+    ("customer_jar_a: Class loading", """
 classes = [
     "com.example.app_a.ClassA",
     "com.example.app_a.ClassB",
@@ -72,7 +72,7 @@ for cls_name in classes:
         print(f"FAIL: {cls_name} - {str(e)[:100]}")
 """),
 
-    ("Feature Library A: Instantiation test", """
+    ("customer_jar_a: Instantiation test", """
 try:
     constants = sc._jvm.com.example.app_a.ClassA
     # Try accessing a static field or method
@@ -85,7 +85,7 @@ except Exception as e:
 """),
 
     # ─── Feature Library B ───────────────────────────────────────
-    ("Feature Library B: Class loading", """
+    ("customer_jar_b: Class loading", """
 classes = [
     "com.example.app_b.ClassA",
     "com.example.app_b.ClassB",
@@ -99,7 +99,7 @@ for cls_name in classes:
 """),
 
     # ─── Feature Library C ───────────────────────────────────────
-    ("Feature Library C: Class loading", """
+    ("customer_jar_c: Class loading", """
 try:
     cls = sc._jvm.java.lang.Class.forName("com.example.app_c.ClassA")
     print("OK: Feature Library C ClassA loaded")
@@ -111,7 +111,7 @@ except Exception as e:
     ("Parser Library: Class loading", """
 classes = [
     "com.example.parserlib.ClassA",
-    "com.example.parserlib.featgenerator.ClassB",
+    "com.example.parserlib.gen.ClassB",
 ]
 for cls_name in classes:
     try:
@@ -121,7 +121,7 @@ for cls_name in classes:
         print(f"FAIL: {cls_name} - {str(e)[:100]}")
 """),
 
-    # ─── Customer JAR 6 ───────────────────────────────────────
+    # ─── customer JAR 6 (sample decryptor) ───────────────────────────────────────
     ("CustomerJar6: Class loading", """
 classes = [
     "com.example.app.ClassA",
@@ -138,7 +138,7 @@ for cls_name in classes:
     ("CustomerJar6: Instantiation", """
 try:
     encryptor = sc._jvm.com.example.app.ClassA
-    print(f"OK: CustomerJar6 ClassA accessible")
+    print(f"OK: CustomerJar6 sample-class accessible")
     methods = [m.getName() for m in encryptor.getClass().getDeclaredMethods()][:10]
     print(f"   Methods: {methods}")
 except Exception as e:
