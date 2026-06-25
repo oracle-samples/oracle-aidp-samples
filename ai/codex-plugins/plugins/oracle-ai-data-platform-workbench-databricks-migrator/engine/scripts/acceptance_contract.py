@@ -26,7 +26,7 @@ Outcomes:
   - SKIPPED: no contract declared (caller decides what to do)
 
 Behavior:
-  - Contract is OPTIONAL; absent = no-op (back-compat for the 463-notebook Customer corpus)
+  - Contract is OPTIONAL; absent = no-op (back-compat for existing migration corpora)
   - Runs AFTER the final cell of a notebook has passed all existing verification
   - Reuses the migrator's existing AIDPSession singleton — no new connections
   - Reports each attempt's count + final verdict in JOB_REPORT.md

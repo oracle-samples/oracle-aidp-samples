@@ -1,7 +1,7 @@
 """
 AIDP Notebook Utils - Replacement for dbutils.notebook
 Uses the same exec()-based approach proven to work on AIDP
-(as used by the customer's aidp_dbutils).
+(as used by the source workload's aidp_dbutils).
 """
 
 import os
@@ -102,7 +102,7 @@ class AIDPNotebookUtils:
         """Run another notebook and return its exit value.
 
         Uses exec() on notebook cells - proven to work on AIDP.
-        This matches the customer's aidp_dbutils approach.
+        This matches the source workload's aidp_dbutils approach.
         """
         notebook_path = self._resolve_path(path)
 

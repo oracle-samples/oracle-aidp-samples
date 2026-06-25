@@ -189,7 +189,7 @@ def tune_for_parallel_migration(
 ) -> Dict[str, str]:
     """Pick a profile from expected concurrency, then apply it.
 
-    Selection thresholds are calibrated for the Customer migration shape (one
+    Selection thresholds are calibrated for a large migration shape (one
     Spark cluster, many migration processes each driving notebook writes):
 
     +------------------------+----------------+

@@ -31,17 +31,16 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL_DEPS_DIR = os.path.join(PROJECT_DIR, "migration-dependencies")
 LOCAL_JARS_DIR = os.path.join(PROJECT_DIR, "jars")
 
-# JARs to upload (source path on workspace -> local downloaded copy)
-REQUIRED_JARS = {
-    "hudi-spark3.5-bundle_2.12-0.15.0.jar": "Hudi Spark 3.5 bundle",
-    "customer_jar_1.jar": "Customer JAR 1",
-    "customer_jar_2.jar": "Customer Feature Library",
-    "customer_jar_3.jar": "Customer JAR 3",
-    "customer_jar_4.jar": "Customer JAR 4",
-    "customer_jar_5.jar": "Customer JAR 5",
-    "customer_jar_6.jar": "DecryptUDF",
-    "scala-logging_2.12-3.9.5.jar": "Scala Logging (transitive dep)",
-}
+def discover_local_jars() -> dict:
+    """Return local JAR files from supported dependency folders by basename."""
+    jars = {}
+    for folder in (LOCAL_JARS_DIR, LOCAL_DEPS_DIR):
+        if not os.path.isdir(folder):
+            continue
+        for name in sorted(os.listdir(folder)):
+            if name.lower().endswith(".jar"):
+                jars.setdefault(name, os.path.join(folder, name))
+    return jars
 
 
 def get_oci_signer(profile: str):
@@ -137,16 +136,11 @@ def main():
         print(f"WARNING: {req_path} not found")
 
     # JARs
-    for jar_name, description in REQUIRED_JARS.items():
-        # Check in local jars dir
-        local = os.path.join(LOCAL_JARS_DIR, jar_name)
-        if not os.path.exists(local):
-            # Try in migration-dependencies dir
-            local = os.path.join(LOCAL_DEPS_DIR, jar_name)
-        if os.path.exists(local):
-            uploads.append((local, f"{TARGET_FOLDER}/jars/{jar_name}"))
-        else:
-            print(f"WARNING: JAR not found locally: {jar_name} ({description})")
+    local_jars = discover_local_jars()
+    if not local_jars:
+        print(f"WARNING: no local JAR files found under {LOCAL_JARS_DIR} or {LOCAL_DEPS_DIR}")
+    for jar_name, local in local_jars.items():
+        uploads.append((local, f"{TARGET_FOLDER}/jars/{jar_name}"))
 
     # copy_jars.sh init script
     copy_jars_script = os.path.join(LOCAL_DEPS_DIR, "copy_jars.sh")

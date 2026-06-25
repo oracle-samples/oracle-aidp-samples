@@ -23,7 +23,7 @@ Usage:
     # Check only specific tasks
     python3 check_data_availability_for_workflow.py \\
         --job-key <uuid> --cluster <uuid> \\
-        --only-tasks "02_BaseData_ExampleApp,05_ExampleApp_Feature"
+        --only-tasks "02_BaseData_Task,05_Feature_Task"
 """
 
 import argparse
@@ -638,11 +638,11 @@ print(json.dumps(results))
         classified = parse_cluster_json(output)
     except Exception as e:
         # Do NOT default to "read". A write misclassified as read slips past the
-        # write-guard that redirects customer-data writes to the tmp bucket —
+        # write-guard that redirects source-data writes to the tmp bucket —
         # too dangerous to swallow. Fail loud so the operator can rerun.
         raise RuntimeError(
             "Read/write classification parse failed; refusing to default to 'read' "
-            "(would risk treating a customer-data write as a read). "
+            "(would risk treating a source-data write as a read). "
             f"Raw cluster output (first 500): {output[:500]}"
         ) from e
 

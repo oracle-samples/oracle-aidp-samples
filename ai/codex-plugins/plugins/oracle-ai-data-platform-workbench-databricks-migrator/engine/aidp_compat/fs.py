@@ -204,7 +204,7 @@ class AIDPFileSystemUtils:
     #
     # NOTE: The previous implementation of every fs operation used
     # jvm.org.apache.hadoop.fs.FileSystem (BmcFilesystem) which works during
-    # interactive notebook execution but FAILS in customer's scheduled workflow
+    # interactive notebook execution but FAILS in source workload's scheduled workflow
     # runs (BmcFilesystem JVM class is not initialized the same way in workflow
     # contexts). The current implementation routes oci:// operations through the
     # OCI Python SDK with API key auth â€” works in both interactive and

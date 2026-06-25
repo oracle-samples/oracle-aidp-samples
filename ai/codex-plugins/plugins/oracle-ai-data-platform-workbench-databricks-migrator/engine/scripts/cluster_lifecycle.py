@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # ─── AIDP Environment (same as other scripts) ──────────────────────────
 
-# Generic — no hardcoded customer/AIDP-instance config; set at runtime
+# Generic — no hardcoded tenant/AIDP-instance config; set at runtime
 # (job_migrate_from_workflow overrides these). Profile defaults to "DEFAULT".
 AIDP_BASE = None
 DATALAKE_OCID = None
@@ -551,7 +551,7 @@ async def _mirror_source_tree(session, mirror_src: str, mirror_dst: str,
     directory structure. Returns True on success.
 
     Why only .py and not the whole tree: when mirror_dst lives inside the
-    migrated-notebooks tree (so the customer sees one coherent project
+    migrated-notebooks tree (so the operator sees one coherent project
     layout), the destination may already contain migrated `.ipynb` files
     saved by Pass-1 dep migration. A full copytree (or rmtree-then-copytree)
     would clobber those. By copying only `.py` files, we never touch
@@ -711,7 +711,7 @@ async def ensure_requirements_installed(
     # We do NOT pip-install these. Critically, we ALSO copy the source tree
     # to a migration-scoped mirror under {job_output_path}/local_modules/...
     # so that any patches OpenAI model generates during the fix loop land in the
-    # mirror, not in the customer's original source files.
+    # mirror, not in the source workload's original source files.
     local_modules, src_roots = set(), set()
     mirror_root_orig = ""  # original source root that was mirrored
     mirror_root_dst = ""   # mirror destination under job_output_path
@@ -726,7 +726,7 @@ async def ensure_requirements_installed(
             mirror_root_orig = _pick_mirror_root(match_paths)
             if mirror_root_orig:
                 # Place mirror under MIGRATED_BASE preserving the workspace-
-                # relative path so the customer sees one coherent project
+                # relative path so the operator sees one coherent project
                 # tree (migrated .ipynb + mirrored .py side by side). Fall
                 # back to the old isolated location only if migrated_base
                 # wasn't provided (caller compat).
@@ -749,7 +749,7 @@ async def ensure_requirements_installed(
                             rel = orig[len(mirror_root_orig) + 1:]
                             src_roots.add(f"{mirror_root_dst}/{rel}")
                         # Ancestors above mirror_root_orig are deliberately dropped —
-                        # they'd point back at the customer source tree, defeating
+                        # they'd point back at the source tree, defeating
                         # the isolation. Imports must resolve from within the mirror.
                     print(f"[cluster-lifecycle] sys.path mirror entries: {', '.join(sorted(src_roots))}", flush=True)
                 else:
@@ -757,7 +757,7 @@ async def ensure_requirements_installed(
                     # the cell still has a chance). Mutation risk is accepted only
                     # in this fallback path.
                     src_roots = orig_src_roots
-                    print(f"[cluster-lifecycle] WARNING: mirror failed, falling back to original src tree (mutations will hit customer source)", flush=True)
+                    print(f"[cluster-lifecycle] WARNING: mirror failed, falling back to original src tree (mutations will hit source)", flush=True)
 
     # Resolve import names to validated PyPI package names
     pip_packages = []

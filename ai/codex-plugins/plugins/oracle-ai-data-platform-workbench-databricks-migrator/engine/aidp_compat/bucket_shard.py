@@ -17,20 +17,20 @@ Usage in a migrated notebook
     from aidp_compat.bucket_shard import BucketRouter
 
     router = BucketRouter(
-        prefix="customer-mig",
+        prefix="migration-shard",
         num_shards=16,
         namespace="<WORKSPACE_NAMESPACE>",
     )
 
     # Deterministic mapping for a logical key (job_id, table name, partition):
     bucket = router.bucket_for("ExampleJob")
-    # -> "customer-mig-07"
+    # -> "migration-shard-07"
 
     target_uri = router.route_uri(
-        "oci://customer-mig@<WORKSPACE_NAMESPACE>/feature_store/app_vN/...",
+        "oci://migration-shard@<WORKSPACE_NAMESPACE>/feature_store/app_vN/...",
         shard_key="ExampleJob",
     )
-    # -> "oci://customer-mig-07@<WORKSPACE_NAMESPACE>/feature_store/app_vN/..."
+    # -> "oci://migration-shard-07@<WORKSPACE_NAMESPACE>/feature_store/app_vN/..."
 
     df.write.parquet(target_uri)
 
@@ -58,9 +58,9 @@ class BucketRouter:
     Args:
         prefix: Logical bucket name prefix. Shard buckets are named
             ``{prefix}-{NN}`` zero-padded to ``shard_width`` digits
-            (default 2). e.g. ``customer-mig-00`` ... ``customer-mig-15``.
+            (default 2). e.g. ``migration-shard-00`` ... ``migration-shard-15``.
         num_shards: Number of shard buckets in the pool. 8-16 is a good
-            starting range for the Customer 2,500-job migration -- size to
+            starting range for a large migration -- size to
             divide your target sustained PUT/sec by the per-bucket budget
             you negotiated with the OCI account team.
         namespace: OCI Object Storage namespace (tenancy-level). All

@@ -74,7 +74,7 @@ from aidp_executor import AIDPSession
 # ─── Defaults ───────────────────────────────────────────────────────
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Generic — no hardcoded customer/AIDP-instance config. lake/workspace/output
+# Generic — no hardcoded tenant/AIDP-instance config. lake/workspace/output
 # are required CLI args (no default); AIDP_BASE is derived from the lake-OCID
 # region; OCI profile defaults to "DEFAULT".
 AIDP_BASE = None

@@ -49,7 +49,7 @@ from aidp_executor import AIDPSession, format_outputs, get_oci_signer
 
 # â”€â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-# Generic â€” no hardcoded customer/AIDP-instance config. Set at runtime
+# Generic â€” no hardcoded tenant/AIDP-instance config. Set at runtime
 # (job_migrate_from_workflow overrides these and recomputes the URLs). Profile
 # defaults to "DEFAULT"; lake/workspace/cluster are required (no default).
 AIDP_BASE = None
@@ -307,7 +307,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
 
 ## AIDP Environment (confirmed by testing):
 - Pre-installed JARs: Delta Lake 3.2, Avro, OCI HDFS connector (BmcFilesystem)
-- Installed JARs: Hudi 0.15.0, FeatureLib, FeatureLib2, MessageParser, DecryptUDF, Scala Logging
+- Installed JARs: configured migration libraries, connector libraries, parser libraries, encryption libraries
 - Pre-installed Python: pandas 2.3.3, numpy 2.4.2, requests, oci, nbformat, ray 2.54, slack_sdk, boto3, delta, IPython
 - Installed Python (via requirements.txt): matplotlib, scikit-learn, xgboost, seaborn, plotly, tqdm, etc.
 - MLflow may NOT be pre-installed â€” install with pip install mlflow (no version pin) if needed
@@ -333,7 +333,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
   display function for the type at hand.
   NEVER add a `DataFrame.display = _display_patch` monkey-patch (toPandas-based shims are slow).
 - dbutils.fs - available via aidp_compat
-- aidp_dbutils - the customer's existing shim
+- aidp_dbutils - the source workload's existing shim
 - %run magic - available on AIDP
 - %sql magic - available on AIDP
 - %scala magic - AIDP supports Scala
@@ -446,7 +446,7 @@ time. If a table is broken, leave the table read as-is and let the runtime error
 CRITICAL â€” DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta tables:
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
-ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
+ORC, CSV, JSON, Iceberg, or any non-Delta format. Source codebases commonly call
 DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP â€” BUT note the result schema differs and the downstream access must change too:
@@ -657,17 +657,17 @@ would make the cell pass:
   - sys.path.insert/append, !pip install, %pip install in cell code.
   - try/except blocks that silently swallow errors or substitute defaults for code that
     worked in Databricks.
-  - **NEVER inline-define customer writer-wrapper functions** to "fix" a NameError.
+  - **NEVER inline-define source writer-wrapper functions** to "fix" a NameError.
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
     `createTable(df, 't', 'analytics_db', ...)` â†’ `createTable(df, 't', 'oracle_ai_automation_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
-    (NameError), defining a fresh copy of the customer's `def createTable(...)`
+    (NameError), defining a fresh copy of the source workload's `def createTable(...)`
     locally in the cell is FORBIDDEN â€” that copy is NOT what the call site sees
     (the cell-text redirect has already changed the arg), AND if the rewrite missed
     something, the inline copy writes to whatever database_name was passed. The
     forbidden names: createTable, createTableOld, createTableIntermediate,
     createTableIntermediateOld, createTableIntermediate_append, createTableIntermediate_1,
-    createTableInFeatureLib, createTable_oracle, saveTable, writeTable, write_to_delta,
+    createTableInSourceLib, createTable_oracle, saveTable, writeTable, write_to_delta,
     process_source, drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded â€” that's a systemic recovery, not
@@ -699,7 +699,7 @@ OCI PATH / FILESYSTEM OPERATIONS â€” ONE simple rule for BOTH Python and Sc
 - SCALA cell needing a non-Spark FS op: the OCI SDK is Python, so do the op in a %python block
   and bridge the result back to Scala (spark.conf.set/get for a scalar; a temp view for a
   list). NEVER use spark.sparkContext / spark.sessionState / jvm Hadoop FS in Scala.
-- NEVER substitute boto3/S3 with raw Hadoop FS. If customer code uses jvm Hadoop FS for a
+- NEVER substitute boto3/S3 with raw Hadoop FS. If source code uses jvm Hadoop FS for a
   non-Spark read/write, REWRITE it to the OCI Python SDK above.
 
 CRITICAL â€” NEVER drop or delete a cell:
@@ -759,7 +759,7 @@ Key AIDP facts:
   functions (do not change the business logic). Example:
     def getTruncatedValue(num: Any): Double = {...}   ;  val u = udf(getTruncatedValue(_:Any))
       â†’ def getTruncatedValue(num: Double): Double = {...} ;  val u = udf(getTruncatedValue(_:Double))
-  If the concrete type is genuinely ambiguous, make_note() for customer review rather than
+  If the concrete type is genuinely ambiguous, make_note() for operator review rather than
   guess. (PYTHON UDFs are NOT affected â€” they declare only a return type and take
   dynamically-typed input, so there is no `Any` input-encoder; never apply this to Python.)
 - /Workspace/ paths work for local file access
@@ -794,7 +794,7 @@ Key AIDP facts:
     _oci_client = oci.object_storage.ObjectStorageClient(config=_oci_config, signer=_oci_signer)
   FORBIDDEN: oci.auth.signers.get_resource_principals_signer() â€” resource principal has known
   failure modes on AIDP and MUST NEVER be used as a replacement for boto3/S3 client or for
-  any new OCI client. If customer code already uses API key auth (oci.config.from_file
+  any new OCI client. If source code already uses API key auth (oci.config.from_file
   pointing under /Workspace/), PRESERVE that init code unchanged.
 - Libraries should be installed via cluster libraries section (not pip install at runtime)
 - oidlUtils is a NATIVE AIDP module â€” it is pre-loaded in every kernel. Do NOT import it.
@@ -950,7 +950,7 @@ CRITICAL - Do NOT:
 - Generate Slack webhook calls or external notification code (replace with a pass comment)
 - REVERT previous fixes listed in the PREVIOUS FIXES section - those changes were validated and must be preserved
 
-CRITICAL - DO NOT CHANGE CUSTOMER CODE LOGIC:
+CRITICAL - DO NOT CHANGE SOURCE CODE LOGIC:
 - Do NOT convert pandas to PySpark (e.g. pd.read_csv â†’ spark.read.format('csv') is WRONG)
 - Do NOT convert PySpark to pandas
 - Do NOT change data processing logic, algorithms, or library choices
@@ -1047,12 +1047,12 @@ KNOWN AIDP ERROR PATTERNS â€” fix these directly, don't investigate:
 - toPandas() OOM / driver memory exceeded on toPandas() / collect():
   Do NOT modify the original code. A runtime safety patch auto-limits large DataFrames during
   migration execution. If OOM still occurs, use make_note to record it and move on.
-- ConnectTimeout / ConnectionError on internal-host.example or internal-gateway.example:
+- ConnectTimeout / ConnectionError on private/internal endpoints:
   Comment out original code (keep as reference), then:
   If side-effect only: add print("AIDP: Skipped â€” internal AWS endpoint not reachable")
   If it fetches data: use run_on_cluster + explore_path to find that data in OCI first
 - "Table does not support deletes" / DELETE FROM / UPDATE / MERGE:
-  Keep code as-is â€” do NOT rewrite. These are customer logic. Skip execution during migration
+  Keep code as-is â€” do NOT rewrite. These are source logic. Skip execution during migration
   (destructive operations can cause data loss). Validate syntax only.
 - NoCredentialsError from boto3 / botocore:
   No AWS credentials on AIDP. Use describe_table/explore_path to find the data in the AIDP catalog
@@ -1437,7 +1437,7 @@ OCI_PATH_TOOLS = [
     },
     {
         "name": "scan_sensitive_info",
-        "description": "Scan a notebook file for hardcoded sensitive info: Databricks API tokens (dapi...), Slack tokens/webhooks, internal Customer endpoints (internal-host.example, internal-gateway.example), and Databricks REST API calls. Returns list of matches with cell index, pattern type, and matched line. Use this when migrating cells that may have hardcoded credentials or internal AWS endpoint calls.",
+        "description": "Scan a notebook file for hardcoded sensitive info: Databricks API tokens (dapi...), Slack tokens/webhooks, private/internal endpoints, embedded MLflow credentials, and Databricks REST API calls. Returns list of matches with cell index, pattern type, and matched line. Use this when migrating cells that may have hardcoded credentials or internal endpoint calls.",
         "strict": True,
         "input_schema": {
             "type": "object",
@@ -1500,10 +1500,10 @@ async def _handle_scan_sensitive_info(notebook_path: str, session, log_fn=None) 
         ("databricks_token", r'dapi[a-zA-Z0-9]{32,}'),
         ("slack_token", r'xox[bprs]-[0-9A-Za-z\-]+'),
         ("slack_webhook", r'hooks\.slack\.com/services/[A-Za-z0-9/]+'),
-        ("internal_endpoint", r'internal-host\.example|internal-gateway.example'),
+        ("internal_endpoint", r'https?://[^\s"\']*(?:internal|intranet|corp|private)[^\s"\']*'),
         ("databricks_api", r'azuredatabricks\.net|api/2\.0/jobs'),
         # MLflow tracking URI with embedded credentials (user:password@host)
-        # e.g. mlflow.set_tracking_uri("https://admin:secret@<MLFLOW_HOST>")
+        # e.g. mlflow.set_tracking_uri("https://<MLFLOW_USER>:<MLFLOW_PASSWORD>@<MLFLOW_HOST>")
         ("mlflow_embedded_creds", r'mlflow\.set_tracking_uri\s*\([^)]*://[^:]+:[^@]+@'),
     ]
 
@@ -2447,7 +2447,7 @@ The code field must contain ONLY valid executable Python."""
 # attempt_data_recovery() to get a one-shot override block that substitutes
 # the cell's date-filter variables with dates that ACTUALLY have data in the
 # upstream table. The override is prepended to the cell's exec code ONLY;
-# the saved cell stays byte-identical to the customer's original.
+# the saved cell stays byte-identical to the source workload's original.
 #
 # Flow:
 #   1. OpenAI model inspects the cell + error, uses describe_table / run_on_cluster
@@ -3139,7 +3139,7 @@ async def main():
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)
     parser.add_argument("--notebook", help="Single notebook path")
-    # AIDP environment â€” override these for non-Customer deployments
+    # AIDP environment â€” override these for non-default deployments
     parser.add_argument("--aidp-base", default=AIDP_BASE,
                         help="AIDP REST endpoint base URL (default: %(default)s)")
     parser.add_argument("--datalake-ocid", default=DATALAKE_OCID,

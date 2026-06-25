@@ -28,28 +28,23 @@ WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
 OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
 
-# Known JARs on the workspace (from enumeration)
-WORKSPACE_JARS = [
-    "Databricks Jars/Production Jar/customer_jar_2.jar",
-    "Databricks Jars/Production Jar/customer_jar_2_v152.jar",
-    "Databricks Jars/Production Jar/customer_jar_2_v231.jar",
-    "Databricks Jars/Production Jar/customer_jar_2_v251.jar",
-    "Databricks Jars/Production Jar/customer_jar_6.jar",
-    "Databricks Jars/Production Jar/customer_jar_6_v106.jar",
-    "Databricks Jars/Production Jar/customer_jar_5.jar",
-    "Databricks Jars/Production Jar/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
-    "Databricks Jars/spark-listener-jars/spark-eventlistener-1.0.4.jar",
-    "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
-    "jars/scala-logging_2.12-3.9.5.jar",
-    "jars/customer_jar_1_v144.jar",
-    "jars/customer_jar_6_v106.jar",
-    "jars/spark-cassandra-connector_2.13-3.5.1.jar",
-    "customer_jar_4.jar",
-    "customer_jar_1_v144.jar",
-    "customer_jar_1.jar",
-    "CUSTOMER_JARS/customer_jar_2.jar",
-    "CUSTOMER_JARS/customer_jar_3.jar",
-]
+def load_workspace_jars() -> list:
+    """Load workspace JAR paths from env or a newline-delimited manifest."""
+    jars = []
+
+    manifest = os.environ.get("AIDP_WORKSPACE_JARS_FILE", "").strip()
+    if manifest and os.path.exists(manifest):
+        with open(manifest, "r", encoding="utf-8") as f:
+            jars.extend(line.strip() for line in f if line.strip() and not line.lstrip().startswith("#"))
+
+    raw = os.environ.get("AIDP_WORKSPACE_JARS", "").strip()
+    if raw:
+        jars.extend(part.strip() for part in re.split(r"[\n,;]+", raw) if part.strip())
+
+    return list(dict.fromkeys(jars))
+
+
+WORKSPACE_JARS = load_workspace_jars()
 
 
 def get_oci_signer():
@@ -89,7 +84,7 @@ def analyze_jar(jar_path: str) -> dict:
         "spark_version": None,
         "is_assembly": "assembly" in jar_path.lower() or "all" in jar_path.lower(),
         "classes": [],
-        "customer_packages": [],
+        "private_packages": [],
         "spark_deps": [],
         "potential_conflicts": [],
         "compatibility": "UNKNOWN",
@@ -108,14 +103,17 @@ def analyze_jar(jar_path: str) -> dict:
             if any("scala/collection/immutable" in n for n in names):
                 result["has_scala_stdlib"] = True
 
-            # Look for Customer-specific packages
-            customer_classes = [n for n in class_files if "com/customer/" in n]
-            customer_packages = set()
-            for c in customer_classes:
+            # Look for common private package namespaces without assuming a tenant name.
+            private_classes = [
+                n for n in class_files
+                if n.startswith(("com/company/", "com/example/", "org/company/", "io/company/"))
+            ]
+            private_packages = set()
+            for c in private_classes:
                 parts = c.split("/")
                 if len(parts) >= 4:
-                    customer_packages.add("/".join(parts[:4]))
-            result["customer_packages"] = sorted(customer_packages)
+                    private_packages.add("/".join(parts[:4]))
+            result["private_packages"] = sorted(private_packages)
 
             # Check for Spark API usage
             spark_classes = [n for n in class_files if "org/apache/spark" in n]
@@ -178,7 +176,7 @@ def analyze_jar(jar_path: str) -> dict:
             if conflicts:
                 result["compatibility"] = "INCOMPATIBLE"
                 result["potential_conflicts"].extend(conflicts)
-            elif result.get("customer_packages"):
+            elif result.get("private_packages"):
                 result["compatibility"] = "NEEDS_TESTING"
             else:
                 result["compatibility"] = "LIKELY_OK"
@@ -198,6 +196,12 @@ def main():
 
     print("JAR Dependency Analyzer")
     print("=" * 60)
+
+    if not WORKSPACE_JARS:
+        print("\nNo workspace JARs configured.")
+        print("Set AIDP_WORKSPACE_JARS to a comma/newline-separated list of workspace paths,")
+        print("or set AIDP_WORKSPACE_JARS_FILE to a newline-delimited manifest.")
+        return
 
     signer = get_oci_signer()
 
@@ -230,8 +234,8 @@ def main():
         results.append(analysis)
         compat = analysis["compatibility"]
         classes = analysis.get("class_count", 0)
-        customer = len(analysis.get("customer_packages", []))
-        print(f"[{compat}] {classes} classes, {customer} Customer packages")
+        private = len(analysis.get("private_packages", []))
+        print(f"[{compat}] {classes} classes, {private} private packages")
 
         if analysis.get("potential_conflicts"):
             for c in analysis["potential_conflicts"]:

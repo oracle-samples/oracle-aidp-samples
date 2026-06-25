@@ -188,7 +188,7 @@ except Exception as e:
     ("Classpath: Verify all JARs present", """
 import os
 expected = [
-    'hudi-spark3.5-bundle',
+    'hudi',
     'feature_jar_a',
     'feature_jar_b',
     'feature_jar_c',

@@ -80,7 +80,7 @@ def _unwrap_aidp_text(raw_text: str) -> str:
 
     return raw_text
 
-# AIDP config for log fetching — generic, no hardcoded customer/instance values.
+# AIDP config for log fetching — generic, no hardcoded tenant/instance values.
 # Set at runtime (job_migrate_from_workflow overrides these). Profile defaults to "DEFAULT".
 AIDP_BASE = None
 DATALAKE_OCID = None
@@ -166,7 +166,7 @@ async def verify_table_schema(session, table_name: str) -> str:
     (0 columns) when the underlying data hasn't been synced. DESCRIBE returns
     an empty DataFrame. Every query against such tables fails silently.
 
-    Confirmed: analytics.ss_gi_claims_all_tbl in Customer migration (2026-04-10).
+    Confirmed by migration test fixtures.
 
     Returns:
         'EXISTS:<N>cols' if table has N columns (healthy),
@@ -442,7 +442,7 @@ _BUCKET_NS_INDEX: Dict[str, str] = {}  # {oci_bucket: namespace} from JSON
 
 def _normalize_bucket_name(name: str) -> str:
     """Strip common prefixes/suffixes for fuzzy matching.
-    oci-customer-data-lake -> customer-data-lake, bucket-oci -> bucket"""
+    oci-source-data-lake -> source-data-lake, bucket-oci -> bucket"""
     n = name.lower().strip()
     if n.startswith("oci-"):
         n = n[4:]
@@ -485,7 +485,7 @@ def find_oci_bucket(s3_name: str) -> List[Dict[str, str]]:
         return [{"oci_bucket": s3_name, "oci_namespace": index[s3_name]}]
 
     # 2. Try common OCI naming variants
-    for candidate in [f"oci-{s3_name}", f"oci-customer-{s3_name}", f"{s3_name}-oci"]:
+    for candidate in [f"oci-{s3_name}", f"oci-source-{s3_name}", f"{s3_name}-oci"]:
         if candidate in index:
             return [{"oci_bucket": candidate, "oci_namespace": index[candidate]}]
 
@@ -583,7 +583,7 @@ def suggest_oci_path(s3_or_oci_path: str) -> List[str]:
         # bucket's namespace already matches the mapping, the path is correct —
         # return as-is. Otherwise fall through and suggest the MAPPING's
         # namespace (exported notebooks often carry a wrong namespace, e.g.
-        # oci-customer-feature-bucket tagged @<DATALAKE_NAMESPACE> when the
+        # oci-source-feature-bucket tagged @<DATALAKE_NAMESPACE> when the
         # mapping + manual gold say @<WORKSPACE_NAMESPACE>).
         m = re.match(r'oci://([^@]+)@([^/]+)(/.*)?', s3_or_oci_path)
         if m:
@@ -617,7 +617,7 @@ def suggest_oci_path(s3_or_oci_path: str) -> List[str]:
 
     suggestions = []
     # Strip common prefixes for matching
-    clean_bucket = bucket_name.replace("oci-", "").replace("customer-", "")
+    clean_bucket = bucket_name.replace("oci-", "").replace("source-", "")
 
     for s3, entries in mapping.items():
         # Direct match
@@ -625,7 +625,7 @@ def suggest_oci_path(s3_or_oci_path: str) -> List[str]:
             for e in entries:
                 suggestions.append(f"oci://{e['oci_bucket']}@{e['oci_namespace']}{sub_path}")
         # Fuzzy match on bucket name
-        elif clean_bucket in s3 or s3.replace("customer-", "") == clean_bucket:
+        elif clean_bucket in s3 or s3.replace("source-", "") == clean_bucket:
             for e in entries:
                 suggestions.append(f"oci://{e['oci_bucket']}@{e['oci_namespace']}{sub_path}")
 

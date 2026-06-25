@@ -35,7 +35,7 @@ import websocket  # websocket-client (sync)
 
 # ─── Configuration ───────────────────────────────────────────────────
 
-# No hardcoded customer config — this is generic code. The lake/workspace/
+# No hardcoded tenant config — this is generic code. The lake/workspace/
 # cluster identifiers have NO default and must be provided by the caller (passed
 # explicitly to AIDPSession, or set on these module globals at runtime, e.g. by
 # job_migrate_from_workflow). Only the OCI profile defaults — to "DEFAULT", the

@@ -10,7 +10,7 @@ Pipeline (streaming, no full local clone of the workspace):
   4. For each detected wrapper, infer which args are table / db / path / bucket
      based on which arg names participate in the write call (string substitution
      into a SQL literal, .option("path", arg), or .saveAsTable(arg)).
-  5. Emit a JSON catalog at reports/customer_writer_wrappers.json.
+  5. Emit a JSON catalog at reports/writer_wrappers.json.
 
 Usage:
   python3 $HOME/.aidp-migrator/engine/scripts/scan_workspace_utils.py [--root /Workspace/Users] [--enumerate-only]
@@ -43,7 +43,7 @@ DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPAC
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORTS_DIR = os.path.join(PROJECT_DIR, "reports")
-OUT_CATALOG = os.path.join(REPORTS_DIR, "customer_writer_wrappers.json")
+OUT_CATALOG = os.path.join(REPORTS_DIR, "writer_wrappers.json")
 OUT_INVENTORY = os.path.join(REPORTS_DIR, "workspace_inventory.json")
 
 

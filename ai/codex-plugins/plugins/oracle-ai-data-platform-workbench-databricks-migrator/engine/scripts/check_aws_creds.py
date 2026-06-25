@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Search AIDP workspace for AWS credentials."""
-import sys, asyncio, json
-sys.path.insert(0, "/Users/sid.rao/oci-aidp-databricks-validator/scripts")
+import sys, asyncio, json, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from aidp_executor import AIDPSession
 
 def unwrap(outputs):
@@ -41,7 +41,7 @@ async def main():
         'import os\nprint("=== Config files ===")\nfor root, dirs, files in os.walk("/Workspace"):\n    depth = root.count("/") - 1\n    if depth > 4:\n        dirs.clear()\n        continue\n    for f in files:\n        if f.endswith((".properties", ".conf", ".cfg", ".ini")):\n            full = os.path.join(root, f)\n            print(f"  {full}")',
 
         # 5: Decrypt JAR internals
-        'import subprocess\nprint("=== Decrypt-related JARs ===")\nresult = subprocess.run(["find", "/aidp/libraries", "-name", "*decrypt*", "-o", "-name", "*DPUdf*", "-o", "-name", "*dp_*"], capture_output=True, text=True, timeout=10)\nfor line in result.stdout.strip().split("\\n"):\n    if line.strip() and line.endswith(".jar"):\n        print(f"JAR: {line}")\n        r2 = subprocess.run(["jar", "tf", line], capture_output=True, text=True, timeout=10)\n        for entry in r2.stdout.strip().split("\\n"):\n            el = entry.lower()\n            if any(k in el for k in ["config", "properties", "secret", "aws", "application", "reference", "encrypt", "decrypt"]):\n                print(f"  {entry}")',
+        'import subprocess\nprint("=== Encryption-related JARs ===")\nresult = subprocess.run(["find", "/aidp/libraries", "-name", "*decrypt*", "-o", "-name", "*encrypt*", "-o", "-name", "*secret*"], capture_output=True, text=True, timeout=10)\nfor line in result.stdout.strip().split("\\n"):\n    if line.strip() and line.endswith(".jar"):\n        print(f"JAR: {line}")\n        r2 = subprocess.run(["jar", "tf", line], capture_output=True, text=True, timeout=10)\n        for entry in r2.stdout.strip().split("\\n"):\n            el = entry.lower()\n            if any(k in el for k in ["config", "properties", "secret", "aws", "application", "reference", "encrypt", "decrypt"]):\n                print(f"  {entry}")',
 
         # 6: Init scripts with AWS refs
         'import os\nprint("=== Init scripts with AWS refs ===")\nfor root, dirs, files in os.walk("/Workspace"):\n    depth = root.count("/") - 1\n    if depth > 4:\n        dirs.clear()\n        continue\n    for f in files:\n        if f.endswith(".sh"):\n            full = os.path.join(root, f)\n            try:\n                with open(full) as fh:\n                    content = fh.read()\n                if "AWS" in content or "aws_" in content or "secret" in content.lower():\n                    print(f"  {full}")\n                    for line in content.split("\\n"):\n                        ll = line.lower()\n                        if "aws" in ll or "secret" in ll or "key" in ll:\n                            print(f"    {line.strip()[:120]}")\n            except:\n                pass',
@@ -50,7 +50,7 @@ async def main():
         'print("=== Hadoop AWS configs ===")\nhc = spark.sparkContext._jsc.hadoopConfiguration()\nfor key in ["fs.s3a.access.key", "fs.s3a.secret.key", "fs.s3a.endpoint", "fs.s3a.aws.credentials.provider", "fs.s3a.assumed.role.arn"]:\n    val = hc.get(key)\n    if val:\n        print(f"  {key}={val[:80]}")',
 
         # 8: Check the decrypt JAR class for how it gets keys
-        'import subprocess\nprint("=== Decompile decrypt classes ===")\nimport glob\njars = glob.glob("/aidp/libraries/java/jars/*decrypt*") + glob.glob("/aidp/libraries/java/jars/*customer*dp*")\nfor jar in jars[:3]:\n    print(f"JAR: {jar}")\n    r = subprocess.run(["jar", "tf", jar], capture_output=True, text=True, timeout=10)\n    classes = [e for e in r.stdout.strip().split("\\n") if "decrypt" in e.lower() or "secret" in e.lower() or "DPUdf" in e or "config" in e.lower()]\n    for c in classes[:20]:\n        print(f"  {c}")',
+        'import subprocess\nprint("=== Inspect encryption-related classes ===")\nimport glob\njars = glob.glob("/aidp/libraries/java/jars/*decrypt*") + glob.glob("/aidp/libraries/java/jars/*encrypt*") + glob.glob("/aidp/libraries/java/jars/*secret*")\nfor jar in jars[:3]:\n    print(f"JAR: {jar}")\n    r = subprocess.run(["jar", "tf", jar], capture_output=True, text=True, timeout=10)\n    classes = [e for e in r.stdout.strip().split("\\n") if "decrypt" in e.lower() or "encrypt" in e.lower() or "secret" in e.lower() or "config" in e.lower()]\n    for c in classes[:20]:\n        print(f"  {c}")',
     ]
 
     for i, code in enumerate(cells):

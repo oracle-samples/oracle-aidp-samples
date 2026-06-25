@@ -131,7 +131,7 @@ DATABRICKS_PATTERNS = [
     # Hudi reads — supported on AIDP (the Hudi 0.15.0 Spark-3.5 bundle JAR is
     # pre-installed). Leave path reads as-is; do NOT convert to spark.read.table.
     {"pattern": r"spark\.read\.format\s*\(\s*[\"'](?:org\.apache\.)?hudi[\"']\s*\)",
-     "action": "KEEP spark.read.format('hudi').load(<path>) AS-IS. Hudi is supported on AIDP via the pre-installed hudi-spark3.5-bundle_2.12-0.15.0 JAR. Do NOT convert to spark.read.table; do NOT comment out. The OCI path translation already handles the underlying storage URI."},
+     "action": "KEEP spark.read.format('hudi').load(<path>) AS-IS. Hudi is supported on AIDP when a matching Hudi Spark bundle JAR is pre-installed. Do NOT convert to spark.read.table; do NOT comment out. The OCI path translation already handles the underlying storage URI."},
 ]
 
 # Additional risk patterns — flagged in cell_plan["risks"] for OpenAI model to handle
@@ -174,9 +174,9 @@ RISK_PATTERNS = [
     },
     {
         "name": "internal_endpoint",
-        "pattern": r"internal-host\.example|internal-gateway.example",
+        "pattern": r"https?://[^\s\"']*(?:internal|intranet|corp|private)[^\s\"']*",
         "severity": "HIGH",
-        "fix": "AWS-internal endpoint, not reachable from OCI. If side-effect only: print('AIDP: Skipped'). If fetches data: use explore_path/describe_table to find equivalent data in OCI",
+        "fix": "Private/internal endpoint, possibly not reachable from OCI. If side-effect only: print('AIDP: Skipped'). If fetches data: use explore_path/describe_table to find equivalent data in OCI",
     },
     {
         # /dbfs/ or dbfs:/ paths loaded from DB/config at runtime — cannot be

@@ -59,7 +59,7 @@ from build_dag import (
 
 # ─── AIDP Environment Defaults ──────────────────────────────────────
 
-# Generic — no hardcoded customer/AIDP-instance config. AIDP_BASE is derived
+# Generic — no hardcoded tenant/AIDP-instance config. AIDP_BASE is derived
 # from the lake-OCID region (see _get_region); lake/workspace/cluster are
 # required (no default); OCI profile defaults to "DEFAULT".
 AIDP_BASE = None

@@ -90,7 +90,7 @@ def _compact_output_for_llm(text: str, max_chars: int = 6000) -> str:
 # â”€â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Generic tool â€” no hardcoded customer/AIDP-instance config. These are provided
+# Generic tool â€” no hardcoded tenant/AIDP-instance config. These are provided
 # at runtime via CLI args (required) or derived; main() applies them before use.
 # AIDP_BASE is derived from the datalake OCID region; OCI profile defaults to "DEFAULT".
 AIDP_BASE = None
@@ -651,17 +651,17 @@ gets persisted to the saved notebook forever. Specifically FORBIDDEN:
     cluster libraries, not in the notebook.
   - try/except blocks that swallow errors silently or substitute defaults for code that
     worked in Databricks.
-  - **NEVER inline-define customer writer-wrapper functions** to "fix" a NameError.
+  - **NEVER inline-define source writer-wrapper functions** to "fix" a NameError.
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
     `createTable(df, 't', 'analytics_db', ...)` â†’ `createTable(df, 't', 'oracle_ai_automation_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
-    (NameError), defining a fresh copy of the customer's `def createTable(...)`
+    (NameError), defining a fresh copy of the source workload's `def createTable(...)`
     locally in the cell is FORBIDDEN â€” that copy is NOT what the call site sees
     (the cell-text redirect has already changed the arg), AND if the rewrite missed
     something, the inline copy writes to whatever database_name was passed. The
     forbidden names: createTable, createTableOld, createTableIntermediate,
     createTableIntermediateOld, createTableIntermediate_append, createTableIntermediate_1,
-    createTableInFeatureLib, createTable_oracle, saveTable, writeTable, write_to_delta,
+    createTableInSourceLib, createTable_oracle, saveTable, writeTable, write_to_delta,
     process_source, drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded â€” that's a systemic recovery, not
@@ -710,7 +710,7 @@ aidp_compat, or OCI SDK â€” keep the function signature identical so caller
 CRITICAL â€” DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta tables:
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
-ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
+ORC, CSV, JSON, Iceberg, or any non-Delta format. Source codebases commonly call
 DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP â€” BUT note the result schema differs and the downstream access must change too:
@@ -754,12 +754,12 @@ Context:
     )
     _oci_client = oci.object_storage.ObjectStorageClient(config=_oci_config, signer=_oci_signer)
   FORBIDDEN: oci.auth.signers.get_resource_principals_signer() â€” resource principal has known
-  failure modes on AIDP and MUST NEVER be used. If customer code already uses the API-key init
+  failure modes on AIDP and MUST NEVER be used. If source code already uses the API-key init
   pattern (oci.config.from_file pointing under /Workspace/), PRESERVE that init code unchanged.
-- All Customer JARs are on classpath (Hudi, FeatureLib, FeatureLib2, ExampleApp, MessageParser, DecryptUDF)
+- All configured migration libraries are on classpath
 
 CRITICAL â€” NEVER use direct JVM Hadoop FileSystem calls in migrated notebooks:
-The following patterns FAIL in customer's scheduled workflow runs and MUST NOT appear in any
+The following patterns FAIL in source workload's scheduled workflow runs and MUST NOT appear in any
 migrated cell:
   spark._jvm.org.apache.hadoop.fs.FileSystem.get(uri, conf)
   spark.sparkContext._jsc.hadoopConfiguration()  # when used to construct an FS object
@@ -775,7 +775,7 @@ JVM class isn't initialized the same way at scheduled-job execution time. Use th
     .get_object(...), .list_objects(...), .put_object(...). These work in both interactive
     and scheduled execution.
 If you migrate boto3/S3 code to OCI, use the OCI Python SDK â€” NEVER substitute with direct
-jvm Hadoop FS calls (that's the trap OpenAI model fell into in past runs). If existing customer code
+jvm Hadoop FS calls (that's the trap OpenAI model fell into in past runs). If existing source code
 already uses jvm Hadoop FS for non-Spark I/O, REPLACE it with OCI Python SDK + API key (it
 worked interactively in Databricks but won't work in AIDP workflow).
 
@@ -866,7 +866,7 @@ They will NOT be sent to you for migration. Do NOT modify Slack/notification cod
 CRITICAL - DBFS PATH TRANSLATION (/dbfs/ and dbfs:/):
 In Databricks, /dbfs/ and dbfs:/ are filesystem views of DBFS (backed by S3 mounts).
 In AIDP, the equivalent Volume is mounted at /Volumes/{catalog}/{schema}/dbfs/
-(catalog and schema both default to 'default' in the customer's AIDP environment).
+(catalog and schema both default to 'default' in the source workload's AIDP environment).
 
 Translation rules â€” apply to ALL path strings in the cell, including f-strings and variables:
   /dbfs/FileStore/x  â†’  /Volumes/default/default/dbfs/FileStore/x
@@ -1137,7 +1137,7 @@ CRITICAL - MLFLOW:
      (import mlflow, MlflowClient(), mlflow.start_run(), etc.). Databricks pre-imports mlflow
      so notebooks may use it without an explicit import. If there is no `import mlflow`, add it:
        import mlflow
-       mlflow.set_tracking_uri("https://admin:<MLFLOW_PASSWORD>@<MLFLOW_HOST>")
+       mlflow.set_tracking_uri("https://<MLFLOW_USER>:<MLFLOW_PASSWORD>@<MLFLOW_HOST>")
      Do not repeat in later cells.
   3. Convert MLflow 2.x deprecated APIs to 3.x equivalents when they fail:
      - get_latest_versions(name, stages=['Production']) â†’ get_model_version_by_alias(name, "production")
@@ -1314,7 +1314,7 @@ make_note() to flag the cell for manual review.
 
 === END SCYLLADB â†’ AIDP METASTORE MIGRATION ===
 
-CRITICAL - DO NOT CHANGE CUSTOMER CODE LOGIC:
+CRITICAL - DO NOT CHANGE SOURCE CODE LOGIC:
 - Do NOT convert pandas to PySpark (e.g. pd.read_csv â†’ spark.read.format('csv') is WRONG)
 - Do NOT convert PySpark to pandas
 - Do NOT change data processing logic, algorithms, or library choices
@@ -1413,13 +1413,13 @@ DATA SOURCE REPLACEMENTS (must produce equivalent data):
   RuntimeError("AIDP: Cassandra source not migrated â€” data at <source> not found in OCI catalog").
   NEVER silently return empty data.
 - spark.read.format("hudi"): Keep the format â€” Hudi is supported on AIDP. Add comment:
-  # AIDP: requires hudi-spark3.5-bundle_2.12-0.15.0.jar in cluster libs + spark.serializer=KryoSerializer
+  # AIDP: requires a compatible Hudi Spark bundle JAR in cluster libs + spark.serializer=KryoSerializer
 
 SIDE-EFFECT-ONLY CALLS (safe to comment out â€” these produce NO data):
 IMPORTANT: Always keep original code as comments for reference, then add a print() after.
 - JobRunAPI(...) / requests.post to api/2.0/jobs/run-now:
   Comment out original code, add: print("AIDP: Skipped Databricks job trigger â€” not applicable on OCI")
-- internal-host.example / internal-gateway.example HTTP calls (notifications/pings only):
+- Private/internal HTTP calls (notifications/pings only):
   Comment out original code, add: print("AIDP: Skipped call to internal AWS endpoint: <url>")
   If the call FETCHES DATA: use run_on_cluster + explore_path to find that data in OCI first.
 - %pip install cells: Comment out original with "# AIDP: installed via cluster libraries API" comment.
@@ -1471,7 +1471,7 @@ CODE FIXES (direct replacements, no data loss):
   If a table does NOT exist after the 3-part name fix, use make_note to record it and keep
   original code. Do NOT try workarounds like CSV files or alternative sources.
 - DELETE FROM / UPDATE / MERGE statements: Keep code as-is â€” do NOT rewrite.
-  These are customer logic and must be preserved exactly. Skip execution during migration
+  These are source logic and must be preserved exactly. Skip execution during migration
   (destructive operations can cause data loss). Validate syntax only.
 - spark.conf.set("spark.databricks.delta.schema.autoMerge.enabled", ...):
   Replace with .option("mergeSchema", "true") on the write call
@@ -1530,7 +1530,7 @@ _CONFIG_MARKER = "# AIDP performance configuration"
 # date variables. The cell then runs with the overrides; on success, the
 # cell is tagged OK_DATA_SUBSTITUTED. The override block is BRACKETED by
 # these markers so it can be reliably stripped before the migrated cell is
-# saved to disk â€” the saved notebook must contain the customer's ORIGINAL
+# saved to disk â€” the saved notebook must contain the source workload's ORIGINAL
 # date filter, not our test-only substitution.
 _DATA_RECOVERY_BEGIN = "# === AIDP_DATA_RECOVERY_OVERRIDE_BEGIN (test-only â€” not saved) ==="
 _DATA_RECOVERY_END   = "# === AIDP_DATA_RECOVERY_OVERRIDE_END ==="
@@ -1549,7 +1549,7 @@ def _strip_data_recovery_block(source: str) -> str:
 
     Used before persisting a migrated cell to disk so the override (which
     exists only to make migration-time execution succeed) does NOT end up in
-    the customer's saved notebook. Safe to call on sources that don't have
+    the source workload's saved notebook. Safe to call on sources that don't have
     the block â€” it's a no-op in that case. Fail-safe: requires both markers
     to strip; an orphan BEGIN with no END is left intact (rather than
     swallowing the rest of the cell).
@@ -1647,13 +1647,13 @@ def _is_write_cell(source: str) -> bool:
 #
 # During migration tool execution, every write/INSERT/UPDATE/DELETE/MERGE/
 # CREATE/DROP/TRUNCATE on a real OCI path or catalog table is redirected to
-# a TOOL-OWNED destination so customer production data is never touched.
-# The SAVED notebook keeps the customer's original paths/tables intact;
+# a TOOL-OWNED destination so production data is never touched.
+# The SAVED notebook keeps the source workload's original paths/tables intact;
 # only the cluster-executed code (`exec_code`) is rewritten.
 #
 # Redirect targets:
 #   â€¢ Tables: default.oracle_ai_automation_overwrite.<db>_<tbl>
-#             where <db>_<tbl> comes from canonicalizing the customer's
+#             where <db>_<tbl> comes from canonicalizing the source workload's
 #             identifier (1-/2-/3-part â†’ 3-tuple â†’ schema_table). Catalog
 #             is dropped because AIDP only uses "default" anyway.
 #   â€¢ Paths:  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/<orig-suffix>
@@ -1664,12 +1664,12 @@ def _is_write_cell(source: str) -> bool:
 #   â€¢ A read of `T` consults the redirect map. If a prior cell in this job
 #     wrote to `T`, the read substitutes to `T'` (the redirect target).
 #   â€¢ If `T` was NEVER written by the tool in this job, the read is left
-#     as-is (reads customer's production â€” non-destructive).
+#     as-is (reads source workload's production â€” non-destructive).
 #   â€¢ Net effect: tool never WRITES to production. Reads of "not-yet-
 #     redirected" targets go to production. Downstream cells that depend
 #     on the appended/inserted data see only what the tool itself wrote
-#     (not the union with prior production data). Customer accepts this
-#     because at customer-runtime the original code reads/writes production
+#     (not the union with prior production data). Operators accept this
+#     because at runtime the original code reads/writes production
 #     as intended.
 #
 # Scope:
@@ -1836,7 +1836,7 @@ def _redirect_target_for_path(orig: str) -> Optional[str]:
     the redirected URI. This prevents collisions when two source paths
     in different buckets share an identical suffix:
 
-      oci://customer-prod@ns1/sales/2024/  â†’  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/customer-prod/sales/2024/
+      oci://source-prod@ns1/sales/2024/  â†’  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/source-prod/sales/2024/
       oci://other-prod@ns2/sales/2024/ â†’  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/other-prod/sales/2024/
 
     Returns None for inputs that are not valid OCI URIs.
@@ -2020,7 +2020,7 @@ def _record_redirect(kind: str, original: str, redirected: str, source_op: str) 
 
 
 def _apply_wrapper_call_redirect(exec_code: str, source_op_hint: str = "") -> str:
-    """AST-based cell-text rewrite of customer writer-wrapper function calls.
+    """AST-based cell-text rewrite of source writer-wrapper function calls.
 
     Reads reports/writer_wrappers.json â€” for every Call node whose function
     name is in the actionable catalog, redirect literal-string args at the
@@ -2032,7 +2032,7 @@ def _apply_wrapper_call_redirect(exec_code: str, source_op_hint: str = "") -> st
     Why this exists (and replaces the older runtime monkey-patch approach):
       - Pure cell-text transform: no kernel-namespace state dependency.
       - Survives session restart / kernel re-creation transparently.
-      - Saved customer code is NOT modified â€” rewrite is applied only to
+      - Saved source code is NOT modified â€” rewrite is applied only to
         the exec_code sent to the kernel, NOT the cell source written back.
 
     Behaviour:
@@ -2242,7 +2242,7 @@ def _wrap_write_dests(code: str, is_scala: bool) -> str:
     with the runtime guard so VARIABLE destinations are redirected to tmp too.
     Only wraps terminals that follow a `.write` (never `.read`). Returns the
     rewritten code (unchanged if nothing to wrap)."""
-    pw = "_aidp__write_guard__"  # low-collision name so customer code can't shadow it
+    pw = "_aidp__write_guard__"  # low-collision name so source code can't shadow it
     term_alt = "|".join(_WRITE_PATH_TERMINALS)
     term_re = re.compile(r'\.(?:' + term_alt + r')\s*\(')
     # Collect the '(' index of each write-terminal call that follows a `.write`.
@@ -2312,7 +2312,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
     if not exec_code:
         return exec_code
 
-    # Wrapper-call redirect runs FIRST: rewrites customer-wrapper call
+    # Wrapper-call redirect runs FIRST: rewrites source-wrapper call
     # args (createTable, drop_table, etc.) at literal-string positions.
     # The subsequent SQL/path regex passes then catch any inline writes
     # in the wrapper-rewritten code (e.g., spark.sql calls that quote
@@ -2385,7 +2385,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
     # â”€â”€ SQL DDL/DML â”€â”€
     # All DDL/DML ops (CREATE/INSERT/UPDATE/DELETE/MERGE/DROP/ALTER/TRUNCATE)
     # go through the same identifier-substitution path: redirect the table
-    # identifier to oracle_ai_automation_overwrite.<db>_<tbl>. Customer data
+    # identifier to oracle_ai_automation_overwrite.<db>_<tbl>. Source data
     # is never touched because the SQL now references the tool's temp schema.
     #
     # Why DROP TABLE no longer gets replaced with a no-op comment:
@@ -2393,7 +2393,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
     #   spark.sql() can't parse a string that is *only* a comment, raising
     #   RuntimeException. Substitution is safer: the DROP still executes,
     #   but against our temp table (which the tool created earlier), so
-    #   customer's real table is untouched and our temp table cleans up.
+    #   source workload's real table is untouched and our temp table cleans up.
     #   The writer-wrapper interceptor (drop_database/drop_table/delete_table)
     #   already provides an additional layer for wrapper-form DROPs.
     def _sql_op_sub(match):
@@ -2435,7 +2435,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
 def _apply_read_redirects(exec_code: str) -> str:
     """For every read target in `exec_code`, if it's in the redirect map
     (because a prior write registered it), substitute the redirect.
-    Targets NOT in the map are left as-is â€” they read from the customer's
+    Targets NOT in the map are left as-is â€” they read from the source workload's
     production (read-only, non-destructive)."""
     if not exec_code or (not _write_redirect_table_map and not _write_redirect_path_map):
         return exec_code
@@ -2497,20 +2497,20 @@ def get_write_redirect_summary() -> Dict:
 
 
 # ============================================================
-# Customer Writer-Wrapper Interceptors (runtime, kernel-side)
+# Source Writer-Wrapper Interceptors (runtime, kernel-side)
 # ============================================================
 #
 # Cell-text write redirects (above) catch inline writes like
 #   df.write.saveAsTable("real_db.tbl") / spark.sql("INSERT INTO ...")
-# but DO NOT catch customer utility wrappers like
+# but DO NOT catch source utility wrappers like
 #   createTable(df, table_name="x", database_name="real_db", ...)
 # because the actual write is hidden inside the function body.
 #
-# This block installs **runtime monkey-patches** on the customer's
+# This block installs **runtime monkey-patches** on the source workload's
 # wrapper functions in the kernel namespace. After a dep notebook
 # defines `createTable`, we replace `globals()["createTable"]` with a
 # thin wrapper that rewrites `database_name`/`bucket_name`/path args
-# before invoking the original. Saved customer code is NOT modified â€”
+# before invoking the original. Saved source code is NOT modified â€”
 # this is in-kernel only, for the duration of tool execution.
 #
 # The catalog lives in reports/writer_wrappers.json and lists:
@@ -2607,7 +2607,7 @@ def _build_writer_interceptor_install_code(catalog: dict) -> str:
         "\n"
         "def _aidp_redirect_path(p):\n"
         "    # Only redirect OCI URIs. Leave /Volumes/, /Workspace/, relative paths,\n"
-        "    # bare filenames, and non-OCI URIs unchanged (the customer's wrapper may\n"
+        "    # bare filenames, and non-OCI URIs unchanged (the source workload's wrapper may\n"
         "    # treat these specially and our rewrite would change semantics).\n"
         "    if not isinstance(p, str) or not p.strip():\n"
         "        return p\n"
@@ -2906,7 +2906,7 @@ def _ns_for_oci_bucket(oci_bucket: str):
 def _apply_s3_translations(source: str) -> str:
     """Deterministically replace s3[a]://bucket/path â†’ oci://oci-bucket@namespace/path.
 
-    Rule (per Customer convention):
+    Rule (per source convention):
       - OCI bucket name = oci-<s3_bucket>
       - Namespace ALWAYS from the bucketâ†’tenancy mapping
         (config/oci_bucket_tenancy_mapping.json) â€” the single source of truth.
@@ -2921,7 +2921,7 @@ def _apply_s3_translations(source: str) -> str:
         scheme = m.group(1)   # 's3' or 's3a'
         bucket = m.group(2)
         path   = m.group(3)   # everything after bucket/
-        # Customer naming convention: oci-<s3_bucket_name>
+        # Source naming convention: oci-<s3_bucket_name>
         oci_b = f"oci-{bucket}"
         # Namespace ALWAYS from the bucketâ†’tenancy mapping; default tenancy ns
         # only as a last resort for buckets absent from the mapping.
@@ -2942,7 +2942,7 @@ def _apply_s3_translations(source: str) -> str:
 # RULE (user-mandated): the OCI namespace for a bucket comes ALWAYS from the
 # bucketâ†’tenancy mapping (config/oci_bucket_tenancy_mapping.json) â€” never from
 # the source notebook, never from OpenAI model. The exported/source notebooks often
-# carry a WRONG namespace (e.g. oci-customer-feature-bucket tagged
+# carry a WRONG namespace (e.g. oci-source-feature-bucket tagged
 # @<DATALAKE_NAMESPACE> when the bucket actually lives in @<WORKSPACE_NAMESPACE> per the mapping
 # AND the manually-migrated gold). So for EVERY oci://<bucket>@<ns>, we
 # overwrite <ns> with mapping[bucket]. Buckets absent from the mapping are left
@@ -3279,7 +3279,7 @@ _DATABRICKS_MARKERS = (
     "notebook.exit(",
     "notebook.run(",
     "notebook.getcontext(",
-    # Customer location-extraction patterns (per AIDP body-swap rule)
+    # Source location-extraction patterns (per AIDP body-swap rule)
     "describe formatted",
     "describe extended",
     # DESCRIBE DETAIL is Delta-only; AIDP fails for non-Delta tables.
@@ -4014,7 +4014,7 @@ def _add_missing_imports(source: str) -> str:
 # build_dag_from_workflow.py:386. We convert at runtime so the original
 # notebook_params dict (which may reference variables) is preserved.
 #
-# Detection patterns (V1 â€” most common in Customer notebooks):
+# Detection patterns (V1 â€” most common in source notebooks):
 #   1. job_call(<int_or_var>, <params_expr>)
 #   2. job_calling(<int_or_var>, ...)
 #   3. call_job_internal(<int_or_var>, <params_expr>, ...)
@@ -4254,7 +4254,7 @@ def _to_three_part(ident: str) -> tuple:
         # explicitly listed in the catalog-remap manifest. We used to remap
         # every non-'default' catalog unconditionally, which silently destroyed
         # references to legitimate non-default catalogs (e.g. 'samples.tpch.x'
-        # or a customer's 'analytics.gold.orders'). Now the operator opts in
+        # or a source workload's 'analytics.gold.orders'). Now the operator opts in
         # per-catalog via --catalog-manifest.
         if parts[0].lower() == "default":
             return ident, False
@@ -4826,7 +4826,7 @@ def _preprocess_cell_source(source: str, dep_path_map: dict = None) -> str:
     # with body excluding any quote.
     #
     # Why this was REMOVED â€” Bug B (root-cause):
-    # Customer notebooks frequently deactivate code blocks by wrapping them
+    # Source notebooks frequently deactivate code blocks by wrapping them
     # in `'''...'''`. When the FIRST line of such a block contains an inner
     # string literal (e.g., `'''lomlo = spark.read.format('org.apache.hudi')...`),
     # the regex's non-greedy body stops at the first internal `'`, and that
@@ -4839,7 +4839,7 @@ def _preprocess_cell_source(source: str, dep_path_map: dict = None) -> str:
     # OpenAI model's call_fix loop eventually recovered each occurrence, but at the
     # cost of extra API calls and risk of mis-fix. Removing the transform
     # entirely is safer than trying to make the regex precise â€” real
-    # mismatched-triple-quote typos in customer code are very rare, and
+    # mismatched-triple-quote typos in source code are very rare, and
     # OpenAI model's normal migration + fix pipeline handles them when they occur.
 
     # â”€â”€ 11c. Strip inline comments from %run lines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -5523,7 +5523,7 @@ except Exception as e:
             exec_code = _scala_param_exec_rewrite(exec_code)
             # Write-redirect (tool-only): same protection as the parent cell
             # path. Child cells may write to OCI/tables too â€” must be
-            # redirected so customer data is never touched. Reads use any
+            # redirected so source data is never touched. Reads use any
             # redirects previously registered by parent or earlier child
             # cells (job-wide map).
             exec_code = _apply_write_redirects(exec_code, source_op_hint=f"child-cell-{ci}")
@@ -5884,7 +5884,7 @@ print(f'Replaced {{replaced}}/{{code_idx}} cells (config_offset={{config_offset}
         result["exit_value"] = _exit_val_match.group(1).strip().strip("'\"") if _exit_val_match else ""
 
     # NOTE: Previously called _install_writer_interceptors() here to wrap
-    # customer wrapper functions (createTable, drop_table, etc.) in the
+    # source wrapper functions (createTable, drop_table, etc.) in the
     # kernel namespace at runtime. That approach was REPLACED with the
     # cell-text AST rewrite in _apply_wrapper_call_redirect() â€” the
     # interceptor's session-state dependency caused data-safety issues when
@@ -6299,12 +6299,12 @@ else:
             cell_plan_text = render_cell_plan(cell_plan) if cell_plan else ""
             accumulated_ctx = cell_context.render() if cell_context else ""
             # Local-module mirror context â€” included in every cell migrate / fix
-            # so OpenAI model only writes to the mirror copy, never the customer source.
+            # so OpenAI model only writes to the mirror copy, never the source.
             mirror_ctx = ""
             if local_mirror_root_dst:
                 mirror_ctx = (
                     "\n=== LOCAL MODULE SOURCE MIRROR ===\n"
-                    f"Customer source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
+                    f"Source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
                     f"Mirror copy (writable, ALL patches go here): {local_mirror_root_dst}\n"
                     "Rules:\n"
                     f"- sys.path is already configured to load local modules from {local_mirror_root_dst}.\n"
@@ -6322,7 +6322,7 @@ else:
             stripped_source = source.strip()
             _slack_markers = [
                 "slack", "webhook", "send_slack", "slack_alert",
-                "hooks.slack.com", "internal-host.example", "internal-gateway.example",
+                "hooks.slack.com", "internal", "intranet", ".corp", "private",
                 # Slack SDK API method/import markers â€” catches `client.chat_postMessage(...)`,
                 # `WebClient(...)`, `from slack_sdk import ...`, etc.
                 "chat_postmessage", "slack_sdk", "webhookclient", "slackclient",
@@ -6911,7 +6911,7 @@ if _p and 'dbutils' in dir():
             # â”€â”€ Task validation stop: code-only continuation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             # Set after a prior cell hit DATA_UNAVAILABLE_AT_MIGRATION. Subsequent
             # cells get their code migrated but NOT executed â€” saved notebook is
-            # complete end-to-end; customer-runtime validates execution.
+            # complete end-to-end; runtime validates execution.
             if task_validation_stop:
                 log.log(f"Cell {i}/{total_cells}: MIGRATED_NOT_VALIDATED â€” code-only (task validation halted earlier)")
                 cell_results.append({"cell": i, "status": "MIGRATED_NOT_VALIDATED",
@@ -6952,7 +6952,7 @@ if _p and 'dbutils' in dir():
                 # to the in-memory current_code. The override is NEVER saved
                 # to disk â€” only used for cluster execution.
                 exec_code = (recovery_override + current_code) if recovery_override else current_code
-                # â”€â”€ Write-redirect (tool-only): never touch customer data â”€â”€
+                # â”€â”€ Write-redirect (tool-only): never touch source data â”€â”€
                 # Detect writes/DML/DDL targets; record them in the job-wide
                 # redirect map; substitute redirected destinations in EXEC
                 # code only (current_code stays clean for save-back). Then
@@ -7211,7 +7211,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                         migration_notes.append(
                             f"Cell {i}: OK_DATA_SUBSTITUTED â€” code validated on cluster "
                             f"using dates substituted from upstream table; "
-                            f"customer's original date filter saved unchanged"
+                            f"source workload's original date filter saved unchanged"
                         )
                     elif attempt > 0:
                         cells_fixed += 1
@@ -7420,7 +7420,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                 # the upstream table, query the table for actually available
                 # dates, and build an EXEC-only override block. The override
                 # is prepended to the cell on retry; the saved cell stays
-                # byte-identical to the customer's original.
+                # byte-identical to the source workload's original.
                 # READ_ONLY restriction: WRITE cells (saveAsTable, .write.*,
                 # etc.) are NEVER given substituted dates â€” a write with
                 # wrong dates would corrupt destinations.
@@ -7462,11 +7462,11 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                         if spark_logs:
                             fix_context += f"\n\n{spark_logs}"
                         fix_context += f"\n\nVerification issues: {issue_summary}"
-                        # Local-module mirror â€” OpenAI model must patch the MIRROR, not the customer source
+                        # Local-module mirror â€” OpenAI model must patch the MIRROR, not the source
                         if local_mirror_root_dst:
                             fix_context += (
                                 "\n\n=== LOCAL MODULE SOURCE MIRROR ===\n"
-                                f"Customer source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
+                                f"Source tree (READ-ONLY, NEVER MODIFY): {local_mirror_root_orig}\n"
                                 f"Mirror copy (writable, ALL patches go here): {local_mirror_root_dst}\n"
                                 f"- sys.path already loads local modules from {local_mirror_root_dst}.\n"
                                 "- If you need to patch a local .py file (syntax fix, comment out Databricks-only code),\n"
@@ -7560,7 +7560,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                 # Databricks / half AIDP. OpenAI model is NOT called on these cells â€”
                 # verification is impossible after a hard failure, so we keep
                 # things cheap/fast and rely on deterministic transforms only.
-                # Customer can hand-polish anything tricky after data is restored.
+                # Operators can hand-polish anything tricky after data is restored.
                 remaining = total_cells - i - 1
                 log.log(f"JOB FAILED: stopping execution, code-only migrating {remaining} remaining cells (no OpenAI model, no execution)")
                 for j in range(i + 1, total_cells):
@@ -7698,8 +7698,8 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             test_report += "## Write Redirects (Tool-Only)\n"
             test_report += (
                 "Every write/INSERT/UPDATE/DELETE/MERGE/CREATE/DROP during tool execution was "
-                "redirected to a tool-owned destination so customer production data was never touched. "
-                "The saved notebook KEEPS the customer's original paths/tables â€” these redirects "
+                "redirected to a tool-owned destination so production data was never touched. "
+                "The saved notebook KEEPS the source workload's original paths/tables â€” these redirects "
                 "applied to cluster execution only.\n\n"
             )
             if _wr["tables"]:
@@ -7785,7 +7785,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             # Strip cell outputs before saving â€” execution outputs (e.g. Optuna trial
             # logs) can bloat the notebook to 100+ MB, causing multi-hour uploads via
             # base64 chunks over WebSocket.  The migrated notebook only needs correct code;
-            # the customer will produce their own outputs when they run it.
+            # the operator will produce their own outputs when they run it.
             stripped_cells = []
             for cell in migrated_cells:
                 cell = dict(cell)
@@ -7796,7 +7796,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                 # Also strip any AIDP_DATA_RECOVERY override block (defense-
                 # in-depth: it should never reach migrated_cells[]["source"]
                 # in the first place, but if a code path leaked it, drop it
-                # here so the customer never sees test-only substitutions).
+                # here so the operator never sees test-only substitutions).
                 if cell.get("cell_type") == "code":
                     src = "".join(cell.get("source", []))
                     src = src.split("\n# === AIDP MIGRATION FIX LOG ===")[0].rstrip()
@@ -7813,12 +7813,12 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             # detected. Hardcodes the absolute mirror paths so the cloned/
             # deployed workflow can resolve `from modules.config import ...`
             # without any external setup. Mirror lives under the migration
-            # output dir which the customer retains.
+            # output dir which the operator retains.
             prepend_cells = []  # no AIDP perf-config cell prepended
             if local_module_src_roots:
                 syspath_src = (
                     "# AIDP local-module sys.path â€” added automatically by migration tool.\n"
-                    "# Mirrors the customer's in-tree .py source so package-style imports\n"
+                    "# Mirrors the source workload's in-tree .py source so package-style imports\n"
                     "# (e.g. `from modules.config import system_config`) resolve when this\n"
                     "# notebook is cloned/executed.\n"
                     "import sys as _sys\n"
@@ -8346,7 +8346,7 @@ def scan_for_run_deps(notebook_content: bytes) -> List[Tuple[str, Dict[str, str]
 def normalize_nb_path(path: str) -> str:
     """Normalize a notebook path to workspace-relative form.
     Strips /Workspace/ prefix only â€” preserves the rest of the path as-is
-    (Users/..., Repos/..., Git/..., or whatever subtree the customer uses).
+    (Users/..., Repos/..., Git/..., or whatever subtree the workload uses).
     Replaces spaces with underscores for the *normalized* (key) form;
     actual file lookups via download_notebook() try both space and underscore
     variants, so the source filename can have either."""
@@ -9430,7 +9430,7 @@ async def main():
                         help="(Deprecated/ignored) S3â†’OCI bucket mapping is now supplied via "
                              "load_bucket_mapping(); this flag is kept only for backward "
                              "compatibility with older invocations.")
-    # AIDP environment â€” override these for non-Customer deployments
+    # AIDP environment â€” override these for non-default deployments
     parser.add_argument("--aidp-base", default=AIDP_BASE,
                         help="AIDP REST endpoint base URL (default: %(default)s)")
     parser.add_argument("--datalake-ocid", default=DATALAKE_OCID, required=DATALAKE_OCID is None,
@@ -9447,7 +9447,7 @@ async def main():
     parser.add_argument("--only-tasks", default="",
                         help="Comma-separated task names to run (substring match on task_key). "
                              "Only matching tasks are executed, all others are skipped. "
-                             "Example: --only-tasks '02_BaseData_ExampleApp,05_ExampleApp_Feature'")
+                             "Example: --only-tasks '02_BaseData_Task,05_Feature_Task'")
     _skip_grp = parser.add_mutually_exclusive_group()
     _skip_grp.add_argument("--skip-migrated", action="store_true", dest="skip_migrated", default=True,
                            help="Skip notebooks already migrated (default: enabled). "

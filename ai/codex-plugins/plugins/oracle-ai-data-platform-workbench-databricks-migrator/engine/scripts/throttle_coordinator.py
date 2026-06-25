@@ -213,7 +213,7 @@ class ThrottleCoordinator:
     """File-backed cross-process token-bucket coordinator.
 
     Args:
-        budget: Initial maximum concurrent leases. For Customer 2,500-job
+        budget: Initial maximum concurrent leases. For a large
             scale, calibrate from per-bucket budget * num_buckets / avg
             ops-per-job. Start at 32-48 and tune from observed CB rate.
         state_path: Path to the shared state JSON file. Default

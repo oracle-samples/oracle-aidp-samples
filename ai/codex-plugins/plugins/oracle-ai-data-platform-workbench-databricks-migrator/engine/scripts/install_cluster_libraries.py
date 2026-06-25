@@ -24,17 +24,13 @@ WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
 DEFAULT_CLUSTER = os.environ.get("AIDP_CLUSTER", "")
 OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
 
-# JARs to install (paths on the workspace)
-JARS_TO_INSTALL = [
-    "/Workspace/migration-dependencies/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_1.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_2.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_3.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_4.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_5.jar",
-    "/Workspace/migration-dependencies/jars/Spark_Decrypt_UDF_1.0.2_Final.jar",
-    "/Workspace/migration-dependencies/jars/scala-logging_2.12-3.9.5.jar",
-]
+def split_env_paths(value):
+    return [part.strip() for part in value.replace("\n", ";").replace(",", ";").split(";") if part.strip()]
+
+
+# Workspace-file JAR paths are environment-provided so the public plugin does not
+# ship tenant dependency names.
+JARS_TO_INSTALL = split_env_paths(os.environ.get("AIDP_MIGRATOR_JARS_TO_INSTALL", ""))
 
 # requirements.txt for pip packages
 REQUIREMENTS_PATH = "/Workspace/migration-dependencies/requirements.txt"
@@ -103,16 +99,19 @@ def main():
 
     # JARs
     if not args.pip_only:
-        for jar in JARS_TO_INSTALL:
-            if jar in existing_paths:
-                print(f"  SKIP (exists): {os.path.basename(jar)}")
-            else:
-                items.append({
-                    "operation": "INSTALL",
-                    "type": "WORKSPACE_FILE",
-                    "path": jar,
-                })
-                print(f"  INSTALL: {os.path.basename(jar)}")
+        if not JARS_TO_INSTALL:
+            print("  No JARs configured. Set AIDP_MIGRATOR_JARS_TO_INSTALL to install JAR libraries.")
+        else:
+            for jar in JARS_TO_INSTALL:
+                if jar in existing_paths:
+                    print(f"  SKIP (exists): {os.path.basename(jar)}")
+                else:
+                    items.append({
+                        "operation": "INSTALL",
+                        "type": "WORKSPACE_FILE",
+                        "path": jar,
+                    })
+                    print(f"  INSTALL: {os.path.basename(jar)}")
 
     # requirements.txt
     if not args.jars_only:

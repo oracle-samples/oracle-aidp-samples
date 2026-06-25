@@ -105,8 +105,8 @@ For code that still references S3 buckets (use only if migrating boto3 code mini
 
 ```python
 from aidp_compat.s3_compat import read_s3_object, write_s3_object
-data = read_s3_object("customer-prod-bucket", "path/to/key")  # auto-routes to OCI
-write_s3_object("customer-prod-bucket", "path/to/key", data)
+data = read_s3_object("source-prod-bucket", "path/to/key")  # auto-routes to OCI
+write_s3_object("source-prod-bucket", "path/to/key", data)
 ```
 
 S3-to-OCI bucket mapping comes from `reports/s3_to_oci_bucket_mapping.csv`. Uses OCI SDK with API key auth.

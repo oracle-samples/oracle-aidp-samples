@@ -15,6 +15,7 @@ Usage:
 """
 
 import asyncio
+import json
 import os
 import sys
 import argparse
@@ -67,17 +68,37 @@ econml>=0.14.0
 psutil>=5.9.0
 omegaconf>=2.3.0"""
 
-# JARs: source path on workspace -> destination name
-JARS = [
-    ("/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar", "hudi-spark3.5-bundle_2.12-0.15.0.jar"),
-    ("/Workspace/customer_jar_1.jar", "customer_jar_1.jar"),
-    ("/Workspace/<customer_jars>/customer_jar_2.jar", "customer_jar_2.jar"),
-    ("/Workspace/<customer_jars>/customer_jar_3.jar", "customer_jar_3.jar"),
-    ("/Workspace/customer_jar_4.jar", "customer_jar_4.jar"),
-    ("/Workspace/<production_jars>/customer_jar_5.jar", "customer_jar_5.jar"),
-    ("/Workspace/<production_jars>/customer_jar_6.jar", "Spark_Decrypt_UDF_1.0.2_Final.jar"),
-    ("/Workspace/jars/scala-logging_2.12-3.9.5.jar", "scala-logging_2.12-3.9.5.jar"),
-]
+def load_jar_map() -> list:
+    """Load workspace JAR copy map from env without shipping sample JAR names."""
+    raw_json = os.environ.get("AIDP_MIGRATOR_JARS_JSON", "").strip()
+    if raw_json:
+        data = json.loads(raw_json)
+        pairs = []
+        for item in data:
+            if isinstance(item, dict):
+                src = item.get("src") or item.get("source")
+                dest = item.get("dest") or item.get("name") or os.path.basename(src or "")
+            else:
+                src, dest = item
+            if src:
+                pairs.append((src, dest or os.path.basename(src)))
+        return pairs
+
+    raw = os.environ.get("AIDP_MIGRATOR_JARS", "").strip()
+    if not raw:
+        return []
+
+    pairs = []
+    for part in raw.replace("\n", ";").split(";"):
+        part = part.strip()
+        if not part:
+            continue
+        if "=" in part:
+            src, dest = [value.strip() for value in part.split("=", 1)]
+        else:
+            src, dest = part, os.path.basename(part)
+        pairs.append((src, dest or os.path.basename(src)))
+    return pairs
 
 
 async def run_step(session, description, code, timeout=300):
@@ -109,6 +130,8 @@ async def main():
     print("AIDP Migration Cluster Setup")
     print("=" * 60)
     print(f"Cluster: {args.cluster}")
+    jar_map = load_jar_map()
+    print(f"Configured JARs: {len(jar_map)}")
 
     session = AIDPSession(cluster_id=args.cluster, oci_profile=args.profile)
     await session.connect()
@@ -131,21 +154,16 @@ print('requirements.txt written')
 
         # Step 3: Copy JARs one at a time (to avoid timeouts on large files)
         if not args.skip_jars:
+            if not jar_map:
+                print("\n  No JARs configured. Set AIDP_MIGRATOR_JARS or AIDP_MIGRATOR_JARS_JSON to copy JARs.")
+                print("  Continuing with Python package setup only.")
+            else:
             # Copy all JARs in one execution to minimize session overhead,
             # but with sleeps between copies to let the filesystem sync
-            await run_step(session, "Copy all JARs to workspace and classpath", """
+                await run_step(session, "Copy all JARs to workspace and classpath", f"""
 import shutil, os, time
 
-jars = [
-    ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
-    ('/Workspace/customer_jar_1.jar', 'customer_jar_1.jar'),
-    ('/Workspace/<customer_jars>/customer_jar_2.jar', 'customer_jar_2.jar'),
-    ('/Workspace/<customer_jars>/customer_jar_3.jar', 'customer_jar_3.jar'),
-    ('/Workspace/customer_jar_4.jar', 'customer_jar_4.jar'),
-    ('/Workspace/<production_jars>/customer_jar_5.jar', 'customer_jar_5.jar'),
-    ('/Workspace/<production_jars>/customer_jar_6.jar', 'Spark_Decrypt_UDF_1.0.2_Final.jar'),
-    ('/Workspace/jars/scala-logging_2.12-3.9.5.jar', 'scala-logging_2.12-3.9.5.jar'),
-]
+jars = {json.dumps(jar_map)}
 
 ws_dir = '/Workspace/migration-dependencies/jars'
 cp_dir = '/aidp/libraries/java/jars'
@@ -180,8 +198,8 @@ print()
 print('All copies issued. Filesystem will sync in the background.')
 """, timeout=600)  # 10 min timeout for all JAR copies
 
-            print("\n  JARs copied. Filesystem needs time to sync.")
-            print("  Run with --skip-jars --skip-pip later to verify.")
+                print("\n  JARs copied. Filesystem needs time to sync.")
+                print("  Run with --skip-jars --skip-pip later to verify.")
 
         # Step 4: Install pip packages
         if not args.skip_pip:
@@ -226,8 +244,8 @@ print('copy_jars.sh written and made executable')
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.app.Constants', 'FeatureLib'),
-    ('com.example.app.ConcurrentPrimaryHandler', 'FeatureLib2'),
+    ('com.example.library.Constants', 'Custom library'),
+    ('com.example.library.ConcurrentHandler', 'Secondary custom library'),
     ('com.example.util.Decryptor', 'Decryptor'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
