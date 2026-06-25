@@ -30,25 +30,25 @@ OCI_PROFILE = "DEFAULT"
 
 # Known JARs on the workspace (from enumeration)
 WORKSPACE_JARS = [
-    "Databricks Jars/Production Jar/customer_jar_2.jar",
-    "Databricks Jars/Production Jar/customer_jar_2_v152.jar",
-    "Databricks Jars/Production Jar/customer_jar_2_v231.jar",
-    "Databricks Jars/Production Jar/customer_jar_2_v251.jar",
-    "Databricks Jars/Production Jar/customer_jar_6.jar",
-    "Databricks Jars/Production Jar/customer_jar_6_v106.jar",
-    "Databricks Jars/Production Jar/customer_jar_5.jar",
-    "Databricks Jars/Production Jar/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
+    "<workspace_jars>/customer_jar_2.jar",
+    "<workspace_jars>/customer_jar_2_v1.jar",
+    "<workspace_jars>/customer_jar_2_v2.jar",
+    "<workspace_jars>/customer_jar_2_v3.jar",
+    "<workspace_jars>/customer_jar_6.jar",
+    "<workspace_jars>/customer_jar_6_v1.jar",
+    "<workspace_jars>/customer_jar_5.jar",
+    "<workspace_jars>/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
     "Databricks Jars/spark-listener-jars/spark-eventlistener-1.0.4.jar",
     "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
     "jars/scala-logging_2.12-3.9.5.jar",
-    "jars/customer_jar_1_v144.jar",
-    "jars/customer_jar_6_v106.jar",
+    "jars/customer_jar_1_v1.jar",
+    "jars/customer_jar_6_v1.jar",
     "jars/spark-cassandra-connector_2.13-3.5.1.jar",
     "customer_jar_4.jar",
-    "customer_jar_1_v144.jar",
+    "customer_jar_1_v1.jar",
     "customer_jar_1.jar",
-    "CUSTOMER_JARS/customer_jar_2.jar",
-    "CUSTOMER_JARS/customer_jar_3.jar",
+    "<workspace_jars>/customer_jar_2.jar",
+    "<workspace_jars>/customer_jar_3.jar",
 ]
 
 
@@ -109,7 +109,7 @@ def analyze_jar(jar_path: str) -> dict:
                 result["has_scala_stdlib"] = True
 
             # Look for Customer-specific packages
-            customer_classes = [n for n in class_files if "com/customer/" in n]
+            customer_classes = [n for n in class_files if "com/example/" in n]
             customer_packages = set()
             for c in customer_classes:
                 parts = c.split("/")

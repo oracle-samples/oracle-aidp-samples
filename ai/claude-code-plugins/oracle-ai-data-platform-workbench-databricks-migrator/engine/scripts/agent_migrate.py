@@ -307,7 +307,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
 
 ## AIDP Environment (confirmed by testing):
 - Pre-installed JARs: Delta Lake 3.2, Avro, OCI HDFS connector (BmcFilesystem)
-- Installed JARs: Hudi 0.15.0, FeatureLib, FeatureLib2, MessageParser, DecryptUDF, Scala Logging
+- Installed JARs: Hudi 0.15.0, the customer JAR bundle, Scala Logging
 - Pre-installed Python: pandas 2.3.3, numpy 2.4.2, requests, oci, nbformat, ray 2.54, slack_sdk, boto3, delta, IPython
 - Installed Python (via requirements.txt): matplotlib, scikit-learn, xgboost, seaborn, plotly, tqdm, etc.
 - MLflow may NOT be pre-installed — install with pip install mlflow (no version pin) if needed
@@ -667,7 +667,7 @@ would make the cell pass:
     something, the inline copy writes to whatever database_name was passed. The
     forbidden names: createTable, createTableOld, createTableIntermediate,
     createTableIntermediateOld, createTableIntermediate_append, createTableIntermediate_1,
-    createTableInFeatureLib, createTable_oracle, saveTable, writeTable, write_to_delta,
+    createTableInApp, createTable_oracle, saveTable, writeTable, write_to_delta,
     process_source, drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded — that's a systemic recovery, not
@@ -1670,7 +1670,7 @@ async def _handle_tool_call(tool_name: str, tool_input: dict, session=None, log_
         if _q_first in _SKIP_MODULES:
             return f"'{query}' is a Python module, not a table. Skip."
         # Normalize cache key: lowercase + strip default. prefix — so
-        # "dream_pipeline.FOO", "default.dream_pipeline.foo", "dream_pipeline.foo"
+        # "example_schema.FOO", "default.example_schema.foo", "example_schema.foo"
         # all hit the same cache entry.
         _cache_key = query.lower().strip()
         if _cache_key.startswith("default."):

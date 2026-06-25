@@ -71,11 +71,11 @@ omegaconf>=2.3.0"""
 JARS = [
     ("/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar", "hudi-spark3.5-bundle_2.12-0.15.0.jar"),
     ("/Workspace/customer_jar_1.jar", "customer_jar_1.jar"),
-    ("/Workspace/<customer_jars>/customer_jar_2.jar", "customer_jar_2.jar"),
-    ("/Workspace/<customer_jars>/customer_jar_3.jar", "customer_jar_3.jar"),
+    ("/Workspace/<workspace_jars>/customer_jar_2.jar", "customer_jar_2.jar"),
+    ("/Workspace/<workspace_jars>/customer_jar_3.jar", "customer_jar_3.jar"),
     ("/Workspace/customer_jar_4.jar", "customer_jar_4.jar"),
-    ("/Workspace/<production_jars>/customer_jar_5.jar", "customer_jar_5.jar"),
-    ("/Workspace/<production_jars>/customer_jar_6.jar", "Spark_Decrypt_UDF_1.0.2_Final.jar"),
+    ("/Workspace/<workspace_jars>/customer_jar_5.jar", "customer_jar_5.jar"),
+    ("/Workspace/<workspace_jars>/customer_jar_6.jar", "customer_jar_6.jar"),
     ("/Workspace/jars/scala-logging_2.12-3.9.5.jar", "scala-logging_2.12-3.9.5.jar"),
 ]
 
@@ -100,7 +100,7 @@ async def run_step(session, description, code, timeout=300):
 async def main():
     parser = argparse.ArgumentParser(description="Setup migration cluster")
     parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
-    parser.add_argument("--profile", default="CUSTOMER")
+    parser.add_argument("--profile", default="DEFAULT")
     parser.add_argument("--skip-jars", action="store_true", help="Skip JAR copy step")
     parser.add_argument("--skip-pip", action="store_true", help="Skip pip install step")
     args = parser.parse_args()
@@ -139,11 +139,11 @@ import shutil, os, time
 jars = [
     ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
     ('/Workspace/customer_jar_1.jar', 'customer_jar_1.jar'),
-    ('/Workspace/<customer_jars>/customer_jar_2.jar', 'customer_jar_2.jar'),
-    ('/Workspace/<customer_jars>/customer_jar_3.jar', 'customer_jar_3.jar'),
+    ('/Workspace/<workspace_jars>/customer_jar_2.jar', 'customer_jar_2.jar'),
+    ('/Workspace/<workspace_jars>/customer_jar_3.jar', 'customer_jar_3.jar'),
     ('/Workspace/customer_jar_4.jar', 'customer_jar_4.jar'),
-    ('/Workspace/<production_jars>/customer_jar_5.jar', 'customer_jar_5.jar'),
-    ('/Workspace/<production_jars>/customer_jar_6.jar', 'Spark_Decrypt_UDF_1.0.2_Final.jar'),
+    ('/Workspace/<workspace_jars>/customer_jar_5.jar', 'customer_jar_5.jar'),
+    ('/Workspace/<workspace_jars>/customer_jar_6.jar', 'customer_jar_6.jar'),
     ('/Workspace/jars/scala-logging_2.12-3.9.5.jar', 'scala-logging_2.12-3.9.5.jar'),
 ]
 
@@ -226,9 +226,9 @@ print('copy_jars.sh written and made executable')
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.app.Constants', 'FeatureLib'),
-    ('com.example.app.ConcurrentPrimaryHandler', 'FeatureLib2'),
-    ('com.example.util.Decryptor', 'Decryptor'),
+    ('com.example.app.Constants', 'CustomerJar1'),
+    ('com.example.app.ConcurrentPrimaryHandler', 'CustomerJar2'),
+    ('com.example.app.Decryptor', 'CustomerJar6'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
 for class_name, label in tests:

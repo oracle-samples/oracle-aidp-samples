@@ -103,7 +103,7 @@ DATABRICKS_PATTERNS = [
     # dbfs:/ URI format (Databricks colon notation)
     {"pattern": r"dbfs:/", "action": "Translate dbfs:/path → /Volumes/default/default/dbfs/path using translate_path() from aidp_compat"},
     # /dbfs/ filesystem format (no colon) — same DBFS root, different notation
-    # e.g. base_path = "/dbfs/FileStore/bsrisk" → "/Volumes/default/default/dbfs/FileStore/bsrisk"
+    # e.g. base_path = "/dbfs/FileStore/example_user" → "/Volumes/default/default/dbfs/FileStore/example_user"
     {"pattern": r"""['"]/dbfs/|= ?['"]/dbfs""", "action": "Translate /dbfs/path → /Volumes/default/default/dbfs/path using translate_path() from aidp_compat"},
     {"pattern": r"s3[a]?://", "action": "Translate to oci:// using bucket mapping"},
     {"pattern": r"requests\.post.*slack|send_slack|slack_webhook", "action": "Skip (Slack notification)"},
@@ -249,7 +249,7 @@ RISK_PATTERNS = [
         ),
     },
     {
-        "name": "legacy_decrypt_udf",
+        "name": "legacy_udf",
         "pattern": r"legacy_decrypt|LegacyDecrypt|legacy_encrypt|LegacyEncrypt",
         "severity": "HIGH",
         "fix": (

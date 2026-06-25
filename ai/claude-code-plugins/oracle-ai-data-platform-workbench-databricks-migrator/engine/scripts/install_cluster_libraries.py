@@ -32,7 +32,7 @@ JARS_TO_INSTALL = [
     "/Workspace/migration-dependencies/jars/customer_jar_3.jar",
     "/Workspace/migration-dependencies/jars/customer_jar_4.jar",
     "/Workspace/migration-dependencies/jars/customer_jar_5.jar",
-    "/Workspace/migration-dependencies/jars/Spark_Decrypt_UDF_1.0.2_Final.jar",
+    "/Workspace/migration-dependencies/jars/customer_jar_6.jar",
     "/Workspace/migration-dependencies/jars/scala-logging_2.12-3.9.5.jar",
 ]
 

@@ -122,10 +122,10 @@ for cls_name in classes:
 """),
 
     # ─── Decryptor Library ───────────────────────────────────────
-    ("Decryptor: Class loading", """
+    ("CustomerJar6: Class loading", """
 classes = [
-    "com.example.decryptor.ClassA",
-    "com.example.decryptor.UdfRegistrar",
+    "com.example.app.ClassA",
+    "com.example.app.UdfRegistrar",
 ]
 for cls_name in classes:
     try:
@@ -135,9 +135,9 @@ for cls_name in classes:
         print(f"FAIL: {cls_name} - {str(e)[:100]}")
 """),
 
-    ("Decryptor: Instantiation", """
+    ("CustomerJar6: Instantiation", """
 try:
-    encryptor = sc._jvm.com.example.decryptor.ClassA
+    encryptor = sc._jvm.com.example.app.ClassA
     print(f"OK: Decryptor ClassA accessible")
     methods = [m.getName() for m in encryptor.getClass().getDeclaredMethods()][:10]
     print(f"   Methods: {methods}")
@@ -193,7 +193,7 @@ expected = [
     'feature_jar_b',
     'feature_jar_c',
     'parser_jar',
-    'decryptor',
+    'app',
     'scala-logging',
     'delta-spark',
 ]

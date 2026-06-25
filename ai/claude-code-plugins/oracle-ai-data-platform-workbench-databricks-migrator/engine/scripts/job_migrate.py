@@ -661,7 +661,7 @@ gets persisted to the saved notebook forever. Specifically FORBIDDEN:
     something, the inline copy writes to whatever database_name was passed. The
     forbidden names: createTable, createTableOld, createTableIntermediate,
     createTableIntermediateOld, createTableIntermediate_append, createTableIntermediate_1,
-    createTableInFeatureLib, createTable_oracle, saveTable, writeTable, write_to_delta,
+    createTableInApp, createTable_oracle, saveTable, writeTable, write_to_delta,
     process_source, drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded — that's a systemic recovery, not
@@ -756,7 +756,7 @@ Context:
   FORBIDDEN: oci.auth.signers.get_resource_principals_signer() — resource principal has known
   failure modes on AIDP and MUST NEVER be used. If customer code already uses the API-key init
   pattern (oci.config.from_file pointing under /Workspace/), PRESERVE that init code unchanged.
-- All Customer JARs are on classpath (Hudi, FeatureLib, FeatureLib2, ExampleApp, MessageParser, DecryptUDF)
+- All Customer JARs are on classpath (Hudi, customer JAR 1, customer JAR 2, ExampleApp, parser, UDF)
 
 CRITICAL — NEVER use direct JVM Hadoop FileSystem calls in migrated notebooks:
 The following patterns FAIL in customer's scheduled workflow runs and MUST NOT appear in any
@@ -874,9 +874,9 @@ Translation rules — apply to ALL path strings in the cell, including f-strings
 
 Two scenarios:
 1. HARDCODED path in notebook (most common):
-   BEFORE: base_path = "/dbfs/FileStore/bsrisk"
-   AFTER:  base_path = "/Volumes/default/default/dbfs/FileStore/bsrisk"
-   Or use: from aidp_compat import translate_path; base_path = translate_path("/dbfs/FileStore/bsrisk")
+   BEFORE: base_path = "/dbfs/FileStore/example_user"
+   AFTER:  base_path = "/Volumes/default/default/dbfs/FileStore/example_user"
+   Or use: from aidp_compat import translate_path; base_path = translate_path("/dbfs/FileStore/example_user")
 
 2. PATH LOADED FROM DB/CONFIG (cell_plan risks: dbfs_path_from_config):
    Wrap runtime values with translate_path() — handles /dbfs/, dbfs:/, s3://, /mnt/ all at once:

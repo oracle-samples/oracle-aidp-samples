@@ -39,7 +39,7 @@ REQUIRED_JARS = {
     "customer_jar_3.jar": "Customer JAR 3",
     "customer_jar_4.jar": "Customer JAR 4",
     "customer_jar_5.jar": "Customer JAR 5",
-    "customer_jar_6.jar": "DecryptUDF",
+    "customer_jar_6.jar": "customer_jar_6",
     "scala-logging_2.12-3.9.5.jar": "Scala Logging (transitive dep)",
 }
 
@@ -114,7 +114,7 @@ def upload_file(signer, local_path: str, remote_path: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Upload migration dependencies to AIDP")
-    parser.add_argument("--profile", default="CUSTOMER", help="OCI config profile")
+    parser.add_argument("--profile", default="DEFAULT", help="OCI config profile")
     parser.add_argument("--dry-run", action="store_true", help="Just list what would be uploaded")
     args = parser.parse_args()
 
