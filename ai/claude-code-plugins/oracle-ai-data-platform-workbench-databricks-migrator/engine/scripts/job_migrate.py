@@ -710,7 +710,7 @@ aidp_compat, or OCI SDK — keep the function signature identical so callers don
 CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta tables:
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
-ORC, CSV, JSON, Iceberg, or any non-Delta format. codebases commonly call
+ORC, CSV, JSON, Iceberg, or any non-Delta format. Some codebases call
 DESCRIBE DETAIL on parquet tables (e.g. a writer-wrapper function looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:

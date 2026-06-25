@@ -118,8 +118,8 @@ print(r.status_code, r.text[:200])
 ### 6. Migrator pyc compile sanity
 
 ```bash
-python3 -m py_compile scripts/build_dag.py scripts/check_data_availability.py \
-                      scripts/job_migrate.py scripts/migrate_catalog.py
+python3 -m py_compile ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py \
+                      ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py
 ```
 
 Should be silent. If a Python-version mismatch is reported, the user is on the wrong interpreter.
