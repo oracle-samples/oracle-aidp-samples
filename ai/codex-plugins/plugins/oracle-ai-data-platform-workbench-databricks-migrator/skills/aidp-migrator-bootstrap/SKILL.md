@@ -33,20 +33,20 @@ Save these into a `env-coords.md` file at the project root, gitignored. Every ot
 ### 1. Python prereqs
 
 ```bash
-cd <migrator-repo-root>
 python3 --version          # 3.10+
-pip install -r requirements.txt
+python -m pip install -r ~/.aidp-migrator/engine/requirements.txt
 ```
 
-Expected packages: `oci`, `requests`, `websocket-client`, `anthropic`, `cryptography`. If any is missing, install + retry.
+Expected packages: `oci`, `requests`, `websocket-client`, `openai`, `cryptography`. If any is missing, install + retry.
 
-### 2. `ANTHROPIC_API_KEY` env var
+### 2. OpenAI env vars
 
 ```bash
-echo $ANTHROPIC_API_KEY | wc -c    # should be >50 chars
+python3 -c "import os; print('OPENAI_API_KEY=' + ('set' if os.getenv('OPENAI_API_KEY') else 'missing'))"
+python3 -c "import os; print('OPENAI_MODEL=' + os.getenv('OPENAI_MODEL', '<team-approved-default>'))"
 ```
 
-If empty, the migrator's Pass-2 cell-by-cell loop will crash. Ask the user to `export ANTHROPIC_API_KEY=sk-ant-...`.
+If `OPENAI_API_KEY` is empty, the migrator's Pass-2 cell-by-cell loop will not run. Ask the user to set `OPENAI_API_KEY` in the shell. If the toolkit requires an explicit model, ask them to set `OPENAI_MODEL` to the team's approved OpenAI model.
 
 ### 3. OCI authentication
 
@@ -117,8 +117,11 @@ print(r.status_code, r.text[:200])
 ### 6. Migrator pyc compile sanity
 
 ```bash
-python3 -m py_compile scripts/build_dag.py scripts/check_data_availability.py \
-                      scripts/job_migrate.py scripts/migrate_catalog.py
+python3 -m py_compile \
+  ~/.aidp-migrator/engine/scripts/build_dag.py \
+  ~/.aidp-migrator/engine/scripts/check_data_availability.py \
+  ~/.aidp-migrator/engine/scripts/job_migrate.py \
+  ~/.aidp-migrator/engine/scripts/migrate_catalog.py
 ```
 
 Should be silent. If a Python-version mismatch is reported, the user is on the wrong interpreter.
@@ -131,7 +134,8 @@ After running, report back to the user as a single table:
 | Check               | Status | Notes |
 |---|---|---|
 | Python deps         |  OK    | 3.13.x, all 5 deps present |
-| ANTHROPIC_API_KEY   |  OK    | set, 100+ chars |
+| OPENAI_API_KEY   |  OK    | set in shell env |
+| OPENAI_MODEL     |  OK    | team-approved model, if required |
 | OCI auth (api_key)  |  OK    | profile <name>, region <region> |
 | Cluster state       |  OK    | Active |
 | Workspace write     |  OK    | output base reachable |

@@ -1,0 +1,21 @@
+# AIDP Databricks Validator - Python Dependencies
+# Install: pip install -r requirements.txt
+
+# OCI SDK (for API signing and Object Storage)
+oci>=2.130.0
+
+# HTTP requests
+requests>=2.31.0
+
+# WebSocket client (for AIDP kernel execution - sync client)
+websocket-client>=1.6.0
+
+# OpenAI API (for GPT-5.5 deep analysis and migration)
+openai>=1.99.0
+
+# Jupyter notebook parsing
+nbformat>=5.9.0
+
+# Standard data processing (usually pre-installed)
+pandas>=2.0.0
+numpy>=1.24.0

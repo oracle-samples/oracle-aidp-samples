@@ -20,7 +20,7 @@ Pass-2 task notebooks are similarly skipped if their final `.ipynb` already exis
 ## Default behavior (resume is automatic)
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -37,7 +37,7 @@ The default flag is `--skip-migrated` (ON). Every notebook already at the output
 If the failure was task-specific and you want to start there (skipping all earlier tasks):
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --start-task <substring_of_task_key>
   # + the rest of the standard args
@@ -48,7 +48,7 @@ python3 scripts/job_migrate.py \
 ## Resuming a single task (skip everything else)
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --only-tasks "<task_key_1>,<task_key_2>"
   # + the rest
@@ -58,10 +58,10 @@ Useful when you've manually fixed one dep and want to re-run only the tasks that
 
 ## Force re-migration of an already-migrated notebook
 
-You typically DON'T want this — it burns Claude tokens. But if you must:
+You typically DON'T want this — it burns model tokens. But if you must:
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --no-skip-migrated
   # + the rest

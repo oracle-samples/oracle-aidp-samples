@@ -1,6 +1,6 @@
 # Databricks → AIDP Gotchas
 
-15 platform differences the migrator handles, with the exact recipe for each. The migrator applies most automatically; this reference is here so Claude can route failed-cell scenarios to the correct fix and so the user can review which fixes are being applied.
+15 platform differences the migrator handles, with the exact recipe for each. The migrator applies most automatically; this reference is here so Codex can route failed-cell scenarios to the correct fix and so the user can review which fixes are being applied.
 
 ---
 

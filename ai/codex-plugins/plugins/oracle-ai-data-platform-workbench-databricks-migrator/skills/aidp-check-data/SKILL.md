@@ -5,7 +5,7 @@ description: Pre-migration data-availability scan. Reads every notebook in a mig
 
 # `aidp-check-data` — pre-migration data-availability scan
 
-Pass-2 of the migrator is expensive (live cluster time + Claude-with-tool-use tokens per cell). Running this scan first catches the "no source table" and "wrong bucket" failure modes in seconds instead of hours.
+Pass-2 of the migrator is expensive (live cluster time + OpenAI tool-use tokens per cell). Running this scan first catches the "no source table" and "wrong bucket" failure modes in seconds instead of hours.
 
 ## When to use
 
@@ -16,7 +16,7 @@ Pass-2 of the migrator is expensive (live cluster time + Claude-with-tool-use to
 ## Invocation
 
 ```bash
-python3 scripts/check_data_availability.py \
+python3 $HOME/.aidp-migrator/engine/scripts/check_data_availability.py \
   --root "<databricks-workspace-path>" \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -28,7 +28,7 @@ python3 scripts/check_data_availability.py \
 Or for the workflow-shape input (matches [`aidp-build-dag`](../aidp-build-dag/SKILL.md)'s workflow path):
 
 ```bash
-python3 scripts/check_data_availability_for_workflow.py \
+python3 $HOME/.aidp-migrator/engine/scripts/check_data_availability_for_workflow.py \
   --job-id <databricks-job-id> \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -87,7 +87,7 @@ If the manifest references `s3://` paths, the scanner also consults `<migrator-r
 - Each table probe is a small `DESCRIBE` — sub-second on a warm cluster.
 - Each path probe is a `listObjects` against OCI Object Storage — also fast.
 - Total scan time scales linearly with unique references; expect <2 min for a workflow with 50 notebooks.
-- No Claude tokens spent — this is pure REST + Spark.
+- No model tokens spent — this is pure REST + Spark.
 
 ## Gotchas
 

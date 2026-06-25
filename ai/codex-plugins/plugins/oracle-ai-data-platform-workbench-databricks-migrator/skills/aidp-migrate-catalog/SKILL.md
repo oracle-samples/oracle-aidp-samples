@@ -28,7 +28,7 @@ The notebook migration (Pass-2) reads tables. If the schemas + tables don't exis
 ## Stage 1 — extract from Databricks
 
 ```bash
-python3 scripts/extract_catalog_databricks.py \
+python3 $HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py \
   --catalogs "<catalog_a>,<catalog_b>" \
   --schemas-only "<catalog_a>:<schema_1>,<catalog_a>:<schema_2>" \
   --out reports/catalog_pack.json
@@ -78,7 +78,7 @@ The extractor uses Unity Catalog's REST API (`/api/2.1/unity-catalog/tables` wit
 ## Stage 2 — rewrite + replay on AIDP
 
 ```bash
-python3 scripts/migrate_catalog.py \
+python3 $HOME/.aidp-migrator/engine/scripts/migrate_catalog.py \
   --pack reports/catalog_pack.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \

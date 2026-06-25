@@ -1,6 +1,6 @@
 ---
 name: aidp-fixup-cell
-description: Targeted rewind of a migrated notebook. Re-executes cells from history index N onwards (or a specific cell range) through the execute+verify+fix loop, with a 'why' reason injected so Claude knows what to fix. Use when aidp-migrate-job left a notebook at RESULT=PARTIAL or the user identifies a specific cell that is wrong post-migration.
+description: Targeted rewind of a migrated notebook. Re-executes cells from history index N onwards (or a specific cell range) through the execute+verify+fix loop, with a 'why' reason injected so the model knows what to fix. Use when aidp-migrate-job left a notebook at RESULT=PARTIAL or the user identifies a specific cell that is wrong post-migration.
 ---
 
 # `aidp-fixup-cell` — surgical re-execute of cells in a migrated notebook
@@ -15,9 +15,9 @@ The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 10 
 
 ## Two invocation modes
 
-### Mode A — re-run from a history index (Opus tool)
+### Mode A — re-run from a history index (model tool)
 
-Inside an already-running migration, Claude can call the `fixup_cell` tool:
+Inside an already-running migration, the migrator can call the `fixup_cell` tool:
 
 ```
 fixup_cell(start_index=12, why="cell 11 redefined `Basedata` to use a different schema; replay downstream so the new var flows through")
@@ -25,7 +25,7 @@ fixup_cell(start_index=12, why="cell 11 redefined `Basedata` to use a different 
 
 This is the in-process mode. It:
 1. Truncates `_cell_history[start_index:]` (drops everything from index 12 forward).
-2. Replays each old entry through `_replay_cell_entry()` — execute + verify + fix loop with the `why` injected into the Claude prompt so the model knows what changed.
+2. Replays each old entry through `_replay_cell_entry()` — execute + verify + fix loop with the `why` injected into the model prompt so the model knows what changed.
 3. Appends the new (post-replay) entries back to `_cell_history`.
 
 The cells replayed start at the absolute history index 12 — could be in the SAME notebook or a downstream one if the cells were inlined via `%run`.
@@ -35,7 +35,7 @@ The cells replayed start at the absolute history index 12 — could be in the SA
 When the migration is done and the user wants to "fix this one cell":
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --only-tasks <task_key> \
@@ -50,7 +50,7 @@ If the user wants finer-grained control (specific cell, not full task), they nee
 
 **Helps:**
 - The cell's failure is due to upstream state the migrator's auto-fix didn't anticipate (variable shape, schema drift, missing import).
-- The cell needs context Claude didn't have in the first pass (a hidden dependency, a manual override the user just applied).
+- The cell needs context the model did not have in the first pass (a hidden dependency, a manual override the user just applied).
 - The notebook flow needs to be replayed after a structural fix (e.g. you redefined a function).
 
 **Won't help:**
@@ -69,7 +69,7 @@ Before triggering a replay, scan the cells from `start_index` for non-idempotent
 
 ## How the `why` reason flows
 
-The `why` string is injected into the Claude prompt as:
+The `why` string is injected into the model prompt as:
 
 ```
 === CONTEXT: WHY WE'RE REPLAYING ===

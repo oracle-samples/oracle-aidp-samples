@@ -5,9 +5,9 @@
 
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator).
 
-This plugin is **knowledge-only** — it teaches Codex *how* to drive the migrator. The migrator's Python source is a separate Oracle toolkit you check out locally; this plugin makes it discoverable and operable in natural language.
+This plugin is **self-contained for Codex**: it ships the OpenAI-based Python migration engine under `engine/`. On SessionStart, the hook stages that engine to `~/.aidp-migrator/engine` so Codex can run migrations without a separate toolkit clone.
 
-> **Status:** **v0.1.0** — first public release. Mirrors the Claude Code plugin shipped at `ai/claude-code-plugins/oracle-ai-data-platform-workbench-databricks-migrator`.
+> **Status:** **v0.2.0** - self-contained Codex release with the bundled OpenAI-based migration engine.
 
 ---
 
@@ -99,21 +99,19 @@ codex plugin list | grep databricks-migrator
 
 ## Prerequisites
 
-This plugin is **knowledge-only** — it does not bundle the migrator's Python source. To actually run the migrations, you need:
+This plugin bundles the migrator engine. To actually run migrations, you need:
 
-1. **The AIDP Databricks Migration Toolkit** — a separate Oracle toolkit. Clone the migrator repo (your Oracle FDE team or Customer Success contact provides the URL) into your workstation:
+1. **Python dependencies for the bundled engine** - after installing the plugin and starting a new Codex thread, the SessionStart hook stages the engine to `~/.aidp-migrator/engine`. Install dependencies once:
 
    ```bash
-   git clone <migrator-repo-url> oci-aidp-databricks-validator
-   cd oci-aidp-databricks-validator
-   pip install -r requirements.txt
+   python -m pip install -r ~/.aidp-migrator/engine/requirements.txt
    ```
 
-2. **OCI authentication** — `~/.oci/config` with either an `api_key` profile (recommended for unattended runs) or an `oci session authenticate` session-token profile (for interactive notebooks). The migrator reads whichever profile the operator selects via `--oci-profile`.
+2. **OCI authentication** - `~/.oci/config` with either an `api_key` profile (recommended for unattended runs) or an `oci session authenticate` session-token profile (for interactive notebooks). The migrator reads whichever profile the operator selects via `--oci-profile`.
 
-3. **An ACTIVE AIDP cluster** — the migrator's Pass-2 execute/verify/fix loop talks to a live cluster via WebSocket. The cluster must be in `Active` state before invoking `job_migrate.py`.
+3. **An ACTIVE AIDP cluster** - the migrator's Pass-2 execute/verify/fix loop talks to a live cluster via WebSocket. The cluster must be in `Active` state before invoking `job_migrate.py`.
 
-4. **A model-provider API key** — the migrator uses a model with tool use under the hood for each cell rewrite + verify. Each migrated job spends a few minutes of model-with-tool-use time. (The Claude-with-tool-use reference implementation uses `ANTHROPIC_API_KEY`; substitute your provider as needed.)
+4. **An OpenAI API key** - set `OPENAI_API_KEY` in the shell before running Pass-2. Optionally set `OPENAI_MODEL` to your team's approved OpenAI model.
 
 Once those are in place, the plugin's skills know how to invoke each entrypoint — Codex will run the right CLI commands in the right order based on your natural-language ask.
 
@@ -170,15 +168,15 @@ Once those are in place, the plugin's skills know how to invoke each entrypoint 
 
 ## Engine
 
-Everything flows through the migrator's CLI:
+Everything flows through the bundled migrator CLI staged under `~/.aidp-migrator/engine`:
 
 ```bash
 # Inventory & plan
-python3 scripts/build_dag.py --root <workspace-path> --job-name <name> --output reports/<name>_manifest.json
-python3 scripts/check_data_availability.py --root <workspace-path> --cluster <cluster-id>
+python3 $HOME/.aidp-migrator/engine/scripts/build_dag.py --root <workspace-path> --job-name <name> --output reports/<name>_manifest.json
+python3 $HOME/.aidp-migrator/engine/scripts/check_data_availability.py --root <workspace-path> --cluster <cluster-id>
 
 # Execute
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<name>_manifest.json \
   --cluster <cluster-id> \
   --aidp-base https://aidp.<region>.oci.oraclecloud.com/20240831 \
@@ -188,25 +186,17 @@ python3 scripts/job_migrate.py \
   --oci-profile <profile-name>
 
 # Catalog (separate flow)
-python3 scripts/extract_catalog_databricks.py --catalogs <catalog> --schemas-only "<catalog>:<schema>" --out reports/catalog_pack.json
-python3 scripts/migrate_catalog.py --pack reports/catalog_pack.json --cluster <cluster-id> --aidp-base ... --datalake-ocid ...
+python3 $HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py --catalogs <catalog> --schemas-only "<catalog>:<schema>" --out reports/catalog_pack.json
+python3 $HOME/.aidp-migrator/engine/scripts/migrate_catalog.py --pack reports/catalog_pack.json --cluster <cluster-id> --aidp-base ... --datalake-ocid ...
 ```
 
 The skills tell Codex when to call each + how to thread args from the env-coords reference into them.
 
 ---
 
-## Relationship to the Claude Code plugin
+## Relationship to the migrator toolkit
 
-This plugin is the **Codex CLI** sibling of the Claude Code plugin at `ai/claude-code-plugins/oracle-ai-data-platform-workbench-databricks-migrator`. Same knowledge base, same workflows, same references — repackaged for Codex's plugin shape.
-
-The notable differences:
-
-- Codex has no separate `commands/` or `agents/` directories at the plugin layer. The 4 guided slash-command flows from the Claude version become 4 additional skills (`migrate-job-flow`, `migrate-catalog-flow`, `check-data-flow`, `migration-status`); the 2 specialist agents become 2 more skills (`databricks-notebook-analyzer`, `migration-reviewer`). 10 core + 4 flows + 2 reviewers = 16 skills total.
-- `plugin.json` carries a Codex-specific `interface{}` block (display name, category, default-prompt seeds, brand color, etc.) and a top-level `skills: "./skills/"` pointer.
-- The marketplace manifest lives at `ai/codex-plugins/.agents/plugins/marketplace.json` instead of in a separate `marketplace.json` at the same level as the plugin dir.
-
-If you're using both Codex and Claude Code on the same workstation, install both — the SKILL.md content is intentionally identical so guidance stays in sync.
+This plugin is the **Codex CLI** package for the AIDP Databricks Migration Toolkit. The plugin bundles the OpenAI-based engine in `engine/`, exposes the migration workflows as Codex skills, and registers through the shared `oracle-aidp-codex` marketplace under `ai/codex-plugins`.
 
 ---
 

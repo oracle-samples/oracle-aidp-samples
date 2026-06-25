@@ -6,18 +6,19 @@
 
 ## Summary
 
-This plugin **does not collect, store, transmit, or share any user data**. It is a **knowledge-only** plugin — Markdown SKILL files and reference docs — that teach Codex how to drive a separate Oracle migration toolkit you check out locally. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy and **your own** Databricks workspace.
+This plugin **does not collect, store, transmit, or share any user data**. It ships Markdown skills, reference docs, and a bundled Python migration engine that runs locally under your Codex environment. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy, **your own** Databricks workspace, and **your own** OpenAI API key.
 
 ## What the plugin ships
 
 - **16 SKILL.md** files (Markdown with frontmatter).
-- **5 reference docs** (Markdown — DDL rewrite rules, gotchas, env-coords scaffold, JOB_REPORT.md format, CLI map).
+- **5 reference docs** (Markdown - DDL rewrite rules, gotchas, env-coords scaffold, JOB_REPORT.md format, CLI map).
+- **Bundled Python engine** under `engine/`, staged by the SessionStart hook to `~/.aidp-migrator/engine`.
 
-That's it. No bundled Python code, no third-party telemetry, no MCP server in the plugin manifest, no `.app.json` registration.
+No third-party telemetry, no MCP server in the plugin manifest, no `.app.json` registration.
 
 ## What the plugin does at runtime
 
-When you invoke a skill, Codex follows the skill's Markdown instructions to call the **migrator's CLI** (which lives in a separate Oracle toolkit you cloned locally) with the right arguments. Examples of what the migrator itself does:
+When you invoke a skill, Codex follows the skill's Markdown instructions to call the **bundled migrator CLI** staged at `~/.aidp-migrator/engine` with the right arguments. Examples of what the migrator itself does:
 
 - Reads notebooks from your Databricks workspace via the Databricks REST API (under your token).
 - Calls the AIDP REST API (under your OCI profile) to upload migrated `.ipynb` files, register jobs, and start cluster sessions.
@@ -29,15 +30,15 @@ All of this is under your own credentials, against your own infrastructure, **wi
 ## What the plugin does NOT do
 
 - **No telemetry.** The plugin sends nothing to the author or to any third party. No analytics, no error reporting, no usage metrics.
-- **No credential collection.** OCI authentication, Databricks PATs, and model-provider API keys are read from your local environment by the migrator scripts. The plugin's SKILL Markdown files cannot collect or transmit them.
+- **No credential collection.** OCI authentication, Databricks PATs, and OpenAI API keys are read from your local environment by the migrator scripts. The plugin's SKILL Markdown files cannot collect or transmit them.
 - **No phone-home.** The skills make no outbound calls to the author. Every network call goes to **your** Databricks workspace, **your** AIDP REST endpoint, and **your** model provider under **your** key.
 
 ## Data flow
 
 ```
-You (Codex CLI) → plugin skill (Markdown only)
-                → migrator CLI (Python, in your local clone)
-                → YOUR Databricks workspace + YOUR AIDP tenancy + YOUR model provider (your key)
+You (Codex CLI) → plugin skill
+                → bundled migrator CLI (Python, staged locally)
+                → YOUR Databricks workspace + YOUR AIDP tenancy + OpenAI (your key)
 ```
 
 There is no party between you and your infrastructure. The plugin author has no visibility into any of it.
