@@ -686,11 +686,11 @@ CRITICAL — Path rewriting safety for %run / dbutils.notebook.run / oidlUtils.n
    prefixes like ".../notebooks/.../notebooks/..." are always wrong.
 2. When matching a `%run` token (e.g., `<long_basename>`) against the MIGRATED DEPENDENCY PATHS list,
    match by EXACT basename equality only — never by prefix. A `%run <long_basename>` lookup must
-   NOT resolve to the entry for `M9` and append the remainder, producing
-   ".../M9.ipynb0.ipynb". If the exact name isn't in the list, leave the original `%run`
+   NOT resolve to the entry for `<short_basename>` and append the remainder, producing
+   ".../<short_basename>.ipynb<digit>.ipynb". If the exact name isn't in the list, leave the original `%run`
    token untouched and call make_note describing the missing dep.
 3. Every migrated `%run` path must end in exactly one ".ipynb" suffix. Patterns like
-   ".ipynb<digit>.ipynb" (e.g., "M9.ipynb0.ipynb") or ".ipynb.ipynb" indicate a path
+   ".ipynb<digit>.ipynb" (e.g., "<short_basename>.ipynb<digit>.ipynb") or ".ipynb.ipynb" indicate a path
    construction bug — never emit such paths.
 
 CRITICAL — AWS / boto3 / Glue dependencies have NO AWS SDK on AIDP:
@@ -756,7 +756,7 @@ Context:
   FORBIDDEN: oci.auth.signers.get_resource_principals_signer() — resource principal has known
   failure modes on AIDP and MUST NEVER be used. If customer code already uses the API-key init
   pattern (oci.config.from_file pointing under /Workspace/), PRESERVE that init code unchanged.
-- All required JARs are on classpath (Hudi, customer JAR 1, customer JAR 2, ExampleApp, parser, UDF)
+- All required JARs are on classpath (Hudi, your custom JARs, parser, UDF)
 
 CRITICAL — NEVER use direct JVM Hadoop FileSystem calls in migrated notebooks:
 The following patterns FAIL in customer's scheduled workflow runs and MUST NOT appear in any
@@ -857,7 +857,7 @@ CRITICAL - NOTEBOOK DEPENDENCIES (%run / dbutils.notebook.run / oidlUtils.notebo
 - NEVER convert %run to dbutils.notebook.run() or oidlUtils.notebook.run(). Keep %run as %run.
 - AIDP does not support spaces in paths. Replace spaces with underscores in ALL /Workspace/ paths
   in the code — %run paths, file open() paths, string literals referencing /Workspace/ directories, etc.
-  (e.g. "/Workspace/Users/foo/Model Monitoring/Utils" → "/Workspace/Users/foo/Model_Monitoring/Utils").
+  (e.g. "/Workspace/Users/foo/My Folder/Utils" → "/Workspace/Users/foo/My_Folder/Utils").
 
 CRITICAL - SLACK / NOTIFICATIONS:
 Slack/notification cells are handled automatically — they are converted to Raw cell type with original code preserved.
@@ -1385,7 +1385,7 @@ DATA SOURCE REPLACEMENTS (must produce equivalent data):
 
   Setup (once per notebook):
     import oci, os
-    _config_path = '/Workspace/testing/param/ai_notebook_migration/config'
+    _config_path = '/Workspace/<deploy_dir>/config'
     if not os.path.exists(_config_path):
         _config_path = '/Workspace/<deploy_dir>/config'
     _oci_config = oci.config.from_file(file_location=_config_path)
@@ -2857,7 +2857,7 @@ def _validate_migrated_run_paths(source: str, migrated_base: str) -> list:
       1. MIGRATED_BASE prepended twice (e.g. ".../notebooks/.../notebooks/...").
          The migrated_base string is a long unique prefix; appearing twice in a
          single path always indicates a doubling bug.
-      2. ".ipynb<digit>.ipynb" mangling (e.g. "M9.ipynb0.ipynb") — when a `%run`
+      2. ".ipynb<digit>.ipynb" mangling (e.g. "<short_basename>.ipynb<digit>.ipynb") — when a `%run`
          basename was prefix-matched against dep_path_map and the remainder was
          appended verbatim.
       3. Doubled ".ipynb.ipynb" suffix (e.g. "foo.ipynb.ipynb") — basename was
@@ -4005,8 +4005,8 @@ def _add_missing_imports(source: str) -> str:
 # ── Databricks job-trigger rewriting ───────────────────────────────────
 #
 # Rewrites Databricks job invocations to call the AIDP-equivalent job via
-# /Workspace/<deploy_dir>/invoke_job1.run_job_and_wait. Confirmed signature
-# (verified by reading invoke_job1.py 2026-05-05):
+# /Workspace/<deploy_dir>/<job_runner>.run_job_and_wait. Confirmed signature
+# (verified by reading the source script):
 #
 #   run_job_and_wait(job_id: str, params: list = [], poll_interval=30, timeout=3600)
 #
@@ -4059,13 +4059,13 @@ _AIDP_UNMAPPED_TEMPLATE = """\
 {indent}print("[Oracle migration] SKIPPED Databricks job {db_id}: no AIDP mapping in manifest db_to_aidp_job_map — see JOB_REPORT.md")"""
 
 # ── AIDP run_job_and_wait helper (inlined into every notebook that uses it) ──
-# Mirrors /Workspace/<deploy_dir>/invoke_job1.run_job_and_wait so migrated notebooks
+# Mirrors /Workspace/<deploy_dir>/<job_runner>.run_job_and_wait so migrated notebooks
 # don't depend on that file existing. URL constants are substituted from the
 # toolkit's runtime config (AIDP_BASE / DATALAKE_OCID / WORKSPACE_ID) so the
 # helper is fully wired up at injection time.
 _AIDP_INVOKE_HELPER_TEMPLATE = '''\
 # Oracle tool modification: inlined AIDP run_job_and_wait helper
-# (mirrors /Workspace/<deploy_dir>/invoke_job1.py — kept self-contained so the migrated
+# (mirrors /Workspace/<deploy_dir>/<job_runner>.py — kept self-contained so the migrated
 # notebook works without depending on that file existing on the cluster)
 def _aidp_run_job_and_wait(job_id, params=None, poll_interval=30, timeout=3600):
     """Submit an AIDP job and block until it finishes. Returns the final
@@ -4828,14 +4828,14 @@ def _preprocess_cell_source(source: str, dep_path_map: dict = None) -> str:
     # Why this was REMOVED — Bug B (root-cause):
     # source notebooks frequently deactivate code blocks by wrapping them
     # in `'''...'''`. When the FIRST line of such a block contains an inner
-    # string literal (e.g., `'''lomlo = spark.read.format('org.apache.hudi')...`),
+    # string literal (e.g., `'''<varname> = spark.read.format('org.apache.hudi')...`),
     # the regex's non-greedy body stops at the first internal `'`, and that
     # internal `'` is captured as a "mismatched closer". The replacement
     # then strips TWO of the three opening quotes, producing
-    #   `'lomlo = spark.read.format('org.apache.hudi')...`
+    #   `'<varname> = spark.read.format('org.apache.hudi')...`
     # which Python reads as an unterminated single-quoted string literal.
     #
-    # We observed this Bug B firing in run-1 (7 cells) and run-5 (cell 23/201).
+    # This pattern can fire across multiple runs and cells.
     # Opus's call_fix loop eventually recovered each occurrence, but at the
     # cost of extra API calls and risk of mis-fix. Removing the transform
     # entirely is safer than trying to make the regex precise — real
@@ -5045,7 +5045,7 @@ def _ensure_dbutils_import(cells: list) -> list:
 def _ensure_invoke_job_helper(cells: list) -> list:
     """If any cell calls _aidp_run_job_and_wait, inject the helper definition
     once at the top of the notebook so the migrated notebook is self-contained
-    (no dependency on /Workspace/<deploy_dir>/invoke_job1.py existing).
+    (no dependency on /Workspace/<deploy_dir>/<job_runner>.py existing).
 
     Idempotent — skips if the helper definition is already present.
     """
@@ -9447,7 +9447,7 @@ async def main():
     parser.add_argument("--only-tasks", default="",
                         help="Comma-separated task names to run (substring match on task_key). "
                              "Only matching tasks are executed, all others are skipped. "
-                             "Example: --only-tasks '02_BaseData_ExampleApp,05_ExampleApp_Feature'")
+                             "Example: --only-tasks 'task_a,task_b'")
     _skip_grp = parser.add_mutually_exclusive_group()
     _skip_grp.add_argument("--skip-migrated", action="store_true", dest="skip_migrated", default=True,
                            help="Skip notebooks already migrated (default: enabled). "

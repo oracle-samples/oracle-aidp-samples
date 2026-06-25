@@ -149,7 +149,7 @@ async def main():
                         help="Skip AI migration, execute cells as-is")
     parser.add_argument("--only-tasks", default="",
                         help="Comma-separated task_key substrings — run ONLY matching tasks. "
-                             "Example: --only-tasks '11_2_hyperopt_GPU,11_3_gs'")
+                             "Example: --only-tasks 'task_a,task_b'")
 
     # AIDP environment
     parser.add_argument("--aidp-base", default=None,

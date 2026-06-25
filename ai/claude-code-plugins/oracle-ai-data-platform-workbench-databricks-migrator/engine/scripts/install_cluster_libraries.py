@@ -26,14 +26,8 @@ OCI_PROFILE = "DEFAULT"
 
 # JARs to install (paths on the workspace)
 JARS_TO_INSTALL = [
-    "/Workspace/migration-dependencies/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_1.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_2.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_3.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_4.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_5.jar",
-    "/Workspace/migration-dependencies/jars/customer_jar_6.jar",
-    "/Workspace/migration-dependencies/jars/scala-logging_2.12-3.9.5.jar",
+    # Edit per project. Example entry:
+    # "/Workspace/migration-dependencies/jars/your_jar.jar",
 ]
 
 # requirements.txt for pip packages

@@ -19,7 +19,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 ### Changed
 
 - All 10 SKILL.md script-path examples updated from `python3 scripts/...` to `python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/...`.
-- `references/cli-map.md` (19 entries) updated to canonical bundled-engine paths.
+- `references/cli-map.md` updated to canonical bundled-engine paths.
 - `README.md` Prerequisites section: "Clone the migrator repo" → "the engine ships bundled — just `pip install -r ${CLAUDE_PLUGIN_ROOT}/engine/requirements.txt`".
 - `PRIVACY.md`: "knowledge-only" framing → "self-contained, bundled engine, no telemetry".
 - All hardcoded customer identifiers (OCIDs, UUIDs, region, namespaces, customer name, workspace paths, internal hostnames, personal usernames) in the bundled engine replaced with `<PLACEHOLDER>` style values.

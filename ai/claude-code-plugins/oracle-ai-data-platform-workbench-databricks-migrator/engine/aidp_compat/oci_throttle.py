@@ -27,12 +27,12 @@ At the top of a migrated notebook::
 
     from aidp_compat import apply_object_storage_hardening
     apply_object_storage_hardening(spark)               # balanced profile (default)
-    apply_object_storage_hardening(spark, "aggressive") # for 1000+ parallel jobs
+    apply_object_storage_hardening(spark, "aggressive") # for thousands of parallel jobs
 
 Or, programmatically tune for an expected concurrency::
 
     from aidp_compat.oci_throttle import tune_for_parallel_migration
-    tune_for_parallel_migration(spark, concurrent_jobs=2500)
+    tune_for_parallel_migration(spark, concurrent_jobs=N)
 
 This module is import-safe in non-Spark environments (pytest etc.).
 """

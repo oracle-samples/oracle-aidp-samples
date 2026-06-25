@@ -2,7 +2,7 @@
 AIDP Path Translator
 ====================
 Translates Databricks/AWS storage paths to OCI equivalents.
-This is the CRITICAL piece - 931 storage_path + 253 dbfs_path + 241 aws_specific issues.
+This is the CRITICAL piece - thousands of path-translation issues across categories.
 
 Path types handled:
 - dbfs:/...              -> oci://bucket@namespace/...

@@ -4,7 +4,7 @@
 
 ---
 
-## Gotcha #1 — legacy decrypt UDFs
+## Gotcha #1 — AWS-Secrets-Manager-backed decrypt UDFs
 
 **What breaks:** notebooks reference a UDF backed by AWS Secrets Manager. AIDP has no equivalent.
 
@@ -205,4 +205,4 @@
 | `NameError: name '<var>' is not defined` in a parameter context | #10 / #15 |
 | `S3 bucket "<name>" not found in OCI bucket mapping` | #14 |
 | `object datastax is not a member of package com` | #13 |
-| `legacy_decrypt is not defined` / `AWS Secrets Manager` | #1 |
+| `<legacy_secret_udf> is not defined` / `AWS Secrets Manager` | #1 |

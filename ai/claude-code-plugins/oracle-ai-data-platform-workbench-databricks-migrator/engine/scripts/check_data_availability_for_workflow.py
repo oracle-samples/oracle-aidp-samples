@@ -23,7 +23,7 @@ Usage:
     # Check only specific tasks
     python3 check_data_availability_for_workflow.py \\
         --job-key <uuid> --cluster <uuid> \\
-        --only-tasks "02_BaseData_ExampleApp,05_ExampleApp_Feature"
+        --only-tasks "task_a,task_b"
 """
 
 import argparse

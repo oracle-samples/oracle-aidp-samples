@@ -80,7 +80,7 @@ _NON_FORMAT_DROP_PREFIXES = (
 # When the target is NOT Delta, every `delta.*` property must also be dropped:
 # a non-Delta table can only be harmed by inheriting Delta-runtime properties
 # (delta.columnMapping.mode in particular silently corrupts column resolution
-# on parquet). Per code review 2026-06-05.
+# on parquet). Per internal code review.
 DROPPED_PROP_PREFIXES = _NON_FORMAT_DROP_PREFIXES + ("delta.",)
 
 def is_dropped_property(key: str) -> bool:
@@ -297,7 +297,7 @@ def rewrite_table_ddl(
 
     # ── partitioning ──
     # Partition order is defined by partition_index, NOT by column position
-    # (per code review 2026-06-05). A position-ordered partition list emits
+    # (per internal code review). A position-ordered partition list emits
     # PARTITIONED BY (...) in the wrong order, changing the physical layout
     # on disk and breaking partition-predicate pushdown.
     _partition_cols = [c for c in cols if c.get("partition_index") is not None]

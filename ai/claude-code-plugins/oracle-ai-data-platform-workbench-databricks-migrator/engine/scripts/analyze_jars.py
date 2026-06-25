@@ -28,28 +28,9 @@ WORKSPACE_ID = "<WORKSPACE_ID>"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
 OCI_PROFILE = "DEFAULT"
 
-# Known JARs on the workspace (from enumeration)
-WORKSPACE_JARS = [
-    "<workspace_jars>/customer_jar_2.jar",
-    "<workspace_jars>/customer_jar_2_v1.jar",
-    "<workspace_jars>/customer_jar_2_v2.jar",
-    "<workspace_jars>/customer_jar_2_v3.jar",
-    "<workspace_jars>/customer_jar_6.jar",
-    "<workspace_jars>/customer_jar_6_v1.jar",
-    "<workspace_jars>/customer_jar_5.jar",
-    "<workspace_jars>/deprecated_hudi_spark_bundle.jar",
-    "<workspace_jars>/spark-listener-jars/spark-eventlistener-1.0.4.jar",
-    "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
-    "jars/scala-logging_2.12-3.9.5.jar",
-    "jars/customer_jar_1_v1.jar",
-    "jars/customer_jar_6_v1.jar",
-    "jars/spark-cassandra-connector_2.13-3.5.1.jar",
-    "customer_jar_4.jar",
-    "customer_jar_1_v1.jar",
-    "customer_jar_1.jar",
-    "<workspace_jars>/customer_jar_2.jar",
-    "<workspace_jars>/customer_jar_3.jar",
-]
+# WORKSPACE_JARS — populated at runtime via dbutils.fs.ls('<workspace_jars>')
+# or set via CLI flag --jars-config. Empty default — edit per project.
+WORKSPACE_JARS = []
 
 
 def get_oci_signer():

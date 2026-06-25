@@ -13,7 +13,7 @@ For each package:
 
 Usage:
     python3 scripts/fuse_package_analyzer.py --packages pandas requests
-    python3 scripts/fuse_package_analyzer.py --packages econml --output /tmp/econml_risk.json
+    python3 scripts/fuse_package_analyzer.py --packages pandas --output /tmp/pandas_risk.json
 """
 
 import argparse

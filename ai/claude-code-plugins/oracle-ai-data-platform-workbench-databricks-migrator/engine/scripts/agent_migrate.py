@@ -552,7 +552,7 @@ Return ONLY valid JSON: {"cells": [...], "migration_notes": [...]}"""
 FIX_PROMPT = """You are fixing a PySpark , Scala or SQL cell that failed on OCI AIDP.
 Keep the fix minimal. Return ONLY the fixed code, no markdown.
 
-SCYLLADB → AIDP METASTORE (applies when the failing cell uses Cassandra/Scylla patterns):
+EXTERNAL NoSQL → AIDP METASTORE (applies when the failing cell uses Cassandra/Scylla/other external NoSQL connectors):
 The migration policy is a TEMPORARY mapping — every ScyllaDB keyspace is mirrored to the
 AIDP metastore as a schema named `scylla_<keyspace>` (original keyspace prefixed with
 `scylla_` for identification); every Scylla table is registered as a Spark table with the
@@ -716,8 +716,8 @@ CRITICAL — Path rewriting safety for %run / dbutils.notebook.run / oidlUtils.n
    prefixes like ".../notebooks/.../notebooks/..." are always wrong.
 2. When matching a `%run` token (e.g., `<long_basename>`) against the MIGRATED DEPENDENCY PATHS list,
    match by EXACT basename equality only — never by prefix. A `%run <long_basename>` lookup must
-   NOT resolve to the entry for `M9` and append the remainder, producing
-   ".../M9.ipynb0.ipynb".
+   NOT resolve to the entry for `<short_basename>` and append the remainder, producing
+   ".../<short_basename>.ipynb<digit>.ipynb".
 3. Every migrated `%run` path must end in exactly one ".ipynb" suffix. Patterns like
    ".ipynb<digit>.ipynb" or ".ipynb.ipynb" indicate a path construction bug — never emit.
 
@@ -976,7 +976,7 @@ CRITICAL - CODE QUALITY:
 
 # --- FUSE WORKAROUNDS (DISABLED 2026-04-11: AIDP FUSE issues resolved) ---
 # Uncomment if FUSE consistency issues resurface.
-# CRITICAL - AIDP SAFE I/O (aidp_compat v0.4.3):
+# CRITICAL - AIDP SAFE I/O (aidp_compat v0.5.0):
 # - For pickle write+read: use safe_pickle_dump() and safe_pickle_load() from aidp_compat
 # - For parquet overwrite-same-path: use safe_write_parquet() or safe_read_modify_write_parquet()
 # - For saveAsTable overwrite: use safe_save_as_table() (caches before overwrite)

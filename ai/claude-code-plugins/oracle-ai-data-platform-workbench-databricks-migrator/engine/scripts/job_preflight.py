@@ -219,8 +219,8 @@ def resolve_notebook_path(signer, path: str, inventory: Set[str]) -> Tuple[str, 
 
     # Try 6: Check in migration_staging paths
     staging_prefixes = [
-        "testing/param/automation/<internal_staging>/",
-        "testing/param/automation/dbxToaidp/migration_staging/",
+        "<internal_staging_root>/<internal_staging>/",
+        "<internal_staging_root>/<internal_staging>/migration_staging/",
         "<validation_dir>/",
     ]
     for prefix in staging_prefixes:

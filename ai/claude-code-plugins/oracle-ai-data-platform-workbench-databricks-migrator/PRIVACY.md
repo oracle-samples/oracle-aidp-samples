@@ -12,9 +12,9 @@ This plugin **does not collect, store, transmit, or share any user data**. It is
 - **10 SKILL.md** files (Markdown with frontmatter) under `skills/`.
 - **4 slash commands** (Markdown) under `commands/`.
 - **2 specialist agents** (Markdown) under `agents/`.
-- **5 reference docs** (Markdown) under `references/` — DDL rewrite rules, gotchas, env-coords scaffold, `JOB_REPORT.md` format, CLI map.
+- **reference docs** (Markdown) under `references/` — DDL rewrite rules, gotchas, env-coords scaffold, `JOB_REPORT.md` format, CLI map.
 - **The full Python migration engine** bundled under `engine/`:
-  - `engine/scripts/` (38 Python files) — `job_migrate.py`, `agent_migrate.py`, `cluster_session.py`, `aidp_executor.py`, `build_dag.py`, `check_data_availability.py`, `migrate_catalog.py`, `extract_catalog_databricks.py`, `acceptance_contract.py`, etc.
+  - `engine/scripts/` (Python engine modules) — `job_migrate.py`, `agent_migrate.py`, `cluster_session.py`, `aidp_executor.py`, `build_dag.py`, `check_data_availability.py`, `migrate_catalog.py`, `extract_catalog_databricks.py`, `acceptance_contract.py`, etc.
   - `engine/aidp_compat/` (21 Python files) — drop-in `dbutils` compatibility shim for AIDP clusters.
   - `engine/schemas/` — JSON schemas (acceptance contract).
   - `engine/setup.py`, `engine/requirements.txt` — Python package metadata + deps.

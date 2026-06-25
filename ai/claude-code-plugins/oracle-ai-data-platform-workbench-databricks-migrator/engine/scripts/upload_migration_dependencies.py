@@ -33,14 +33,9 @@ LOCAL_JARS_DIR = os.path.join(PROJECT_DIR, "jars")
 
 # JARs to upload (source path on workspace -> local downloaded copy)
 REQUIRED_JARS = {
-    "hudi-spark3.5-bundle_2.12-0.15.0.jar": "Hudi Spark 3.5 bundle",
-    "customer_jar_1.jar": "customer_jar_1",
-    "customer_jar_2.jar": "customer_jar_2",
-    "customer_jar_3.jar": "customer_jar_3",
-    "customer_jar_4.jar": "customer_jar_4",
-    "customer_jar_5.jar": "customer_jar_5",
-    "customer_jar_6.jar": "customer_jar_6",
-    "scala-logging_2.12-3.9.5.jar": "Scala Logging (transitive dep)",
+    # Edit per project. Map jar filename -> human-readable label.
+    # Example:
+    # "your_jar.jar": "your_label",
 }
 
 

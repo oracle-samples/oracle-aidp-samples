@@ -27,57 +27,18 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # New migration testing cluster
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
-REQUIREMENTS_TXT = """# Edit per project. Example minimal set:
+REQUIREMENTS_TXT = """# Example minimal set — edit per project.
+# Add your project-specific Python dependencies below.
 pandas>=2.3.0
 numpy>=2.4.0
-requests>=2.32.0
-oci>=2.167.0
-nbformat>=5.10.0
-ray>=2.54.0
-slack_sdk>=3.27.0
-boto3>=1.42.0
-IPython>=8.0.0
-matplotlib>=3.7.0
-scikit-learn>=1.3.0
-scipy>=1.11.0
-xgboost>=1.7.6
-seaborn>=0.12.0
-shap>=0.42.0
-optuna>=3.3.0
-joblib>=1.3.0
-pytz>=2023.3
-python-dateutil>=2.8.0
-python-box>=7.0.0
-tqdm>=4.65.0
-pyarrow>=12.0.0
-openpyxl>=3.1.0
-xlsxwriter>=3.1.0
-fuzzywuzzy>=0.18.0
-python-Levenshtein>=0.21.0
-brotli>=1.0.9
-mlflow>=2.8.0
-plotly>=5.15.0
-kaleido>=0.2.1
-dataframe-image>=0.2.0
-Pillow>=10.0.0
-pyathena>=3.0.0
-trino>=0.326.0
-gspread>=5.10.0
-gspread-dataframe>=3.3.0
-econml>=0.14.0
-psutil>=5.9.0
-omegaconf>=2.3.0"""
+requests>=2.31.0
+"""
 
 # JARs: source path on workspace -> destination name
 JARS = [
-    ("/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar", "hudi-spark3.5-bundle_2.12-0.15.0.jar"),
-    ("/Workspace/customer_jar_1.jar", "customer_jar_1.jar"),
-    ("/Workspace/<workspace_jars>/customer_jar_2.jar", "customer_jar_2.jar"),
-    ("/Workspace/<workspace_jars>/customer_jar_3.jar", "customer_jar_3.jar"),
-    ("/Workspace/customer_jar_4.jar", "customer_jar_4.jar"),
-    ("/Workspace/<workspace_jars>/customer_jar_5.jar", "customer_jar_5.jar"),
-    ("/Workspace/<workspace_jars>/customer_jar_6.jar", "customer_jar_6.jar"),
-    ("/Workspace/jars/scala-logging_2.12-3.9.5.jar", "scala-logging_2.12-3.9.5.jar"),
+    # Edit per project. Each entry is (source_path, dest_jar_name).
+    # Example:
+    # ("/Workspace/jars/your_jar.jar", "your_jar.jar"),
 ]
 
 

@@ -1,6 +1,6 @@
 # aidp_compat — Supported Operations
 
-Version: **0.5.3** (wheel: `aidp_compat-0.5.3-py3-none-any.whl`)
+Version: **0.5.0** (wheel: `aidp_compat-0.5.0-py3-none-any.whl`)
 OCI auth: **API key** via `/Workspace/<oci-config-workspace-path>` (DEFAULT profile).
 Override with env vars: `OCI_CONFIG_FILE` / `OCI_CONFIG_PROFILE`.
 

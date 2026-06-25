@@ -34,7 +34,7 @@ import requests
 def _get(url: str, token: str, *, max_attempts: int = 6, **kwargs) -> dict:
     """REST GET with bearer auth + exponential backoff honoring Retry-After.
 
-    Per code review 2026-06-05 (200k-table sweep concern): the original
+    For large-scale catalog (100k+ tables): the original
     single-retry policy exhausts immediately under sustained 429s. We now do
     up to 6 attempts with backoff = min(60s, 2 ** (attempt-1)) seconds,
     honoring `Retry-After` when the server returns it.
@@ -191,10 +191,10 @@ def extract(
 
             # The list-tables response already includes full columns + properties
             # for most tables — only Delta-shared tables come back with empty
-            # `columns`. Per code review 2026-06-05: skip the per-table detail
+            # `columns`. Per internal code review: skip the per-table detail
             # fetch when the list result is already complete, falling back to
-            # get_table_detail() only when columns are missing. At 200k tables
-            # this collapses ~200k sequential GETs into ~200k/page list calls.
+            # get_table_detail() only when columns are missing. At large-scale catalogs
+            # this collapses ~N sequential GETs into ~N/page list calls.
             for t in tables:
                 full_name = t.get("full_name") or f"{cat_name}.{sch_name}.{t['name']}"
                 has_columns = bool(t.get("columns"))
