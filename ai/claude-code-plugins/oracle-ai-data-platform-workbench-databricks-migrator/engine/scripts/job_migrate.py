@@ -659,9 +659,9 @@ gets persisted to the saved notebook forever. Specifically FORBIDDEN:
     locally in the cell is FORBIDDEN — that copy is NOT what the call site sees
     (the cell-text redirect has already changed the arg), AND if the rewrite missed
     something, the inline copy writes to whatever database_name was passed. The
-    forbidden names: createTable, createTableOld, createTableIntermediate,
-    createTableIntermediateOld, createTableIntermediate_append, createTableIntermediate_1,
-    createTableInApp, createTable_oracle, saveTable, writeTable, write_to_delta,
+    forbidden names: createTable, saveTable,
+    
+    writeTable, write_to_delta,
     process_source, drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded — that's a systemic recovery, not

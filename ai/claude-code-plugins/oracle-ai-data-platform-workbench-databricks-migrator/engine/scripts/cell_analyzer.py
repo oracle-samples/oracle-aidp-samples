@@ -249,8 +249,8 @@ RISK_PATTERNS = [
         ),
     },
     {
-        "name": "legacy_udf",
-        "pattern": r"legacy_(decrypt|encrypt)|Legacy(Decrypt|Encrypt)",
+        "name": "aws_secrets_backed_udf",
+        "pattern": r"<aws_secrets_udf_pattern>",  # config-driven via reports/udf_patterns.json
         "severity": "HIGH",
         "fix": (
             "AWS-Secrets-Manager-backed decryption UDFs require AWS keys — not available on OCI. "

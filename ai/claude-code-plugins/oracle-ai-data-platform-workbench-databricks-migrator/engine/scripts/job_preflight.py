@@ -446,7 +446,7 @@ def main():
             if child not in all_notebook_paths:
                 all_children.add(child)
 
-    print(f"Discovered {len(all_children)} child notebooks not in the 71 job notebooks")
+    print(f"Discovered {len(all_children)} child notebooks not in the {len(all_notebook_paths)} job notebooks")
     for child in sorted(all_children):
         print(f"  CHILD: {child}")
 
