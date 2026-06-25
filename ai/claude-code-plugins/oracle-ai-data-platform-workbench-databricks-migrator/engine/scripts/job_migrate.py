@@ -12,7 +12,7 @@ Migrates Databricks jobs to AIDP with:
 
 Usage:
     python3 job_migrate.py --parallel 20
-    python3 job_migrate.py --jobs Collection_FS_Job --parallel 1  # smoke test
+    python3 job_migrate.py --jobs <job_name> --parallel 1  # smoke test
 """
 
 import anthropic
@@ -208,7 +208,7 @@ def signer():
 
 # ─── OCI Object Storage Fallback ────────────────────────────────────
 
-OCI_BACKUP_BUCKET = "oracle_ai_automation"
+OCI_BACKUP_BUCKET = "<oci_backup_bucket>"
 OCI_BACKUP_NAMESPACE = "<WORKSPACE_NAMESPACE>"
 
 _OS_CLIENT = None
@@ -290,8 +290,8 @@ def _download_path_variants(path: str) -> list:
     """Generate path variants to try when downloading.
 
     AIDP file names may differ from how they're referenced in code:
-      - Original: "Feature Monitoring revamp" (with spaces, no .ipynb)
-      - Code reference may use: "Feature_Monitoring_revamp.ipynb"
+      - Original: "<Original Notebook Name>" (with spaces, no .ipynb)
+      - Code reference may use: "<original_notebook_name>.ipynb"
     Try all combinations of {as-is, +.ipynb, -.ipynb} × {as-is, spaces↔underscores}.
     Order: most likely first (as-is, then add .ipynb, then transform).
     """
@@ -653,7 +653,7 @@ gets persisted to the saved notebook forever. Specifically FORBIDDEN:
     worked in Databricks.
   - **NEVER inline-define customer writer-wrapper functions** to "fix" a NameError.
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
-    `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', 'oracle_ai_automation_overwrite', ...)`)
+    `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', '<oci_backup_bucket>_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
     (NameError), defining a fresh copy of the customer's `def createTable(...)`
     locally in the cell is FORBIDDEN — that copy is NOT what the call site sees
@@ -684,8 +684,8 @@ CRITICAL — Path rewriting safety for %run / dbutils.notebook.run / oidlUtils.n
    target path already begins with the migrated-base prefix (e.g.,
    "/Workspace/.../example_ai_notebook_migration/.../notebooks/"), use it as-is. Doubled
    prefixes like ".../notebooks/.../notebooks/..." are always wrong.
-2. When matching a `%run` token (e.g., `M90`) against the MIGRATED DEPENDENCY PATHS list,
-   match by EXACT basename equality only — never by prefix. A `%run M90` lookup must
+2. When matching a `%run` token (e.g., `<long_basename>`) against the MIGRATED DEPENDENCY PATHS list,
+   match by EXACT basename equality only — never by prefix. A `%run <long_basename>` lookup must
    NOT resolve to the entry for `M9` and append the remainder, producing
    ".../M9.ipynb0.ipynb". If the exact name isn't in the list, leave the original `%run`
    token untouched and call make_note describing the missing dep.
@@ -826,7 +826,7 @@ CRITICAL - NOTEBOOK DEPENDENCIES (%run / dbutils.notebook.run / oidlUtils.notebo
   They are not needed in AIDP — workflow parameters come through oidlUtils.parameters.
 - oidlUtils is a NATIVE AIDP module — it is pre-loaded in every kernel. Do NOT import it.
   No "from aidp_compat import oidlUtils" or "import oidlUtils" — just use oidlUtils.xxx directly.
-- TRINO / ATHENA (pyathena) → AIDP SPARK CATALOG: AWS Athena and Trino/Presto are external
+- EXTERNAL QUERY ENGINES → AIDP SPARK CATALOG (e.g. Trino, Athena/pyathena): AWS Athena and Trino/Presto are external
   query engines NOT available on AIDP. Do NOT install or connect to them (pyathena = AWS-only;
   trino needs an unreachable endpoint). The same tables are registered in the AIDP Spark catalog
   — read via Spark, KEEPING the SQL text:
@@ -1314,7 +1314,7 @@ make_note() to flag the cell for manual review.
 
 === END SCYLLADB → AIDP METASTORE MIGRATION ===
 
-CRITICAL - DO NOT CHANGE CUSTOMER CODE LOGIC:
+CRITICAL - DO NOT CHANGE SOURCE CODE LOGIC:
 - Do NOT convert pandas to PySpark (e.g. pd.read_csv → spark.read.format('csv') is WRONG)
 - Do NOT convert PySpark to pandas
 - Do NOT change data processing logic, algorithms, or library choices
@@ -1652,11 +1652,11 @@ def _is_write_cell(source: str) -> bool:
 # only the cluster-executed code (`exec_code`) is rewritten.
 #
 # Redirect targets:
-#   • Tables: default.oracle_ai_automation_overwrite.<db>_<tbl>
+#   • Tables: default.<oci_backup_bucket>_overwrite.<db>_<tbl>
 #             where <db>_<tbl> comes from canonicalizing the customer's
 #             identifier (1-/2-/3-part → 3-tuple → schema_table). Catalog
 #             is dropped because AIDP only uses "default" anyway.
-#   • Paths:  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/<orig-suffix>
+#   • Paths:  oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/<orig-suffix>
 #             where <orig-suffix> is everything after `bucket@ns/` in the
 #             original — preserves file/folder structure for predictability.
 #
@@ -1678,8 +1678,8 @@ def _is_write_cell(source: str) -> bool:
 #   • Skip `/Volumes/...`, `/Workspace/...` (AIDP-local FUSE; not OCI).
 #   • Skip targets already in the tool namespace (idempotency on retries).
 
-_REDIRECT_TABLE_PREFIX  = "default.oracle_ai_automation_overwrite"
-_REDIRECT_BUCKET        = "oracle_ai_automation"
+_REDIRECT_TABLE_PREFIX  = "default.<oci_backup_bucket>_overwrite"
+_REDIRECT_BUCKET        = "<oci_backup_bucket>"
 _REDIRECT_NAMESPACE     = "<WORKSPACE_NAMESPACE>"   # AIDP workspace namespace
 
 # Module-level state. Reset via clear_write_redirect_map() between jobs.
@@ -1735,7 +1735,7 @@ def _canonicalize_table_id(raw: str) -> Optional[Tuple[str, str, str]]:
 
 def _redirect_target_for_table(canonical: Tuple[str, str, str]) -> str:
     """Build the redirected 3-part table name for a canonical identifier.
-    Format: default.oracle_ai_automation_overwrite.<db>_<tbl>.
+    Format: default.<oci_backup_bucket>_overwrite.<db>_<tbl>.
     Catalog from the canonical tuple is intentionally dropped because AIDP
     uses 'default' uniformly."""
     _, db, tbl = canonical
@@ -1830,14 +1830,14 @@ def _canonicalize_path(raw: str) -> Optional[str]:
 
 def _redirect_target_for_path(orig: str) -> Optional[str]:
     """Map an oci://bucket@ns/suffix path to
-    oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/<orig-bucket>/<orig-suffix>.
+    oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/<orig-bucket>/<orig-suffix>.
 
     The original bucket name is preserved as the first path segment in
     the redirected URI. This prevents collisions when two source paths
     in different buckets share an identical suffix:
 
-      oci://customer-prod@ns1/sales/2024/  →  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/customer-prod/sales/2024/
-      oci://other-prod@ns2/sales/2024/ →  oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/other-prod/sales/2024/
+      oci://<source_bucket>@ns1/sales/2024/  →  oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/<source_bucket>/sales/2024/
+      oci://other-prod@ns2/sales/2024/ →  oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/other-prod/sales/2024/
 
     Returns None for inputs that are not valid OCI URIs.
     """
@@ -1858,17 +1858,17 @@ def _is_volume_or_workspace_path(p: str) -> bool:
 
 def _is_already_redirected_table(raw: str) -> bool:
     """Idempotency: a table identifier whose canonicalized 3-tuple has db
-    == 'oracle_ai_automation_overwrite' is already in the tool namespace.
+    == '<oci_backup_bucket>_overwrite' is already in the tool namespace.
     Don't redirect again."""
     canon = _canonicalize_table_id(raw)
     if not canon:
         return False
     _, db, _ = canon
-    return db.lower() == "oracle_ai_automation_overwrite"
+    return db.lower() == "<oci_backup_bucket>_overwrite"
 
 
 def _is_already_redirected_path(raw: str) -> bool:
-    """Idempotency: paths in oracle_ai_automation@<WORKSPACE_NAMESPACE> are the
+    """Idempotency: paths in <oci_backup_bucket>@<WORKSPACE_NAMESPACE> are the
     tool's own namespace — don't redirect again."""
     return f"oci://{_REDIRECT_BUCKET}@" in (raw or "")
 
@@ -2188,7 +2188,7 @@ def _apply_wrapper_call_redirect(exec_code: str, source_op_hint: str = "") -> st
 # whose destination is a VARIABLE (e.g. df.write.json(coverageDump)) slip
 # through. To GUARANTEE no write ever touches a real bucket, inject a tiny
 # runtime helper that maps any oci://bucket@ns/suffix →
-# oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/bucket/suffix (same convention as
+# oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/bucket/suffix (same convention as
 # _redirect_target_for_path) and WRAP every write-terminal argument with it at
 # EXEC time. Works for literals AND variables, in Scala and Python. EXEC-only —
 # never saved.
@@ -2385,7 +2385,7 @@ def _apply_write_redirects(exec_code: str, source_op_hint: str = "") -> str:
     # ── SQL DDL/DML ──
     # All DDL/DML ops (CREATE/INSERT/UPDATE/DELETE/MERGE/DROP/ALTER/TRUNCATE)
     # go through the same identifier-substitution path: redirect the table
-    # identifier to oracle_ai_automation_overwrite.<db>_<tbl>. source data
+    # identifier to <oci_backup_bucket>_overwrite.<db>_<tbl>. source data
     # is never touched because the SQL now references the tool's temp schema.
     #
     # Why DROP TABLE no longer gets replaced with a no-op comment:
@@ -2521,10 +2521,10 @@ def get_write_redirect_summary() -> Dict:
 #                 of these are called.
 #
 # Roles redirected by the interceptor:
-#   - db    → "oracle_ai_automation_overwrite"
-#   - bucket→ "oracle_ai_automation"
-#   - path  → oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/<orig-bucket>/<suffix>
-#   - full_id (e.g. "db.tbl") → "oracle_ai_automation_overwrite.tbl"
+#   - db    → "<oci_backup_bucket>_overwrite"
+#   - bucket→ "<oci_backup_bucket>"
+#   - path  → oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/<orig-bucket>/<suffix>
+#   - full_id (e.g. "db.tbl") → "<oci_backup_bucket>_overwrite.tbl"
 # The interceptor leaves `table`, `mode`, and unknown roles alone.
 #
 # Idempotency:
@@ -7806,7 +7806,7 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
             # Ensure aidp_compat import is in first code cell if dbutils is used anywhere
             stripped_cells = _ensure_dbutils_import(stripped_cells)
             # Inject inlined run_job_and_wait helper if any cell uses it (so the
-            # migrated notebook is self-contained, no /Workspace/dbc dependency).
+            # migrated notebook is self-contained, no external staging-folder dependency).
             stripped_cells = _ensure_invoke_job_helper(stripped_cells)
 
             # Artifact-time sys.path cell — only added when local modules were
@@ -9207,7 +9207,7 @@ else:
             # ensure_migrated() recursively migrates sub-deps and caches them in
             # _migration_cache, but only returns the top-level migrated path.
             # Without this, _inline_child_notebook can't resolve nested %run paths
-            # (e.g. <00_parameters>.ipynb -> %run ./<shared_utils_notebook>) because they're
+            # (e.g. <parameters_stub>.ipynb -> %run ./<shared_utils_notebook>) because they're
             # not direct deps of the task notebook.
             transitive_added = 0
             for cached_norm, cached_path in _migration_cache.items():

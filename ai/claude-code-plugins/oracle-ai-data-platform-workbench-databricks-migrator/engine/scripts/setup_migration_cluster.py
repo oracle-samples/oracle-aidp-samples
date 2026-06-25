@@ -27,7 +27,8 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # New migration testing cluster
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
-REQUIREMENTS_TXT = """pandas>=2.3.0
+REQUIREMENTS_TXT = """# Edit per project. Example minimal set:
+pandas>=2.3.0
 numpy>=2.4.0
 requests>=2.32.0
 oci>=2.167.0
@@ -226,9 +227,9 @@ print('copy_jars.sh written and made executable')
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.app.ClassMain', 'CustomerJar1'),
-    ('com.example.app.HandlerImpl', 'CustomerJar2'),
-    ('com.example.app.Decryptor', 'CustomerJar6'),
+    ('com.example.app.ClassMain', 'customer_jar_1'),
+    ('com.example.app.HandlerImpl', 'customer_jar_2'),
+    ('com.example.app.Decryptor', 'customer_jar_6'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
 for class_name, label in tests:

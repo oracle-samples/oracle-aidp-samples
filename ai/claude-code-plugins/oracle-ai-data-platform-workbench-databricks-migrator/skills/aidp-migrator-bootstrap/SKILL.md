@@ -26,7 +26,7 @@ Before any check below works, the user MUST have an `env-coords.md` (or any plai
 | OCI profile name | `<your-profile>` (e.g. the section name in `~/.oci/config`) |
 | Output workspace path | `Shared/aidp-migration-tool-output/` (or your team's path) |
 
-Save these into a `env-coords.md` file at the project root, gitignored. Every other skill in this plugin threads these through verbatim. See [references/env-coords.md](../../references/env-coords.md) for a complete scaffold.
+Save these into a `env-coords.md` file at the project root, gitignored. Every other skill in this plugin threads these through verbatim. See [references/env-coords.template.md](../../references/env-coords.template.md) for a complete scaffold.
 
 ## Step-by-step
 
@@ -81,7 +81,7 @@ Expect `Active`. Acceptable transient states are `Starting`, `Updating`. If `Sto
 > ```python
 > import oci, requests
 >
-> # Fill these from env-coords.md (see references/env-coords.md):
+> # Fill these from env-coords.md (see references/env-coords.template.md):
 > profile = "<your-profile-name>"
 > base    = "<AIDP_BASE>"          # e.g. https://aidp.<region>.oci.oraclecloud.com/20240831
 > lake    = "<DATALAKE_OCID>"

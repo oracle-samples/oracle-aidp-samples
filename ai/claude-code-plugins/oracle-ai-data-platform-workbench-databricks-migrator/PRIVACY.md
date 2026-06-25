@@ -55,7 +55,7 @@ When you `/plugin marketplace add` and `/plugin install` from the public GitHub 
 
 ## Contact
 
-For questions about this privacy policy, open an issue at <https://github.com/ahmedawan-oracle/oci-aidp-databricks-validator/issues>.
+For questions about this privacy policy, open an issue at <https://github.com/oracle-samples/oracle-aidp-samples/issues>.
 
 ## Changes
 

@@ -104,7 +104,7 @@ This plugin is **self-contained** — the full migrator engine (`scripts/`, `aid
 2. **OCI authentication** — `~/.oci/config` with either an `api_key` profile (recommended for unattended runs) or an `oci session authenticate` session-token profile (for interactive notebooks). The engine reads whichever profile you select via `--oci-profile`.
 3. **An ACTIVE AIDP cluster** — the engine's Pass-2 execute/verify/fix loop talks to a live cluster via WebSocket. The cluster must be in `Active` state before invoking `job_migrate.py`.
 4. **An `ANTHROPIC_API_KEY` env var** — the engine uses Claude with tool use under the hood for each cell rewrite + verify. Each migrated job spends a few minutes of Claude-with-tool-use time.
-5. **An `env-coords.md`** — see [references/env-coords.md](./references/env-coords.md) for the scaffold the skills thread through (DataLake OCID, workspace UUID, cluster ID, AIDP base URL, OCI profile name).
+5. **An `env-coords.md`** — see [references/env-coords.template.md](./references/env-coords.template.md) for the scaffold the skills thread through (DataLake OCID, workspace UUID, cluster ID, AIDP base URL, OCI profile name).
 
 Once those are in place, the plugin's skills know how to invoke each entrypoint — Claude Code will run the right CLI commands in the right order based on your natural-language ask.
 
@@ -161,7 +161,7 @@ Once those are in place, the plugin's skills know how to invoke each entrypoint 
 |---|---|
 | [`references/ddl-rewrite-rules.md`](./references/ddl-rewrite-rules.md) | The 18 DDL rewrite rules the catalog migrator applies, with input/output examples. |
 | [`references/gotchas.md`](./references/gotchas.md) | 15 Databricks → AIDP gotchas + fix recipes. |
-| [`references/env-coords.md`](./references/env-coords.md) | Scaffold for the customer's environment coordinates (DataLake OCID, workspace UUID, etc.). Fill once, refer to in every skill. |
+| [`references/env-coords.template.md`](./references/env-coords.template.md) | Scaffold for the customer's environment coordinates (DataLake OCID, workspace UUID, etc.). Fill once, refer to in every skill. |
 | [`references/job-report-format.md`](./references/job-report-format.md) | How to parse `JOB_REPORT.md` to extract per-cell pass/fail/fix counts. |
 | [`references/cli-map.md`](./references/cli-map.md) | Each migrator CLI entrypoint mapped to its purpose + canonical invocation. |
 

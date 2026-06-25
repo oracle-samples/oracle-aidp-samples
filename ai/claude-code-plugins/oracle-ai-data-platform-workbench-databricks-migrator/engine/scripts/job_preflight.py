@@ -6,7 +6,7 @@ Parses the Databricks job definitions, resolves all notebook paths,
 discovers child notebooks, inspects init scripts, and produces a manifest.
 
 Usage:
-    python3 job_preflight.py --csv ~/Downloads/metadata_23_jobs.csv
+    python3 job_preflight.py --csv <path_to>/metadata_jobs.csv
 """
 
 import csv
@@ -219,9 +219,9 @@ def resolve_notebook_path(signer, path: str, inventory: Set[str]) -> Tuple[str, 
 
     # Try 6: Check in migration_staging paths
     staging_prefixes = [
-        "testing/param/automation/codex_dbxToaidp/migration_staging/",
+        "testing/param/automation/<internal_staging>/",
         "testing/param/automation/dbxToaidp/migration_staging/",
-        "Notebook_Validation/",
+        "<validation_dir>/",
     ]
     for prefix in staging_prefixes:
         for candidate in [prefix + normalized, prefix + normalized + ".ipynb",
@@ -377,7 +377,7 @@ def inspect_init_scripts(signer, script_paths: List[str]) -> List[dict]:
 
 def main():
     parser = argparse.ArgumentParser(description="Job pre-flight discovery")
-    parser.add_argument("--csv", required=True, help="Path to metadata_23_jobs.csv")
+    parser.add_argument("--csv", required=True, help="Path to metadata_jobs.csv")
     args = parser.parse_args()
 
     print("=" * 60)

@@ -307,7 +307,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
 
 ## AIDP Environment (confirmed by testing):
 - Pre-installed JARs: Delta Lake 3.2, Avro, OCI HDFS connector (BmcFilesystem)
-- Installed JARs: Hudi 0.15.0, the bundled customer JARs, Scala Logging
+- Installed JARs: Hudi 0.15.0, any bundled custom JARs, Scala Logging
 - Pre-installed Python: pandas 2.3.3, numpy 2.4.2, requests, oci, nbformat, ray 2.54, slack_sdk, boto3, delta, IPython
 - Installed Python (via requirements.txt): matplotlib, scikit-learn, xgboost, seaborn, plotly, tqdm, etc.
 - MLflow may NOT be pre-installed — install with pip install mlflow (no version pin) if needed
@@ -600,7 +600,7 @@ cannot be resolved with these substitutions, call make_note() with the specific 
 return the cell as-is.
 
 
-TRINO / ATHENA (pyathena) → AIDP SPARK CATALOG:
+EXTERNAL QUERY ENGINES → AIDP SPARK CATALOG (e.g. Trino, Athena/pyathena):
 AWS Athena and Trino/Presto are external query engines NOT available on AIDP. Do NOT
 install or connect to them (pyathena = AWS-only; trino needs an unreachable endpoint).
 The same tables they query are registered in the AIDP Spark catalog — read via Spark.
@@ -659,7 +659,7 @@ would make the cell pass:
     worked in Databricks.
   - **NEVER inline-define customer writer-wrapper functions** to "fix" a NameError.
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
-    `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', 'oracle_ai_automation_overwrite', ...)`)
+    `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', '<oci_backup_bucket>_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
     (NameError), defining a fresh copy of the customer's `def createTable(...)`
     locally in the cell is FORBIDDEN — that copy is NOT what the call site sees
@@ -714,8 +714,8 @@ CRITICAL — Path rewriting safety for %run / dbutils.notebook.run / oidlUtils.n
 1. NEVER prepend the MIGRATED_BASE prefix to a path that already starts with it. If the
    target path already begins with the migrated-base prefix, use it as-is. Doubled
    prefixes like ".../notebooks/.../notebooks/..." are always wrong.
-2. When matching a `%run` token (e.g., `M90`) against the MIGRATED DEPENDENCY PATHS list,
-   match by EXACT basename equality only — never by prefix. A `%run M90` lookup must
+2. When matching a `%run` token (e.g., `<long_basename>`) against the MIGRATED DEPENDENCY PATHS list,
+   match by EXACT basename equality only — never by prefix. A `%run <long_basename>` lookup must
    NOT resolve to the entry for `M9` and append the remainder, producing
    ".../M9.ipynb0.ipynb".
 3. Every migrated `%run` path must end in exactly one ".ipynb" suffix. Patterns like
@@ -725,7 +725,7 @@ CONDITIONAL — oidlUtils Java type coercion (only when this specific error appe
 If the failure output contains "Py4JException" with a message like
 "Method <name>([class java.lang.String, class java.lang.Integer/Boolean/Double]) does not exist",
 the JVM method requires a Java String. Cast the Python value to str:
-  oidlUtils.parameters.setTaskValue("alert_promise_tables", str(value))
+  oidlUtils.parameters.setTaskValue("<task_value_name>", str(value))
 Do NOT preemptively cast values — only apply this fix when the Py4J type-mismatch error fires.
 
 Key AIDP facts:
@@ -950,7 +950,7 @@ CRITICAL - Do NOT:
 - Generate Slack webhook calls or external notification code (replace with a pass comment)
 - REVERT previous fixes listed in the PREVIOUS FIXES section - those changes were validated and must be preserved
 
-CRITICAL - DO NOT CHANGE CUSTOMER CODE LOGIC:
+CRITICAL - DO NOT CHANGE SOURCE CODE LOGIC:
 - Do NOT convert pandas to PySpark (e.g. pd.read_csv → spark.read.format('csv') is WRONG)
 - Do NOT convert PySpark to pandas
 - Do NOT change data processing logic, algorithms, or library choices

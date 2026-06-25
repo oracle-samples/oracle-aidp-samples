@@ -231,7 +231,7 @@ RISK_PATTERNS = [
             "%scala cell — AIDP kernel is Python-only. Port to Python: "
             "(1) Scala UDF registrations → spark.udf.register('name', python_fn, ReturnType()); "
             "(2) DataFrame ops → PySpark equivalents. "
-            "Use run_on_cluster to verify. Only comment out if JVM-only library (e.g. legacy_decrypt) — "
+            "Use run_on_cluster to verify. Only comment out if JVM-only library (e.g. an AWS-Secrets-Manager-backed decryption UDF) — "
             "add: # AIDP: <feature> disabled — Scala-only library, no Python equivalent"
         ),
     },
@@ -253,8 +253,8 @@ RISK_PATTERNS = [
         "pattern": r"legacy_(decrypt|encrypt)|Legacy(Decrypt|Encrypt)",
         "severity": "HIGH",
         "fix": (
-            "legacy_decrypt/legacy_encrypt UDF requires AWS Secrets Manager keys — not available on OCI. "
-            "Comment out the call and add: # Oracle tool modification: legacy_decrypt disabled — "
+            "AWS-Secrets-Manager-backed decryption UDFs require AWS keys — not available on OCI. "
+            "Comment out the call and add: # Migration tool modification: legacy decrypt UDF disabled — "
             "AWS Secrets Manager not available on OCI"
         ),
     },

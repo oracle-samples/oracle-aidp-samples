@@ -12,7 +12,7 @@ For each package:
 5. Append to scripts/fuse_risk_db.json for future scanner use
 
 Usage:
-    python3 scripts/fuse_package_analyzer.py --packages econml hyperopt skopt knockknock
+    python3 scripts/fuse_package_analyzer.py --packages pandas requests
     python3 scripts/fuse_package_analyzer.py --packages econml --output /tmp/econml_risk.json
 """
 

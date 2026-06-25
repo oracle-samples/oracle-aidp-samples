@@ -11,7 +11,7 @@ to discover the full dependency tree, including nested deps.
 
 Usage:
     python3 build_dag.py --root "Users/user@example.com/ExampleProject/ExampleJob" \
-        --entry "4_Budget_Calculation_Automated.ipynb" \
+        --entry "<entry_notebook>.ipynb" \
         --job-name "ExampleJob" \
         --cluster <CLUSTER_ID>
 

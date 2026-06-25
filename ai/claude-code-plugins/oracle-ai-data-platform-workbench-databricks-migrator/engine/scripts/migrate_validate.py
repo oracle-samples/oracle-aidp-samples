@@ -102,7 +102,7 @@ A list of strings, each describing a change made.
 
 ## AIDP Environment:
 - Python 3.11.13, Apache Spark, Scala 2.12.18, Java 17 (GraalVM)
-- JARs installed: Hudi 0.15.0, the bundled customer JARs, Delta Lake 3.2
+- JARs installed: Hudi 0.15.0, any bundled custom JARs, Delta Lake 3.2
 - OCI HDFS connector available (oci:// paths work; BmcFilesystem configured with API key at cluster level)
 - OCI Python SDK auth: API key via CLI config file at /Workspace/<oci-config-workspace-path> (DEFAULT).
   FORBIDDEN: oci.auth.signers.get_resource_principals_signer() — resource principal has known

@@ -114,7 +114,7 @@
 
 ---
 
-## Gotcha #10 — `<param_lookup_helper>` undefined when `<00_parameters>.ipynb` reduces to a stub
+## Gotcha #10 — `<param_lookup_helper>` undefined when `<parameters_stub>.ipynb` reduces to a stub
 
 **What breaks:** Pass-1 dep migration reduces a parameter-bootstrap notebook to a stub (e.g. just imports). Downstream cells call `<param_lookup_helper>(...)` → `NameError`.
 
@@ -176,7 +176,7 @@
 
 ---
 
-## Gotcha #15 — `<base_table_var>` NameError when `<00_parameters>.ipynb` stub doesn't define it
+## Gotcha #15 — `<base_table_var>` NameError when `<parameters_stub>.ipynb` stub doesn't define it
 
 **What breaks:** same family as Gotcha #10. The source parameter notebook defines `<base_table_var>`, but the migrator's stub-reduction dropped that line.
 

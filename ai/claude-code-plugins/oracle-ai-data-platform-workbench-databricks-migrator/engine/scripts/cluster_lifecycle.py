@@ -707,7 +707,7 @@ async def ensure_requirements_installed(
 
     # ── Local-module scan + isolation ────────────────────────────────
     # Many "missing" modules are actually .py files / package dirs in the
-    # notebook's own source tree (e.g. system_config, base_policy_info_config).
+    # notebook's own source tree (e.g. system_config, helpers).
     # We do NOT pip-install these. Critically, we ALSO copy the source tree
     # to a migration-scoped mirror under {job_output_path}/local_modules/...
     # so that any patches Opus generates during the fix loop land in the

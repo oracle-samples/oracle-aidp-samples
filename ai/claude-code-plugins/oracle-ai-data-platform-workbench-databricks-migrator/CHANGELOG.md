@@ -9,12 +9,12 @@ All notable changes to this plugin are documented here. Format loosely follows [
 ### Added
 
 - **`engine/` directory bundled with the plugin:**
-  - `engine/scripts/` — 38 Python files (`job_migrate.py`, `agent_migrate.py`, `cluster_session.py`, `aidp_executor.py`, `build_dag.py`, `check_data_availability.py`, `migrate_catalog.py`, `extract_catalog_databricks.py`, `acceptance_contract.py`, `fixup_cell` helpers, etc.)
+  - `engine/scripts/` — Python engine modules (`job_migrate.py`, `agent_migrate.py`, `cluster_session.py`, `aidp_executor.py`, `build_dag.py`, `check_data_availability.py`, `migrate_catalog.py`, `extract_catalog_databricks.py`, `acceptance_contract.py`, `fixup_cell` helpers, etc.)
   - `engine/aidp_compat/` — 21 Python files (drop-in `dbutils` compatibility shim)
   - `engine/schemas/` — JSON schemas (acceptance contract)
   - `engine/setup.py`, `engine/requirements.txt` — Python package metadata + deps
   - `engine/run_migration.sh` — generic convenience script
-- LICENSE at validator repo root (MIT).
+- LICENSE at plugin root (MIT).
 
 ### Changed
 
@@ -26,7 +26,7 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ### Security / governance
 
-- Deep adversarial scan across the whole engine + plugin returns 0 hits on all 21 leakage patterns.
+- Iterative adversarial scan across the engine + plugin progressively eliminated customer-engagement leakage patterns; ongoing.
 - Source customer output artifacts (`reports/`, `dbx_export/`) removed from the source repo.
 
 ## [0.1.0] — 2026-06-20 (initial release)
