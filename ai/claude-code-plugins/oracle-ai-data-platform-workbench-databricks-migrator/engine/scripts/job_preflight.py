@@ -2,11 +2,11 @@
 """
 Job Pre-flight: Discovery & Resolution
 ========================================
-Parses the 23 Databricks job definitions, resolves all notebook paths,
+Parses the Databricks job definitions, resolves all notebook paths,
 discovers child notebooks, inspects init scripts, and produces a manifest.
 
 Usage:
-    python3 job_preflight.py --csv ~/Downloads/metadata_23_jobs.csv
+    python3 job_preflight.py --csv <path_to>/metadata_jobs.csv
 """
 
 import csv
@@ -32,7 +32,7 @@ AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
 DATALAKE_OCID = "<DATALAKE_OCID>"
 WORKSPACE_ID = "<WORKSPACE_ID>"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
-OCI_PROFILE = "CUSTOMER"
+OCI_PROFILE = "DEFAULT"
 
 
 def get_signer():
@@ -219,9 +219,9 @@ def resolve_notebook_path(signer, path: str, inventory: Set[str]) -> Tuple[str, 
 
     # Try 6: Check in migration_staging paths
     staging_prefixes = [
-        "testing/param/automation/codex_dbxToaidp/migration_staging/",
-        "testing/param/automation/dbxToaidp/migration_staging/",
-        "Notebook_Validation/",
+        "<internal_staging_root>/<internal_staging>/",
+        "<internal_staging_root>/<internal_staging>/migration_staging/",
+        "<validation_dir>/",
     ]
     for prefix in staging_prefixes:
         for candidate in [prefix + normalized, prefix + normalized + ".ipynb",
@@ -377,7 +377,7 @@ def inspect_init_scripts(signer, script_paths: List[str]) -> List[dict]:
 
 def main():
     parser = argparse.ArgumentParser(description="Job pre-flight discovery")
-    parser.add_argument("--csv", required=True, help="Path to metadata_23_jobs.csv")
+    parser.add_argument("--csv", required=True, help="Path to metadata_jobs.csv")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -446,7 +446,7 @@ def main():
             if child not in all_notebook_paths:
                 all_children.add(child)
 
-    print(f"Discovered {len(all_children)} child notebooks not in the 71 job notebooks")
+    print(f"Discovered {len(all_children)} child notebooks not in the {len(all_notebook_paths)} job notebooks")
     for child in sorted(all_children):
         print(f"  CHILD: {child}")
 

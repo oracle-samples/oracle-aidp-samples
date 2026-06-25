@@ -34,11 +34,11 @@ import requests as http_requests
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from aidp_executor import get_oci_signer, REGION_MAP
 
-# ─── Defaults (CUSTOMER environment) ──────────────────────────────────────
+# ─── Defaults (placeholder values — set via CLI flags) ──────────────────────────────────────
 
 DEFAULT_LAKE_OCID = "<DATALAKE_OCID>"
 DEFAULT_WORKSPACE_ID = "<WORKSPACE_ID>"
-DEFAULT_OCI_PROFILE = "CUSTOMER"
+DEFAULT_OCI_PROFILE = "DEFAULT"
 
 
 def tprint(*args, **kwargs):
@@ -48,7 +48,7 @@ def tprint(*args, **kwargs):
 
 def _get_region(lake_ocid):
     parts = lake_ocid.split(".")
-    region_code = parts[3] if len(parts) > 3 else "bom"
+    region_code = parts[3] if len(parts) > 3 else "iad"
     return REGION_MAP.get(region_code, "<OCI_REGION>")
 
 
@@ -177,7 +177,7 @@ def resolve_migrated_path(original_path, registry):
         if entry and entry.get("migrated_path"):
             return entry["migrated_path"]
 
-    # Fallback: last 2 path segments (e.g. Early_Rewards/notebook.ipynb)
+    # Fallback: last 2 path segments (e.g. sample_jobs/notebook.ipynb)
     parts = key.replace("\\", "/").split("/")
     if len(parts) >= 2:
         rel2 = "/".join(parts[-2:])
@@ -270,11 +270,11 @@ def main():
     parser.add_argument("--dry-run", action="store_true",
                         help="Print payload without creating the workflow")
     parser.add_argument("--lake-ocid", default=DEFAULT_LAKE_OCID,
-                        help="AIDP lake OCID (default: CUSTOMER)")
+                        help="AIDP lake OCID (default: <DATALAKE_OCID>)")
     parser.add_argument("--workspace-id", default=DEFAULT_WORKSPACE_ID,
-                        help="AIDP workspace UUID (default: CUSTOMER)")
+                        help="AIDP workspace UUID (default: <WORKSPACE_ID>)")
     parser.add_argument("--oci-profile", default=DEFAULT_OCI_PROFILE,
-                        help="OCI config profile (default: CUSTOMER)")
+                        help="OCI config profile (default: DEFAULT)")
     args = parser.parse_args()
 
     # Step 1: Fetch existing workflow

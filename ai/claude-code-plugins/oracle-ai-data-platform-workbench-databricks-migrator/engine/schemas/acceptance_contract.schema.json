@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/srao-positron/oci-aidp-databricks-validator/schemas/acceptance_contract.schema.json",
+  "$id": "https://github.com/oracle-samples/oracle-aidp-samples/schemas/acceptance_contract.schema.json",
   "title": "AIDP Migrator Acceptance Contract",
-  "description": "Optional per-notebook contract that asserts a streaming/batch pipeline drained successfully BEFORE the migrator marks the notebook PASS. Pattern adapted from codex-plugin-oci-aidp-migration-workbench `aidp-batch-stream-acceptance` skill.",
+  "description": "Optional per-notebook contract that asserts a streaming/batch pipeline drained successfully BEFORE the migrator marks the notebook PASS. Pattern adapted from a prior internal acceptance-contract pattern.",
   "type": "object",
   "required": ["pending_count_sql"],
   "additionalProperties": false,
@@ -10,7 +10,7 @@
     "pending_count_sql": {
       "type": "string",
       "minLength": 1,
-      "description": "Single SQL statement that returns a numeric scalar = the count of pending/unfinished work items. Must converge to 0 for the contract to pass. Example: SELECT COUNT(*) FROM crl.file_state WHERE state IN ('PENDING_SILVER','PROCESSING')"
+      "description": "Single SQL statement that returns a numeric scalar = the count of pending/unfinished work items. Must converge to 0 for the contract to pass. Example: SELECT COUNT(*) FROM example_schema.file_state WHERE state IN ('PENDING_SILVER','PROCESSING')"
     },
     "zero_window": {
       "type": "integer",
@@ -34,7 +34,7 @@
   "examples": [
     {
       "description": "Streaming silver-layer ingestion: require 2 consecutive zero readings, retry 10x with 30s between",
-      "pending_count_sql": "SELECT COUNT(*) FROM crl.file_state WHERE state IN ('PENDING_SILVER','PROCESSING')",
+      "pending_count_sql": "SELECT COUNT(*) FROM example_schema.file_state WHERE state IN ('PENDING_SILVER','PROCESSING')",
       "zero_window": 2,
       "sleep_between_s": 30,
       "max_attempts": 10

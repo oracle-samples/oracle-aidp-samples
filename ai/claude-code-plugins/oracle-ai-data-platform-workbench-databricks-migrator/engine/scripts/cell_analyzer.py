@@ -84,7 +84,7 @@ FUSE_PATTERNS = [
         # Two open(..., "r") or open(..., "rb") calls in the same cell.
         # FUSE can evict the inode cache between the first and second read,
         # causing FileNotFoundError on the second open even though the file exists.
-        # Confirmed: dicretizer_quality23.txt in ExampleJob job.
+        # Observed pattern: open(..., "r") of the same file across cells can hit FUSE inode-cache eviction.
         "name": "volumes_double_read",
         "pattern": r"open\s*\([^)]+['\"]r[b]?['\"]\)",
         "followup": r"open\s*\([^)]+['\"]r[b]?['\"]\)",
@@ -103,7 +103,7 @@ DATABRICKS_PATTERNS = [
     # dbfs:/ URI format (Databricks colon notation)
     {"pattern": r"dbfs:/", "action": "Translate dbfs:/path → /Volumes/default/default/dbfs/path using translate_path() from aidp_compat"},
     # /dbfs/ filesystem format (no colon) — same DBFS root, different notation
-    # e.g. base_path = "/dbfs/FileStore/bsrisk" → "/Volumes/default/default/dbfs/FileStore/bsrisk"
+    # e.g. base_path = "/dbfs/FileStore/example_user" → "/Volumes/default/default/dbfs/FileStore/example_user"
     {"pattern": r"""['"]/dbfs/|= ?['"]/dbfs""", "action": "Translate /dbfs/path → /Volumes/default/default/dbfs/path using translate_path() from aidp_compat"},
     {"pattern": r"s3[a]?://", "action": "Translate to oci:// using bucket mapping"},
     {"pattern": r"requests\.post.*slack|send_slack|slack_webhook", "action": "Skip (Slack notification)"},
@@ -231,7 +231,7 @@ RISK_PATTERNS = [
             "%scala cell — AIDP kernel is Python-only. Port to Python: "
             "(1) Scala UDF registrations → spark.udf.register('name', python_fn, ReturnType()); "
             "(2) DataFrame ops → PySpark equivalents. "
-            "Use run_on_cluster to verify. Only comment out if JVM-only library (e.g. legacy_decrypt) — "
+            "Use run_on_cluster to verify. Only comment out if JVM-only library (e.g. an AWS-Secrets-Manager-backed decryption UDF) — "
             "add: # AIDP: <feature> disabled — Scala-only library, no Python equivalent"
         ),
     },
@@ -249,12 +249,12 @@ RISK_PATTERNS = [
         ),
     },
     {
-        "name": "legacy_decrypt_udf",
-        "pattern": r"legacy_decrypt|LegacyDecrypt|legacy_encrypt|LegacyEncrypt",
+        "name": "aws_secrets_backed_udf",
+        "pattern": r"<aws_secrets_udf_pattern>",  # config-driven via reports/udf_patterns.json
         "severity": "HIGH",
         "fix": (
-            "legacy_decrypt/legacy_encrypt UDF requires AWS Secrets Manager keys — not available on OCI. "
-            "Comment out the call and add: # Oracle tool modification: legacy_decrypt disabled — "
+            "AWS-Secrets-Manager-backed decryption UDFs require AWS keys — not available on OCI. "
+            "Comment out the call and add: # Migration tool modification: legacy decrypt UDF disabled — "
             "AWS Secrets Manager not available on OCI"
         ),
     },
@@ -463,7 +463,7 @@ def detect_stale_lazy_eval_risks(all_sources: List[str]) -> Dict[int, List[dict]
 #
 # Also occurs within a class when the same file is read in two methods.
 # Fix: use safe_read_file(path) from aidp_compat — retries with delay on eviction.
-# Confirmed: dicretizer_quality23.txt in ExampleJob notebook.
+# Same pattern at notebook scope.
 
 # Match: open("path", "r") or open("path", "rb") — capture the path literal
 _FILE_READ_LITERAL_RE = re.compile(
@@ -945,7 +945,7 @@ async def analyze_notebook_cells(
                             plan["changes_needed"].append(
                                 f"Table {table} exists but has EMPTY SCHEMA (0 columns) — "
                                 f"data not synced to AIDP. Add to "
-                                f"/Workspace/dbc/datafiles/tables_to_migrate.csv and wait "
+                                f"/Workspace/<deploy_dir>/datafiles/tables_to_migrate.csv and wait "
                                 f"for hourly sync, or contact infra team."
                             )
                 elif result == "MISSING":
@@ -954,7 +954,7 @@ async def analyze_notebook_cells(
                         if table in plan.get("table_refs", []):
                             plan["changes_needed"].append(
                                 f"Table {table} NOT FOUND in AIDP catalog. "
-                                f"Add to /Workspace/dbc/datafiles/tables_to_migrate.csv "
+                                f"Add to /Workspace/<deploy_dir>/datafiles/tables_to_migrate.csv "
                                 f"with its S3 source path and wait for hourly sync."
                             )
                 else:

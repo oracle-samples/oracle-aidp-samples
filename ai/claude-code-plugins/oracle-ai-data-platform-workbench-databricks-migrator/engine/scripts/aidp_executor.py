@@ -47,7 +47,7 @@ DEFAULT_OCI_PROFILE = "DEFAULT"
 
 REGION_MAP = {
     "iad": "us-ashburn-1", "phx": "us-phoenix-1", "fra": "eu-frankfurt-1",
-    "lhr": "uk-london-1", "bom": "<OCI_REGION>", "hyd": "ap-hyderabad-1",
+    "lhr": "uk-london-1", "bom": "ap-mumbai-1", "hyd": "ap-hyderabad-1",
     "sin": "ap-singapore-1", "nrt": "ap-tokyo-1", "syd": "ap-sydney-1",
     "gru": "sa-saopaulo-1", "yyz": "ca-toronto-1", "icn": "ap-seoul-1",
 }

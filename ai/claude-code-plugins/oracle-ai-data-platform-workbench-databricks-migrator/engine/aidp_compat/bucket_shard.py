@@ -17,26 +17,26 @@ Usage in a migrated notebook
     from aidp_compat.bucket_shard import BucketRouter
 
     router = BucketRouter(
-        prefix="customer-mig",
+        prefix="<bucket_prefix>",
         num_shards=16,
         namespace="<WORKSPACE_NAMESPACE>",
     )
 
     # Deterministic mapping for a logical key (job_id, table name, partition):
     bucket = router.bucket_for("ExampleJob")
-    # -> "customer-mig-07"
+    # -> "<bucket_prefix>-<NN>"
 
     target_uri = router.route_uri(
-        "oci://customer-mig@<WORKSPACE_NAMESPACE>/feature_store/app_vN/...",
+        "oci://<bucket_prefix>@<WORKSPACE_NAMESPACE>/<sample_path>/...",
         shard_key="ExampleJob",
     )
-    # -> "oci://customer-mig-07@<WORKSPACE_NAMESPACE>/feature_store/app_vN/..."
+    # -> "oci://<bucket_prefix>-<NN>@<WORKSPACE_NAMESPACE>/<sample_path>/..."
 
     df.write.parquet(target_uri)
 
 The router is read-only and stateless; it does NOT create buckets. Bucket
 provisioning is an operator step (Terraform / oci-cli loop) -- see
-MIGRATION_THROTTLING.md for the bootstrap script.
+<migration_throttling_docs> for the bootstrap script.
 """
 from __future__ import annotations
 
@@ -58,9 +58,9 @@ class BucketRouter:
     Args:
         prefix: Logical bucket name prefix. Shard buckets are named
             ``{prefix}-{NN}`` zero-padded to ``shard_width`` digits
-            (default 2). e.g. ``customer-mig-00`` ... ``customer-mig-15``.
+            (default 2). e.g. ``<bucket_prefix>-00`` ... ``<bucket_prefix>-15``.
         num_shards: Number of shard buckets in the pool. 8-16 is a good
-            starting range for the Customer 2,500-job migration -- size to
+            starting range for the a large-scale migration -- size to
             divide your target sustained PUT/sec by the per-bucket budget
             you negotiated with the OCI account team.
         namespace: OCI Object Storage namespace (tenancy-level). All

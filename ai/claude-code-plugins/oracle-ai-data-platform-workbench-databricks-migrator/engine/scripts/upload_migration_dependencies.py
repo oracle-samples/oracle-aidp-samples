@@ -9,7 +9,7 @@ This is a self-contained script that future migrators can run
 whenever dependencies change.
 
 Usage:
-    python3 upload_migration_dependencies.py [--profile CUSTOMER]
+    python3 upload_migration_dependencies.py [--profile DEFAULT]
 """
 
 import json
@@ -33,14 +33,9 @@ LOCAL_JARS_DIR = os.path.join(PROJECT_DIR, "jars")
 
 # JARs to upload (source path on workspace -> local downloaded copy)
 REQUIRED_JARS = {
-    "hudi-spark3.5-bundle_2.12-0.15.0.jar": "Hudi Spark 3.5 bundle",
-    "feature_lib_assembly.jar": "Customer FEATURE_LIB feature generation",
-    "featurelib2_assembly.jar": "Customer Feature Library",
-    "feature_lib3_assembly.jar": "Customer FeatureLib3",
-    "message_parser_assembly.jar": "Customer MessageParser",
-    "decryptor_assembly.jar": "Customer Data Decryptor",
-    "decrypt_udf.jar": "DecryptUDF",
-    "scala-logging_2.12-3.9.5.jar": "Scala Logging (transitive dep)",
+    # Edit per project. Map jar filename -> human-readable label.
+    # Example:
+    # "your_jar.jar": "your_label",
 }
 
 
@@ -114,7 +109,7 @@ def upload_file(signer, local_path: str, remote_path: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Upload migration dependencies to AIDP")
-    parser.add_argument("--profile", default="CUSTOMER", help="OCI config profile")
+    parser.add_argument("--profile", default="DEFAULT", help="OCI config profile")
     parser.add_argument("--dry-run", action="store_true", help="Just list what would be uploaded")
     args = parser.parse_args()
 

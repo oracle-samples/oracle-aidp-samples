@@ -1,6 +1,6 @@
 # aidp_compat — Supported Operations
 
-Version: **0.5.3** (wheel: `aidp_compat-0.5.3-py3-none-any.whl`)
+Version: **0.5.0** (wheel: `aidp_compat-0.5.0-py3-none-any.whl`)
 OCI auth: **API key** via `/Workspace/<oci-config-workspace-path>` (DEFAULT profile).
 Override with env vars: `OCI_CONFIG_FILE` / `OCI_CONFIG_PROFILE`.
 
@@ -105,8 +105,8 @@ For code that still references S3 buckets (use only if migrating boto3 code mini
 
 ```python
 from aidp_compat.s3_compat import read_s3_object, write_s3_object
-data = read_s3_object("customer-prod-bucket", "path/to/key")  # auto-routes to OCI
-write_s3_object("customer-prod-bucket", "path/to/key", data)
+data = read_s3_object("<source_bucket>", "path/to/key")  # auto-routes to OCI
+write_s3_object("<source_bucket>", "path/to/key", data)
 ```
 
 S3-to-OCI bucket mapping comes from `reports/s3_to_oci_bucket_mapping.csv`. Uses OCI SDK with API key auth.
@@ -161,7 +161,7 @@ After installing the wheel, run this in a notebook to verify install:
 ```python
 from aidp_compat import dbutils
 
-OCI_BASE = "oci://oracle_ai_automation@<WORKSPACE_NAMESPACE>/aidp_compat_smoke"
+OCI_BASE = "oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/aidp_compat_smoke"
 dbutils.fs.put(f"{OCI_BASE}/hi.txt", "hello", overwrite=True)
 print(dbutils.fs.head(f"{OCI_BASE}/hi.txt", 100))
 dbutils.fs.rm(f"{OCI_BASE}/", recurse=True)

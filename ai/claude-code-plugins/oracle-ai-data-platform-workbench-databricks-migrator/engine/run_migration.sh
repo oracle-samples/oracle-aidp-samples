@@ -5,7 +5,7 @@
 #   ./run_migration.sh                                          # run all jobs
 #   ./run_migration.sh --jobs ExampleJob        # specific job
 #   ./run_migration.sh --jobs ExampleJob \
-#       --start-task Campaign_Ratio_Estimation_scratched_V2_Early  # resume from task
+#       --start-task <task_id>  # resume from task
 #
 # Logs to /tmp/migration.log (overwrite). Tail with: tail -f /tmp/migration.log
 

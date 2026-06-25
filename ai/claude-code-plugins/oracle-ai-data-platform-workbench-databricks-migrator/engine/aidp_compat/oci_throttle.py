@@ -27,12 +27,12 @@ At the top of a migrated notebook::
 
     from aidp_compat import apply_object_storage_hardening
     apply_object_storage_hardening(spark)               # balanced profile (default)
-    apply_object_storage_hardening(spark, "aggressive") # for 1000+ parallel jobs
+    apply_object_storage_hardening(spark, "aggressive") # for thousands of parallel jobs
 
 Or, programmatically tune for an expected concurrency::
 
     from aidp_compat.oci_throttle import tune_for_parallel_migration
-    tune_for_parallel_migration(spark, concurrent_jobs=2500)
+    tune_for_parallel_migration(spark, concurrent_jobs=N)
 
 This module is import-safe in non-Spark environments (pytest etc.).
 """
@@ -189,7 +189,7 @@ def tune_for_parallel_migration(
 ) -> Dict[str, str]:
     """Pick a profile from expected concurrency, then apply it.
 
-    Selection thresholds are calibrated for the Customer migration shape (one
+    Selection thresholds are calibrated for the large-scale migration shape (one
     Spark cluster, many migration processes each driving notebook writes):
 
     +------------------------+----------------+
@@ -204,7 +204,7 @@ def tune_for_parallel_migration(
         spark: SparkSession.
         concurrent_jobs: Expected number of migration processes hitting this
             cluster + tenancy concurrently. Pass the WAVE size, not the total
-            (i.e. for 2500 jobs in waves of 48, pass 48).
+            (i.e. for thousands of jobs in waves, pass 48).
         overrides: Extra spark.conf entries.
         verbose: Print decisions.
 

@@ -44,7 +44,7 @@ CREATE TABLE <schema>.<table> ... LOCATION 's3://<bucket>/<path>'
 CREATE TABLE <schema>.<table> ... LOCATION 'oci://<bucket>@<namespace>/<path>'
 ```
 
-Bucket → namespace mapping comes from the customer's `bucket_mapping.json` (see [`aidp-bucket-mapping`](../skills/aidp-bucket-mapping/SKILL.md)).
+Bucket → namespace mapping comes from your `bucket_mapping.json` (see [`aidp-bucket-mapping`](../skills/aidp-bucket-mapping/SKILL.md)).
 
 ### Rule 4: Reject when bucket not in mapping
 

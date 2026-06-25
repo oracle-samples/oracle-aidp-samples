@@ -113,7 +113,7 @@ After a successful run:
   JOB_REPORT.md                          ← cell pass/fail/fix counts
 ```
 
-The migrated `.ipynb`s are uploaded to your AIDP workspace at `<output-base>` AND saved to your local `oci-aidp-databricks-validator/reports/<job-name>/` for offline review.
+The migrated `.ipynb`s are uploaded to your AIDP workspace at `<output-base>` AND saved to your local `./reports/<job-name>/` for offline review.
 
 ## When it goes wrong
 

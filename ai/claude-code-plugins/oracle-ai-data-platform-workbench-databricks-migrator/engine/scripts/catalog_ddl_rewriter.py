@@ -9,7 +9,7 @@ The rewriter NEVER performs I/O — all bucket mapping and catalog mapping is
 passed in as data. Fully unit-testable.
 
 Rules implemented (subset of the 18 from the design spec; rest stub out as
-warnings since this TestCorp workspace's samples don't exercise them):
+warnings since the validation workspace samples don't exercise them):
 
   R01  3-part name -> 2-part (schema-qualified)
   R02  s3:// LOCATION -> oci:// LOCATION via bucket_map
@@ -80,7 +80,7 @@ _NON_FORMAT_DROP_PREFIXES = (
 # When the target is NOT Delta, every `delta.*` property must also be dropped:
 # a non-Delta table can only be harmed by inheriting Delta-runtime properties
 # (delta.columnMapping.mode in particular silently corrupts column resolution
-# on parquet). Per code review 2026-06-05.
+# on parquet). Per internal code review.
 DROPPED_PROP_PREFIXES = _NON_FORMAT_DROP_PREFIXES + ("delta.",)
 
 def is_dropped_property(key: str) -> bool:
@@ -271,7 +271,7 @@ def rewrite_table_ddl(
         raise UnsupportedDDL("R17_STREAMING_UNSUPPORTED", f"AIDP doesn't support STREAMING TABLE: {full_name}")
     if table_type == "VIEW":
         # Views with view_definition need separate handling — for v1 we skip.
-        # The TestCorp samples don't include views, so this is a deferred path.
+        # The validation samples don't include views, so this is a deferred path.
         raise UnsupportedDDL("R15_VIEW_DEFERRED", f"VIEW migration not yet implemented: {full_name}")
 
     # ── R01 rewrite name ──
@@ -297,7 +297,7 @@ def rewrite_table_ddl(
 
     # ── partitioning ──
     # Partition order is defined by partition_index, NOT by column position
-    # (per code review 2026-06-05). A position-ordered partition list emits
+    # (per internal code review). A position-ordered partition list emits
     # PARTITIONED BY (...) in the wrong order, changing the physical layout
     # on disk and breaking partition-predicate pushdown.
     _partition_cols = [c for c in cols if c.get("partition_index") is not None]

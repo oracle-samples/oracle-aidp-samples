@@ -26,30 +26,11 @@ AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
 DATALAKE_OCID = "<DATALAKE_OCID>"
 WORKSPACE_ID = "<WORKSPACE_ID>"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
-OCI_PROFILE = "CUSTOMER"
+OCI_PROFILE = "DEFAULT"
 
-# Known JARs on the workspace (from enumeration)
-WORKSPACE_JARS = [
-    "Databricks Jars/Production Jar/feature_lib2_1_0_7_assembly.jar",
-    "Databricks Jars/Production Jar/feature_lib2_assembly_1_5_2.jar",
-    "Databricks Jars/Production Jar/feature_lib2_assembly_2_3_1_Collection.jar",
-    "Databricks Jars/Production Jar/feature_lib2_assembly_2_5_1_Collection.jar",
-    "Databricks Jars/Production Jar/decrypt_udf.jar",
-    "Databricks Jars/Production Jar/spark_decrypt_udf_1_0_6_Fi-7b19f.jar",
-    "Databricks Jars/Production Jar/decryptor_assembly.jar",
-    "Databricks Jars/Production Jar/DO_NOT_USE_hudi_spark_bundle_2_12_0_8_0.jar",
-    "Databricks Jars/spark-listener-jars/spark-eventlistener-1.0.4.jar",
-    "jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
-    "jars/scala-logging_2.12-3.9.5.jar",
-    "jars/feature_lib_assembly_1_4_4.jar",
-    "jars/spark_decrypt_udf_1_0_6_Fi-7b19f.jar",
-    "jars/spark-cassandra-connector_2.13-3.5.1.jar",
-    "message_parser_assembly.jar",
-    "feature_lib_assembly_1_4_4.jar",
-    "feature_lib_assembly.jar",
-    "CUSTOMER_JARS/featurelib2_assembly.jar",
-    "CUSTOMER_JARS/feature_lib3_assembly.jar",
-]
+# WORKSPACE_JARS — populated at runtime via dbutils.fs.ls('<workspace_jars>')
+# or set via CLI flag --jars-config. Empty default — edit per project.
+WORKSPACE_JARS = []
 
 
 def get_oci_signer():
@@ -108,8 +89,8 @@ def analyze_jar(jar_path: str) -> dict:
             if any("scala/collection/immutable" in n for n in names):
                 result["has_scala_stdlib"] = True
 
-            # Look for Customer-specific packages
-            customer_classes = [n for n in class_files if "com/customer/" in n]
+            # Look for customer-specific packages
+            customer_classes = [n for n in class_files if "com/example/" in n]
             customer_packages = set()
             for c in customer_classes:
                 parts = c.split("/")
@@ -231,7 +212,7 @@ def main():
         compat = analysis["compatibility"]
         classes = analysis.get("class_count", 0)
         customer = len(analysis.get("customer_packages", []))
-        print(f"[{compat}] {classes} classes, {customer} Customer packages")
+        print(f"[{compat}] {classes} classes, {customer} customer-specific packages")
 
         if analysis.get("potential_conflicts"):
             for c in analysis["potential_conflicts"]:

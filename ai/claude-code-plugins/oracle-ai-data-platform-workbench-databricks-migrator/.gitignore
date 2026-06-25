@@ -6,7 +6,7 @@
 oci_api_key*.pem
 **/.oci/
 
-# Customer-specific coordinates — filled at use time, not shipped
+# source-specific coordinates — filled at use time, not shipped
 env-coords.md
 env-coords.local.md
 bucket_mapping.json

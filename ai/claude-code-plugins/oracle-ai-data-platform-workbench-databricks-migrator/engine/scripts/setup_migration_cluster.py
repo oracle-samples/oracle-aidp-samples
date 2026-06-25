@@ -27,56 +27,18 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # New migration testing cluster
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
-REQUIREMENTS_TXT = """pandas>=2.3.0
+REQUIREMENTS_TXT = """# Example minimal set — edit per project.
+# Add your project-specific Python dependencies below.
+pandas>=2.3.0
 numpy>=2.4.0
-requests>=2.32.0
-oci>=2.167.0
-nbformat>=5.10.0
-ray>=2.54.0
-slack_sdk>=3.27.0
-boto3>=1.42.0
-IPython>=8.0.0
-matplotlib>=3.7.0
-scikit-learn>=1.3.0
-scipy>=1.11.0
-xgboost>=1.7.6
-seaborn>=0.12.0
-shap>=0.42.0
-optuna>=3.3.0
-joblib>=1.3.0
-pytz>=2023.3
-python-dateutil>=2.8.0
-python-box>=7.0.0
-tqdm>=4.65.0
-pyarrow>=12.0.0
-openpyxl>=3.1.0
-xlsxwriter>=3.1.0
-fuzzywuzzy>=0.18.0
-python-Levenshtein>=0.21.0
-brotli>=1.0.9
-mlflow>=2.8.0
-plotly>=5.15.0
-kaleido>=0.2.1
-dataframe-image>=0.2.0
-Pillow>=10.0.0
-pyathena>=3.0.0
-trino>=0.326.0
-gspread>=5.10.0
-gspread-dataframe>=3.3.0
-econml>=0.14.0
-psutil>=5.9.0
-omegaconf>=2.3.0"""
+requests>=2.31.0
+"""
 
 # JARs: source path on workspace -> destination name
 JARS = [
-    ("/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar", "hudi-spark3.5-bundle_2.12-0.15.0.jar"),
-    ("/Workspace/feature_lib_assembly.jar", "feature_lib_assembly.jar"),
-    ("/Workspace/<customer_jars>/featurelib2_assembly.jar", "featurelib2_assembly.jar"),
-    ("/Workspace/<customer_jars>/feature_lib3_assembly.jar", "feature_lib3_assembly.jar"),
-    ("/Workspace/message_parser_assembly.jar", "message_parser_assembly.jar"),
-    ("/Workspace/<production_jars>/decryptor_assembly.jar", "decryptor_assembly.jar"),
-    ("/Workspace/<production_jars>/decrypt_udf.jar", "Spark_Decrypt_UDF_1.0.2_Final.jar"),
-    ("/Workspace/jars/scala-logging_2.12-3.9.5.jar", "scala-logging_2.12-3.9.5.jar"),
+    # Edit per project. Each entry is (source_path, dest_jar_name).
+    # Example:
+    # ("/Workspace/jars/your_jar.jar", "your_jar.jar"),
 ]
 
 
@@ -100,7 +62,7 @@ async def run_step(session, description, code, timeout=300):
 async def main():
     parser = argparse.ArgumentParser(description="Setup migration cluster")
     parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
-    parser.add_argument("--profile", default="CUSTOMER")
+    parser.add_argument("--profile", default="DEFAULT")
     parser.add_argument("--skip-jars", action="store_true", help="Skip JAR copy step")
     parser.add_argument("--skip-pip", action="store_true", help="Skip pip install step")
     args = parser.parse_args()
@@ -137,14 +99,9 @@ print('requirements.txt written')
 import shutil, os, time
 
 jars = [
-    ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
-    ('/Workspace/feature_lib_assembly.jar', 'feature_lib_assembly.jar'),
-    ('/Workspace/<customer_jars>/featurelib2_assembly.jar', 'featurelib2_assembly.jar'),
-    ('/Workspace/<customer_jars>/feature_lib3_assembly.jar', 'feature_lib3_assembly.jar'),
-    ('/Workspace/message_parser_assembly.jar', 'message_parser_assembly.jar'),
-    ('/Workspace/<production_jars>/decryptor_assembly.jar', 'decryptor_assembly.jar'),
-    ('/Workspace/<production_jars>/decrypt_udf.jar', 'Spark_Decrypt_UDF_1.0.2_Final.jar'),
-    ('/Workspace/jars/scala-logging_2.12-3.9.5.jar', 'scala-logging_2.12-3.9.5.jar'),
+    # Edit per project. Example structure: (source_workspace_path, dest_jar_name).
+    # ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar', 'hudi-spark3.5-bundle_2.12-0.15.0.jar'),
+    # ('/Workspace/jars/your_jar.jar', 'your_jar.jar'),
 ]
 
 ws_dir = '/Workspace/migration-dependencies/jars'
@@ -225,10 +182,8 @@ print('copy_jars.sh written and made executable')
         # Step 6: Test JAR class loading
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
+    # Edit per project. Add (fully-qualified-class-name, display-label) for each JAR to verify.
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.featurelib.Constants', 'FeatureLib'),
-    ('com.example.featurelib.ConcurrentHandler', 'FeatureLib2'),
-    ('com.example.util.Decryptor', 'Decryptor'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
 for class_name, label in tests:

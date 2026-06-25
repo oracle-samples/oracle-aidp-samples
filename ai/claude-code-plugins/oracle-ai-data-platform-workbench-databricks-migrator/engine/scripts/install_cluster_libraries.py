@@ -22,18 +22,12 @@ AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
 DATALAKE_OCID = "<DATALAKE_OCID>"
 WORKSPACE_ID = "<WORKSPACE_ID>"
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
-OCI_PROFILE = "CUSTOMER"
+OCI_PROFILE = "DEFAULT"
 
 # JARs to install (paths on the workspace)
 JARS_TO_INSTALL = [
-    "/Workspace/migration-dependencies/jars/hudi-spark3.5-bundle_2.12-0.15.0.jar",
-    "/Workspace/migration-dependencies/jars/feature_lib_assembly.jar",
-    "/Workspace/migration-dependencies/jars/featurelib2_assembly.jar",
-    "/Workspace/migration-dependencies/jars/feature_lib3_assembly.jar",
-    "/Workspace/migration-dependencies/jars/message_parser_assembly.jar",
-    "/Workspace/migration-dependencies/jars/decryptor_assembly.jar",
-    "/Workspace/migration-dependencies/jars/Spark_Decrypt_UDF_1.0.2_Final.jar",
-    "/Workspace/migration-dependencies/jars/scala-logging_2.12-3.9.5.jar",
+    # Edit per project. Example entry:
+    # "/Workspace/migration-dependencies/jars/your_jar.jar",
 ]
 
 # requirements.txt for pip packages

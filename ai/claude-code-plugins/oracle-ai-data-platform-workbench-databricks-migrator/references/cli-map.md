@@ -178,4 +178,4 @@ python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/cluster_lifecycle.py \
 
 ## How skills compose these
 
-The skills don't run these CLIs directly — they generate the right command line based on the user's request, surface it for the user's confirmation, then invoke it. Each `<placeholder>` above maps to a coordinate in [`env-coords.md`](./env-coords.md).
+The skills don't run these CLIs directly — they generate the right command line based on the user's request, surface it for the user's confirmation, then invoke it. Each `<placeholder>` above maps to a coordinate in [`env-coords.template.md`](./env-coords.template.md).

@@ -307,7 +307,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
 
 ## AIDP Environment (confirmed by testing):
 - Pre-installed JARs: Delta Lake 3.2, Avro, OCI HDFS connector (BmcFilesystem)
-- Installed JARs: Hudi 0.15.0, FeatureLib, FeatureLib2, MessageParser, DecryptUDF, Scala Logging
+- Installed JARs: Hudi 0.15.0, any bundled custom JARs, Scala Logging
 - Pre-installed Python: pandas 2.3.3, numpy 2.4.2, requests, oci, nbformat, ray 2.54, slack_sdk, boto3, delta, IPython
 - Installed Python (via requirements.txt): matplotlib, scikit-learn, xgboost, seaborn, plotly, tqdm, etc.
 - MLflow may NOT be pre-installed — install with pip install mlflow (no version pin) if needed
@@ -333,7 +333,7 @@ ANALYSIS_PROMPT = """You are a Databricks-to-Oracle-AIDP migration analyst. Orac
   display function for the type at hand.
   NEVER add a `DataFrame.display = _display_patch` monkey-patch (toPandas-based shims are slow).
 - dbutils.fs - available via aidp_compat
-- aidp_dbutils - the customer's existing shim
+- aidp_dbutils - a pre-existing dbutils-shim some Databricks codebases bundle locally
 - %run magic - available on AIDP
 - %sql magic - available on AIDP
 - %scala magic - AIDP supports Scala
@@ -446,8 +446,8 @@ time. If a table is broken, leave the table read as-is and let the runtime error
 CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta tables:
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
-ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
-DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
+ORC, CSV, JSON, Iceberg, or any non-Delta format. Some codebases call
+DESCRIBE DETAIL on parquet tables (e.g. a writer-wrapper function looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
 
@@ -552,7 +552,7 @@ Return ONLY valid JSON: {"cells": [...], "migration_notes": [...]}"""
 FIX_PROMPT = """You are fixing a PySpark , Scala or SQL cell that failed on OCI AIDP.
 Keep the fix minimal. Return ONLY the fixed code, no markdown.
 
-SCYLLADB → AIDP METASTORE (applies when the failing cell uses Cassandra/Scylla patterns):
+EXTERNAL NoSQL → AIDP METASTORE (applies when the failing cell uses Cassandra/Scylla/other external NoSQL connectors):
 The migration policy is a TEMPORARY mapping — every ScyllaDB keyspace is mirrored to the
 AIDP metastore as a schema named `scylla_<keyspace>` (original keyspace prefixed with
 `scylla_` for identification); every Scylla table is registered as a Spark table with the
@@ -600,7 +600,7 @@ cannot be resolved with these substitutions, call make_note() with the specific 
 return the cell as-is.
 
 
-TRINO / ATHENA (pyathena) → AIDP SPARK CATALOG:
+EXTERNAL QUERY ENGINES → AIDP SPARK CATALOG (e.g. Trino, Athena/pyathena):
 AWS Athena and Trino/Presto are external query engines NOT available on AIDP. Do NOT
 install or connect to them (pyathena = AWS-only; trino needs an unreachable endpoint).
 The same tables they query are registered in the AIDP Spark catalog — read via Spark.
@@ -659,16 +659,16 @@ would make the cell pass:
     worked in Databricks.
   - **NEVER inline-define customer writer-wrapper functions** to "fix" a NameError.
     The wrapper-call redirect at exec-time rewrites literal db/bucket args (e.g.,
-    `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', 'oracle_ai_automation_overwrite', ...)`)
+    `createTable(df, 't', 'analytics_db', ...)` → `createTable(df, 't', '<oci_backup_bucket>_overwrite', ...)`)
     BEFORE the call is sent to the kernel. If the wrapper function is missing
-    (NameError), defining a fresh copy of the customer's `def createTable(...)`
+    (NameError), defining a fresh copy of the user's `def createTable(...)`
     locally in the cell is FORBIDDEN — that copy is NOT what the call site sees
     (the cell-text redirect has already changed the arg), AND if the rewrite missed
     something, the inline copy writes to whatever database_name was passed. The
-    forbidden names: createTable, createTableOld, createTableIntermediate,
-    createTableIntermediateOld, createTableIntermediate_append, createTableIntermediate_1,
-    createTableInFeatureLib, createTable_oracle, saveTable, writeTable, write_to_delta,
-    process_source, drop_database, drop_table, delete_table. If any of these are
+    forbidden names: createTable, saveTable,
+    
+    writeTable, write_to_delta,
+    drop_database, drop_table, delete_table. If any of these are
     missing at runtime, call make_note() describing the failure and leave the cell
     code unchanged. The dep needs to be re-loaded — that's a systemic recovery, not
     a per-cell fix.
@@ -714,10 +714,10 @@ CRITICAL — Path rewriting safety for %run / dbutils.notebook.run / oidlUtils.n
 1. NEVER prepend the MIGRATED_BASE prefix to a path that already starts with it. If the
    target path already begins with the migrated-base prefix, use it as-is. Doubled
    prefixes like ".../notebooks/.../notebooks/..." are always wrong.
-2. When matching a `%run` token (e.g., `M90`) against the MIGRATED DEPENDENCY PATHS list,
-   match by EXACT basename equality only — never by prefix. A `%run M90` lookup must
-   NOT resolve to the entry for `M9` and append the remainder, producing
-   ".../M9.ipynb0.ipynb".
+2. When matching a `%run` token (e.g., `<long_basename>`) against the MIGRATED DEPENDENCY PATHS list,
+   match by EXACT basename equality only — never by prefix. A `%run <long_basename>` lookup must
+   NOT resolve to the entry for `<short_basename>` and append the remainder, producing
+   ".../<short_basename>.ipynb<digit>.ipynb".
 3. Every migrated `%run` path must end in exactly one ".ipynb" suffix. Patterns like
    ".ipynb<digit>.ipynb" or ".ipynb.ipynb" indicate a path construction bug — never emit.
 
@@ -725,7 +725,7 @@ CONDITIONAL — oidlUtils Java type coercion (only when this specific error appe
 If the failure output contains "Py4JException" with a message like
 "Method <name>([class java.lang.String, class java.lang.Integer/Boolean/Double]) does not exist",
 the JVM method requires a Java String. Cast the Python value to str:
-  oidlUtils.parameters.setTaskValue("alert_promise_tables", str(value))
+  oidlUtils.parameters.setTaskValue("<task_value_name>", str(value))
 Do NOT preemptively cast values — only apply this fix when the Py4J type-mismatch error fires.
 
 Key AIDP facts:
@@ -950,7 +950,7 @@ CRITICAL - Do NOT:
 - Generate Slack webhook calls or external notification code (replace with a pass comment)
 - REVERT previous fixes listed in the PREVIOUS FIXES section - those changes were validated and must be preserved
 
-CRITICAL - DO NOT CHANGE CUSTOMER CODE LOGIC:
+CRITICAL - DO NOT CHANGE SOURCE CODE LOGIC:
 - Do NOT convert pandas to PySpark (e.g. pd.read_csv → spark.read.format('csv') is WRONG)
 - Do NOT convert PySpark to pandas
 - Do NOT change data processing logic, algorithms, or library choices
@@ -976,7 +976,7 @@ CRITICAL - CODE QUALITY:
 
 # --- FUSE WORKAROUNDS (DISABLED 2026-04-11: AIDP FUSE issues resolved) ---
 # Uncomment if FUSE consistency issues resurface.
-# CRITICAL - AIDP SAFE I/O (aidp_compat v0.4.3):
+# CRITICAL - AIDP SAFE I/O (aidp_compat v0.5.0):
 # - For pickle write+read: use safe_pickle_dump() and safe_pickle_load() from aidp_compat
 # - For parquet overwrite-same-path: use safe_write_parquet() or safe_read_modify_write_parquet()
 # - For saveAsTable overwrite: use safe_save_as_table() (caches before overwrite)
@@ -1008,7 +1008,7 @@ do NOT attempt another fix on the call itself. Instead:
 
 Detect by ANY of these signals:
 - Direct Databricks REST API calls: requests.post/get to /api/2.0/jobs/*, /api/2.0/clusters/*
-- Hardcoded Databricks job_id (large integer like 938951762375103) in any function call
+- Hardcoded Databricks job_id (large integer like <DATABRICKS_JOB_ID>) in any function call
 - Wrapper functions that trigger Databricks jobs: run_job(), trigger_job(), submit_job(), etc.
 - AWS Secrets Manager / boto3.client('secretsmanager')
 - Databricks cluster policies / dbutils.secrets
@@ -1017,7 +1017,7 @@ Detect by ANY of these signals:
 Example:
   # --- STUBBED: Databricks job trigger not available on AIDP ---
   # Original:
-  # job_result = run_job({"run_name": model_name, "job_id": 938951762375103, ...})
+  # job_result = run_job({"run_name": model_name, "job_id": <DATABRICKS_JOB_ID>, ...})
   job_result = {"status": "STUBBED", "note": "Databricks job trigger not available on AIDP"}
   print("STUBBED: Databricks job trigger — original code in comments above")
 If unsure what downstream cells need, use get_cell_history to check before stubbing.
@@ -1052,7 +1052,7 @@ KNOWN AIDP ERROR PATTERNS — fix these directly, don't investigate:
   If side-effect only: add print("AIDP: Skipped — internal AWS endpoint not reachable")
   If it fetches data: use run_on_cluster + explore_path to find that data in OCI first
 - "Table does not support deletes" / DELETE FROM / UPDATE / MERGE:
-  Keep code as-is — do NOT rewrite. These are customer logic. Skip execution during migration
+  Keep code as-is — do NOT rewrite. These are source-side logic. Skip execution during migration
   (destructive operations can cause data loss). Validate syntax only.
 - NoCredentialsError from boto3 / botocore:
   No AWS credentials on AIDP. Use describe_table/explore_path to find the data in the AIDP catalog
@@ -1437,7 +1437,7 @@ OCI_PATH_TOOLS = [
     },
     {
         "name": "scan_sensitive_info",
-        "description": "Scan a notebook file for hardcoded sensitive info: Databricks API tokens (dapi...), Slack tokens/webhooks, internal Customer endpoints (internal-host.example, internal-gateway.example), and Databricks REST API calls. Returns list of matches with cell index, pattern type, and matched line. Use this when migrating cells that may have hardcoded credentials or internal AWS endpoint calls.",
+        "description": "Scan a notebook file for hardcoded sensitive info: Databricks API tokens (dapi...), Slack tokens/webhooks, internal endpoints (internal-host.example, internal-gateway.example), and Databricks REST API calls. Returns list of matches with cell index, pattern type, and matched line. Use this when migrating cells that may have hardcoded credentials or internal AWS endpoint calls.",
         "strict": True,
         "input_schema": {
             "type": "object",
@@ -1670,7 +1670,7 @@ async def _handle_tool_call(tool_name: str, tool_input: dict, session=None, log_
         if _q_first in _SKIP_MODULES:
             return f"'{query}' is a Python module, not a table. Skip."
         # Normalize cache key: lowercase + strip default. prefix — so
-        # "dream_pipeline.FOO", "default.dream_pipeline.foo", "dream_pipeline.foo"
+        # "example_schema.FOO", "default.example_schema.foo", "example_schema.foo"
         # all hit the same cache entry.
         _cache_key = query.lower().strip()
         if _cache_key.startswith("default."):
@@ -2447,7 +2447,7 @@ The code field must contain ONLY valid executable Python."""
 # attempt_data_recovery() to get a one-shot override block that substitutes
 # the cell's date-filter variables with dates that ACTUALLY have data in the
 # upstream table. The override is prepended to the cell's exec code ONLY;
-# the saved cell stays byte-identical to the customer's original.
+# the saved cell stays byte-identical to the original.
 #
 # Flow:
 #   1. Opus inspects the cell + error, uses describe_table / run_on_cluster
@@ -3139,7 +3139,7 @@ async def main():
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--end", type=int, default=None)
     parser.add_argument("--notebook", help="Single notebook path")
-    # AIDP environment — override these for non-Customer deployments
+    # AIDP environment — override these for deployments using different defaults
     parser.add_argument("--aidp-base", default=AIDP_BASE,
                         help="AIDP REST endpoint base URL (default: %(default)s)")
     parser.add_argument("--datalake-ocid", default=DATALAKE_OCID,

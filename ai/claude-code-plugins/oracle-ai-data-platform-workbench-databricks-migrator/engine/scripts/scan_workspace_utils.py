@@ -10,7 +10,7 @@ Pipeline (streaming, no full local clone of the workspace):
   4. For each detected wrapper, infer which args are table / db / path / bucket
      based on which arg names participate in the write call (string substitution
      into a SQL literal, .option("path", arg), or .saveAsTable(arg)).
-  5. Emit a JSON catalog at reports/customer_writer_wrappers.json.
+  5. Emit a JSON catalog at reports/writer_wrappers.json.
 
 Usage:
   python3 scripts/scan_workspace_utils.py [--root /Workspace/Users] [--enumerate-only]
@@ -37,13 +37,13 @@ import requests
 AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
 DATALAKE_OCID = "<DATALAKE_OCID>"
 WORKSPACE_ID = "<WORKSPACE_ID>"
-OCI_PROFILE = "CUSTOMER"
+OCI_PROFILE = "DEFAULT"
 OBJECTS_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/objects"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORTS_DIR = os.path.join(PROJECT_DIR, "reports")
-OUT_CATALOG = os.path.join(REPORTS_DIR, "customer_writer_wrappers.json")
+OUT_CATALOG = os.path.join(REPORTS_DIR, "writer_wrappers.json")
 OUT_INVENTORY = os.path.join(REPORTS_DIR, "workspace_inventory.json")
 
 

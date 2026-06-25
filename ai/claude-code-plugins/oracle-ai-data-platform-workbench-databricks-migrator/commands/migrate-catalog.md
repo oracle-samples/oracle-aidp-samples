@@ -31,7 +31,7 @@ If `$ARGUMENTS` provides `<catalog>` or `<catalog>:<schema>` filters, use them; 
 
 ```
 [Phase 1/4] Extracted N catalogs, M schemas, K tables → reports/catalog_pack.json
-[Phase 2/4] Dry-run: would create 23 schemas + 412 tables. Rejected: 3 MVs, 1 streaming table.
+[Phase 2/4] Dry-run: would create N schemas + M tables. Rejected: K MVs, J streaming tables.
             About to run live DDL replay — proceed? (y/N)
 [Phase 3/4] Replayed in 4 chunks of 25 statements each. All chunks committed.
 [Phase 4/4] Verify: SHOW TABLES across each schema. Discrepancies: 0

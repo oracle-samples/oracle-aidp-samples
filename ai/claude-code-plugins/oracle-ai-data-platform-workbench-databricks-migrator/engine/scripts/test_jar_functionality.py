@@ -58,92 +58,15 @@ except Exception as e:
     print(f"FAIL: {e}")
 """),
 
-    # ─── Feature Generation Library A ────────────────────────────
-    ("Feature Library A: Class loading", """
-classes = [
-    "com.example.featurelib_a.ClassA",
-    "com.example.featurelib_a.ClassB",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    ("Feature Library A: Instantiation test", """
-try:
-    constants = sc._jvm.com.example.featurelib_a.ClassA
-    # Try accessing a static field or method
-    print(f"OK: Feature Library A ClassA class accessible")
-    # List available methods
-    methods = [m.getName() for m in constants.getClass().getMethods()][:10]
-    print(f"   Methods: {methods}")
-except Exception as e:
-    print(f"FAIL: Cannot access Feature Library A ClassA - {str(e)[:200]}")
-"""),
-
-    # ─── Feature Library B ───────────────────────────────────────
-    ("Feature Library B: Class loading", """
-classes = [
-    "com.example.featurelib_b.ClassA",
-    "com.example.featurelib_b.ClassB",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    # ─── Feature Library C ───────────────────────────────────────
-    ("Feature Library C: Class loading", """
-try:
-    cls = sc._jvm.java.lang.Class.forName("com.example.featurelib_c.ClassA")
-    print("OK: Feature Library C ClassA loaded")
-except Exception as e:
-    print(f"FAIL: Feature Library C ClassA - {str(e)[:100]}")
-"""),
-
-    # ─── Parser Library ──────────────────────────────────────────
-    ("Parser Library: Class loading", """
-classes = [
-    "com.example.parserlib.ClassA",
-    "com.example.parserlib.featgenerator.ClassB",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    # ─── Decryptor Library ───────────────────────────────────────
-    ("Decryptor: Class loading", """
-classes = [
-    "com.example.decryptor.ClassA",
-    "com.example.decryptor.UdfRegistrar",
-]
-for cls_name in classes:
-    try:
-        cls = sc._jvm.java.lang.Class.forName(cls_name)
-        print(f"OK: {cls_name}")
-    except Exception as e:
-        print(f"FAIL: {cls_name} - {str(e)[:100]}")
-"""),
-
-    ("Decryptor: Instantiation", """
-try:
-    encryptor = sc._jvm.com.example.decryptor.ClassA
-    print(f"OK: Decryptor ClassA accessible")
-    methods = [m.getName() for m in encryptor.getClass().getDeclaredMethods()][:10]
-    print(f"   Methods: {methods}")
-except Exception as e:
-    print(f"FAIL: {str(e)[:200]}")
-"""),
+    # ─── Project-specific JARs (edit per project) ───
+    # Example entry — replace with your own JAR's classes:
+    # ("my_jar: Class loading", """
+    # try:
+    #     cls = sc._jvm.java.lang.Class.forName("com.your.app.YourClass")
+    #     print("OK: YourClass loaded")
+    # except Exception as e:
+    #     print(f"FAIL: {str(e)[:100]}")
+    # """),
 
     # ─── Scala Logging ───────────────────────────────────────────
     ("Scala Logging: Class loading", """
@@ -193,7 +116,7 @@ expected = [
     'feature_jar_b',
     'feature_jar_c',
     'parser_jar',
-    'decryptor',
+    'app',
     'scala-logging',
     'delta-spark',
 ]

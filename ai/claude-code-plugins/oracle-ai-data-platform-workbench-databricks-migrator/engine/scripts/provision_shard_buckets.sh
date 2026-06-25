@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Provision a pool of OCI Object Storage buckets for the Databricks->AIDP
 # migration sharding strategy. Each shard absorbs its own per-bucket request
-# budget so 2,500 parallel jobs do not collectively trip the OCI Java SDK
+# budget so thousands of parallel jobs do not collectively trip the OCI Java SDK
 # CircuitBreaker on a single bucket.
 #
 # Idempotent: re-running skips buckets that already exist.
@@ -12,19 +12,19 @@
 #
 # Usage:
 #   ./provision_shard_buckets.sh \
-#       --prefix customer-mig \
+#       --prefix <bucket_prefix> \
 #       --count 16 \
 #       --compartment ocid1.compartment.oc1..xxxxx \
-#       --profile CUSTOMER \
+#       --profile DEFAULT \
 #       --region <OCI_REGION>
 #
 # After running, configure the migration host:
-#   export AIDP_SHARD_PREFIX=customer-mig
+#   export AIDP_SHARD_PREFIX=<bucket_prefix>
 #   export AIDP_SHARD_COUNT=16
-#   export AIDP_NAMESPACE=$(oci os ns get --profile CUSTOMER --query 'data' --raw-output)
+#   export AIDP_NAMESPACE=$(oci os ns get --profile DEFAULT --query 'data' --raw-output)
 #
 # IAM note: the AIDP cluster's principal still needs a policy granting it
-# 'manage objects' on the new buckets. See MIGRATION_THROTTLING.md.
+# 'manage objects' on the new buckets. See migration throttling docs.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -41,7 +41,7 @@ usage() {
 Usage: $0 --prefix <name> --count <N> --compartment <ocid> [options]
 
 Required:
-  --prefix <name>          Bucket name prefix, e.g. 'customer-mig'
+  --prefix <name>          Bucket name prefix, e.g. '<bucket_prefix>'
   --count <N>              Number of shard buckets (1..99)
   --compartment <ocid>     Target compartment OCID
 

@@ -23,7 +23,7 @@ Usage:
     # Check only specific tasks
     python3 check_data_availability_for_workflow.py \\
         --job-key <uuid> --cluster <uuid> \\
-        --only-tasks "02_BaseData_ExampleApp,05_ExampleApp_Feature"
+        --only-tasks "task_a,task_b"
 """
 
 import argparse
@@ -47,7 +47,7 @@ from build_dag_from_workflow import (
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_LAKE_OCID = "<DATALAKE_OCID>"
 DEFAULT_WORKSPACE_ID = "<WORKSPACE_ID>"
-DEFAULT_OCI_PROFILE = "CUSTOMER"
+DEFAULT_OCI_PROFILE = "DEFAULT"
 DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
 # ─── Bucket → Namespace Mapping ────────────────────────────────────
