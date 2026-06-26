@@ -1,0 +1,26 @@
+{
+  "connector": "aidp-snowflake",
+  "auth": "user-password",
+  "result": "PASS",
+  "rows": 10,
+  "schema": ["COUNTRY", "DETAILS", "ID", "NAME"],
+  "sf_url": "IWXLKIY-XX39812.snowflakecomputing.com",
+  "sf_user": "DTTEST",
+  "sf_database": "TEST",
+  "sf_schema": "LOCAL",
+  "sf_warehouse": "COMPUTE_WH",
+  "sf_server_version": "10.14.103",
+  "tables_in_schema": 8,
+  "sample_table": "CUSTOMERS",
+  "list_ms": 4409,
+  "sample_read_ms": 3327,
+  "test_path": "Downloaded spark-snowflake_2.12-3.1.1.jar (570 KB) and snowflake-jdbc-3.19.0.jar (71 MB) from Maven Central. Loaded both via URLClassLoader + Thread.setContextClassLoader (the runtime-load helper) AND additionally called `spark._jsc.addJar()` so executors fetch them too — Snowflake reads happen on executors, so executor classpath must include the JARs. Then ran the standard `format('snowflake')` Spark connector with sfUser/sfPassword auth. Listed 8 tables in TEST.LOCAL (largest is BANK_TRANSACTIONS at 293M rows; smallest is CUSTOMERS at 10 rows), sampled CUSTOMERS end-to-end.",
+  "cluster": "tpcds (98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb)",
+  "spark_version": "3.5.0",
+  "jars": [
+    "/tmp/spark-snowflake_2.12-3.1.1.jar (570,275 bytes)",
+    "/tmp/snowflake-jdbc-3.19.0.jar (70,986,770 bytes)"
+  ],
+  "deployment_pattern": "v0.3.0 runtime_load helper for driver-side class loading + spark._jsc.addJar() for executor distribution. No cluster restart required.",
+  "timestamp_utc": 1777231136
+}

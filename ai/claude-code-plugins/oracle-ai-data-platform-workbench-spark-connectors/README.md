@@ -165,6 +165,14 @@ The skills surface these as a known limitation and route users to **API Key + in
 
 ## Plugin development
 
+The `skills/` directory is a materialized copy of the shared source in
+[`../../shared-plugin-content/oracle-ai-data-platform-workbench-spark-connectors/skills`](../../shared-plugin-content/oracle-ai-data-platform-workbench-spark-connectors/skills).
+Edit shared skills there first, then run:
+
+```bash
+python3 ai/shared-plugin-content/oracle-ai-data-platform-workbench-spark-connectors/sync_skills.py
+```
+
 ```bash
 # Validate plugin shape
 claude plugin validate .

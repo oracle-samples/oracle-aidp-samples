@@ -1,0 +1,22 @@
+{
+  "connector": "aidp-iceberg",
+  "auth": "oci-implicit-iam (Hadoop catalog on oci://)",
+  "result": "PASS",
+  "rows": 4,
+  "schema": ["dept", "id", "name"],
+  "warehouse": "oci://IDL_kkknoq6qpm6fybmz5ypq_1766012666158@idseylbmv0mm/aidp-quickwin-tests/iceberg-warehouse",
+  "fqn": "qw_oci_catalog.qw_demo_db.qw_employees",
+  "rows_written": 4,
+  "rows_read": 4,
+  "snapshots": 1,
+  "physical_files": 3,
+  "ddl_ms": 1908,
+  "write_ms": 3439,
+  "read_ms": 2916,
+  "test_path": "Registered an Iceberg Spark catalog (Hadoop type) backed by an OCI bucket, created a partitioned-by-dept table, inserted 4 rows, queried snapshots, listed physical Parquet files. End-to-end ACID round-trip on `oci://`. Iceberg Spark JAR (`org.apache.iceberg.spark.SparkCatalog`) is pre-installed on the tpcds cluster — no extra setup.",
+  "cluster": "tpcds (98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb)",
+  "namespace": "idseylbmv0mm",
+  "bucket": "IDL_kkknoq6qpm6fybmz5ypq_1766012666158",
+  "iceberg_jar_present": true,
+  "timestamp_utc": 1777229629
+}

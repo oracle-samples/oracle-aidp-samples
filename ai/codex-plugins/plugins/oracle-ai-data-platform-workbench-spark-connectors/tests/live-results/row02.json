@@ -1,0 +1,27 @@
+{
+  "connector": "aidp-alh",
+  "auth": "dbtoken",
+  "result": "PASS",
+  "rows": 1,
+  "schema": ["DB_USER", "TAG", "TS"],
+  "target_db": "ALHTEST (new ATP, 23ai, ECPU 2/20GB)",
+  "iam_principal": "ahmed.shahzad.awan@oracle.com",
+  "db_user": "IAM_TEST_USER",
+  "summary": "End-to-end IAM DB-Token Spark JDBC read on a fresh provisioned ALH/ATP instance. Token issued locally via OCI identity_data_plane.generate_scoped_access_token (scope = compartment AIDP_TPC-DS_Ahmed), staged on driver + 8 cluster executors, JDBC driver presented token, ALH validated against the IAM mapping and returned the row.",
+  "what_validated": [
+    "OCI_IAM external auth feature enabled on ALH (DBMS_CLOUD_ADMIN.ENABLE_EXTERNAL_AUTHENTICATION type=>'OCI_IAM')",
+    "DB user mapped to IDCS principal: CREATE USER iam_test_user IDENTIFIED GLOBALLY AS 'IAM_PRINCIPAL_NAME=oracleidentitycloudservice/ahmed.shahzad.awan@oracle.com'",
+    "JWT generation via OCI SecurityTokenSigner (AIDP_SESSION) -> identity_data_plane.generate_scoped_access_token",
+    "Driver-side oracle.jdbc.tokenAuthentication=OCI_TOKEN + oracle.jdbc.tokenLocation=/tmp/dbcred_alh succeeds",
+    "Spark DataFrame read with executor distribution (broadcast token+key+wallet to 64 partitions on 8 executors)"
+  ],
+  "key_lessons": [
+    "ADB ships with identity_provider_type=NONE by default. ENABLE_EXTERNAL_AUTHENTICATION type=>'OCI_IAM' (NOT ENABLE_FEATURE) flips it to OCI_IAM.",
+    "ADB ADMIN cannot ALTER SYSTEM SET identity_provider_type — must use the DBMS_CLOUD_ADMIN procedure.",
+    "For IDCS-federated users (JWT field domain_name=oracleidentitycloudservice), the IAM_PRINCIPAL_NAME mapping must include the domain prefix: 'oracleidentitycloudservice/<email>'. Plain '<email>' alone returns ORA-01017.",
+    "Oracle JDBC OCI_TOKEN auth requires BOTH /tmp/dbcred_alh/token AND /tmp/dbcred_alh/oci_db_key.pem (the private key matching the JWT's public_key claim) — already encoded in the dbtoken.py helper."
+  ],
+  "skill_correctness": "scripts/oracle_ai_data_platform_connectors/auth/dbtoken.py generate_db_token() validated end-to-end. spark_jdbc_options_dbtoken() builder produces the right JDBC properties.",
+  "timestamp_utc": 1777274391,
+  "test_database_disposition": "ALHTEST instance created in compartment AIDP_TPC-DS_Ahmed. Keep until row 3 also passes, then delete to avoid ongoing cost."
+}

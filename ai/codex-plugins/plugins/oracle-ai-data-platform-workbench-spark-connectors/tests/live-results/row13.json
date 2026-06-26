@@ -1,0 +1,25 @@
+{
+  "connector": "aidp-streaming-kafka",
+  "auth": "sasl-plain",
+  "rows": 3,
+  "schema": ["k", "offset", "partition", "topic", "v"],
+  "last_progress_input_rows": 3,
+  "tenancy": "oaseceal",
+  "topic": "aidp-connectors-test-topic",
+  "stream_pool_ocid": "ocid1.streampool.oc1.iad.amaaaaaaai22xpqasvz7ha3gqkr5c55lssl5oo7364rzxcobqcxafp5ggzra",
+  "stream_ocid": "ocid1.stream.oc1.iad.amaaaaaaai22xpqat2tmqbwbaerot27bmb5amijbpy7tzxszyyolleikckgq",
+  "checkpoint": "/Volumes/default/default/stability_test_vol/_kafka_ckpt_v2_1777223104",
+  "options_used": [
+    "kafka.bootstrap.servers",
+    "kafka.max.partition.fetch.bytes",
+    "kafka.sasl.jaas.config",
+    "kafka.sasl.mechanism",
+    "kafka.security.protocol",
+    "maxOffsetsPerTrigger",
+    "startingOffsets",
+    "subscribe"
+  ],
+  "timestamp_utc": 1777223131,
+  "result": "PASS",
+  "notes": "Re-validated against the helper aligned to the official Oracle AIDP sample (oracle-samples/oracle-aidp-samples → StreamingFromOCIStreamingService.ipynb). 3 messages consumed in 20 sec via SASL/PLAIN with optional max_partition_fetch_bytes (1 MiB) + max_offsets_per_trigger (5) tuning options. /Volumes/<cat>/<sch>/<vol>/... checkpoint enforced via validate_checkpoint_path()."
+}

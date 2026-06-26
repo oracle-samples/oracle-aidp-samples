@@ -13,6 +13,7 @@ A marketplace of OpenAI Codex CLI plugins for Oracle AI Data Platform (AIDP).
 |---|---|---|---|
 | [`oracle-ai-data-platform-workbench-databricks-migrator`](./plugins/oracle-ai-data-platform-workbench-databricks-migrator/) | 0.1.0 | Initial release | Plan and execute automated Databricks to AIDP migrations from Codex. |
 | [`oracle-ai-data-platform-workbench-engineer-agent`](./plugins/oracle-ai-data-platform-workbench-engineer-agent/) | 0.1.0+codex.20260623113518 | Initial release | Full AIDP data-engineering surface in natural language: catalog discovery, SQL analysis, AI-in-SQL, Delta operations, pipelines, clusters, governance, agent flows, MLOps, migration, and workspace administration. |
+| [`oracle-ai-data-platform-workbench-spark-connectors`](./plugins/oracle-ai-data-platform-workbench-spark-connectors/) | 0.5.0 | Initial release | Generate AIDP Spark notebook connector code for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources. |
 
 ## Install
 
@@ -29,6 +30,7 @@ Install a plugin:
 ```bash
 codex plugin add oracle-ai-data-platform-workbench-databricks-migrator@oracle-aidp-codex
 codex plugin add oracle-ai-data-platform-workbench-engineer-agent@oracle-aidp-codex
+codex plugin add oracle-ai-data-platform-workbench-spark-connectors@oracle-aidp-codex
 ```
 
 Verify:
@@ -49,6 +51,7 @@ Then reinstall or refresh the plugin you want to test:
 
 ```bash
 codex plugin add oracle-ai-data-platform-workbench-engineer-agent@oracle-aidp-codex
+codex plugin add oracle-ai-data-platform-workbench-spark-connectors@oracle-aidp-codex
 ```
 
 ## Layout
@@ -60,7 +63,8 @@ ai/codex-plugins/
 |-- TESTING.md
 `-- plugins/
     |-- oracle-ai-data-platform-workbench-databricks-migrator/
-    `-- oracle-ai-data-platform-workbench-engineer-agent/
+    |-- oracle-ai-data-platform-workbench-engineer-agent/
+    `-- oracle-ai-data-platform-workbench-spark-connectors/
 ```
 
 Each plugin has its own `.codex-plugin/plugin.json`, README, license/privacy files, skills, and references or helper files.

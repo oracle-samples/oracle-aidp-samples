@@ -1,0 +1,20 @@
+{
+  "connector": "aidp-jdbc-custom",
+  "auth": "sqlite-memory",
+  "result": "PASS",
+  "rows": 1,
+  "schema": ["c1", "c2", "c3"],
+  "jdbc_url": "jdbc:sqlite::memory:",
+  "driver": "org.sqlite.JDBC",
+  "jar_path": "/tmp/sqlite-jdbc-3.46.0.0.jar",
+  "jar_size_bytes": 13615436,
+  "elapsed_ms": 1212,
+  "smoke_query_a": "SELECT 1 AS c1, 2 AS c2, 3 AS c3",
+  "smoke_query_b_rows": 5,
+  "loader_trick": "URLClassLoader + Thread.setContextClassLoader + DriverManager.registerDriver",
+  "test_path": "Downloaded SQLite JDBC jar from Maven Central to /tmp at runtime. Constructed a Java URLClassLoader rooted at the existing thread context loader, loaded `org.sqlite.JDBC` via that loader, instantiated the driver, registered it with java.sql.DriverManager, and set the loader as the thread context CL so Spark's `Utils.classForName` finds the class. Spark JDBC then connected to in-memory SQLite, ran `SELECT 1 AS c1, 2 AS c2, 3 AS c3`, and a 5-row arithmetic query — both successful. Demonstrates that custom JDBC drivers CAN be loaded at runtime in AIDP without a cluster restart, when the JAR is reachable (Maven Central works; PyPI does not).",
+  "cluster": "tpcds (98d06c4f-d2d4-486e-a9dc-ab6aede8b7cb)",
+  "spark_version": "3.5.0",
+  "fix_origin": "v0.3.0 — runtime-load helper added to `oracle_ai_data_platform_connectors.jdbc.runtime_load.add_jdbc_jar_at_runtime()` and skill SKILL.md updated to document this as Option A (no cluster restart required); cluster Library tab demoted to Option B.",
+  "timestamp_utc": 1777229921
+}
