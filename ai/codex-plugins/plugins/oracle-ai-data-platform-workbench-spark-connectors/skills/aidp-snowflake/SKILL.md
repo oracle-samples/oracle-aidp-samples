@@ -1,4 +1,5 @@
 ---
+name: aidp-snowflake
 description: Read or write Snowflake from an AIDP notebook via Spark using the Snowflake Spark connector. Use when the user mentions Snowflake, Snowflake warehouse, sfUrl, sfUser, or wants to migrate from Snowflake. Auth is sfUser + sfPassword over the Snowflake Spark connector (`net.snowflake.spark.snowflake`).
 allowed-tools: Read, Write, Edit, Bash
 ---

@@ -1,4 +1,5 @@
 ---
+name: aidp-salesforce
 description: Read from Salesforce into a Spark DataFrame in an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions Salesforce, SFDC, Sales Cloud, Service Cloud, Account, Opportunity, Lead, sObject, SOQL. Auth is host/port + user/password. Read-only.
 allowed-tools: Read, Write, Edit, Bash
 ---

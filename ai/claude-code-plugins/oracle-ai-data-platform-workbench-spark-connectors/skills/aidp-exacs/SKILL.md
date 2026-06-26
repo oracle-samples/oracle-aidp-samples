@@ -1,4 +1,5 @@
 ---
+name: aidp-exacs
 description: Read or write Oracle Exadata Cloud Service (ExaCS) from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions ExaCS, Exadata, Exadata Cloud, RAC SCAN listener, or has a private-subnet Oracle DB. Prefer the official `ORACLE_EXADATA` connector sample with catalog.id, pushdown.sql, and connector write modes.
 allowed-tools: Read, Write, Edit, Bash
 ---

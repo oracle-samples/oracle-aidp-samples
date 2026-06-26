@@ -1,4 +1,5 @@
 ---
+name: aidp-peoplesoft
 description: Read from Oracle PeopleSoft into a Spark DataFrame in an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions PeopleSoft, PSFT, HCM, FSCM, Campus Solutions, or has a PeopleSoft host/port. Auth is host/port + database name + user/password. Read-only.
 allowed-tools: Read, Write, Edit, Bash
 ---

@@ -88,5 +88,3 @@ def test_password_options_basic():
     assert opts["user"] == "legacy"
     assert opts["password"] == "pw"
     assert "oracle.jdbc.tokenAuthentication" not in opts
-
-

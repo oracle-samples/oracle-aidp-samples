@@ -1,4 +1,5 @@
 ---
+name: aidp-essbase
 description: Run an MDX query against an Oracle Essbase 21c cube and materialize the result as a Spark DataFrame in an AIDP notebook. Use when the user mentions Essbase, MDX, Essbase 21c, OLAP cube, or wants to read cube data into Spark. Auth is HTTP Basic.
 allowed-tools: Read, Write, Edit, Bash
 ---

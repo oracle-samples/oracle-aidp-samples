@@ -1,4 +1,5 @@
 ---
+name: aidp-iceberg
 description: Read and write Apache Iceberg tables backed by OCI Object Storage from an AIDP notebook. Use when the user mentions Iceberg, Apache Iceberg, time travel, snapshots, schema evolution, partition evolution, or wants ACID transactions on data lake files. Uses the Iceberg Hadoop catalog on `oci://` — auth is implicit via the workspace IAM identity.
 allowed-tools: Read, Write, Edit, Bash
 ---

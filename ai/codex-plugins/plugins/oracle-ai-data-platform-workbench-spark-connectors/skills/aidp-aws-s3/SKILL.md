@@ -1,4 +1,5 @@
 ---
+name: aidp-aws-s3
 description: Read and write AWS S3 (`s3a://`) from an AIDP notebook. Use when the user mentions S3, AWS S3 bucket, s3a, or has AWS access keys. Auth is access key + secret key via the Hadoop S3A connector. boto3 is also available for non-Spark management operations (list, copy).
 allowed-tools: Read, Write, Edit, Bash
 ---

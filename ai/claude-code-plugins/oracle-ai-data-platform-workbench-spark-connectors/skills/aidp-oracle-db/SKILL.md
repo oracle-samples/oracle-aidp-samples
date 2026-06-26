@@ -1,4 +1,5 @@
 ---
+name: aidp-oracle-db
 description: Read or write an Oracle Database (Compute / Base DB / on-prem / Oracle 19c, 21c, 23ai, 26ai non-Autonomous) from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions Oracle Database, generic Oracle DB, on-prem Oracle, plain Oracle JDBC, port 1521, non-Autonomous Oracle. Read-write. Auth is host/port + database name + user/password.
 allowed-tools: Read, Write, Edit, Bash
 ---

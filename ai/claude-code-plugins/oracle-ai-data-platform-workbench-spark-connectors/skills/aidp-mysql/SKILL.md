@@ -1,4 +1,5 @@
 ---
+name: aidp-mysql
 description: Read or write MySQL or OCI MySQL HeatWave from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions MySQL, HeatWave, MySQL Database Service, MDS, or has a MySQL host/port. Auth is host/port + user/password.
 allowed-tools: Read, Write, Edit, Bash
 ---

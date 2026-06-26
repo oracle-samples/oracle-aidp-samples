@@ -1,4 +1,5 @@
 ---
+name: aidp-jdbc-custom
 description: Connect to ANY database that has a JDBC driver from an AIDP notebook using Spark's native `format("jdbc")`. Use when the user mentions a DB without a dedicated AIDP connector — SQLite, ClickHouse, DuckDB, generic JDBC URL — or wants to use a custom JDBC driver they uploaded. Auth is driver-specific.
 allowed-tools: Read, Write, Edit, Bash
 ---

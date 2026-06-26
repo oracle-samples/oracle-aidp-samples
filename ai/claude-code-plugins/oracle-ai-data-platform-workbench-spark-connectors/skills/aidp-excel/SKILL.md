@@ -1,4 +1,5 @@
 ---
+name: aidp-excel
 description: Read Excel (.xlsx, .xls) files into a Spark DataFrame from an AIDP notebook. Use when the user mentions Excel, .xlsx, .xls, or has spreadsheet files in a Volume / Object Storage bucket. Two paths — the `com.crealytics.spark.excel` Spark format (cluster jar required) and a `pandas → CSV → spark.read.csv` fallback that needs no jars.
 allowed-tools: Read, Write, Edit, Bash
 ---

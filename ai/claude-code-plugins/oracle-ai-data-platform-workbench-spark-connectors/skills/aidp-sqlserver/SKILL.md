@@ -1,4 +1,5 @@
 ---
+name: aidp-sqlserver
 description: Read or write Microsoft SQL Server from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions SQL Server, MSSQL, Azure SQL Database, or has a TDS host/port. Auth is host/port + database + user/password.
 allowed-tools: Read, Write, Edit, Bash
 ---

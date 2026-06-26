@@ -1,4 +1,5 @@
 ---
+name: aidp-fusion-bicc
 description: Pull a Fusion BICC bulk extract into a Spark DataFrame from an AIDP notebook. Use when the user mentions BICC, Fusion bulk extract, BI Cloud Connector, PVO, or needs >50k rows from Fusion. The recommended path uses AIDP's built-in `spark.read.format("aidataplatform")` connector (matches the official Oracle AIDP sample). HTTP Basic auth.
 allowed-tools: Read, Write, Edit, Bash
 ---

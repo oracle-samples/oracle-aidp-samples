@@ -1,4 +1,5 @@
 ---
+name: aidp-connectors-bootstrap
 description: First-time setup. Use when the user wants to install/upload the AIDP Spark connectors helper package into their AIDP workspace, or has just installed this plugin and asks "how do I set it up", "first-time setup", "install the helpers", "bootstrap aidp connectors". Drives the AIDP MCP tools to push the helper package to /Workspace/Shared/ and runs a sanity import.
 allowed-tools: Read, Bash
 ---
