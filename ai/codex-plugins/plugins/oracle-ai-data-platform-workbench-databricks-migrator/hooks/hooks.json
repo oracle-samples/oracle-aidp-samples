@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${PLUGIN_ROOT}/hooks/session_start.py\"",
+            "statusMessage": "Staging AIDP migrator engine to ~/.aidp-migrator"
+          }
+        ]
+      }
+    ]
+  }
+}

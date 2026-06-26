@@ -1,6 +1,6 @@
 ---
 name: aidp-migrate-job
-description: Run the full Databricks→AIDP migration against a manifest. Pass-1 walks the %run dep tree and rewrites Databricks APIs in each dep notebook code-only. Pass-2 executes each task cell-by-cell on a live AIDP cluster, runs 4-way verify (exec error / stderr patterns / Spark logs / Opus eval), and re-attempts up to 10 times via Claude with tool use. Use when the user is ready to actually port the workload (not just plan it). Long-running — typical job takes 10–60 minutes per task depending on cell count.
+description: Run the full Databricks→AIDP migration against a manifest. Pass-1 walks the %run dep tree and rewrites Databricks APIs in each dep notebook code-only. Pass-2 executes each task cell-by-cell on a live AIDP cluster, runs 4-way verify (exec error / stderr patterns / Spark logs / model eval), and re-attempts up to 10 times via OpenAI model with tool use. Use when the user is ready to actually port the workload (not just plan it). Long-running — typical job takes 10–60 minutes per task depending on cell count.
 ---
 
 # `aidp-migrate-job` — execute the migration
@@ -16,14 +16,14 @@ This is the main event. Pass-1 fixes the code, Pass-2 proves it runs.
 - A valid manifest at `reports/<job>_manifest.json` (use [`aidp-build-dag`](../aidp-build-dag/SKILL.md)).
 - A clean [`aidp-check-data`](../aidp-check-data/SKILL.md) (or an explicit "I know data is missing, proceed anyway" from the user).
 - An ACTIVE AIDP cluster.
-- `ANTHROPIC_API_KEY` set.
+- `OPENAI_API_KEY` set.
 - `~/.oci/config` valid for the chosen profile.
 
 ## Canonical invocation
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-python3 scripts/job_migrate.py \
+export OPENAI_API_KEY=<your-openai-api-key>
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -35,7 +35,7 @@ python3 scripts/job_migrate.py \
 
 For the workflow-shape variant (preserves the Databricks Job task DAG):
 ```bash
-python3 scripts/job_migrate_from_workflow.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -67,20 +67,20 @@ tail -f /tmp/migration.log
 Pass 1 — DEPS (ensure_migrated):
   For every transitive %run / notebook.run target:
     if already in _migration_cache or already on cluster → SKIP
-    else → migrate code only (Claude rewrites Databricks APIs)
+    else → migrate code only (the OpenAI model rewrites Databricks APIs)
            save .ipynb to <output-base>/<job>/deps/
 
 Pass 2 — TASKS (per task in topo order):
   For each task notebook, for each code cell:
     1. Analyze (cell_plan: description, action, risks)
-    2. Migrate (Claude with tool use rewrites)
+    2. Migrate (OpenAI model with tool use rewrites)
     3. Execute on live cluster via WebSocket
     4. Verify:
         a. raised exception?
         b. error patterns in stdout? ("Error:", "Traceback", "FAILED")
         c. Spark logs show stage failure?
-        d. Opus eval: does the output look correct?
-    5. If any verify check failed → call_fix() with Claude + full tools.
+        d. model eval: does the output look correct?
+    5. If any verify check failed → call_fix() with OpenAI model + full tools.
        Up to 10 fix attempts per cell. fixup_cell can rewind to earlier indices.
   Save the fixed-up .ipynb to <output-base>/<job>/notebooks/...
   Emit JOB_REPORT.md
@@ -129,12 +129,12 @@ The migrated `.ipynb`s are uploaded to your AIDP workspace at `<output-base>` AN
 
 - **Write-redirect sandbox schema.** Every `.saveAsTable(...)` / `INSERT INTO` is silently rewritten to a sandbox `<schema>.<table>` location during migration. Source production data is never touched. The redirect schema is verified per-task (`databaseExists`) — if verification fails, the task fails fast.
 - **No `--no-redirect-schema` without explicit user consent.** Bypassing the redirect drops the data-safety guarantee.
-- **No `--skip-migrated=false` without explicit user consent.** Force-re-migration re-spends Claude tokens AND can overwrite manual fixes the user applied to a previously-migrated notebook.
+- **No `--skip-migrated=false` without explicit user consent.** Force-re-migration re-spends model tokens and can overwrite manual fixes the user applied to a previously-migrated notebook.
 
 ## Cost / time guidance
 
-- A typical 30-cell notebook takes ~5-15 minutes on a warm cluster, costs $1-3 in Claude tokens.
-- A typical 5-task workflow with ~150 cells total: 30-90 min, $10-30 in Claude.
+- A typical 30-cell notebook takes ~5-15 minutes on a warm cluster, uses model tokens; exact cost depends on the selected OpenAI model.
+- A typical 5-task workflow with ~150 cells total: 30-90 min; token cost depends on the selected OpenAI model.
 - Pass-1 deps are SHARED across jobs in the same run — second job is cheaper.
 
 ## After this

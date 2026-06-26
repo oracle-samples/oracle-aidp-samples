@@ -57,7 +57,7 @@ The following cells failed with actionable notes:
 - Cluster: <CLUSTER_ID>
 - Output base: <output-base>
 - Total wall clock: <int>s
-- Claude tokens (approx): in <int>, out <int>
+- model tokens (approx): in <int>, out <int>
 ```
 
 ---

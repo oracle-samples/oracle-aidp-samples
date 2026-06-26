@@ -56,7 +56,7 @@ ls reports/
 # → reports/<MyJob>_manifest.json
 # → reports/<MyJob>_acceptance.yaml
 
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --acceptance-contract reports/<MyJob>_acceptance.yaml \
   # + the rest of the args

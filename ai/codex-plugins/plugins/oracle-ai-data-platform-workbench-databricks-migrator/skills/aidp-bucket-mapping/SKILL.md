@@ -78,7 +78,7 @@ If the user is doing this for the first time:
 
 Behavior contract:
 - `migrate_catalog.py` REJECTS unknown buckets when `--catalog-manifest` is explicit (data-correctness gate).
-- `job_migrate.py` Pass-1 surfaces unknown buckets in the cell-fix Claude context so the model can either route to a synthetic stub OR ask the user.
+- `job_migrate.py` Pass-1 surfaces unknown buckets in the cell-fix model context so the model can either route to a synthetic stub OR ask the user.
 - `check_data_availability.py` reports unknown-bucket as a hard `MISSING` row.
 
 If you see WARNINGS but the migration continues, that's usually safe — the rewriter passed the path through unchanged. Confirm the consumer notebook either no longer reads that path OR has been adapted.

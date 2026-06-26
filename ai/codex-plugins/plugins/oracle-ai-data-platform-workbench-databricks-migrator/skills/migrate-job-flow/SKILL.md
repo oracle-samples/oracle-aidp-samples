@@ -40,7 +40,7 @@ Between phases, give the user a 1-line summary + the cost estimate of the next s
 [Phase 1/5] DAG built: 7 tasks, 18 dep notebooks, output reports/<MyJob>_manifest.json
 [Phase 2/5] About to scan source data on cluster — ~2 min, no token cost. Proceed? (y/N)
 ...
-[Phase 4/5] About to start Pass-2 migration — est. 30-90 min, $10-30 in model tokens. Proceed? (y/N)
+[Phase 4/5] About to start Pass-2 migration — est. 30-90 min, token cost depends on the selected OpenAI model. Proceed? (y/N)
 ```
 
 Do not auto-proceed past the migrate step without explicit user confirmation. Pass-2 is expensive.

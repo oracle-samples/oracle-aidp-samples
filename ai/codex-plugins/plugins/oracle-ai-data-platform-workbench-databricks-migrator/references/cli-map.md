@@ -2,18 +2,18 @@
 
 Every entrypoint of the migrator toolkit, what it does, and the canonical invocation. Use this as the source-of-truth when a skill needs to construct a command line.
 
-> The migrator's Python source lives in a separate Oracle toolkit you check out locally — this plugin is knowledge-only. All commands below assume you're in the migrator repo root.
+> The migrator's Python engine is bundled with this Codex plugin and staged to `~/.aidp-migrator/engine` by the SessionStart hook. Commands below invoke that staged engine directly.
 
 ---
 
 ## Build the execution DAG
 
-### `scripts/build_dag.py` — path-based
+### `$HOME/.aidp-migrator/engine/scripts/build_dag.py` — path-based
 
 Walks a Databricks workspace folder, resolves `%run` / `dbutils.notebook.run` chains, emits a topo-ordered manifest.
 
 ```bash
-python3 scripts/build_dag.py \
+python3 $HOME/.aidp-migrator/engine/scripts/build_dag.py \
   --root "<databricks-workspace-path>" \
   --job-name "<MyJob>" \
   --output reports/<MyJob>_manifest.json
@@ -26,12 +26,12 @@ python3 scripts/build_dag.py \
 | `--output` | Where to write the manifest JSON |
 | `--include-pattern` | (optional) glob filter for which notebooks to include |
 
-### `scripts/build_dag_from_workflow.py` — workflow-based
+### `$HOME/.aidp-migrator/engine/scripts/build_dag_from_workflow.py` — workflow-based
 
 Pulls task definitions from a Databricks Job ID via the Workflows REST API, preserving `depends_on` edges.
 
 ```bash
-python3 scripts/build_dag_from_workflow.py \
+python3 $HOME/.aidp-migrator/engine/scripts/build_dag_from_workflow.py \
   --job-id <databricks-job-id> \
   --output reports/<MyJob>_manifest.json
 ```
@@ -42,10 +42,10 @@ Requires `DATABRICKS_HOST` + `DATABRICKS_TOKEN` env.
 
 ## Pre-migration data check
 
-### `scripts/check_data_availability.py` — manifest-based
+### `$HOME/.aidp-migrator/engine/scripts/check_data_availability.py` — manifest-based
 
 ```bash
-python3 scripts/check_data_availability.py \
+python3 $HOME/.aidp-migrator/engine/scripts/check_data_availability.py \
   --root "<databricks-workspace-path>" \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -54,10 +54,10 @@ python3 scripts/check_data_availability.py \
   --oci-profile <profile>
 ```
 
-### `scripts/check_data_availability_for_workflow.py` — workflow-based
+### `$HOME/.aidp-migrator/engine/scripts/check_data_availability_for_workflow.py` — workflow-based
 
 ```bash
-python3 scripts/check_data_availability_for_workflow.py \
+python3 $HOME/.aidp-migrator/engine/scripts/check_data_availability_for_workflow.py \
   --job-id <databricks-job-id> \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -72,10 +72,10 @@ Both output an OK / MISSING / EMPTY report by table + path.
 
 ## Catalog migration (Unity Catalog / HMS → AIDP)
 
-### `scripts/extract_catalog_databricks.py` — stage 1 (extract)
+### `$HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py` — stage 1 (extract)
 
 ```bash
-python3 scripts/extract_catalog_databricks.py \
+python3 $HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py \
   --catalogs "<catalog_a>,<catalog_b>" \
   --schemas-only "<catalog_a>:<schema_1>" \
   --out reports/catalog_pack.json
@@ -83,10 +83,10 @@ python3 scripts/extract_catalog_databricks.py \
 
 Requires `DATABRICKS_HOST` + `DATABRICKS_TOKEN`.
 
-### `scripts/migrate_catalog.py` — stage 2 (rewrite + replay)
+### `$HOME/.aidp-migrator/engine/scripts/migrate_catalog.py` — stage 2 (rewrite + replay)
 
 ```bash
-python3 scripts/migrate_catalog.py \
+python3 $HOME/.aidp-migrator/engine/scripts/migrate_catalog.py \
   --pack reports/catalog_pack.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -106,13 +106,13 @@ Useful flags:
 
 ## The big run: notebook migration
 
-### `scripts/job_migrate.py` — manifest-based
+### `$HOME/.aidp-migrator/engine/scripts/job_migrate.py` — manifest-based
 
 Pass-1 deps + Pass-2 cell-by-cell on a live AIDP cluster.
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-python3 scripts/job_migrate.py \
+export OPENAI_API_KEY=<your-openai-api-key>
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<MyJob>_manifest.json \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
@@ -134,7 +134,7 @@ Common additional flags:
 | `--bucket-mapping <path>` | `s3://` → `oci://` mapping for path rewrites. |
 | `--acceptance-contract <path>` | YAML contract for convergence verification. |
 
-### `scripts/job_migrate_from_workflow.py` — workflow-shape manifest
+### `$HOME/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py` — workflow-shape manifest
 
 Same flags as above, plus reads the Databricks Workflows task DAG verbatim (vs inferring deps from `%run`).
 
@@ -142,12 +142,12 @@ Same flags as above, plus reads the Databricks Workflows task DAG verbatim (vs i
 
 ## Clone an AIDP workflow (post-migration)
 
-### `scripts/clone_workflow.py`
+### `$HOME/.aidp-migrator/engine/scripts/clone_workflow.py`
 
 After migrating one workflow, you may want to clone it (sandbox copy, regional fan-out) without re-running the migrator.
 
 ```bash
-python3 scripts/clone_workflow.py \
+python3 $HOME/.aidp-migrator/engine/scripts/clone_workflow.py \
   --source-job-key <SOURCE_AIDP_JOB_KEY> \
   --target-name "<NewName>" \
   --aidp-base <AIDP_BASE> \
@@ -160,12 +160,12 @@ python3 scripts/clone_workflow.py \
 
 ## Cluster lifecycle
 
-### `scripts/cluster_lifecycle.py`
+### `$HOME/.aidp-migrator/engine/scripts/cluster_lifecycle.py`
 
 Read-only inspection + non-destructive nudges (start a stopped cluster). NOT used for create / destroy.
 
 ```bash
-python3 scripts/cluster_lifecycle.py \
+python3 $HOME/.aidp-migrator/engine/scripts/cluster_lifecycle.py \
   --cluster <CLUSTER_ID> \
   --aidp-base <AIDP_BASE> \
   --datalake-ocid <DATALAKE_OCID> \

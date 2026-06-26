@@ -48,9 +48,9 @@ bucket_mapping_path: "<path-to-bucket-mapping.json>"    # absolute path to your 
 catalog_manifest_path: "<path-to-catalog-manifest.json>"   # optional
 
 # ──────────────────────────────────────────────────────────────────────
-# Anthropic — for Pass-2 cell-by-cell migration
-# ──────────────────────────────────────────────────────────────────────
-anthropic_api_key_env: "ANTHROPIC_API_KEY"              # set via env, NOT in this file
+# OpenAI - for Pass-2 cell-by-cell migration
+openai_api_key_env: "OPENAI_API_KEY"                 # set via env, NOT in this file
+openai_model_env: "OPENAI_MODEL"                      # optional; set via env, NOT in this file
 ```
 
 ---
@@ -79,7 +79,7 @@ anthropic_api_key_env: "ANTHROPIC_API_KEY"              # set via env, NOT in th
 The skills generate commands like this — every coordinate above maps to a `--flag`:
 
 ```bash
-python3 scripts/job_migrate.py \
+python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
   --manifest reports/<job>_manifest.json \
   --cluster $cluster_id \
   --aidp-base $aidp_base_url \
@@ -114,6 +114,6 @@ Or simpler — invoke [`aidp-migrator-bootstrap`](../skills/aidp-migrator-bootst
 ## Security notes
 
 - **Never commit this file with real values filled in.** Always gitignore.
-- **Tokens (`DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`)** belong in the shell env, not in this file.
+- **Tokens (`DATABRICKS_TOKEN`, `OPENAI_API_KEY`)** belong in the shell env, not in this file. Optional model selection (`OPENAI_MODEL`) also belongs in the shell env.
 - **`bucket_mapping_path`** points at a file that itself contains tenancy-specific identifiers — also gitignore.
 - **OCIDs are not secrets** but they ARE tenancy-identifying. Treat similarly to internal hostnames.
