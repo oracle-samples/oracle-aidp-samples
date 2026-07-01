@@ -318,7 +318,7 @@ The refresh procedure bundles several steps — credential access, the Object St
 
 Running the same steps by hand isolates which layer is failing, because you see the raw error at each step instead of the procedure's summarized one. Run the statements below while connected as the **same ADW schema the notebook uses**, and replace every `<...>` placeholder with your values.
 
-> Work through the steps in order. The first one that fails points at the layer to fix.
+> Work through the steps in order. The first one that fails points at the layer to fix. The `DROP` wrappers in steps 1, 4, and 7 deliberately ignore errors from dropping an object that does not exist so the blocks can be re-run; they are conveniences, not diagnostic steps — the `CREATE_CREDENTIAL`, `LIST_OBJECTS`, `CREATE_EXTERNAL_TABLE`, and `SELECT` calls are where a real error surfaces.
 
 ### 1. Create (or recreate) the credential
 
@@ -328,7 +328,10 @@ BEGIN
       DBMS_CLOUD.DROP_CREDENTIAL('<CREDENTIAL_NAME>');
    EXCEPTION
       WHEN OTHERS THEN
-         NULL;  -- ignore if the credential does not exist yet
+         -- Best-effort drop so this block can be re-run. This swallows any
+         -- error here (usually the credential not existing yet); the
+         -- CREATE_CREDENTIAL below is the step that must actually succeed.
+         NULL;
    END;
 
    DBMS_CLOUD.CREATE_CREDENTIAL(
@@ -384,7 +387,10 @@ If you see no rows, either the ACL was not granted or it was granted to a differ
 This is the single most useful check: it exercises the credential and the ACL together, and it tells you whether the latest metadata file is actually visible yet. Point `location_uri` at the table's `metadata/` folder, using the HTTPS Object Storage form of your `oci://` path.
 
 ```sql
-SELECT object_name
+SELECT object_name,
+       TO_NUMBER(
+          REGEXP_SUBSTR(object_name, '^v([0-9]+)\.metadata\.json$', 1, 1, NULL, 1)
+       ) AS version_no
 FROM TABLE(
    DBMS_CLOUD.LIST_OBJECTS(
       credential_name => '<CREDENTIAL_NAME>',
@@ -392,14 +398,14 @@ FROM TABLE(
    )
 )
 WHERE REGEXP_LIKE(object_name, '^v[0-9]+\.metadata\.json$')
-ORDER BY object_name;
+ORDER BY version_no DESC;
 ```
 
 Interpret the result:
 
 - **An authorization / signature error** → the credential is wrong or the ACL is not granted to this schema. Fix steps 1–2.
-- **No rows** → the credential works, but no `vN.metadata.json` exists yet. UniForm Iceberg metadata generation is asynchronous, so trigger a Delta write/commit, wait briefly, and rerun.
-- **One or more rows** → note the highest `vN.metadata.json`; that is the file the external table should point at.
+- **No rows** → no `vN.metadata.json` was found at that path. Either the `location_uri` points at the wrong namespace, bucket, or table path (recheck the `oci://` → HTTPS mapping below), or the credential works but the metadata is not visible yet — UniForm Iceberg metadata generation is asynchronous, so trigger a Delta write/commit, wait briefly, and rerun.
+- **One or more rows** → the first row (highest `version_no`) is the latest metadata file; that is the one the external table should point at. Ordering by the numeric `version_no` matters, because a plain string sort would place `v10.metadata.json` before `v9.metadata.json`.
 
 The `oci://<bucket>@<namespace>/<table_path>` URI maps to `https://objectstorage.<region>.oraclecloud.com/n/<namespace>/b/<bucket>/o/<table_path>/` — the same conversion the procedure performs internally.
 
@@ -435,7 +441,9 @@ END;
 /
 ```
 
-If your table has long string columns, add `"maxvarchar":"extended"` to the `format` (on an instance with `MAX_STRING_SIZE=EXTENDED`); otherwise ADW derives `VARCHAR2(4000)` and values longer than the derived size are returned as `NULL`. This mirrors the `p_maxvarchar` option in the procedure.
+If your `<table_path>` contains characters that require URL encoding (for example spaces or `@`), percent-encode them in the `file_uri_list`. The procedure does this automatically with `UTL_URL.ESCAPE`.
+
+If your table has long string columns, you can add `"maxvarchar":"extended"` to the `format` (on an instance with `MAX_STRING_SIZE=EXTENDED`); otherwise ADW derives `VARCHAR2(4000)` for the derived string columns and values longer than that are returned as `NULL`. `maxvarchar` accepts `standard`, `extended`, or `auto`.
 
 ### 6. Query the table
 
@@ -464,7 +472,9 @@ BEGIN
       DBMS_CLOUD.DROP_CREDENTIAL('<CREDENTIAL_NAME>');
    EXCEPTION
       WHEN OTHERS THEN
-         NULL;  -- ignore if the credential does not exist
+         -- Best-effort cleanup; swallows any error (usually the credential
+         -- already being gone).
+         NULL;
    END;
 END;
 /
