@@ -96,6 +96,8 @@ The ACL grant must be given to the ADW schema that executes `DBMS_CLOUD` operati
 
 The SQL file also includes a verification query against `USER_HOST_ACES`.
 
+If the refresh procedure later fails with an error that does not clearly point at the cause, see [Manually verifying credentials and external table creation](#manually-verifying-credentials-and-external-table-creation) to run the underlying steps by hand and isolate the failing layer.
+
 ## Step 2: Run the notebook
 
 Open [table_generation.ipynb](./table_generation.ipynb) and run it top to bottom.
@@ -304,4 +306,166 @@ You can also inspect the ADW table metadata:
 SELECT table_name
 FROM user_tables
 WHERE table_name = 'UNIFORM_TABLE_01';
+```
+
+## Manually verifying credentials and external table creation
+
+The refresh procedure bundles several steps — credential access, the Object Storage ACL, metadata discovery, and the external table DDL — into a single call. When it fails, ADW sometimes returns an error that does not clearly point at the real cause. In practice the underlying problem is almost always one of:
+
+- a `DBMS_CLOUD` credential that is missing, wrong, or built from a mismatched key/fingerprint
+- the Object Storage host ACL not granted to the connected schema
+- the latest `vN.metadata.json` not yet visible, because UniForm Iceberg metadata generation is asynchronous
+
+Running the same steps by hand isolates which layer is failing, because you see the raw error at each step instead of the procedure's summarized one. Run the statements below while connected as the **same ADW schema the notebook uses**, and replace every `<...>` placeholder with your values.
+
+> Work through the steps in order. The first one that fails points at the layer to fix.
+
+### 1. Create (or recreate) the credential
+
+```sql
+BEGIN
+   BEGIN
+      DBMS_CLOUD.DROP_CREDENTIAL('<CREDENTIAL_NAME>');
+   EXCEPTION
+      WHEN OTHERS THEN
+         NULL;  -- ignore if the credential does not exist yet
+   END;
+
+   DBMS_CLOUD.CREATE_CREDENTIAL(
+      credential_name => '<CREDENTIAL_NAME>',
+      user_ocid       => 'ocid1.user.oc1...',
+      tenancy_ocid    => 'ocid1.tenancy.oc1...',
+      private_key     => '<private_key_content>',
+      fingerprint     => '<fingerprint>'
+   );
+END;
+/
+```
+
+`private_key` is the PEM body of your OCI API signing key, and `fingerprint` must match the public key uploaded to that user in OCI. A mismatch here is a common source of the misleading errors above — `CREATE_CREDENTIAL` itself succeeds, but every later call that uses the credential fails.
+
+### 2. Grant and verify the Object Storage ACL
+
+Grant outbound access to the Object Storage endpoint for your region. `principal_name` must be the schema that runs the `DBMS_CLOUD` calls (often `ADMIN`, but use your real schema).
+
+```sql
+BEGIN
+  DBMS_NETWORK_ACL_ADMIN.APPEND_HOST_ACE(
+    host => 'objectstorage.<region>.oraclecloud.com',
+    ace  => xs$ace_type(
+      privilege_list => xs$name_list('connect', 'resolve'),
+      principal_name => '<principal_name>',
+      principal_type => xs_acl.ptype_db
+    )
+  );
+END;
+/
+```
+
+Verify the grant. `USER_HOST_ACES` shows the ACEs that apply to the **currently connected** user, so run this as the schema you granted the ACL to:
+
+```sql
+SELECT host, lower_port, upper_port, privilege, status
+FROM user_host_aces
+WHERE host = 'objectstorage.<region>.oraclecloud.com';
+```
+
+Expected — two rows, both `GRANTED`:
+
+```
+objectstorage.<region>.oraclecloud.com    RESOLVE    GRANTED
+objectstorage.<region>.oraclecloud.com    CONNECT    GRANTED
+```
+
+If you see no rows, either the ACL was not granted or it was granted to a different principal than the schema you are connected as.
+
+### 3. Confirm the credential can reach Object Storage and find the metadata
+
+This is the single most useful check: it exercises the credential and the ACL together, and it tells you whether the latest metadata file is actually visible yet. Point `location_uri` at the table's `metadata/` folder, using the HTTPS Object Storage form of your `oci://` path.
+
+```sql
+SELECT object_name
+FROM TABLE(
+   DBMS_CLOUD.LIST_OBJECTS(
+      credential_name => '<CREDENTIAL_NAME>',
+      location_uri    => 'https://objectstorage.<region>.oraclecloud.com/n/<namespace>/b/<bucket>/o/<table_path>/metadata/'
+   )
+)
+WHERE REGEXP_LIKE(object_name, '^v[0-9]+\.metadata\.json$')
+ORDER BY object_name;
+```
+
+Interpret the result:
+
+- **An authorization / signature error** → the credential is wrong or the ACL is not granted to this schema. Fix steps 1–2.
+- **No rows** → the credential works, but no `vN.metadata.json` exists yet. UniForm Iceberg metadata generation is asynchronous, so trigger a Delta write/commit, wait briefly, and rerun.
+- **One or more rows** → note the highest `vN.metadata.json`; that is the file the external table should point at.
+
+The `oci://<bucket>@<namespace>/<table_path>` URI maps to `https://objectstorage.<region>.oraclecloud.com/n/<namespace>/b/<bucket>/o/<table_path>/` — the same conversion the procedure performs internally.
+
+### 4. Drop the table if it already exists
+
+Wrapped so it does not fail when the table is absent (`ORA-00942`):
+
+```sql
+BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE <TABLE_NAME>';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -942 THEN
+         RAISE;
+      END IF;
+END;
+/
+```
+
+### 5. Create the external table against the metadata file
+
+Use the full HTTPS URL of the highest `vN.metadata.json` you found in step 3:
+
+```sql
+BEGIN
+   DBMS_CLOUD.CREATE_EXTERNAL_TABLE(
+      table_name      => '<TABLE_NAME>',
+      credential_name => '<CREDENTIAL_NAME>',
+      file_uri_list   => 'https://objectstorage.<region>.oraclecloud.com/n/<namespace>/b/<bucket>/o/<table_path>/metadata/v<N>.metadata.json',
+      format          => '{"access_protocol":{"protocol_type":"iceberg"}}'
+   );
+END;
+/
+```
+
+If your table has long string columns, add `"maxvarchar":"extended"` to the `format` (on an instance with `MAX_STRING_SIZE=EXTENDED`); otherwise ADW derives `VARCHAR2(4000)` and values longer than the derived size are returned as `NULL`. This mirrors the `p_maxvarchar` option in the procedure.
+
+### 6. Query the table
+
+```sql
+SELECT * FROM <TABLE_NAME>;
+```
+
+If this returns rows, the end-to-end path — credential, ACL, metadata discovery, and external table — is working, and the procedure should succeed with the same inputs.
+
+### 7. Clean up
+
+Both drops are wrapped so cleanup does not fail if the table or credential is already gone:
+
+```sql
+BEGIN
+   BEGIN
+      EXECUTE IMMEDIATE 'DROP TABLE <TABLE_NAME>';
+   EXCEPTION
+      WHEN OTHERS THEN
+         IF SQLCODE != -942 THEN
+            RAISE;
+         END IF;
+   END;
+
+   BEGIN
+      DBMS_CLOUD.DROP_CREDENTIAL('<CREDENTIAL_NAME>');
+   EXCEPTION
+      WHEN OTHERS THEN
+         NULL;  -- ignore if the credential does not exist
+   END;
+END;
+/
 ```
