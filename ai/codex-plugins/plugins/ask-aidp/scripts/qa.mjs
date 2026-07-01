@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -192,6 +192,41 @@ async function main() {
     assert(!uploadDryRun.isError, `upload dry run failed: ${toolText(uploadDryRun)}`);
     const uploadPlan = JSON.parse(toolText(uploadDryRun));
     assert(uploadPlan.entryCount === 1, 'upload dry run expected one file');
+
+    const globDir = path.join(PLUGIN_ROOT, 'qa-runs', 'glob-top-level');
+    rmSync(globDir, { recursive: true, force: true });
+    mkdirSync(globDir, { recursive: true });
+    writeFileSync(path.join(globDir, 'flat.py'), 'print("flat")\n');
+    const globUploadDryRun = await server.request('tools/call', {
+      name: 'aidp_upload_workspace_code',
+      arguments: {
+        localPath: globDir,
+        workspacePath: '/Workspace/qa/glob',
+        includeGlobs: ['**/*.py'],
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!globUploadDryRun.isError, `glob upload dry run failed: ${toolText(globUploadDryRun)}`);
+    const globUploadPlan = JSON.parse(toolText(globUploadDryRun));
+    assert(globUploadPlan.entries.some((entry) => entry.localPath.endsWith('flat.py')), '**/*.py should match top-level files');
+
+    const fakeAidp = path.join(PLUGIN_ROOT, 'qa-runs', 'fake-aidp-json-warning.mjs');
+    writeFileSync(fakeAidp, [
+      '#!/usr/bin/env node',
+      'console.log(JSON.stringify({ data: { key: "workspace-key", displayName: "Workspace" } }));',
+      'console.error("warning: benign {non-json} notice");',
+      ''
+    ].join('\n'));
+    chmodSync(fakeAidp, 0o755);
+    const warningJson = await server.request('tools/call', {
+      name: 'aidp_check_connection',
+      arguments: {
+        config: { aidpBin: fakeAidp, workspaceKey: 'workspace-key' },
+        includeCluster: false
+      }
+    });
+    assert(!warningJson.isError, `CLI JSON parse should tolerate stderr warnings: ${toolText(warningJson)}`);
 
     const gitFolderDryRun = await server.request('tools/call', {
       name: 'aidp_create_git_folder',

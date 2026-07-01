@@ -1,13 +1,42 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { get } from 'node:https';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const source = 'https://github.com/oracle-samples/aidataplatform-sdk/blob/main/docs/cli/README.md';
-const input = process.argv[2] || '/private/tmp/aidp-cli-readme.md';
-const markdown = readFileSync(input, 'utf8');
+const rawSource = 'https://raw.githubusercontent.com/oracle-samples/aidataplatform-sdk/main/docs/cli/README.md';
+const input = process.argv[2] || '';
+
+async function readMarkdown() {
+  if (input) return readFileSync(input, 'utf8');
+  return await fetchText(rawSource);
+}
+
+function fetchText(url) {
+  return new Promise((resolve, reject) => {
+    get(url, (response) => {
+      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        response.resume();
+        fetchText(new URL(response.headers.location, url).toString()).then(resolve, reject);
+        return;
+      }
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`Failed to fetch ${url}: HTTP ${response.statusCode}`));
+        return;
+      }
+      response.setEncoding('utf8');
+      let body = '';
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => resolve(body));
+    }).on('error', reject);
+  });
+}
+
+const markdown = await readMarkdown();
 
 const groups = [];
 let current = null;
@@ -39,7 +68,7 @@ for (const line of markdown.split(/\r?\n/)) {
 }
 
 const commands = [];
-const sectionPattern = /^#### `([^`]+)`\n([\s\S]*?)(?=^#### `|^## <a id=|\z)/gm;
+const sectionPattern = /#### `([^`]+)`\s+([\s\S]*?)(?=#### `|^## (?!Global Options|Utility Commands|Command Index)|(?![\s\S]))/gm;
 let sectionMatch;
 while ((sectionMatch = sectionPattern.exec(markdown))) {
   const fullName = sectionMatch[1].trim();
@@ -48,52 +77,40 @@ while ((sectionMatch = sectionPattern.exec(markdown))) {
   const group = parts[1] || '';
   const command = parts.slice(2).join(' ');
   const anchor = section.match(/<a id="([^"]+)"><\/a>/)?.[1] || `${group}-${command}`.replace(/\s+/g, '-');
-  const usage = section.match(/\*\*Usage:\*\*\n\n`([^`]+)`/)?.[1] || '';
+  const usage = section.match(/\*\*Usage:\*\*\s*`([^`]+)`/)?.[1] || '';
   const bodyModel = section.match(/\*\*Request Body \(`([^`]+)`\):\*\*/)?.[1] || '';
   const bodyFields = [];
   const bodyStart = section.indexOf('**Request Body');
 
   if (bodyStart >= 0) {
     const bodyPart = section.slice(bodyStart).split('**Example:**')[0].split('---')[0];
-    for (const line of bodyPart.split(/\r?\n/)) {
-      const fieldMatch = line.match(/^- `([^`]+)` \(([^)]+)\) —(.*)$/);
-      if (fieldMatch) {
-        bodyFields.push({
-          name: fieldMatch[1],
-          type: fieldMatch[2],
-          description: fieldMatch[3].trim()
-        });
-      }
+    const fieldPattern = /- `([^`]+)` \(([^)]+)\) —\s*([^-]*)/g;
+    let fieldMatch;
+    while ((fieldMatch = fieldPattern.exec(bodyPart))) {
+      bodyFields.push({
+        name: fieldMatch[1],
+        type: fieldMatch[2],
+        description: fieldMatch[3].trim()
+      });
     }
   }
 
-  const summaryLines = [];
-  for (const line of section.split(/\r?\n/)) {
-    const text = line.trim();
-    if (!text || text.startsWith('<a ') || text.startsWith('**Usage:**')) continue;
-    if (
-      text.startsWith('`aidp ') ||
-      text.startsWith('**Path Arguments:**') ||
-      text.startsWith('**Options:**') ||
-      text.startsWith('**Request Body')
-    ) {
-      break;
-    }
-    if (text.startsWith('---')) break;
-    summaryLines.push(text);
-    if (summaryLines.join(' ').length > 500) break;
-  }
+  const summarySection = section
+    .split('**Usage:**')[0]
+    .replace(/<a id="[^"]+"><\/a>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   commands.push({
     fullName,
     group,
     command,
     anchor,
-    summary: summaryLines.join(' ').replace(/\s+/g, ' ').trim(),
+    summary: summarySection.slice(0, 600).trim(),
     usage,
     bodyModel,
     bodyFields,
-    markdown: `#### ${fullName}\n${section}`
+    markdown: `#### \`${fullName}\`\n${section}`
   });
 }
 

@@ -975,11 +975,11 @@ function resolveAidp(config = {}) {
   const explicit = config.aidpBin || process.env.AIDP_CLI_BIN;
   if (explicit) return { command: explicit, prefixArgs: [] };
 
-  const vendored = path.join(PLUGIN_ROOT, 'vendor', 'node_modules', '.bin', process.platform === 'win32' ? 'aidp.cmd' : 'aidp');
-  if (existsSync(vendored)) return { command: vendored, prefixArgs: [] };
-
   const vendoredJs = path.join(PLUGIN_ROOT, 'vendor', 'node_modules', 'aidp-cli', 'dist', 'bin', 'aidp.js');
   if (existsSync(vendoredJs)) return { command: process.execPath, prefixArgs: [vendoredJs] };
+
+  const vendored = path.join(PLUGIN_ROOT, 'vendor', 'node_modules', '.bin', process.platform === 'win32' ? 'aidp.cmd' : 'aidp');
+  if (existsSync(vendored)) return { command: vendored, prefixArgs: [] };
 
   return { command: 'aidp', prefixArgs: [] };
 }
@@ -1211,9 +1211,10 @@ async function runAidp(args, options = {}) {
 
   const commandForDisplay = scrubCommand([...args, ...(options.addCommonFlags === false ? [] : commonFlags(config))]);
   const timeoutMs = (options.timeoutSeconds || config.timeoutSeconds || 120) * 1000;
+  const spawnTarget = normalizeSpawnTarget(resolved.command, finalArgs);
 
   return await new Promise((resolve) => {
-    const child = spawn(resolved.command, finalArgs, {
+    const child = spawn(spawnTarget.command, spawnTarget.args, {
       cwd: options.cwd || process.cwd(),
       env: { ...process.env, ...(options.env || {}) },
       shell: false
@@ -1241,16 +1242,75 @@ async function runAidp(args, options = {}) {
   });
 }
 
+function normalizeSpawnTarget(command, args) {
+  if (process.platform !== 'win32') return { command, args };
+  const lower = command.toLowerCase();
+  if (!lower.endsWith('.cmd') && !lower.endsWith('.bat')) return { command, args };
+  return {
+    command: process.env.ComSpec || 'cmd.exe',
+    args: ['/d', '/s', '/c', [quoteWindowsCmdArg(command), ...args.map(quoteWindowsCmdArg)].join(' ')]
+  };
+}
+
+function quoteWindowsCmdArg(value) {
+  const text = String(value);
+  if (text === '') return '""';
+  if (!/[\s"&()<>^|%]/.test(text)) return text;
+  return `"${text.replace(/(["^&|<>()%])/g, '^$1')}"`;
+}
+
 function parseCliJson(result) {
   const text = `${result.stdout}\n${result.stderr}`;
-  const idx = text.indexOf('{');
-  if (idx < 0) throw new Error(`AIDP CLI response did not contain JSON. Command: ${result.command}`);
-  return JSON.parse(text.slice(idx));
+  for (let idx = 0; idx < text.length; idx += 1) {
+    const char = text[idx];
+    if (char !== '{' && char !== '[') continue;
+    const end = balancedJsonEnd(text, idx);
+    if (end < 0) continue;
+    try {
+      return JSON.parse(text.slice(idx, end));
+    } catch {
+      // Continue scanning. CLI warnings can contain braces before the JSON payload.
+    }
+  }
+  throw new Error(`AIDP CLI response did not contain parseable JSON. Command: ${result.command}`);
 }
 
 function responseRoot(result) {
   const json = parseCliJson(result);
   return json.data || json;
+}
+
+function balancedJsonEnd(text, start) {
+  const stack = [text[start]];
+  let inString = false;
+  let escaped = false;
+  for (let index = start + 1; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{' || char === '[') {
+      stack.push(char);
+      continue;
+    }
+    if (char === '}' || char === ']') {
+      const open = stack.pop();
+      if ((open === '{' && char !== '}') || (open === '[' && char !== ']')) return -1;
+      if (stack.length === 0) return index + 1;
+    }
+  }
+  return -1;
 }
 
 function resultToText(result, maxOutputChars = 40000) {
@@ -2227,12 +2287,32 @@ function matchesAnyGlob(value, patterns) {
 }
 
 function globToRegExp(pattern) {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '\u0000')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\u0000/g, '.*');
-  return new RegExp(`^${escaped}$`);
+  let source = '';
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    const next = pattern[index + 1];
+    const afterNext = pattern[index + 2];
+    if (char === '*' && next === '*' && afterNext === '/') {
+      source += '(?:.*/)?';
+      index += 2;
+      continue;
+    }
+    if (char === '*' && next === '*') {
+      source += '.*';
+      index += 1;
+      continue;
+    }
+    if (char === '*') {
+      source += '[^/]*';
+      continue;
+    }
+    if (char === '?') {
+      source += '[^/]';
+      continue;
+    }
+    source += char.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  }
+  return new RegExp(`^${source}$`);
 }
 
 async function notebookWorkflow(input) {
@@ -2321,7 +2401,7 @@ async function notebookWorkflow(input) {
     const rawPath = path.join(options.rawDir || respDir, outputFile);
     writeFileSync(rawPath, `Response:\n${result.stdout}${result.stderr}`);
     appendTranscript(transcript, label, result.command, result, rawPath, evidenceDir);
-    if (result.exitCode !== 0) throw new Error(`AIDP CLI step failed: ${label}\n${resultToText(result, 12000)}`);
+    if (result.exitCode !== 0 && options.throwOnError !== false) throw new Error(`AIDP CLI step failed: ${label}\n${resultToText(result, 12000)}`);
     return result;
   };
 
@@ -2349,8 +2429,20 @@ async function notebookWorkflow(input) {
   let poll = 0;
   while (Date.now() < deadline) {
     poll += 1;
-    const result = await runStep(`Poll workflow job run ${poll}`, ['workflow', 'get-job-run', workspaceKey, jobRunKey], `50-workflow-get-job-run-poll-${String(poll).padStart(2, '0')}.txt`);
-    const root = responseRoot(result);
+    const result = await runStep(`Poll workflow job run ${poll}`, ['workflow', 'get-job-run', workspaceKey, jobRunKey], `50-workflow-get-job-run-poll-${String(poll).padStart(2, '0')}.txt`, { throwOnError: false });
+    if (result.exitCode !== 0) {
+      writeFileSync(path.join(evidenceDir, 'last-poll-error.txt'), resultToText(result, 12000));
+      await sleep((input.pollIntervalSeconds || 20) * 1000);
+      continue;
+    }
+    let root;
+    try {
+      root = responseRoot(result);
+    } catch (error) {
+      writeFileSync(path.join(evidenceDir, 'last-poll-parse-error.txt'), `${error.message}\n\n${resultToText(result, 12000)}`);
+      await sleep((input.pollIntervalSeconds || 20) * 1000);
+      continue;
+    }
     const status = root.state?.status || root.status;
     if (isTerminal(status)) {
       finalJobRun = root;
@@ -2359,7 +2451,21 @@ async function notebookWorkflow(input) {
     }
     await sleep((input.pollIntervalSeconds || 20) * 1000);
   }
-  if (!finalJobRun) throw new Error(`Timed out waiting for workflow job run ${jobRunKey}`);
+  if (!finalJobRun) {
+    const summary = {
+      runId,
+      notebookFolder,
+      jobKey,
+      jobRunKey,
+      jobRunStatus: 'POLL_TIMEOUT',
+      notebookCount: notebooks.length,
+      evidenceDir,
+      transcript,
+      message: `Timed out waiting for workflow job run ${jobRunKey}`
+    };
+    writeFileSync(path.join(evidenceDir, 'summary.json'), JSON.stringify(summary, null, 2));
+    return toolText(JSON.stringify(summary, null, 2), true);
+  }
 
   const list = await runStep('List task runs', ['workflow', 'list-task-runs', workspaceKey, '--job-run-key', jobRunKey, '--limit', '100', '--sort-by', 'timeCreated', '--sort-order', 'ASC'], '60-workflow-list-task-runs.txt');
   const taskRuns = responseRoot(list).items || responseRoot(list).taskRunCollection?.items || [];
@@ -2408,7 +2514,10 @@ async function notebookWorkflow(input) {
     transcript
   };
   writeFileSync(path.join(evidenceDir, 'summary.json'), JSON.stringify(summary, null, 2));
-  if (String(status).toUpperCase() !== 'SUCCESS') throw new Error(`Workflow completed with non-success status: ${status}`);
+  if (String(status).toUpperCase() !== 'SUCCESS') return toolText(JSON.stringify({
+    ...summary,
+    message: `Workflow completed with non-success status: ${status}`
+  }, null, 2), true);
   return toolText(JSON.stringify(summary, null, 2));
 }
 

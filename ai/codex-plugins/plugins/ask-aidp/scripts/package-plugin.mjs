@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const WORKSPACE_ROOT = path.resolve(PLUGIN_ROOT, '..', '..');
-const DIST_DIR = path.join(WORKSPACE_ROOT, 'dist');
+const DIST_DIR = path.join(PLUGIN_ROOT, 'dist');
 const STAGING_ROOT = path.join(WORKSPACE_ROOT, '.plugin-build');
 const STAGING_PLUGIN = path.join(STAGING_ROOT, 'ask-aidp');
 const version = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, '.codex-plugin', 'plugin.json'), 'utf8')).version;
@@ -26,7 +26,10 @@ cpSync(PLUGIN_ROOT, STAGING_PLUGIN, {
   recursive: true,
   filter: (src) => {
     const rel = path.relative(PLUGIN_ROOT, src);
-    return !rel.startsWith('qa-live-result.json') && !rel.startsWith('qa-runs') && !rel.startsWith('vendor');
+    return !rel.startsWith('qa-live-result.json')
+      && !rel.startsWith('qa-runs')
+      && !rel.startsWith('vendor')
+      && !rel.startsWith('dist');
   }
 });
 
