@@ -1,0 +1,230 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* A Cluster is a compute subresource within AI Data Platform Workbench. Compute/Runtime Clusters are Spark execution environments. 
+* Spark clusters are used for Notebook execution and for Spark SQL query execution over JDBC/ODBC. 
+* These clusters seamlessly process the data in the AI Data Platform Workbench.  Users can also use JDBC/ODBC endpoints for highly 
+* performant SQL execution for integration with analytics tools such as Oracle Analytic Cloud and Excel.
+* A DEFAULT cluster is a subresource within AI Data Platform Workbench associated with master catalog and it can not be
+* attached to a notebook. A USER cluster is a subresource within workspace and can be attached to a notebook.
+* 
+*/
+export interface Cluster {
+    /**
+    * Cluster key.
+    */
+    'key': string;
+    /**
+    * Cluster name.
+    */
+    'displayName': string;
+    /**
+    * Cluster description.
+    */
+    'description'?: string;
+    /**
+    * ClusterType
+    */
+    'type'?: model.ClusterType;
+    /**
+    * Date and time the cluster was created.
+    */
+    'timeCreated': Date;
+    /**
+    * Date and time the cluster was updated.
+    */
+    'timeUpdated'?: Date;
+    /**
+    * Common lifecycle states for resources in a compute cluster.
+* ACCEPTED        - The resource create request has been accepted.
+* CREATING        - The resource is being created and might not be usable until the entire metadata is defined.
+* ACTIVE          - The resource is valid and available for access.
+* DELETING        - The resource is being deleted, and might require a deep clean of any children.
+* DELETED         - The resource has been deleted, and isn't available.
+* FAILED          - The resource is in a failed state due to validation or other errors.
+* STOPPING        - The resource is being stopped.
+* STOPPED         - The resource has been stopped.
+* UPDATING        - The resource is being updated and might not be usable until all changes are commited.
+* STARTING        - The resource is being started.
+* RESTARTING      - The resource is being restarted.
+* 
+    */
+    'state': Cluster.State;
+    /**
+    * A message that describes the current state of the workspace cluster in more detail. For example, can be used to provide actionable information for a resource in the Failed state.
+    */
+    'stateDetails'?: string;
+    /**
+    * Cluster node type encodes the node shape and associated resources.
+    */
+    'nodeType'?: string;
+    'driverConfig'?: model.DriverConfig;
+    'activeClusterResources'?: model.ActiveClusterResources;
+    /**
+    * OCID of the user who created this record.
+    */
+    'createdBy'?: string;
+    /**
+    * Name of the user who created this record.
+    */
+    'createdByName'?: string;
+    /**
+    * OCID of the user who updated this record.
+    */
+    'updatedBy'?: string;
+    /**
+    * Name of the user who updated this record.
+    */
+    'updatedByName'?: string;
+    /**
+    * OCID of the user who stopped the cluster. Value will be 'SYSTEM' if it was auto stopped.
+    */
+    'stoppedBy'?: string;
+    /**
+    * Name of the user who stopped the cluster. Value will be 'SYSTEM' if it was auto stopped.
+    */
+    'stoppedByName'?: string;
+
+   "sourceApi": string;
+}
+
+export namespace Cluster {
+
+
+
+
+
+
+
+    export enum State {
+    
+    Accepted = "ACCEPTED",
+    Creating = "CREATING",
+    Active = "ACTIVE",
+    Deleting = "DELETING",
+    Deleted = "DELETED",
+    Failed = "FAILED",
+    Stopping = "STOPPING",
+    Stopped = "STOPPED",
+    Updating = "UPDATING",
+    Restarting = "RESTARTING",
+    Starting = "STARTING",
+    NetworkConfigurationAttachInProgress = "NETWORK_CONFIGURATION_ATTACH_IN_PROGRESS",
+    NetworkConfigurationAttachSuccessful = "NETWORK_CONFIGURATION_ATTACH_SUCCESSFUL",
+    NetworkConfigurationAttachFailed = "NETWORK_CONFIGURATION_ATTACH_FAILED",
+    NetworkConfigurationDetachInProgress = "NETWORK_CONFIGURATION_DETACH_IN_PROGRESS",
+    NetworkConfigurationDetachSuccessful = "NETWORK_CONFIGURATION_DETACH_SUCCESSFUL",
+    NetworkConfigurationDetachFailed = "NETWORK_CONFIGURATION_DETACH_FAILED",
+    /**
+    * This value is used if a service returns a value for this enum that is not recognized by this
+    * version of the SDK.
+    */
+    UnknownValue = "UNKNOWN_VALUE"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+    export function getJsonObj(obj: Cluster): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+                'driverConfig': obj.driverConfig ?
+                
+                
+                model.DriverConfig.getJsonObj(obj.driverConfig) : undefined,
+                'activeClusterResources': obj.activeClusterResources ?
+                
+                
+                model.ActiveClusterResources.getJsonObj(obj.activeClusterResources) : undefined,
+
+
+
+
+
+
+        }};
+
+        
+        
+        if (obj && "sourceApi" in obj && obj.sourceApi) {
+            switch (obj.sourceApi) {
+                case "CLUSTER_API":
+                    return model.SparkCluster.getJsonObj(<model.SparkCluster>(<object>jsonObj), true);
+                case "AGENT_FLOW_COMPUTE":
+                    return model.AgentFlowCompute.getJsonObj(<model.AgentFlowCompute>(<object>jsonObj), true);
+                case "DEFAULT_CLUSTER_API":
+                    return model.DefaultCluster.getJsonObj(<model.DefaultCluster>(<object>jsonObj), true);
+                default:
+                    if (common.LOG.logger) common.LOG.logger.info(`Unknown value for: ${obj.sourceApi}`)
+
+        }
+        }
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: Cluster): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+                    'driverConfig': obj.driverConfig ?
+                
+                
+                model.DriverConfig.getDeserializedJsonObj(obj.driverConfig) : undefined,
+                    'activeClusterResources': obj.activeClusterResources ?
+                
+                
+                model.ActiveClusterResources.getDeserializedJsonObj(obj.activeClusterResources) : undefined,
+
+
+
+
+
+
+         }};
+
+        
+        
+        if (obj && "sourceApi" in obj && obj.sourceApi) {
+            switch (obj.sourceApi) {
+                case "CLUSTER_API":
+                    return model.SparkCluster.getDeserializedJsonObj(<model.SparkCluster>(<object>jsonObj), true);
+                case "AGENT_FLOW_COMPUTE":
+                    return model.AgentFlowCompute.getDeserializedJsonObj(<model.AgentFlowCompute>(<object>jsonObj), true);
+                case "DEFAULT_CLUSTER_API":
+                    return model.DefaultCluster.getDeserializedJsonObj(<model.DefaultCluster>(<object>jsonObj), true);
+                default:
+                    if (common.LOG.logger) common.LOG.logger.info(`Unknown value for: ${obj.sourceApi}`)
+        }
+        }
+        return jsonObj;
+    }
+}

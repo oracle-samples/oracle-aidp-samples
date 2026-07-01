@@ -1,0 +1,122 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* An object representing execution output of a command.
+* 
+*/
+export interface RunOutputData {
+    /**
+    * The type of the RunOutputData. For example, {@code TEXT_PLAIN}, {@code TEXT_HTML}, or {@code IMAGE}.
+* 
+    */
+    'type': RunOutputData.Type;
+    /**
+    * Size of object in bytes.
+    */
+    'length'?: string;
+    /**
+    * Charset of the result.
+    */
+    'charset'?: RunOutputData.Charset;
+    /**
+    * Boolean to identify if output data is base64-encoded.
+    */
+    'isBase64'?: boolean;
+    /**
+    * Content-Encoding or compression
+    */
+    'compression'?: RunOutputData.Compression;
+    /**
+    * The output content string format.
+    */
+    'value'?: string;
+
+}
+
+export namespace RunOutputData {
+
+    export enum Type {
+    
+    TextPlain = "TEXT_PLAIN",
+    Notebook = "NOTEBOOK",
+    TextHtml = "TEXT_HTML",
+    ImagePng = "IMAGE_PNG",
+    ImageSvg = "IMAGE_SVG",
+    ImageJpeg = "IMAGE_JPEG",
+    ApplicationPdf = "APPLICATION_PDF",
+    ApplicationJson = "APPLICATION_JSON",
+    FilePath = "FILE_PATH",
+    NotebookPath = "NOTEBOOK_PATH",
+    /**
+    * This value is used if a service returns a value for this enum that is not recognized by this
+    * version of the SDK.
+    */
+    UnknownValue = "UNKNOWN_VALUE"
+}
+
+
+
+    export enum Charset {
+    
+    Utf8 = "UTF_8",
+    Utf16 = "UTF_16",
+    /**
+    * This value is used if a service returns a value for this enum that is not recognized by this
+    * version of the SDK.
+    */
+    UnknownValue = "UNKNOWN_VALUE"
+}
+
+
+
+    export enum Compression {
+    
+    Gzip = "GZIP",
+    Deflate = "DEFLATE",
+    Compress = "COMPRESS",
+    Bzip2 = "BZIP2",
+    /**
+    * This value is used if a service returns a value for this enum that is not recognized by this
+    * version of the SDK.
+    */
+    UnknownValue = "UNKNOWN_VALUE"
+}
+
+
+
+    export function getJsonObj(obj: RunOutputData): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: RunOutputData): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

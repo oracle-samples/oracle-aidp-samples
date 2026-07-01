@@ -1,0 +1,16 @@
+# Installation
+> `npm install --save @types/opossum`
+
+# Summary
+This package contains type definitions for opossum (https://github.com/nodeshift/opossum).
+
+# Details
+Files were exported from https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/opossum.
+
+### Additional Details
+ * Last updated: Sat, 01 Aug 2020 17:56:31 GMT
+ * Dependencies: [@types/node](https://npmjs.com/package/@types/node)
+ * Global values: none
+
+# Credits
+These definitions were written by [Quinn Langille](https://github.com/quinnlangille), [Willy Zhang](https://github.com/merufm), [Lance Ball](https://github.com/lance), [Matt R. Wilson](https://github.com/mastermatt), and [Tom Jenkinson](https://github.com/tjenkinson).

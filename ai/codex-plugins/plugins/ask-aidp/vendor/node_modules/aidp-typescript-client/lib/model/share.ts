@@ -1,0 +1,121 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* A share is used to access the data assets in AI Data Platform Workbench through Delta Share Protocol.
+* 
+*/
+export interface Share {
+    /**
+    * Unique identifier for this share in AI Data Platform Workbench instance.
+    */
+    'key': string;
+    /**
+    * A user-friendly name. Has to be unique within the AI Data Platform Workbench instance.
+    */
+    'displayName': string;
+    /**
+    * A description associated with this share.
+    */
+    'description'?: string;
+    /**
+    * The date and time the Delta Share was created, in the format defined by <a href=\"https://tools.ietf.org/html/rfc3339\" target=\"_blank\" rel=\"noopener noreferrer\">RFC 3339</a>.
+* Example: {@code 2016-08-25T21:10:29.600Z}
+* 
+    */
+    'timeCreated': Date;
+    /**
+    * The date and time the Delta Share was updated, in the format defined by <a href=\"https://tools.ietf.org/html/rfc3339\" target=\"_blank\" rel=\"noopener noreferrer\">RFC 3339</a>.
+* Example: {@code 2016-08-25T21:10:29.600Z}
+* 
+    */
+    'timeUpdated'?: Date;
+    /**
+    * The ID of the user who created the share.
+* 
+    */
+    'createdBy': string;
+    /**
+    * The ID of the user who last updated the share.
+* 
+    */
+    'updatedBy'?: string;
+    /**
+    * The number of recipients who have access on this share.
+*  Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'recipientCount': number;
+    /**
+    * The number of assets in this share.
+*  Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'assetCount'?: number;
+    /**
+    * The state of the Share.
+    */
+    'lifecycleState'?: model.ShareLifecycleState;
+    /**
+    * A message describing the current state in more detail.
+    */
+    'lifecycleStateDetails'?: string;
+
+}
+
+export namespace Share {
+
+
+
+
+
+
+
+
+
+
+
+
+    export function getJsonObj(obj: Share): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: Share): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

@@ -1,0 +1,212 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* A AI Data Platform Workbench Workspace is a logical container that provides users with a collaborative development and runtime environment.
+* Workspace organizes and manages resources such as compute clusters, motebooks, and data orchestration workflows. 
+* Workspace provides shared file system areas to allow for storage of notebooks, SQL scripts, and other files. 
+* Collaboration features such as version control integration (e.g. GitHub) as well as CI/CD tools integration.
+* To use any of the API operations, you must be authorized in an IAM policy. If you're not authorized, talk to
+* an administrator. If you're an administrator who needs to write policies to give users access, see 
+* <a href=\"https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/iam-policies-oracle-ai-data-platform.html\" target=\"_blank\" rel=\"noopener noreferrer\">IAM Policies for Oracle AI Data Platform Workbench</a>.
+* 
+*/
+export interface Workspace {
+    /**
+    * The key of the AI Data Platform Workbench workspace.
+    */
+    'key': string;
+    /**
+    * A user-friendly name that has to be unique in a AI Data Platform Workbench instance.
+    */
+    'displayName': string;
+    /**
+    * Description of the workspace.
+    */
+    'description'?: string;
+    /**
+    * Workspace type. Type is DEFAULT for workspace created at AI Data Platform Workbench creation, type is USER for workspace created by AI Data Platform Workbench user.
+    */
+    'type'?: Workspace.Type;
+    /**
+    * The date and time the AI Data Platform Workbench workspace was created, in the format defined by <a href=\"https://tools.ietf.org/html/rfc3339\" target=\"_blank\" rel=\"noopener noreferrer\">RFC 3339</a>.
+* Example: {@code 2016-08-25T21:10:29.600Z}
+* 
+    */
+    'timeCreated': Date;
+    /**
+    * The date and time the AI Data Platform Workbench workspace was updated, in the format defined by <a href=\"https://tools.ietf.org/html/rfc3339\" target=\"_blank\" rel=\"noopener noreferrer\">RFC 3339</a>.
+* Example: {@code 2016-08-25T21:10:29.600Z}
+* 
+    */
+    'timeUpdated'?: Date;
+    /**
+    * The current state of the AI Data Platform Workbench workspace.
+    */
+    'lifecycleState': Workspace.LifecycleState;
+    /**
+    * A message that describes the current state of the workspace in more detail. For example,
+* can be used to provide actionable information for a resource in the Failed state.
+* 
+    */
+    'lifecycleDetails'?: string;
+    /**
+    * System tags for this resource. Each key is predefined and scoped to a namespace.
+* <p>
+Example: {@code {\"orcl-cloud\": {\"free-tier-retained\": \"true\"}}}
+* 
+    */
+    'systemTags'?: { [key: string]: { [key: string]: any; }; };
+    /**
+    * OCID of the user who created this record.
+    */
+    'createdBy'?: string;
+    /**
+    * Name of the user who created this record.
+    */
+    'createdByName'?: string;
+    /**
+    * OCID of the user who updated this record.
+    */
+    'updatedBy'?: string;
+    /**
+    * Name of the user who updated this record.
+    */
+    'updatedByName'?: string;
+    /**
+    * The key of the catalog to be used as the default catalog for this workspace.
+* A default catalog in the workspace will allow users to use that
+* catalog without the need to refer it in the notebook. For example, if default catalog is iCat1, and it has
+* schema1 and table1, you can refer to the table in a notebook using: schema1.table1.
+* 
+    */
+    'defaultCatalogKey'?: string;
+    /**
+    * A flag to display whether workspace is private network enabled or not.
+    */
+    'isPrivateNetworkEnabled'?: boolean;
+    'networkConfigurationDetails'?: model.WorkspaceNetworkConfigurationDetails;
+    /**
+    * The OCID of the log group that contains the logs.
+* This uniquely identifies a collection of logs within OCI Logging Service.
+* 
+    */
+    'logGroupId'?: string;
+    /**
+    * The name of the AIC user schema if created.
+    */
+    'aicUserSchemaName'?: string;
+
+}
+
+export namespace Workspace {
+
+
+
+
+    export enum Type {
+    
+    Default = "DEFAULT",
+    User = "USER",
+    /**
+    * This value is used if a service returns a value for this enum that is not recognized by this
+    * version of the SDK.
+    */
+    UnknownValue = "UNKNOWN_VALUE"
+}
+
+
+
+
+    export enum LifecycleState {
+    
+    Creating = "CREATING",
+    Updating = "UPDATING",
+    Active = "ACTIVE",
+    Deleting = "DELETING",
+    Deleted = "DELETED",
+    Failed = "FAILED",
+    /**
+    * This value is used if a service returns a value for this enum that is not recognized by this
+    * version of the SDK.
+    */
+    UnknownValue = "UNKNOWN_VALUE"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+    export function getJsonObj(obj: Workspace): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                'networkConfigurationDetails': obj.networkConfigurationDetails ?
+                
+                
+                model.WorkspaceNetworkConfigurationDetails.getJsonObj(obj.networkConfigurationDetails) : undefined,
+
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: Workspace): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    'networkConfigurationDetails': obj.networkConfigurationDetails ?
+                
+                
+                model.WorkspaceNetworkConfigurationDetails.getDeserializedJsonObj(obj.networkConfigurationDetails) : undefined,
+
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

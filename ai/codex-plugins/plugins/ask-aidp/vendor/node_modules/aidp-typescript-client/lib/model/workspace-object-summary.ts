@@ -1,0 +1,123 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* Summary information about a workspace object.
+*/
+export interface WorkspaceObjectSummary {
+    /**
+    * The fully qualified path of the workspace object.
+* Example: /Shared/Folder1/Notebook1.ipynb
+* 
+    */
+    'path': string;
+    /**
+    * The name of the workspace object. This will be the name of the file/folder in the workspace.
+* Example: Notebook1.ipynb, Folder1
+* 
+    */
+    'displayName': string;
+    /**
+    * The date and time the workspace object was created, in the format defined by <a href=\"https://tools.ietf.org/html/rfc3339\" target=\"_blank\" rel=\"noopener noreferrer\">RFC 3339</a>.
+* Example: {@code 2016-08-25T21:10:29.600Z}
+* 
+    */
+    'timeCreated': Date;
+    /**
+    * The date and time the workspace object was created, in the format defined by <a href=\"https://tools.ietf.org/html/rfc3339\" target=\"_blank\" rel=\"noopener noreferrer\">RFC 3339</a>.
+* Example: {@code 2016-08-25T21:10:29.600Z}
+* 
+    */
+    'timeUpdated'?: Date;
+    /**
+    * Metadata details of file or folder objects.
+    */
+    'metadata'?: { [key: string]: string; };
+    /**
+    * Etag combining data and metadata.
+    */
+    'compositeEtag'?: string;
+    /**
+    * The type of workspace object.
+    */
+    'type': string;
+    /**
+    * The description of workspace object.
+    */
+    'description'?: string;
+    /**
+    * System tags for this resource. Each key is predefined and scoped to a namespace.
+* <p>
+Example: {@code {\"orcl-cloud\": {\"free-tier-retained\": \"true\"}}}
+* 
+    */
+    'systemTags'?: { [key: string]: { [key: string]: any; }; };
+    /**
+    * OCID of the user who created this object.
+    */
+    'createdBy'?: string;
+    /**
+    * Name of the user who created this object.
+    */
+    'createdByName'?: string;
+
+}
+
+export namespace WorkspaceObjectSummary {
+
+
+
+
+
+
+
+
+
+
+
+
+    export function getJsonObj(obj: WorkspaceObjectSummary): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: WorkspaceObjectSummary): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

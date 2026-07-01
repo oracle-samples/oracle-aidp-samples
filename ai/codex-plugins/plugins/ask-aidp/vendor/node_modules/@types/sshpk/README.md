@@ -1,0 +1,16 @@
+# Installation
+> `npm install --save @types/sshpk`
+
+# Summary
+This package contains type definitions for sshpk (github.com/arekinath/node-sshpk).
+
+# Details
+Files were exported from https://www.github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/sshpk
+
+Additional Details
+ * Last updated: Thu, 30 Mar 2017 22:36:50 GMT
+ * Dependencies: node
+ * Global values: none
+
+# Credits
+These definitions were written by Meno Abels <https://github.com/mabels>.

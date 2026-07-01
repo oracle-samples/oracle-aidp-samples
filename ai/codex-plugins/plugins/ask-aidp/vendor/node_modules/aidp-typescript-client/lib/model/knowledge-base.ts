@@ -1,0 +1,318 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* Description of KnowledgeBase.
+*/
+export interface KnowledgeBase {
+    /**
+    * The Unique identifier for this KnowledgeBase resource
+    */
+    'key': string;
+    /**
+    * A user-friendly name. Does not have to be unique, and it's changeable. Avoid entering confidential information.
+    */
+    'displayName': string;
+    /**
+    * A user-friendly description about this KnowledgeBase resource
+    */
+    'description'?: string;
+    /**
+    * The key of the catalog containing the KnowledgeBase.
+    */
+    'catalogKey': string;
+    /**
+    * The key of the schema containing the KnowledgeBase.
+    */
+    'schemaKey': string;
+    /**
+    * type of Knowledgebase
+    */
+    'type'?: model.KnowledgeBaseType;
+    /**
+    * The id of the workspace associated with the KnowledgeBase.
+    */
+    'workspaceKey': string;
+    /**
+    * The id of the cluster associated with the KnowledgeBase.
+    */
+    'clusterKey': string;
+    /**
+    * Modality of the data in this Knowledgebase
+    */
+    'modality'?: model.KnowledgeBaseModality;
+    /**
+    * Information about where embedding model is located
+    */
+    'embeddingModelSourceType'?: model.KnowledgeBaseEmbeddingModelSourceType;
+    /**
+    * Name of the embedding model
+    */
+    'embeddingModelName'?: string;
+    /**
+    * Information about where embeddings of data are located
+    */
+    'vectorDbType'?: model.KnowledgeBaseVectorDbType;
+    /**
+    * Name of the embedding table
+    */
+    'vectorTable'?: string;
+    /**
+    * Name of the table to track documents/records for which embeddings are generated
+    */
+    'docTable'?: string;
+    /**
+    * Chunk size at KnowledgeBase level which can be overridden by source level settings Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'chunkSize'?: number;
+    /**
+    * Chunk Overlap at KnowledgeBase level which can be overridden by source level settings Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'chunkOverlap'?: number;
+    /**
+    * Applicable for Native KnowledgeBase where source type is KnowledgeBase
+    */
+    'sourceFilePattern'?: string;
+    /**
+    * Timestamp for last job run
+    */
+    'timeLastEmbedding'?: Date;
+    /**
+    * Type of Index if present, supported types:
+* * HNSW (Hierarchical Navigable Small World)
+* * IVF (Inverted File)
+* 
+    */
+    'indexType'?: model.KnowledgeBaseVectorIndexType;
+    /**
+    * Name of Index if present
+    */
+    'indexName'?: string;
+    /**
+    * Timestamp for last index
+    */
+    'timeLastIndexing'?: Date;
+    /**
+    * Distance metric for the vector index
+    */
+    'indexDistance'?: string;
+    /**
+    * Target accuracy percentage for the index (1-100) Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'indexTargetAccuracy'?: number;
+    /**
+    * Number of partitions (clusters) for IVF index Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'indexNeighborPartitions'?: number;
+    /**
+    * Maximum number of neighbors for HNSW index Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'indexNeighbors'?: number;
+    /**
+    * Maximum number of closest vector candidates for HNSW index construction Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'indexEfConstruction'?: number;
+    /**
+    * Maximum number of partitions to probe for IVF index Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'indexNeighborPartitionProbes'?: number;
+    /**
+    * Timestamp when KnowledgeBase was created
+    */
+    'timeCreated': Date;
+    /**
+    * Timestamp when KnowledgeBase was updated
+    */
+    'timeUpdated'?: Date;
+    /**
+    * Identifier for KnowledgeBase creator
+    */
+    'createdBy': string;
+    /**
+    * Identifier for principal who updated the KnowledgeBase
+    */
+    'updatedBy'?: string;
+    /**
+    * Count of items/documents processed by KB for which embeddings are present Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'currentProcessedItems'?: number;
+    /**
+    * Lifecycle of KnowledgeBase
+    */
+    'lifecycleState'?: model.KnowledgeBaseLifecycleState;
+    /**
+    * Additional information about the current state of KnowledgeBase
+    */
+    'lifecycleStateDetails'?: string;
+    /**
+    * Version to track schemas of Embedding and Doc table Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'version'?: number;
+    /**
+    * Source information
+    */
+    'sources'?: Array<model.KnowledgeBaseSourceMetadataDetails>;
+    'indexDetails'?: model.KnowledgeBaseVectorIndexDetails;
+    /**
+    * System tags for this resource. Each key is predefined and scoped to a namespace.
+* <p>
+Example: {@code {\"orcl-cloud\": {\"free-tier-retained\": \"true\"}}}
+* 
+    */
+    'systemTags'?: { [key: string]: { [key: string]: any; }; };
+
+}
+
+export namespace KnowledgeBase {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    export function getJsonObj(obj: KnowledgeBase): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                'sources': obj.sources ?
+                
+                obj.sources.map((item)=>{return model.KnowledgeBaseSourceMetadataDetails.getJsonObj(item)})
+                
+                 : undefined,
+                'indexDetails': obj.indexDetails ?
+                
+                
+                model.KnowledgeBaseVectorIndexDetails.getJsonObj(obj.indexDetails) : undefined,
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: KnowledgeBase): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    'sources': obj.sources ?
+                
+                obj.sources.map((item)=>{return model.KnowledgeBaseSourceMetadataDetails.getDeserializedJsonObj(item)})
+                
+                 : undefined,
+                    'indexDetails': obj.indexDetails ?
+                
+                
+                model.KnowledgeBaseVectorIndexDetails.getDeserializedJsonObj(obj.indexDetails) : undefined,
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

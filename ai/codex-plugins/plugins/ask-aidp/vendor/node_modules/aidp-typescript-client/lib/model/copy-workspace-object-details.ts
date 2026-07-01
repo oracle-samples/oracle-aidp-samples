@@ -1,0 +1,77 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* Details to copy a workspace object to a different location.
+*/
+export interface CopyWorkspaceObjectDetails {
+    /**
+    * The fully qualified path of the Workspace object that should be copied.
+    */
+    'fromPath'?: string;
+    /**
+    * The fully qualified destination path to which the Workspace object should be copied.
+    */
+    'toPath'?: string;
+    /**
+    * Flag to delete the source file.
+    */
+    'isDeleteSource'?: boolean;
+    /**
+    * Flag to overwrite pre existing destination file.
+    */
+    'isOverWrite'?: boolean;
+    /**
+    * Buffer capacity to be hold for copying file from one source to destination. Note: Numbers greater than Number.MAX_SAFE_INTEGER will result in rounding issues.
+    */
+    'bufferSize'?: number;
+    /**
+    * Flag to indicate whether to include cell outputs when copying a notebook file. If false, all cell outputs will be cleared. Defaults to true if not specified. Only applies to notebook files.
+    */
+    'isIncludeOutputs'?: boolean;
+
+}
+
+export namespace CopyWorkspaceObjectDetails {
+
+
+
+
+
+
+
+    export function getJsonObj(obj: CopyWorkspaceObjectDetails): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: CopyWorkspaceObjectDetails): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

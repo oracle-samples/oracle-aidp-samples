@@ -1,0 +1,84 @@
+// Copyright (c) 2026, Oracle and/or its affiliates.  All rights reserved.
+
+import * as model from '../model';
+import common = require("oci-common");
+
+
+/**
+* Request body for creating a new job definition for a KnowledgeBase.
+*/
+export interface CreateKnowledgeBaseJobDetails {
+    /**
+    * Name of KnowledgeBase Job Definition
+    */
+    'displayName': string;
+    /**
+    * The description of KnowledgeBase Job
+    */
+    'description'?: string;
+    /**
+    * type of KB Job
+    */
+    'type': model.KnowledgeBaseJobType;
+    /**
+    * type of KB Job Goal, if missing it is considered that job aims to add/refresh the sources
+    */
+    'goal'?: model.KnowledgeBaseJobGoalType;
+    /**
+    * Name of the source, \"*\" should be provided to create a DEFAULT JOB and sourceKey can be left null/empty for DEFAULT Job
+    */
+    'sources'?: string;
+    /**
+    * Id of the source, should be provided for all jobs except DEFAULT JOB (which is supposed to run at all sources of KB)
+    */
+    'sourceKey'?: string;
+    /**
+    * If the job type is SCHEDULED, this field is used to provide schedule information in cron style. For example, \"0 0 * * *\" means 12:00 AM daily
+    */
+    'schedule'?: string;
+
+}
+
+export namespace CreateKnowledgeBaseJobDetails {
+
+
+
+
+
+
+
+
+    export function getJsonObj(obj: CreateKnowledgeBaseJobDetails): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+        }};
+
+        
+        
+        return jsonObj;
+    }
+    ;
+    export function getDeserializedJsonObj(obj: CreateKnowledgeBaseJobDetails): object {
+        const jsonObj = {...obj, ...{
+            
+
+
+
+
+
+
+
+         }};
+
+        
+        
+        return jsonObj;
+    }
+}

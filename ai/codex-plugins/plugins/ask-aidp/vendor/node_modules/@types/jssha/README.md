@@ -1,0 +1,16 @@
+# Installation
+> `npm install --save @types/jssha`
+
+# Summary
+This package contains type definitions for jsSHA (https://github.com/Caligatio/jsSHA).
+
+# Details
+Files were exported from https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/jssha
+
+Additional Details
+ * Last updated: Tue, 18 Dec 2018 21:49:43 GMT
+ * Dependencies: none
+ * Global values: jsSHA
+
+# Credits
+These definitions were written by David Li <https://github.com/randombk>, Tobias Kahlert <https://github.com/SrTobi>, Kannan Goundan <https://github.com/cakoose>.

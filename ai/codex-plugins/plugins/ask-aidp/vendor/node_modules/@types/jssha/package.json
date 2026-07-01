@@ -1,0 +1,33 @@
+{
+    "name": "@types/jssha",
+    "version": "2.0.0",
+    "description": "TypeScript definitions for jsSHA",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "David Li",
+            "url": "https://github.com/randombk",
+            "githubUsername": "randombk"
+        },
+        {
+            "name": "Tobias Kahlert",
+            "url": "https://github.com/SrTobi",
+            "githubUsername": "SrTobi"
+        },
+        {
+            "name": "Kannan Goundan",
+            "url": "https://github.com/cakoose",
+            "githubUsername": "cakoose"
+        }
+    ],
+    "main": "",
+    "types": "index",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "ee6d16db3d61fe394268a2cc5a579b9c2cddd3cdba4d992738dc48335f07421d",
+    "typeScriptVersion": "2.0"
+}
