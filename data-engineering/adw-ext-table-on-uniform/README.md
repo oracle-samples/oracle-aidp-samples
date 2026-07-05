@@ -443,7 +443,7 @@ END;
 
 If your `<table_path>` contains characters that require URL encoding (for example spaces or `@`), percent-encode them in the `file_uri_list`. The procedure does this automatically with `UTL_URL.ESCAPE`.
 
-If your table has long string columns, you can add `"maxvarchar":"extended"` to the `format` (on an instance with `MAX_STRING_SIZE=EXTENDED`); otherwise ADW derives `VARCHAR2(4000)` for the derived string columns and values longer than that are returned as `NULL`. `maxvarchar` accepts `standard`, `extended`, or `auto`.
+If your table has long string columns, the `maxvarchar` format option controls the width of the derived `VARCHAR2` columns. It accepts `standard` (`VARCHAR2(4000)`), `extended` (`VARCHAR2(32767)`, allowed only on an instance with `MAX_STRING_SIZE=EXTENDED`), and `auto` (the default — picks the width from the instance's `MAX_STRING_SIZE`). Autonomous Database defaults to `MAX_STRING_SIZE=EXTENDED`, so with `auto` you get `VARCHAR2(32767)` and no truncation. You only need to set `maxvarchar` explicitly if the derived columns come out as `VARCHAR2(4000)` — for example under `MAX_STRING_SIZE=STANDARD` or if you pass `"maxvarchar":"standard"` — in which case string values longer than 4000 bytes are returned as `NULL` (a conversion error, not a rejected row).
 
 ### 6. Query the table
 
