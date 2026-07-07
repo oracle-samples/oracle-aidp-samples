@@ -1,0 +1,109 @@
+# SizeWise sizing configuration — every tunable knob the engine reads.
+# These defaults are also baked into SizingConfig in sizing_engine.py; this
+# file OVERRIDES them when present. Edit here to re-tune the model without
+# touching code. Values mirror the frozen model spec v1.0 (calibrated so the
+# Balanced scenario reproduces the Entel v20 anchor within -0.07%).
+
+# --- pricing (mirror pricing.py AIDPPricing; single source of truth) ---
+aidpu_usd: 0.001
+proc_rates: {ARM: 27, AMD: 67, Intel: 87, GPU: 4110}   # AIDPU/OCPU-hr (GPU per GPU-hr)
+memory_rate: 3.0                                        # AIDPU/GB-hr
+object_storage_rate: 0.0255                             # $/GB-month hot
+archive_rate: 0.0026                                    # $/GB-month archive
+platform_min_aidpu: 230.0                               # DMC billed floor per node
+days_per_month: 30
+
+# --- cluster count / topology ---
+users_per_team: 15
+concurrency_default_frac: 0.65
+users_per_shared_cluster: 60
+hybrid_teams_per_cluster: 6
+max_exec_per_cluster: 48
+
+# --- data-scan sizing ---
+# v1.1 correction: executors are driven by CONCURRENCY (primary) + a realistic data-scan term.
+# tb_per_executor_scan = active-scan data one executor handles (TB). Lakehouse data lives in object
+# storage and is scanned on demand, so this is NOT "1 executor per X TB stored". The old v1.0 value
+# (0.205) treated total stored data as if permanently resident in compute and exploded at scale
+# (900 TB -> 92 clusters). 2.0 TB/exec keeps Entel calibrated (concurrency-bound) and scales sanely.
+tb_per_executor_scan: 2.0
+base_tb_per_executor: 2.0          # deprecated alias of tb_per_executor_scan (kept for back-compat)
+headroom_months: 6                 # forward data projection for DMC/headroom
+catalog_tb_per_source: 0.5         # catalog_scale = data_tb + sources * this
+
+# --- concurrency sizing (Little's Law) ---
+default_query_runtime_sec: 45.0
+default_queries_per_user_hr: 20.0
+
+# --- memory floor (data-first spill guard) ---
+hot_data_fraction: 0.10
+mem_overcommit: 3.0
+
+# --- executor / driver shape ---
+exec_mem_per_ocpu: 8
+exec_mem_min: 32
+exec_mem_max: 256
+driver_ocpu: 8
+driver_mem_gb: 128
+min_executors_floor: 2
+util_cap: 0.95
+min_business_hours: 8
+
+# --- Default Master Catalog (base sizing; scenarios pin discrete overrides) ---
+dmc_base_ocpu: 16
+dmc_tb_per_ocpu: 1.3
+dmc_mem_ratio: 16                  # GB per OCPU (32 OCPU -> 512 GB)
+dmc_ocpu_min: 16
+dmc_ocpu_max: 96
+ha_dmc_count: 2
+
+# --- ingest / ETL ---
+etl_share_threshold: 0.25
+ingest_gb_per_exec: 60
+etl_min_exec_cap: 2
+etl_util: 0.55
+etl_hours_per_day: 8               # batch window (cost-optimized)
+
+# --- GPU ---
+ml_users_per_gpu: 20
+max_gpus: 8
+gpu_host_ocpu: 16
+gpu_host_mem: 256
+ml_hours_per_day: 8
+
+# --- dev/test ---
+dev_max_exec: 4
+dev_hours_per_day: 8
+dev_util: 0.5
+
+# --- fixed services ---
+atp_monthly: 300.0
+networking_monthly: 300.0
+data_transfer_monthly: 100.0
+
+# --- cost-envelope guardrails ---
+envelope_user_low: 120             # warn UNDER_SIZED below ($/user/mo)
+envelope_user_high: 320            # warn OVER_PROVISIONED above ($/user/mo)
+envelope_tb_low: 650               # $/TB compute band (report only)
+envelope_tb_high: 850
+
+# --- calibration anchor (Entel v20) for the self-test / report footnote ---
+anchor_monthly: 61999.60
+anchor_cost_per_user: 230.0
+
+# --- SLA tiers ---
+# exec_per_concurrent_user : PRIMARY executor driver (executors per peak-concurrent user in a cluster);
+#                            standard=2.4 is calibrated so Entel's 10 concurrent/cluster -> 24 executors.
+# slots_per_query, target_util : Little's-Law throughput check (max'd with the calibrated term).
+# util_target : billing/cost utilization ; exec_ocpu/exec_mem_gb : executor shape.
+sla_tiers:
+  relaxed:          {exec_per_concurrent_user: 1.5, slots_per_query: 0.5, target_util: 0.95, util_target: 0.60, exec_ocpu: 8,  exec_mem_gb: 48,  min_frac: 0.70}
+  standard:         {exec_per_concurrent_user: 2.4, slots_per_query: 1.0, target_util: 0.92, util_target: 0.50, exec_ocpu: 8,  exec_mem_gb: 64,  min_frac: 0.83}
+  strict:           {exec_per_concurrent_user: 3.5, slots_per_query: 2.0, target_util: 0.80, util_target: 0.42, exec_ocpu: 8,  exec_mem_gb: 96,  min_frac: 0.85}
+  mission_critical: {exec_per_concurrent_user: 5.0, slots_per_query: 4.0, target_util: 0.65, util_target: 0.35, exec_ocpu: 16, exec_mem_gb: 128, min_frac: 0.90}
+
+# --- scenario knob overlays (null = "use as-input") ---
+scenarios:
+  conservative:   {cluster_proc: AMD, util_mult: 0.80, min_frac: 1.00, headroom_mult: 1.25, tbpe_mult: 0.75, hours_mult: 1.00, dmc_ocpu_override: 48, dmc_mem_override: 768, force_ha: true,  include_dev: true,  ingest_trigger_gb: 300, etl_batch_window: false, storage_proj_mult: 1.5, services_mult: 2.0}
+  balanced:       {cluster_proc: ARM, util_mult: 1.00, min_frac: 0.83, headroom_mult: 1.00, tbpe_mult: 1.00, hours_mult: 1.00, dmc_ocpu_override: 32, dmc_mem_override: 512, force_ha: null,  include_dev: null,  ingest_trigger_gb: 200, etl_batch_window: false, storage_proj_mult: 1.0, services_mult: 1.0}
+  cost_optimized: {cluster_proc: ARM, util_mult: 1.30, min_frac: 0.50, headroom_mult: 0.90, tbpe_mult: 1.30, hours_mult: 0.83, dmc_ocpu_override: 24, dmc_mem_override: 384, force_ha: false, include_dev: false, ingest_trigger_gb: 600, etl_batch_window: true,  storage_proj_mult: 0.5, services_mult: 1.0}

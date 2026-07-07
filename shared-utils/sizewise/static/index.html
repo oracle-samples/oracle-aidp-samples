@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SizeWise — AIDP Capacity Planner</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; background: #f5f5f5; line-height: 1.5; }
+  .topbar { background: linear-gradient(135deg, #c74634, #a83828); color: #fff; padding: 22px 32px; box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+  .topbar h1 { font-size: 1.7em; font-weight: 700; }
+  .topbar p { opacity: .92; font-size: .95em; margin-top: 3px; }
+  .layout { display: grid; grid-template-columns: 460px 1fr; gap: 0; align-items: start; }
+  .form-pane { background: #fff; padding: 24px 28px 40px; border-right: 1px solid #e5e7eb; }
+  .result-pane { padding: 24px 28px 40px; min-width: 0; }
+  .group { border: 1px solid #e5e7eb; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .group > summary { cursor: pointer; padding: 14px 16px; font-weight: 600; background: #faf7f6; color: #c74634; list-style: none; }
+  .group > summary::-webkit-details-marker { display: none; }
+  .group > summary::before { content: "\25B8"; margin-right: 8px; transition: transform .2s; display: inline-block; }
+  .group[open] > summary::before { transform: rotate(90deg); }
+  .group .ghelp { font-size: .82em; color: #6b7280; font-weight: 400; margin-top: 4px; }
+  .gbody { padding: 6px 16px 16px; }
+  .field { margin: 14px 0; }
+  .field label { display: block; font-size: .88em; font-weight: 600; margin-bottom: 5px; }
+  .field .unit { color: #9ca3af; font-weight: 400; }
+  .field input[type=text], .field input[type=number], .field select {
+    width: 100%; padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 7px; font-size: .95em; background: #fff; }
+  .field input:focus, .field select:focus { outline: none; border-color: #c74634; box-shadow: 0 0 0 3px rgba(199,70,52,.12); }
+  .field .help { font-size: .78em; color: #6b7280; margin-top: 4px; }
+  .field.check { display: flex; align-items: center; gap: 10px; }
+  .field.check input { width: 18px; height: 18px; accent-color: #c74634; }
+  .field.check label { margin: 0; }
+  .actions { background: #fff; padding-top: 14px; margin-top: 8px; border-top: 1px solid #eee; }
+  button.primary { width: 100%; background: linear-gradient(135deg, #c74634, #a83828); color: #fff; border: none; padding: 14px; border-radius: 9px; font-size: 1.05em; font-weight: 600; cursor: pointer; }
+  button.primary:hover { filter: brightness(1.06); }
+  button.primary:disabled { opacity: .6; cursor: default; }
+  .muted { color: #6b7280; font-size: .9em; }
+  .placeholder { display: flex; min-height: 420px; align-items: center; justify-content: center; text-align: center; color: #9ca3af; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .scard { border: 2px solid #e5e7eb; border-radius: 12px; padding: 18px; background: #fff; text-align: center; }
+  .scard.rec { border-color: #27ae60; box-shadow: 0 4px 14px rgba(39,174,96,.15); }
+  .scard h3 { font-size: 1.05em; color: #312d2a; }
+  .scard .rec-badge { display:inline-block; background:#27ae60; color:#fff; font-size:.62em; padding:2px 8px; border-radius:10px; margin-left:6px; vertical-align:middle; }
+  .scard .amt { font-size: 1.9em; font-weight: 700; color: #c74634; margin: 8px 0 2px; }
+  .scard .sub { font-size: .82em; color: #6b7280; }
+  .scard ul { list-style: none; margin-top: 10px; font-size: .8em; color: #374151; text-align: left; }
+  .scard li { padding: 2px 0; border-top: 1px dashed #eee; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:10px; font-size:.72em; font-weight:600; margin-top:8px; }
+  .pill.ok { background:#dcfce7; color:#166534; } .pill.warn { background:#fef3c7; color:#92400e; }
+  .dlbar { display: flex; gap: 12px; margin: 4px 0 18px; flex-wrap: wrap; }
+  .dlbar button { background:#312d2a; color:#fff; border:none; padding:10px 16px; border-radius:8px; font-weight:600; cursor:pointer; font-size:.9em; }
+  .dlbar button:hover { filter: brightness(1.15); }
+  .preview { border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background:#fff; }
+  .preview .pv-head { padding: 10px 16px; background:#faf7f6; font-weight:600; color:#c74634; border-bottom:1px solid #eee; }
+  iframe { width: 100%; border: none; display: block; min-height: 400px; }
+  .err { background:#fef2f2; border-left:5px solid #c74634; padding:16px; border-radius:8px; color:#7f1d1d; }
+  .cal { font-size:.82em; color:#166534; background:#f0fdf4; border-radius:8px; padding:10px 14px; margin-bottom:16px; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>SizeWise &mdash; AIDP Capacity Planner</h1>
+    <p>Size Oracle AI Data Platform clusters &amp; cost from customer inputs &bull; Conservative / Balanced / Cost-Optimized</p>
+  </div>
+  <div class="layout">
+    <div class="form-pane">
+      <form id="szForm">
+        <div id="groups"></div>
+        <div class="actions">
+          <button type="submit" class="primary" id="goBtn">Generate Resource Plan</button>
+          <p class="muted" style="text-align:center;margin-top:8px;">Only the customer name is required — defaults fill the rest.</p>
+        </div>
+      </form>
+    </div>
+    <div class="result-pane">
+      <div id="results">
+        <div class="placeholder">
+          <div>
+            <div style="font-size:3em;">📊</div>
+            <p>Enter customer inputs and click <strong>Generate Resource Plan</strong>.</p>
+            <p class="muted">You'll get a 3-scenario comparison plus downloadable comprehensive &amp; executive reports.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let lastReports = null;
+
+function fieldHtml(f) {
+  const unit = f.unit ? ` <span class="unit">(${f.unit})</span>` : "";
+  const help = f.help ? `<div class="help">${f.help}</div>` : "";
+  if (f.type === "checkbox") {
+    const ck = f.default ? "checked" : "";
+    return `<div class="field check"><input type="checkbox" id="${f.name}" name="${f.name}" ${ck}>
+            <label for="${f.name}">${f.label}</label></div>${help ? `<div class="help" style="margin-left:28px;margin-top:-8px;">${f.help}</div>` : ""}`;
+  }
+  if (f.type === "select") {
+    const opts = f.options.map(o => `<option value="${o}" ${o===f.default?"selected":""}>${o}</option>`).join("");
+    return `<div class="field"><label for="${f.name}">${f.label}${unit}</label>
+            <select id="${f.name}" name="${f.name}">${opts}</select>${help}</div>`;
+  }
+  const t = f.type === "number" ? "number" : "text";
+  const step = f.type === "number" ? 'step="any"' : "";
+  const dv = (f.default === "" || f.default === null || f.default === undefined) ? "" : f.default;
+  return `<div class="field"><label for="${f.name}">${f.label}${unit}</label>
+          <input type="${t}" ${step} id="${f.name}" name="${f.name}" value="${dv}" placeholder="${f.default===""?"optional":""}">${help}</div>`;
+}
+
+async function loadFields() {
+  const r = await fetch("/api/fields");
+  const { groups } = await r.json();
+  $("#groups").innerHTML = groups.map((g, i) => `
+    <details class="group" ${i===0?"open":""}>
+      <summary>${g.title}${g.help ? `<div class="ghelp">${g.help}</div>` : ""}</summary>
+      <div class="gbody">${g.fields.map(fieldHtml).join("")}</div>
+    </details>`).join("");
+}
+
+function collect() {
+  const data = {};
+  $("#szForm").querySelectorAll("input,select").forEach(el => {
+    data[el.name] = el.type === "checkbox" ? el.checked : el.value;
+  });
+  return data;
+}
+
+function money(x){ return "$" + Number(x).toLocaleString(undefined,{maximumFractionDigits:0}); }
+
+function scenarioCard(s) {
+  const rec = s.is_recommended;
+  const flags = s.envelope_flags || [];
+  const pill = (flags.length===1 && flags[0]==="OK")
+      ? `<span class="pill ok">OK</span>`
+      : flags.map(f=>`<span class="pill warn">${f}</span>`).join(" ");
+  return `<div class="scard ${rec?"rec":""}">
+    <h3>${s.scenario_name}${rec?`<span class="rec-badge">RECOMMENDED</span>`:""}</h3>
+    <div class="amt">${money(s.total_usd_month)}</div>
+    <div class="sub">/ month &bull; ${money(s.cost_per_user_month)}/user</div>
+    <ul>
+      <li>Total clusters: <strong>${s.clusters.reduce((a,c)=>a+c.count,0)}</strong></li>
+      <li>Prod clusters: <strong>${s.num_prod_clusters}</strong></li>
+      <li>Executor proc: <strong>${s.processor}</strong></li>
+      <li>Annual: <strong>${money(s.total_usd_year)}</strong></li>
+    </ul>
+    <div>${pill}</div>
+  </div>`;
+}
+
+function download(kind) {
+  if (!lastReports) return;
+  const html = kind === "summary" ? lastReports.summary_html : lastReports.comprehensive_html;
+  const cust = (lastReports.result.customer_name || "customer").replace(/[^A-Za-z0-9._-]+/g,"_");
+  const blob = new Blob([html], {type: "text/html"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `AIDP-SizeWise-${cust}-${kind}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+async function generate(ev) {
+  ev.preventDefault();
+  const btn = $("#goBtn"); btn.disabled = true; btn.textContent = "Sizing…";
+  try {
+    const resp = await fetch("/api/size", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(collect())
+    });
+    const data = await resp.json();
+    if (!data.ok) { $("#results").innerHTML = `<div class="err"><strong>Sizing failed:</strong> ${esc(data.error)}</div>`; return; }
+    lastReports = data;
+    const r = data.result;
+    const order = ["conservative","balanced","cost_optimized"];
+    const cal = r.calibration;
+    $("#results").innerHTML = `
+      <div class="cal">Model v${r.config_version} calibrated to the Entel v20 reference: Balanced core ${money(cal.balanced_core_monthly)}/mo vs ${money(cal.anchor_monthly)}/mo &rarr; ${cal.delta_pct>0?"+":""}${cal.delta_pct}% &check;</div>
+      <div class="cards">${order.map(k=>scenarioCard(r.scenarios[k])).join("")}</div>
+      <div class="dlbar">
+        <button onclick="download('comprehensive')">⬇ Download Comprehensive Report</button>
+        <button onclick="download('summary')">⬇ Download Executive Summary</button>
+      </div>
+      <div class="preview">
+        <div class="pv-head">Preview — Comprehensive Report (${r.customer_name})</div>
+        <iframe id="pv"></iframe>
+      </div>`;
+    const pv = $("#pv");
+    pv.onload = () => {
+      try {
+        const doc = pv.contentDocument || pv.contentWindow.document;
+        pv.style.height = (doc.documentElement.scrollHeight + 24) + "px";
+      } catch (_) { pv.style.height = "1400px"; }
+    };
+    pv.srcdoc = data.comprehensive_html;
+  } catch (e) {
+    $("#results").innerHTML = `<div class="err"><strong>Error:</strong> ${esc(e)}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = "Generate Resource Plan";
+  }
+}
+
+window.download = download;
+$("#szForm").addEventListener("submit", generate);
+loadFields();
+</script>
+</body>
+</html>
