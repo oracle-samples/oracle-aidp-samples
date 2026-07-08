@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AIDP Marketplace</title>
+<style>
+  :root {
+    --red: #c74634; --red-dark: #a83829; --ink: #1b1b1b; --muted: #5b6770;
+    --line: #e2e6ea; --bg: #f5f6f8; --ok: #1a7f47; --okbg: #e8f5ee;
+    --err: #b3261e; --errbg: #fdecea; --card: #ffffff; --accent: #2b6cb0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header { background: var(--ink); color: #fff; padding: 14px 24px; display: flex;
+           align-items: center; justify-content: space-between; }
+  header .brand { display: flex; align-items: center; gap: 12px; }
+  header .brand b { color: var(--red); font-size: 20px; letter-spacing: .5px; }
+  header .inst { font-size: 13px; color: #cfd4d8; }
+  header .inst code { color: #fff; background: #333; padding: 2px 6px; border-radius: 4px; }
+  button { font: inherit; cursor: pointer; border: none; border-radius: 6px; padding: 9px 16px; }
+  .gear { background: #333; color: #fff; }
+  .gear:hover { background: #444; }
+  main { max-width: 880px; margin: 26px auto; padding: 0 18px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+          padding: 20px 22px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  .card.locked { opacity: .5; pointer-events: none; }
+  .card h2 { margin: 0 0 4px; font-size: 17px; }
+  .card h2 .num { display: inline-flex; width: 24px; height: 24px; border-radius: 50%;
+                  background: var(--red); color: #fff; align-items: center;
+                  justify-content: center; font-size: 13px; margin-right: 8px; }
+  .card p.sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 5px; }
+  label .hint { font-weight: 400; color: var(--muted); }
+  input, select, textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--line);
+          border-radius: 6px; font: inherit; background: #fff; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #cfe0f3; border-color: var(--accent); }
+  textarea { min-height: 70px; resize: vertical; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 180px; }
+  .primary { background: var(--red); color: #fff; margin-top: 16px; }
+  .primary:hover { background: var(--red-dark); }
+  .primary:disabled { background: #ccc; cursor: not-allowed; }
+  .ghost { background: #eef0f2; color: var(--ink); }
+  .ghost:hover { background: #e2e5e8; }
+  .msg { margin-top: 14px; padding: 11px 14px; border-radius: 7px; font-size: 14px; display: none; }
+  .msg.ok { background: var(--okbg); color: var(--ok); border: 1px solid #bfe3cd; display: block; }
+  .msg.err { background: var(--errbg); color: var(--err); border: 1px solid #f3c4c0; display: block; white-space: pre-wrap; }
+  .spin { display: none; margin-top: 14px; color: var(--muted); font-size: 14px; }
+  .spin.on { display: block; }
+  .spin::before { content: "⏳ "; }
+  table.preview { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  table.preview th, table.preview td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; }
+  table.preview th { background: #f0f2f4; }
+  table.preview tr:nth-child(even) td { background: #fafbfc; }
+  .sqlbox { margin-top: 12px; background: #1e1e1e; color: #d4d4d4; font-family: "SF Mono", Menlo, monospace;
+            font-size: 12px; padding: 11px 13px; border-radius: 7px; overflow-x: auto; white-space: pre-wrap; }
+  .ask { margin-top: 16px; padding: 14px; background: #fff8e6; border: 1px solid #f4e2b0; border-radius: 8px; }
+  .ask b { display: block; margin-bottom: 10px; }
+  .ask .btns { display: flex; gap: 10px; }
+  .yes { background: var(--ok); color: #fff; }
+  .no { background: #eef0f2; color: var(--ink); }
+  /* tabs */
+  .tabs { max-width: 880px; margin: 22px auto 0; padding: 0 18px; display: flex; gap: 4px;
+          border-bottom: 1px solid var(--line); }
+  .tab { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none;
+         border-radius: 8px 8px 0 0; color: var(--muted); font-weight: 600; font-size: 14px;
+         background: none; }
+  .tab.active { background: #fff; border-color: var(--line); color: var(--ink); margin-bottom: -1px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+  .field-grid label { margin-top: 10px; }
+  .pill { font-size: 12px; padding: 3px 9px; border-radius: 12px; background: #eef0f2; color: var(--muted); }
+  .pill.live { background: var(--okbg); color: var(--ok); }
+  .pill.bad { background: var(--errbg); color: var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <b>ORACLE</b><span>AI Data Platform &mdash; Marketplace</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <span class="inst">Instance: <code id="instName">…</code> · <span id="connPill" class="pill">not checked</span></span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" id="tabbtn-marketplace" onclick="switchTab('marketplace')">Marketplace</button>
+  <button class="tab" id="tabbtn-instance" onclick="switchTab('instance')">⚙ AIDP Instance</button>
+</nav>
+
+<main>
+ <div class="tab-panel active" id="tab-marketplace">
+  <!-- Publish to Marketplace + Grant access (same object) -->
+  <section class="card" id="card1">
+    <h2><span class="num">1</span>Publish to Marketplace</h2>
+    <p class="sub">Creates the table directly in <code id="tblTarget">marketplace.default</code> over a directory location, then grant access to it.</p>
+    <div class="row">
+      <div>
+        <label>Table name</label>
+        <input id="tableName" placeholder="e.g. yellowtaxi_ext" autocomplete="off" />
+      </div>
+      <div style="max-width:170px;flex:0 0 170px">
+        <label>Format</label>
+        <select id="format">
+          <option>PARQUET</option><option>CSV</option><option>ORC</option>
+          <option>JSON</option><option>DELTA</option>
+        </select>
+      </div>
+    </div>
+    <label>Directory location <span class="hint">— object-storage (oci://) path the table points at</span></label>
+    <textarea id="location" placeholder="oci://bucket@namespace/path/to/data/"></textarea>
+    <button class="primary" id="btnCreate" onclick="createTable()">Create table</button>
+    <div class="spin" id="spin1">Submitting Spark job and waiting for completion…</div>
+    <div class="msg" id="msg1"></div>
+    <div id="preview1"></div>
+
+    <hr style="margin:22px 0;border:none;border-top:1px solid var(--line)" />
+    <div id="grantArea" class="locked">
+      <h3 style="margin:0 0 4px">Grant access to users</h3>
+      <p class="sub">Grant access to the object published above (<code id="grantObj">—</code>).
+        Enter email ids or AIDP user ids — recipients must be AIDP platform users.</p>
+      <div class="row">
+        <div>
+          <label>Recipients <span class="hint">— comma, space or newline separated</span></label>
+          <textarea id="users" placeholder="alice@example.com, bob@example.com"></textarea>
+        </div>
+        <div style="max-width:220px;flex:0 0 220px">
+          <label>Access valid until <span class="hint">— expiry date</span></label>
+          <input type="date" id="expiry" />
+        </div>
+      </div>
+      <button class="primary" id="btnShare" onclick="shareView()">Grant access</button>
+      <div class="spin" id="spin3">Validating users and granting SELECT privilege…</div>
+      <div class="msg" id="msg3"></div>
+      <div id="shareExtra"></div>
+    </div>
+  </section>
+
+  <!-- Independent section: Review & Revoke Access -->
+  <section class="card" id="card4">
+    <h2>Review &amp; Revoke Access</h2>
+    <p class="sub">Review access validity and revoke any grant that has reached its expiry date
+      (expiry today or earlier). Run this any time.</p>
+    <div class="row">
+      <div style="max-width:240px;flex:0 0 240px">
+        <label>Scope</label>
+        <select id="reviewScope" onchange="toggleReviewScope()">
+          <option value="all">All objects</option>
+          <option value="object">Specific object</option>
+        </select>
+      </div>
+      <div id="reviewObjectWrap" style="display:none">
+        <label>Object name <span class="hint">— table in the marketplace catalog</span></label>
+        <input id="reviewObject" placeholder="e.g. product" autocomplete="off" />
+      </div>
+    </div>
+    <button class="primary" id="btnReview" onclick="reviewAccess()">Review &amp; revoke expired access</button>
+    <div class="spin" id="spin4">Reviewing access and revoking expired grants…</div>
+    <div class="msg" id="msg4"></div>
+    <div id="reviewExtra"></div>
+  </section>
+ </div><!-- /tab-marketplace -->
+
+ <div class="tab-panel" id="tab-instance">
+  <section class="card">
+    <h2>AIDP Instance details</h2>
+    <p class="sub">Update the AIDP instance, workspace, and catalog/schema the app
+      targets. Fields are pre-filled with the current configuration (saved in
+      config.yaml). Requests are signed with your <code>~/.oci/config</code> profile.</p>
+    <div id="settingsFields" class="field-grid"></div>
+    <div class="actions">
+      <button class="ghost" onclick="testConnection()">Test connection</button>
+      <button class="primary" style="margin-top:0" onclick="saveSettings()">Save</button>
+    </div>
+    <div class="msg" id="settingsMsg"></div>
+  </section>
+ </div><!-- /tab-instance -->
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let CONFIG = {}, FIELDS = [], createdTable = null;
+
+async function api(path, body, method="POST") {
+  const opt = { method, headers: { "Content-Type": "application/json" } };
+  if (body !== undefined) opt.body = JSON.stringify(body);
+  const r = await fetch(path, opt);
+  return r.json();
+}
+
+function showMsg(id, ok, text) {
+  const el = $(id);
+  el.className = "msg " + (ok ? "ok" : "err");
+  el.textContent = text;
+}
+function busy(spinId, btnId, on) {
+  $(spinId).classList.toggle("on", on);
+  if (btnId) $(btnId).disabled = on;
+}
+
+// ---- config / settings ---------------------------------------------------
+async function loadConfig() {
+  const res = await api("/api/config", undefined, "GET");
+  CONFIG = res.config; FIELDS = res.fields;
+  $("instName").textContent = CONFIG.name || "AIDP";
+  $("tblTarget").textContent = `${CONFIG.marketplace_catalog}.${CONFIG.marketplace_schema}`;
+  renderSettings();
+}
+function renderSettings() {
+  $("settingsFields").innerHTML = FIELDS.map(f => `
+    <div>
+      <label>${f.label} <span class="hint" style="font-weight:400">— ${f.help}</span></label>
+      <input data-key="${f.key}" value="${(CONFIG[f.key] ?? "").toString().replace(/"/g,'&quot;')}" />
+    </div>
+  `).join("");
+}
+function switchTab(name) {
+  ["marketplace", "instance"].forEach(t => {
+    $("tab-" + t).classList.toggle("active", t === name);
+    $("tabbtn-" + t).classList.toggle("active", t === name);
+  });
+}
+
+async function saveSettings() {
+  const updates = {};
+  document.querySelectorAll("#settingsFields input").forEach(i => updates[i.dataset.key] = i.value);
+  const res = await api("/api/config", updates);
+  if (res.ok) {
+    CONFIG = res.config;
+    $("instName").textContent = CONFIG.name;
+    $("tblTarget").textContent = `${CONFIG.marketplace_catalog}.${CONFIG.marketplace_schema}`;
+    showMsg("settingsMsg", true, "Settings saved.");
+  } else {
+    showMsg("settingsMsg", false, res.error || "Save failed.");
+  }
+}
+async function testConnection() {
+  showMsg("settingsMsg", true, "Testing…");
+  const res = await api("/api/test-connection");
+  const pill = $("connPill");
+  if (res.ok) {
+    const found = res.configured_cluster_found;
+    showMsg("settingsMsg", true,
+      `Connected. ${res.cluster_count} cluster(s). Configured cluster ${found ? "found ("+res.cluster_state+")" : "NOT found"}.`);
+    pill.className = "pill live"; pill.textContent = "connected";
+  } else {
+    showMsg("settingsMsg", false, res.error || "Connection failed.");
+    pill.className = "pill bad"; pill.textContent = "error";
+  }
+}
+
+// ---- step 1: create table ------------------------------------------------
+// Show only the first N columns in the sample so the table fits the window
+// (e.g. for the product table this is product_id … stock_quantity).
+const PREVIEW_MAX_COLS = 9;
+function renderPreview(columns, rows) {
+  if (!columns || !columns.length) return "";
+  const shown = columns.slice(0, PREVIEW_MAX_COLS);
+  const hidden = columns.length - shown.length;
+  const head = shown.map(c => `<th>${c}</th>`).join("");
+  const body = rows.map(r => `<tr>${shown.map(c =>
+      `<td>${r[c] === null || r[c] === undefined ? "" : String(r[c])}</td>`).join("")}</tr>`).join("");
+  const note = hidden > 0
+    ? `<p style="font-size:12px;color:var(--muted);margin:6px 0 0">Showing first ${shown.length} of ${columns.length} columns (+${hidden} more).</p>`
+    : "";
+  return `<table class="preview"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>${note}`;
+}
+async function createTable() {
+  const table_name = $("tableName").value.trim();
+  const location = $("location").value.trim();
+  const format = $("format").value;
+  $("preview1").innerHTML = ""; $("msg1").className = "msg";
+  if (!table_name || !location) { showMsg("msg1", false, "Table name and directory location are required."); return; }
+  busy("spin1", "btnCreate", true);
+  const res = await api("/api/create-table", { table_name, location, format });
+  busy("spin1", "btnCreate", false);
+  if (res.ok) {
+    showMsg("msg1", true, `✓ ${res.message}  (${res.elapsed_seconds}s)`);
+    $("preview1").innerHTML =
+      `<div class="sqlbox">${res.sql}</div>` +
+      `<p style="font-size:13px;color:var(--muted);margin:14px 0 0">Sample of 5 records from ${res.table}:</p>` +
+      renderPreview(res.columns, res.rows);
+    createdTable = table_name;
+    // Reveal the grant sub-area (same section) for the object just published.
+    $("grantObj").textContent = res.table;
+    $("grantArea").classList.remove("locked");
+    $("grantArea").scrollIntoView({ behavior: "smooth", block: "center" });
+  } else {
+    showMsg("msg1", false, "✗ " + (res.error || "Create table failed.") + (res.trace ? "\n\n" + res.trace : ""));
+  }
+}
+
+// ---- step 2: grant access ------------------------------------------------
+async function shareView() {
+  const users = $("users").value.trim();
+  const expiry_date = $("expiry").value;
+  $("msg3").className = "msg"; $("shareExtra").innerHTML = "";
+  if (!createdTable) { showMsg("msg3", false, "Publish a table first."); return; }
+  if (!users) { showMsg("msg3", false, "Enter at least one email id or AIDP user id."); return; }
+  if (!expiry_date) { showMsg("msg3", false, "Pick an access expiry date."); return; }
+  busy("spin3", "btnShare", true);
+  const res = await api("/api/share", { view_name: createdTable, users, expiry_date });
+  busy("spin3", "btnShare", false);
+  let extra = "";
+  if (res.accesses && res.accesses.length) {
+    extra += `<p style="font-size:13px;color:var(--muted);margin:14px 0 4px">Granted accesses on ${res.view}:</p>` +
+             renderAccessTable(res.accesses);
+  }
+  if (res.db_error) {
+    extra += `<p style="font-size:12px;color:var(--err);margin:8px 0 0">Access recorded in catalog, but tracking table update failed: ${res.db_error}</p>`;
+  }
+  if (res.ok) {
+    showMsg("msg3", true, "✓ " + res.messages.join("\n"));
+  } else {
+    showMsg("msg3", false, "✗ " + (res.error || "Share failed."));
+  }
+  $("shareExtra").innerHTML = extra;
+}
+
+// shared renderer for the tracked-access table (with status)
+function renderAccessTable(accesses) {
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = accesses.map(a => {
+    let status = "Active", cls = "var(--ok)";
+    if (a.revoked_date) { status = "Revoked"; cls = "var(--err)"; }
+    else if (a.expiry_date && a.expiry_date <= today) { status = "Expired"; cls = "#b26a00"; }
+    return `<tr><td>${a.object_name||""}</td><td>${a.grantee}</td><td>${a.granted_date||""}</td><td>${a.expiry_date||""}</td>`
+         + `<td>${a.revoked_date||""}</td><td style="color:${cls};font-weight:600">${status}</td></tr>`;
+  }).join("");
+  return `<table class="preview"><thead><tr><th>Object</th><th>User</th><th>Granted date</th>`
+       + `<th>Expiry date</th><th>Revoked date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ---- review & revoke expired access (independent) ------------------------
+function toggleReviewScope() {
+  const specific = $("reviewScope").value === "object";
+  $("reviewObjectWrap").style.display = specific ? "" : "none";
+  if (specific && !$("reviewObject").value && createdTable) $("reviewObject").value = createdTable;
+}
+async function reviewAccess() {
+  $("msg4").className = "msg"; $("reviewExtra").innerHTML = "";
+  const scope = $("reviewScope").value;
+  const payload = { scope };
+  if (scope === "object") {
+    const obj = $("reviewObject").value.trim();
+    if (!obj) { showMsg("msg4", false, "Enter the object name to review."); return; }
+    payload.view_name = obj;
+  }
+  busy("spin4", "btnReview", true);
+  const res = await api("/api/review", payload);
+  busy("spin4", "btnReview", false);
+  let extra = "";
+  if (res.accesses && res.accesses.length) {
+    const where = res.scope === "all" ? "all objects" : res.object;
+    extra += `<p style="font-size:13px;color:var(--muted);margin:14px 0 4px">Access review for ${where} (as of ${res.as_of||""}):</p>`
+           + renderAccessTable(res.accesses);
+  }
+  if (res.db_error) extra += `<p style="font-size:12px;color:var(--err);margin:8px 0 0">${res.db_error}</p>`;
+  showMsg("msg4", res.ok, (res.ok ? "✓ " : "✗ ") + (res.message || res.error || "Review failed."));
+  $("reviewExtra").innerHTML = extra;
+}
+
+// default the expiry picker's minimum to today
+$("expiry").min = new Date().toISOString().slice(0, 10);
+loadConfig();
+</script>
+</body>
+</html>

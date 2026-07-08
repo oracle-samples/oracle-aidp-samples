@@ -1,0 +1,27 @@
+# Oracle ADW (ADW4IDL) connection used to track marketplace access grants in the
+# coder.aidp_marketplace_access table.
+#
+# ADW4IDL is a PRIVATE-ENDPOINT Autonomous Database (host does not resolve on the
+# public internet). It is NOT reachable from this machine directly — it is only
+# reachable from inside the OCI VCN, i.e. from the AIDP compute cluster. So all
+# DB operations run as Spark/Python *jobs* on the cluster (via aidp_engine), which
+# connect with python-oracledb (pre-installed on the cluster, thin mode) using the
+# wallet uploaded into the workspace.
+
+# Schema + table that stores the access records.
+schema: coder
+table: aidp_marketplace_access
+
+# python-oracledb connection parameters (used inside the cluster job).
+user: coder
+password: Welcome@12345
+dsn: adw4idl_low
+wallet_password: Welcome@12345
+
+# Workspace-relative folder holding the uploaded wallet (tnsnames.ora, sqlnet.ora,
+# ewallet.pem). On the cluster this is /Workspace/<wallet_workspace_dir>.
+wallet_workspace_dir: marketplace_ui/adw_wallet
+
+# Local source of the wallet (extracted from the downloaded .zip), used to
+# (re)upload the wallet to the workspace if it is missing.
+wallet_local_dir: /Users/arrenga/Downloads/ADW4IDL/wallet

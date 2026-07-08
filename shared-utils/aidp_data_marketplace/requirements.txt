@@ -1,0 +1,4 @@
+flask>=3.0
+oci>=2.140
+requests>=2.31
+pyyaml>=6.0

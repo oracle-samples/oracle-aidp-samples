@@ -1,0 +1,14 @@
+name: AR_AIDP_V0
+region: us-ashburn-1
+endpoint: https://aidp.us-ashburn-1.oci.oraclecloud.com
+platform_id: ocid1.aidataplatform.oc1.iad.<aidp id>
+oci_profile: DEFAULT
+workspace: 85e8fbd1-<workspace id>
+cluster_key: e6217382-<cluster id>
+cluster_name: AR_AIDP_V0_PRIVATE_WKSP_CUSTOM_CLUSTER
+table_catalog: std_catalog
+table_schema: bronze
+marketplace_catalog: marketplace
+marketplace_schema: default
+default_table_format: PARQUET
+job_timeout_seconds: 420
