@@ -14,9 +14,9 @@ table: aidp_marketplace_access
 
 # python-oracledb connection parameters (used inside the cluster job).
 user: coder
-password: Welcome@12345
+password: <db user password>
 dsn: adw4idl_low
-wallet_password: Welcome@12345
+wallet_password: <db wallet password>
 
 # Workspace-relative folder holding the uploaded wallet (tnsnames.ora, sqlnet.ora,
 # ewallet.pem). On the cluster this is /Workspace/<wallet_workspace_dir>.
