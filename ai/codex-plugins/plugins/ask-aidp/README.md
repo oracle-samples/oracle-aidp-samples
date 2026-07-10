@@ -1,262 +1,90 @@
 # Ask AIDP Codex Plugin
 
-This plugin connects Codex to Oracle AI Data Platform Workbench through `aidp-cli`. Workspace Git repository actions that are not available in `aidp-cli` use the native AIDP TypeScript SDK `GitClient`.
-
-It provides:
-
-- A generic `aidp_cli` MCP tool for every `aidp-cli` command group and command.
-- `aidp_cli_reference` for the generated reference of all 215 documented CLI commands across 16 command groups.
-- `aidp_check_connection` for workspace and cluster smoke checks.
-- `aidp_notebook_workflow` for N-notebook workflows: create commented notebooks with grouped setup/work/validation cells, create a sequential workflow, run it, export task outputs, and collect cluster logs.
-- `aidp_three_notebook_workflow` as a compatibility alias for a three-notebook workflow.
-- `aidp_upload_workspace_code` for local file or directory upload into workspace paths.
-- `aidp_create_git_folder` for connecting Git repos to workspace folders.
-- `aidp_git_commit_push` and `aidp_git_pull` for SDK-backed Git push/pull from Git-backed workspace folders. These tools can resolve `gitRepositoryKey` from `gitFolderPath` with `WorkspaceObjectClient#listWorkspaceObjects`.
-- `aidp_git_get_repository`, `aidp_git_operation_state`, `aidp_git_list_branches`, `aidp_git_create_branch`, `aidp_git_checkout_branch`, `aidp_git_list_diffs`, `aidp_git_diff_detail`, `aidp_git_merge`, `aidp_git_rebase`, and `aidp_git_reset` for native SDK Git repository workflows.
-- `aidp_collect_logs` for existing job-run evidence collection.
-- `aidp_track_runs` for notebook sessions, workflow runs, task runs, task outputs, and log downloads.
-- `aidp_create_schema` for schema creation.
-- `aidp_create_delta_table` for managed or external Delta table creation.
-- `aidp_create_table_with_data` for creating a managed table and loading data from inline rows, a local file, or an existing object storage path.
-- `aidp_generate_csv_table_sql` for `%sql CREATE TABLE ... USING CSV OPTIONS (... header 'true')` statements when CSV first rows are headers.
-- `aidp_list_catalogs`, `aidp_get_catalog`, and `aidp_create_catalog` for catalog lookup and creation.
-- `aidp_create_external_catalog` for external catalog creation.
-- `aidp_auto_heal_workflow` for failed workflow repair/rerun using `workflow repair-job-run`.
-- `aidp_create_medallion_architecture` for bronze/silver/gold schemas.
-- `aidp_create_bundle` and `aidp_deploy_bundle` for bundle promotion workflows.
-- `aidp_command_help` for command discovery.
+This plugin connects Codex to Oracle AI Data Platform Workbench through CLI commands with a REST API as a backup. Use this for general work such as to create workflows, clusters and even upload notebooks.
 
 ## Requirements
 
-- Codex with plugin support.
-- Node.js available to Codex.
+- Codex CLI with plugin support and Node.js available to Codex.
 - OCI config and credentials that can access the target AIDP instance.
-- `aidp-cli` available through one of:
-  - the packaged plugin archive, which vendors `aidp-cli`;
-  - `AIDP_CLI_BIN=/absolute/path/to/aidp`;
-  - `aidp` on `PATH`.
-- `aidp-typescript-client` and `oci-common` are vendored in the packaged plugin archive for native SDK Git tools. When running from source, install or vendor the same Node dependencies.
+- The latest `aidp-cli` from
+  [`oracle-samples/aidataplatform-sdk`](https://github.com/oracle-samples/aidataplatform-sdk),
+  either on `PATH` or selected with `AIDP_CLI_BIN`.
+- The latest `aidp-typescript-client` and `oci-common` packages when using the
+  native SDK workspace Git tools.
 
-The distribution folder includes `aidp.env.sample`. Send this sample file with the install guide, but do not send a completed `aidp.env`.
-
-This repository copy also includes release binaries under `dist/` for offline distribution: the macOS/Linux tarball, Windows zip, checksum file, install guide, and `aidp.env.sample`.
+This GitHub directory is the plugin's source distribution. It does **not** contain
+generated `dist/` tarballs, zip files, or a vendored `node_modules` tree. Install the
+plugin from the GitHub marketplace as described below. The build script can create
+offline archives for a separate release process, but those archives are not published
+here.
 
 For file work in notebooks, use AIDP Workbench path patterns such as `/Volumes/<catalog>/<schema>/<volume>/<file>`, `/Workspace/<folder>/<file>`, `file:///Volumes/...`, `file:///Workspace/...`, and `oci://<bucket>@<namespace>/<folder-or-file>`.
 
 If both `aidp-cli` and the TypeScript SDK fail for an operation, fall back to the documented Oracle AI Data Platform Workbench REST API only when the needed endpoint is present in the REST catalog.
 
-## Simplest Install With Codex
+## Install From GitHub
 
-One of the easiest ways to install the plugin is to download the release binaries, then ask Codex to install them for you.
+The same marketplace commands work on macOS, Linux, and Windows. Register the
+Oracle AIDP marketplace once:
 
-Download these files into the same local folder, such as `Downloads/ask-aidp`:
-
-- `ask-aidp-codex-plugin-0.7.2.tar.gz` on macOS or Linux, or `ask-aidp-codex-plugin-0.7.2.zip` on Windows.
-- `ask-aidp-codex-plugin-0.7.2.sha256`.
-- `aidp.env.sample`.
-- This install guide.
-
-Then start a Codex session and prompt it with the folder path:
-
-```text
-Install the Ask AIDP plugin from the downloaded binaries in ~/Downloads/ask-aidp.
-Use the archive for my operating system, verify the checksum if possible, install it into my personal Codex plugin marketplace, and tell me when to start a new Codex thread.
+```bash
+codex plugin marketplace add oracle-samples/oracle-aidp-samples \
+    --ref main \
+    --sparse ai/codex-plugins
 ```
 
-On Windows, use a Windows path:
+Install Ask AIDP:
 
-```text
-Install the Ask AIDP plugin from the downloaded binaries in C:\Users\<user>\Downloads\ask-aidp.
-Use the zip archive, verify the checksum if possible, install it into my personal Codex plugin marketplace, and tell me when to start a new Codex thread.
+```bash
+codex plugin add ask-aidp@oracle-aidp-codex
 ```
 
-After installation, ask Codex to help configure AIDP access:
+Verify the installation:
 
-```text
-Read aidp.env.sample from the same folder, help me create aidp.env with my AIDP endpoint, instance OCID, workspace key, cluster key, OCI profile, and API key authentication settings.
+```bash
+codex plugin list
 ```
 
-## Install On macOS
+Start a new Codex thread after installation so the Ask AIDP skill and MCP tools
+are loaded. You do not need to download an archive, extract a plugin directory,
+or create `~/.agents/plugins/marketplace.json` manually.
 
-Use the tarball on macOS:
+To update an existing installation:
+
+```bash
+codex plugin marketplace upgrade oracle-aidp-codex
+codex plugin add ask-aidp@oracle-aidp-codex
+```
+
+Then start another new Codex thread.
+
+## Configure AIDP
+
+Use [`examples/aidp.env.sample`](./examples/aidp.env.sample) as the template. Do
+not distribute a completed `aidp.env`, because it identifies a user's OCI profile,
+AIDP instance, workspace, and cluster.
+
+On macOS or Linux, download and load the sample from the shell that launches
+Codex:
 
 ```sh
-mkdir -p "$HOME/plugins"
-tar -xzf ask-aidp-codex-plugin-0.7.2.tar.gz -C "$HOME/plugins"
-```
-
-The extracted plugin directory is:
-
-```text
-$HOME/plugins/ask-aidp
-```
-
-If `~/.agents/plugins/marketplace.json` does not exist, create it:
-
-```sh
-mkdir -p "$HOME/.agents/plugins"
-cat > "$HOME/.agents/plugins/marketplace.json" <<'JSON'
-{
-  "name": "personal",
-  "interface": {
-    "displayName": "Personal"
-  },
-  "plugins": [
-    {
-      "name": "ask-aidp",
-      "source": {
-        "source": "local",
-        "path": "./plugins/ask-aidp"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    }
-  ]
-}
-JSON
-```
-
-If the file already exists, add this entry to its `plugins` array:
-
-```json
-{
-  "name": "ask-aidp",
-  "source": {
-    "source": "local",
-    "path": "./plugins/ask-aidp"
-  },
-  "policy": {
-    "installation": "AVAILABLE",
-    "authentication": "ON_INSTALL"
-  },
-  "category": "Productivity"
-}
-```
-
-Then install from the personal marketplace:
-
-```sh
-codex plugin add ask-aidp@personal
-```
-
-Configure AIDP/OCI for the current shell:
-
-You can either export the variables manually or copy the sample file:
-
-```sh
-cp aidp.env.sample ./aidp.env
-chmod 600 ./aidp.env
-```
-
-Edit `./aidp.env`, replace every placeholder, then load it:
-
-```sh
+curl -L \
+  https://raw.githubusercontent.com/oracle-samples/oracle-aidp-samples/main/ai/codex-plugins/plugins/ask-aidp/examples/aidp.env.sample \
+  -o aidp.env.sample
+cp aidp.env.sample aidp.env
+chmod 600 aidp.env
+# Replace every placeholder before loading the file.
 source ./aidp.env
 ```
 
-The manual equivalent is:
-
-```sh
-export AIDP_ENDPOINT="https://aidp.<region>.oci.oraclecloud.com"
-export AIDP_OCID="ocid1.aidataplatform..."
-export AIDP_WORKSPACE_KEY="<workspace-key>"
-export AIDP_CLUSTER_KEY="<cluster-key>"
-export OCI_PROFILE="DEFAULT"
-export AIDP_AUTH="api_key"
-```
-
-Optional macOS variables:
-
-```sh
-export OCI_CONFIG_FILE="$HOME/.oci/config"
-export OCI_REGION="us-ashburn-1"
-export AIDP_CLI_BIN="/absolute/path/to/aidp"
-export AIDP_CLUSTER_NAME="<cluster-display-name>"
-export AIDP_TIMEOUT_SECONDS="60"
-```
-
-If `oci login` does not work in your environment, use OCI API key authentication instead. Follow Oracle's API signing key setup at <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two>: create or use an IAM user with the required AIDP permissions, generate a PEM RSA API signing key pair, upload the public key in OCI Console under User settings > API Keys, copy the generated config snippet into `~/.oci/config`, update `key_file` to the private key path, and restrict the private key with `chmod go-rwx ~/.oci/oci_api_key.pem`. Then set `AIDP_AUTH=api_key`, `OCI_PROFILE` to the profile in `~/.oci/config`, and `OCI_CONFIG_FILE` if the config is not in the default location.
-
-## Install On Windows
-
-Use the zip archive on Windows PowerShell:
+On Windows PowerShell, download the sample as a reference and set the equivalent
+environment variables in the PowerShell session that launches Codex:
 
 ```powershell
-New-Item -ItemType Directory -Force "$HOME\plugins" | Out-Null
-Expand-Archive -Path ".\ask-aidp-codex-plugin-0.7.2.zip" -DestinationPath "$HOME\plugins" -Force
-```
+Invoke-WebRequest `
+  -Uri "https://raw.githubusercontent.com/oracle-samples/oracle-aidp-samples/main/ai/codex-plugins/plugins/ask-aidp/examples/aidp.env.sample" `
+  -OutFile ".\aidp.env.sample"
 
-The extracted plugin directory is:
-
-```text
-%USERPROFILE%\plugins\ask-aidp
-```
-
-If `%USERPROFILE%\.agents\plugins\marketplace.json` does not exist, create it:
-
-```powershell
-New-Item -ItemType Directory -Force "$HOME\.agents\plugins" | Out-Null
-@'
-{
-  "name": "personal",
-  "interface": {
-    "displayName": "Personal"
-  },
-  "plugins": [
-    {
-      "name": "ask-aidp",
-      "source": {
-        "source": "local",
-        "path": "./plugins/ask-aidp"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    }
-  ]
-}
-'@ | Set-Content -Encoding UTF8 "$HOME\.agents\plugins\marketplace.json"
-```
-
-If the file already exists, add this entry to its `plugins` array:
-
-```json
-{
-  "name": "ask-aidp",
-  "source": {
-    "source": "local",
-    "path": "./plugins/ask-aidp"
-  },
-  "policy": {
-    "installation": "AVAILABLE",
-    "authentication": "ON_INSTALL"
-  },
-  "category": "Productivity"
-}
-```
-
-Then install from the personal marketplace:
-
-```powershell
-codex plugin add ask-aidp@personal
-```
-
-Configure AIDP/OCI for the current PowerShell session:
-
-You can either set the variables manually or copy the sample file:
-
-```powershell
-Copy-Item ".\aidp.env.sample" ".\aidp.env"
-```
-
-Edit `.\aidp.env`, replace every placeholder, then set the equivalent PowerShell environment variables below.
-
-```powershell
 $env:AIDP_ENDPOINT = "https://aidp.<region>.oci.oraclecloud.com"
 $env:AIDP_OCID = "ocid1.aidataplatform..."
 $env:AIDP_WORKSPACE_KEY = "<workspace-key>"
@@ -265,19 +93,20 @@ $env:OCI_PROFILE = "DEFAULT"
 $env:AIDP_AUTH = "api_key"
 ```
 
-Optional Windows variables:
+Set `AIDP_CLI_BIN` when `aidp` is not already on `PATH`:
 
-```powershell
-$env:OCI_CONFIG_FILE = "$HOME\.oci\config"
-$env:OCI_REGION = "us-ashburn-1"
-$env:AIDP_CLI_BIN = "C:\path\to\aidp.cmd"
-$env:AIDP_CLUSTER_NAME = "<cluster-display-name>"
-$env:AIDP_TIMEOUT_SECONDS = "60"
+```sh
+export AIDP_CLI_BIN="/absolute/path/to/aidp"
 ```
 
-To persist variables for future PowerShell sessions, use `[Environment]::SetEnvironmentVariable("NAME", "VALUE", "User")`.
+```powershell
+$env:AIDP_CLI_BIN = "C:\path\to\aidp.cmd"
+```
 
-If `oci login` does not work in your environment, use OCI API key authentication instead. Follow Oracle's API signing key setup at <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two>: create or use an IAM user with the required AIDP permissions, generate a PEM RSA API signing key pair, upload the public key in OCI Console under User settings > API Keys, copy the generated config snippet into `%USERPROFILE%\.oci\config`, update `key_file` to the private key path, and keep the private key readable only by your user. On Windows, Oracle documents using Git Bash/OpenSSL to generate the key pair. Then set `$env:AIDP_AUTH = "api_key"`, `$env:OCI_PROFILE` to the profile in `%USERPROFILE%\.oci\config`, and `$env:OCI_CONFIG_FILE` if the config is not in the default location.
+If `oci login` does not work, configure OCI API key authentication using
+[Oracle's API signing key instructions](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two).
+Set `AIDP_AUTH=api_key`, select the profile with `OCI_PROFILE`, and set
+`OCI_CONFIG_FILE` when the OCI config is not in its default location.
 
 ## Use
 
@@ -395,4 +224,7 @@ Workflow runs create a local evidence directory with:
 - Long-running workflows depend on cluster availability and can time out if the service run exceeds the configured polling timeout.
 - Task output export depends on AIDP returning an output key for the task run.
 - `aidp_create_table_with_data` uses `schema create-data-table`, which creates a managed table with an initial data load. It is not a general-purpose append/merge command for existing tables.
-- Packaged archives include the local `aidp-cli` dependency tree when available; otherwise users must install `aidp-cli` separately and set `AIDP_CLI_BIN` or `PATH`.
+- The GitHub marketplace source does not include generated archives or vendored
+  Node dependencies. Install `aidp-cli` separately and set `AIDP_CLI_BIN` or
+  `PATH`; native workspace Git tools additionally require
+  `aidp-typescript-client` and `oci-common` to be resolvable by the MCP server.
