@@ -21,6 +21,8 @@ oracle-aidp-samples repo):
 * ``MYSQL``              — MySQL
 * ``MYSQL_HEATWAVE``     — OCI MySQL HeatWave
 * ``SQLSERVER``          — Microsoft SQL Server
+* ``AZURE_SQLSERVER``    — Azure SQL Database
+* ``SNOWFLAKE``          — Snowflake (read-only)
 * ``KAFKA``              — Kafka via the format-handler shape
 * ``FUSION_BICC``        — Fusion BICC bulk extracts
 * ``GENERIC_REST``       — any REST API with a manifest
