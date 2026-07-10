@@ -1,0 +1,7 @@
+Ask AIDP
+Codex plugin
+
+Copyright (c) 2026 Oracle Corporation. Licensed under the MIT License; see the LICENSE file.
+
+This plugin includes generated command reference metadata for Oracle AI Data Platform CLI commands.
+The packaged binary artifacts under dist/ vendor aidp-cli, aidp-typescript-client, oci-common, and their transitive dependencies; those packages remain subject to their own license and notice files.

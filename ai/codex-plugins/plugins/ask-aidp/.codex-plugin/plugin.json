@@ -1,0 +1,46 @@
+{
+  "name": "ask-aidp",
+  "version": "0.7.2",
+  "description": "Ask and operate Oracle AI Data Platform resources from Codex through aidp-cli and native SDK Git tools.",
+  "author": {
+    "name": "Oracle",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/ask-aidp",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "ai data platform",
+    "workbench",
+    "notebook",
+    "workflow",
+    "aidp-cli"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Ask AIDP",
+    "shortDescription": "Ask and operate Oracle AIDP with aidp-cli and SDK Git tools.",
+    "longDescription": "Ask AIDP exposes Oracle AI Data Platform Workbench operations to Codex through aidp-cli and native TypeScript SDK GitClient tools for workspace Git repository actions that are not covered by the CLI. Git tools can resolve repository keys from Git-backed workspace folder paths through WorkspaceObjectClient#listWorkspaceObjects. It includes a generic CLI runner for all documented CLI commands, a generated CLI command reference, and guided tools for connection checks, N-notebook workflows with commented grouped cells, workspace code upload, Git folders, Git push/pull/status/diff/branch operations, catalog/schema/table creation, CSV table SQL generation with header handling, initial table data loading, run tracking, medallion schemas, bundles, task output export, and log collection.",
+    "developerName": "Oracle",
+    "category": "Data",
+    "websiteURL": "https://www.oracle.com/data-platform/",
+    "privacyPolicyURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/codex-plugins/plugins/ask-aidp/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/LICENSE.txt",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Check my AIDP workspace connection",
+      "Look up AIDP CLI command reference",
+      "Run an N-notebook AIDP workflow"
+    ],
+    "brandColor": "#C74634",
+    "logo": "./assets/logo.svg",
+    "composerIcon": "./assets/icon.svg"
+  },
+  "mcpServers": "./.mcp.json"
+}

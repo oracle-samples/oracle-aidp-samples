@@ -46,6 +46,7 @@ logs/
 build/
 dist/
 target/
+ai/codex-plugins/.plugin-build/
 
 # =========================
 # IDEs

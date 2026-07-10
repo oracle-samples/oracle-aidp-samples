@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ask-aidp": {
+      "cwd": ".",
+      "command": "node",
+      "args": [
+        "./mcp/ask-aidp-server.mjs"
+      ]
+    }
+  }
+}
