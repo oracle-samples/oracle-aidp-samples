@@ -1,7 +1,7 @@
 {
   "name": "oracle-ai-data-platform-workbench-spark-connectors",
-  "version": "0.5.0",
-  "description": "Oracle AI Data Platform Workbench Spark connectors for Codex. Includes 23 connector skills for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources.",
+  "version": "0.6.0",
+  "description": "Oracle AI Data Platform Workbench Spark connectors for Codex. Includes 25 connector skills for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources.",
   "author": {
     "name": "Ahmed Awan"
   },
@@ -28,7 +28,9 @@
     "postgresql",
     "mysql",
     "sqlserver",
+    "azure-sql",
     "snowflake",
+    "netsuite",
     "adls",
     "s3",
     "rest",

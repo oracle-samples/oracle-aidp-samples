@@ -15,6 +15,7 @@ oracle-aidp-samples repo):
 * ``ORACLE_PEOPLESOFT``  — Oracle PeopleSoft (read-only)
 * ``ORACLE_SIEBEL``      — Oracle Siebel CRM (read-only)
 * ``SFORCE``             — Salesforce (read-only)
+* ``NETSUITE``           — NetSuite SuiteAnalytics Connect (read-only)
 * ``HIVE``               — Apache Hive (read-write, non-Kerberos)
 * ``POSTGRESQL``         — PostgreSQL
 * ``MYSQL``              — MySQL

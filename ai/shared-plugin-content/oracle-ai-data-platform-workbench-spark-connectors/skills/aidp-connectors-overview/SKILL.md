@@ -1,6 +1,6 @@
 ---
 name: aidp-connectors-overview
-description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 23 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, SQL Server, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, generic REST, custom JDBC, Excel.
+description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 25 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, SQL Server, Azure SQL, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
 allowed-tools: Read
 ---
 
@@ -43,7 +43,8 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 |---|---|
 | "PostgreSQL", "Postgres", "psql" | [`aidp-postgresql`](../aidp-postgresql/SKILL.md) |
 | "MySQL", "HeatWave", "MDS", "MySQL Database Service" | [`aidp-mysql`](../aidp-mysql/SKILL.md) |
-| "SQL Server", "MSSQL", "Azure SQL", "TDS" | [`aidp-sqlserver`](../aidp-sqlserver/SKILL.md) |
+| "SQL Server", "MSSQL", "TDS" | [`aidp-sqlserver`](../aidp-sqlserver/SKILL.md) |
+| "Azure SQL", "Azure SQL Database", "database.windows.net" | [`aidp-azuresql`](../aidp-azuresql/SKILL.md) |
 | "Hive", "HiveServer2", "HS2", "HCatalog", non-Kerberos Hive | [`aidp-hive`](../aidp-hive/SKILL.md) |
 
 ### SaaS
@@ -51,6 +52,7 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 | User says... | Use skill |
 |---|---|
 | "Salesforce", "SFDC", "Sales Cloud", "Service Cloud", "sObject", "SOQL", "Account / Opportunity / Lead" | [`aidp-salesforce`](../aidp-salesforce/SKILL.md) |
+| "NetSuite", "SuiteAnalytics Connect", "ns.account.id", "ns.role.id", "ns.access.token" | [`aidp-netsuite`](../aidp-netsuite/SKILL.md) |
 
 ### Multi-cloud + escape hatches
 

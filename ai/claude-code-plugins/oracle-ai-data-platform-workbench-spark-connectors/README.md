@@ -3,9 +3,9 @@
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors).
 > This repository is now a personal development mirror. End users should install via Anthropic's community marketplace (see below), which sources from the canonical Oracle-org location.
 
-A Claude Code plugin that ships **23 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
+A Claude Code plugin that ships **25 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
 
-**v0.5.0** adds 5 new connectors (Oracle Database, PeopleSoft, Siebel, Salesforce, Hive) plus the new pushdown.sql / catalog.id / manifest.path patterns from [oracle-samples/oracle-aidp-samples PR #46](https://github.com/oracle-samples/oracle-aidp-samples/pull/46).
+**v0.6.0** adds Azure SQL and NetSuite guidance, and refreshes Snowflake for the AIDP 4.0 connector contract. Snowflake and NetSuite are explicitly read-only.
 
 All connectors wrap the official AIDP `aidataplatform` Spark format handler (or, where applicable, Spark JDBC / structured streaming / `oci://`/`s3a://`/`abfss://`) — same patterns shown in the upstream [`oracle-samples/oracle-aidp-samples`](https://github.com/oracle-samples/oracle-aidp-samples) connector notebooks.
 
@@ -27,7 +27,7 @@ Or from this development mirror (gets the latest pre-release commits):
 
 ## What's in here
 
-25 skills total (23 connectors + 1 bootstrap + 1 routing).
+27 skills total (25 connectors + 1 bootstrap + 1 routing).
 
 ### Oracle / OCI sources
 | Skill | Target | Transport | Recommended auth |
@@ -52,18 +52,20 @@ Or from this development mirror (gets the latest pre-release commits):
 |---|---|---|---|
 | `aidp-postgresql` | PostgreSQL | Spark JDBC (runtime-loaded driver) for SSL targets, `aidataplatform` `type=POSTGRESQL` for non-SSL | Plain user/password |
 | `aidp-mysql` | MySQL / OCI MySQL HeatWave | `aidataplatform` (`type=MYSQL` or `MYSQL_HEATWAVE`) | Plain user/password |
-| `aidp-sqlserver` | Microsoft SQL Server / Azure SQL DB | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
+| `aidp-sqlserver` | Microsoft SQL Server | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
+| `aidp-azuresql` | Azure SQL Database | `aidataplatform` (`type=AZURE_SQLSERVER`) | Plain user/password |
 | `aidp-hive` ⭐ NEW | Apache Hive (HiveServer2, non-Kerberos) | `aidataplatform` (`type=HIVE`) | Plain user/password |
 
 ### SaaS
 | Skill | Target | Transport | Recommended auth |
 |---|---|---|---|
 | `aidp-salesforce` ⭐ NEW | Salesforce (Sales/Service Cloud, custom sObjects) | `aidataplatform` (`type=SFORCE`) | Username + password+security-token (read-only) |
+| `aidp-netsuite` | NetSuite SuiteAnalytics Connect (read-only) | `aidataplatform` (`type=NETSUITE`) | Username/password or OAuth access token |
 
 ### Multi-cloud + escape hatches
 | Skill | Target | Transport | Recommended auth |
 |---|---|---|---|
-| `aidp-snowflake` | Snowflake | `format("snowflake")` (Snowflake Spark connector) | sfUser/sfPassword |
+| `aidp-snowflake` | Snowflake (read-only) | `aidataplatform` (`type=SNOWFLAKE`) | Basic or KeyPair |
 | `aidp-azure-adls` | Azure ADLS Gen2 | Spark `abfss://` | OAuth client-credentials (Service Principal) |
 | `aidp-aws-s3` | AWS S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
 | `aidp-rest-generic` | Any REST API with a manifest URL or Volume `manifest.path` | `aidataplatform` (`type=GENERIC_REST`) | HTTP Basic |

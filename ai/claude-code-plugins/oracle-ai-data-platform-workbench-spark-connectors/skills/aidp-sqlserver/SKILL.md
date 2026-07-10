@@ -1,18 +1,19 @@
 ---
 name: aidp-sqlserver
-description: Read or write Microsoft SQL Server from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions SQL Server, MSSQL, Azure SQL Database, or has a TDS host/port. Auth is host/port + database + user/password.
+description: Read or write Microsoft SQL Server from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions SQL Server, MSSQL, or has a TDS host/port. Auth is host/port + database + user/password.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
 # `aidp-sqlserver` — Microsoft SQL Server via AIDP `aidataplatform`
 
 ## When to use
-- Read or write a Microsoft SQL Server (or Azure SQL Database) from an AIDP notebook.
-- Mentioned: "SQL Server", "MSSQL", "Azure SQL", "TDS".
+- Read or write a Microsoft SQL Server from an AIDP notebook.
+- Mentioned: "SQL Server", "MSSQL", "TDS".
 
 ## When NOT to use
 - For Postgres → [`aidp-postgresql`](../aidp-postgresql/SKILL.md).
 - For MySQL → [`aidp-mysql`](../aidp-mysql/SKILL.md).
+- For Azure SQL Database → [`aidp-azuresql`](../aidp-azuresql/SKILL.md).
 
 ## Read
 ```python
@@ -54,7 +55,6 @@ df.write.format(AIDP_FORMAT).options(**opts).save()
 - **`database.name` is required on write but not strictly on read.** If a read fails with "object not found", supply `database_name=` too — some SQL Server installs require it for the connector to disambiguate.
 - **Schema vs database**: SQL Server has both. `schema` here is the SQL-Server schema (typically `dbo`); `database.name` is the catalog (e.g. `master`, `AdventureWorks`).
 - **TDS port 1433** by default. Azure SQL Database exposes port 1433 over public TLS; AIDP must reach it via its egress route.
-- **Azure SQL** uses the same `SQLSERVER` type. Use the fully-qualified host (`<srv>.database.windows.net`) and the SQL-auth user (NOT Active Directory; AIDP doesn't broker AAD tokens).
 
 ## References
 - Helper: [scripts/oracle_ai_data_platform_connectors/aidataplatform.py](../../scripts/oracle_ai_data_platform_connectors/aidataplatform.py)
