@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this plugin adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-07-10
+
+- Added `aidp-azuresql` for the dedicated `AZURE_SQLSERVER` AIDP connector, including ingestion read/write, external-catalog, `catalog.id`, and `pushdown.sql` patterns.
+- Added `aidp-netsuite` for read-only NetSuite SuiteAnalytics Connect access through `NETSUITE`, including username/password and OAuth `ns.access.token` authentication plus `pushdown.sql`.
+- Updated `aidp-snowflake` to use the AIDP `SNOWFLAKE` connector with Basic and KeyPair authentication, external-catalog reads, `catalog.id`, and pushdown SQL. Snowflake writes are explicitly excluded for the 4.0 release.
+- Updated connector routing so Azure SQL uses `aidp-azuresql` and generic Microsoft SQL Server remains on `aidp-sqlserver`.
+
 ## [0.5.0] — 2026-05-07
 
 Adds 5 new connectors and adopts the v1.0 sample patterns from [`oracle-samples/oracle-aidp-samples` PR #46](https://github.com/oracle-samples/oracle-aidp-samples/pull/46) (`pushdown.sql`, `catalog.id`, `manifest.path`, `write.mode=MERGE`).
