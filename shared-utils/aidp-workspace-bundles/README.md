@@ -7,6 +7,7 @@ This folder provides a customer-parameterized migration process for Oracle AI Da
 1. Copy [migration.env.template](migration.env.template) to `migration.env` and fill in the source and target values.
 2. Load it with `set -a; . ./migration.env; set +a`.
 3. Follow [CUSTOMER_MIGRATION_GUIDE.md](CUSTOMER_MIGRATION_GUIDE.md).
+4. Review [FUNCTIONALITY_REVIEW.md](FUNCTIONALITY_REVIEW.md) with the customer before scheduling a migration.
 
 The populated `migration.env` file must remain local: it can identify customer tenancies, Workbenches, private subnets, and storage destinations.
 
