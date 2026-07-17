@@ -1,0 +1,4 @@
+# Customer-specific migration values and generated source archives can contain
+# tenancy metadata, proprietary notebooks, and scripts.
+migration.env
+aidp-exports/
