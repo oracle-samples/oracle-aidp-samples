@@ -244,6 +244,7 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | [Data Quality Checker](shared-utils/data_quality/data_quality_example.ipynb) | Run comprehensive data quality checks including null, uniqueness, range, pattern, foreign key, and AI-powered semantic validation across single and multiple tables. |
 | [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
 | [AIDP Customer Workbench Usage UI](shared-utils/aidp-customer-admin-ui/README.md) | Browser UI and read-only local proxy for viewing AIDP Workbench workspaces, compute clusters, notebooks, workflows, and cluster libraries from fixture data or live Workbench REST APIs. |
+| [AIDP Workbench Migration Toolkit](shared-utils/aidp-workspace-bundles/README.md) | Parameterized archive and Bundle-based migration process for AIDP Workbench metadata, workspace files, jobs, and agent flows. |
 
 ---
 
