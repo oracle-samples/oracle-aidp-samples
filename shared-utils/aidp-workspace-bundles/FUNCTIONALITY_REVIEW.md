@@ -1,8 +1,8 @@
-# AIDP Workbench API migration functionality review
+# AIDP Workbench API migration capability review
 
 ## Purpose and conclusion
 
-The AIDP Workbench APIs support a **controlled, layered migration**, not a single all-inclusive backup-and-restore operation. A customer can use the APIs to inventory an environment, archive selected metadata and workspace files, create target workspaces, and deploy selected workflows/jobs and agent flows through Bundles.
+The AIDP Workbench APIs support a **controlled, layered migration**, not a single all-inclusive backup-and-restore operation. Teams can use the APIs to inventory an environment, archive selected metadata and workspace files, create target workspaces, and deploy selected workflows/jobs and agent flows through Bundles.
 
 The migration remains partially manual by design: target credentials, private-network configuration, compute capacity, underlying data, and runtime state are environment-specific and must be created or validated in the destination.
 
@@ -63,7 +63,7 @@ Before attempting a private workspace, the target must have:
 
 NSG and SCAN fields are optional in the API request, but their absence does not remove the network and IAM prerequisites. Oracle documents the private-workspace prerequisites in [Workspaces](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/workspaces.html) and the service permissions in [AIDP IAM policies](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/iam-policies-oracle-ai-data-platform.html).
 
-## Customer acceptance criteria
+## Migration completion criteria
 
 The migration is ready for production promotion only when the following are recorded:
 

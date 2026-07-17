@@ -7,7 +7,7 @@ This folder provides a customer-parameterized migration process for Oracle AI Da
 1. Copy [migration.env.template](migration.env.template) to `migration.env` and fill in the source and target values.
 2. Load it with `set -a; . ./migration.env; set +a`.
 3. Follow [CUSTOMER_MIGRATION_GUIDE.md](CUSTOMER_MIGRATION_GUIDE.md).
-4. Review [FUNCTIONALITY_REVIEW.md](FUNCTIONALITY_REVIEW.md) with the customer before scheduling a migration.
+4. Review [FUNCTIONALITY_REVIEW.md](FUNCTIONALITY_REVIEW.md) before scheduling a migration.
 
 The populated `migration.env` file must remain local: it can identify customer tenancies, Workbenches, private subnets, and storage destinations.
 
@@ -49,4 +49,8 @@ python3 aidp_workspace_bundle.py "${TARGET[@]}" import \
 
 Bundles deploy selected jobs/workflows and agent flows plus their referenced source code. The read-only archive also records workspace metadata, permissions, clusters, libraries, jobs, catalogs, and workspace files.
 
-Neither mechanism exports credential secrets, active sessions, job-run history, running compute state, or underlying catalog data. Recreate those per target environment; see the migration guide for the required sequence and private-network prerequisites.
+Neither mechanism exports credential secrets, active sessions, job-run history, running compute state, or underlying catalog data. Recreate those per target environment; see the migration guide for the required sequence and private-network prerequisites. Bundle is a preview API; validate deployments in a non-production target first.
+
+`archive` requests short-lived download PARs for individual workspace files. Treat the archive run and its process output as sensitive, do not log PAR URLs, and verify the service's PAR expiry policy for your environment. Use `--endpoint` (or `AIDP_ENDPOINT`) for a non-commercial OCI realm; otherwise the utility defaults to the commercial `oraclecloud.com` endpoint.
+
+Examples use Bash. Windows users should run them under WSL or Git Bash.

@@ -11,11 +11,11 @@ cp migration.env.template migration.env
 set -a; . ./migration.env; set +a
 ```
 
-For each command, set the API context explicitly. This avoids accidentally exporting from or importing to the wrong Workbench:
+For each command, pass the intended Workbench OCID and region explicitly. Confirm those values against the environment inventory before executing an export or import:
 
 ```bash
-SOURCE=(--tenancy "$SOURCE_TENANCY_OCID" --aidp-id "$SOURCE_WORKBENCH_OCID" --region "$SOURCE_REGION" --profile "$OCI_CLI_PROFILE" --auth "$OCI_CLI_AUTH")
-TARGET=(--tenancy "$TARGET_TENANCY_OCID" --aidp-id "$TARGET_WORKBENCH_OCID" --region "$TARGET_REGION" --profile "$OCI_CLI_PROFILE" --auth "$OCI_CLI_AUTH")
+SOURCE=(--aidp-id "$SOURCE_WORKBENCH_OCID" --region "$SOURCE_REGION" --profile "$OCI_CLI_PROFILE" --auth "$OCI_CLI_AUTH")
+TARGET=(--aidp-id "$TARGET_WORKBENCH_OCID" --region "$TARGET_REGION" --profile "$OCI_CLI_PROFILE" --auth "$OCI_CLI_AUTH")
 ```
 
 ## 2. Preflight
@@ -38,6 +38,8 @@ Create a read-only archive for audit, recovery, and code review:
 python3 aidp_workspace_bundle.py "${SOURCE[@]}" archive --output-dir "$AIDP_EXPORT_DIR"
 ```
 
+Check `manifest.json` after every archive: only `archiveStatus: COMPLETE` is a complete recovery artifact. `INCOMPLETE` records endpoint or file-download failures and the command exits non-zero; `FAILED` means inventory could not be completed. List endpoints are paginated until no `opc-next-page` token remains.
+
 Then create one Bundle per source workspace for every workflow/job that must be deployed:
 
 ```bash
@@ -46,7 +48,7 @@ python3 aidp_workspace_bundle.py "${SOURCE[@]}" export \
   --name migration_YYYYMMDD --path /Workspace/aidp_bundles
 ```
 
-For agent flows, pass each item explicitly as `--resource AGENTFLOW:<key>`. The Bundle API supports only `JOB` and `AGENTFLOW` roots; it includes their referenced source code.
+For agent flows, pass each item explicitly as `--resource AGENTFLOW:<key>`. The Bundle API supports only `JOB` and `AGENTFLOW` roots; it includes their referenced source code. Bundle is a preview API, so validate a Bundle in non-production before promotion.
 
 ## 4. Prepare the target
 
@@ -76,6 +78,8 @@ python3 aidp_workspace_bundle.py "${TARGET[@]}" import \
 
 Use a non-production target first. The Bundle deploy creates or updates jobs and agent flows.
 
+Asynchronous API calls wait for up to 900 seconds by default. Use `--wait-timeout-seconds SECONDS` to change that interval, or `--no-wait` to return the server operation key and monitor it separately.
+
 ## Coverage and validation
 
 | Artifact | Archive | Bundle deploy | Migration action |
@@ -89,3 +93,5 @@ Use a non-production target first. The Bundle deploy creates or updates jobs and
 | Underlying data, session state, job-run history | No | No | Migrate independently using the relevant data service. |
 
 After deployment, validate lifecycle state, catalog connectivity, workspace files, compute startup, and a representative job run. Preserve the archive, bundle manifest, workspace mapping, API request IDs, and validation evidence with the change record.
+
+The examples use Bash arrays. On Windows, run them in WSL or Git Bash; PowerShell requires equivalent environment-variable and argument syntax.
