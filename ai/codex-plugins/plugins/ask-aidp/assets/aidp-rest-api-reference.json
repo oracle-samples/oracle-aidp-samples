@@ -1,0 +1,27 @@
+{
+  "apiVersion": "20260430",
+  "endpointTemplate": "/20260430/aiDataPlatforms/{aiDataPlatformId}/...",
+  "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/rest-endpoints.html",
+  "whatsNewUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/whatsnew.html",
+  "latestChange": "June 2026: SDK and CLI resource links were added. May 2026: first REST API documentation release. No later REST endpoint version is listed in What's New.",
+  "categories": [
+    { "id": "agent", "name": "Agent", "coverage": "Agents, deployments, sessions, session traces, cards, validation, and permissions." },
+    { "id": "async-operations", "name": "Async Operations", "coverage": "Async operation inspection and filtering." },
+    { "id": "audit", "name": "Audit", "coverage": "Audit-log retention and search." },
+    { "id": "bundle", "name": "Bundle", "coverage": "Preview bundle create, deploy, purge, status, and sync." },
+    { "id": "catalog", "name": "Catalog", "coverage": "Catalog CRUD, connections, refresh, and permissions." },
+    { "id": "cluster", "name": "Cluster", "coverage": "Cluster lifecycle, logs, metrics, libraries, and permissions." },
+    { "id": "credentials", "name": "Credentials", "coverage": "Credential CRUD." },
+    { "id": "delta-share", "name": "Delta Share", "coverage": "Shares, recipients, data assets, access, and permissions." },
+    { "id": "git", "name": "Git", "coverage": "Preview workspace Git branches, diffs, merge, rebase, reset, pull, and push." },
+    { "id": "mlops", "name": "MLOps", "coverage": "Preview MLflow experiments, runs, artifacts, models, and tags." },
+    { "id": "notebook", "name": "Notebook", "coverage": "Notebook content and session lifecycle." },
+    { "id": "role", "name": "Role", "coverage": "Role CRUD, membership, and permissions." },
+    { "id": "schema", "name": "Schema", "coverage": "Schemas, tables, views, inference, refresh, PARs, and permissions." },
+    { "id": "user-setting", "name": "User Setting", "coverage": "Preview user credentials and integrations." },
+    { "id": "volume", "name": "Volume", "coverage": "Volumes, files, directories, PAR upload/download, and permissions." },
+    { "id": "workflow", "name": "Workflow", "coverage": "Jobs, job runs, task runs, outputs, repair, and permissions." },
+    { "id": "workspace", "name": "Workspace", "coverage": "Workspace CRUD, Git folders, async status, and permissions." },
+    { "id": "workspace-object", "name": "Workspace Object", "coverage": "Workspace object lifecycle, upload/download PARs, move/copy/rename, and permissions." }
+  ]
+}

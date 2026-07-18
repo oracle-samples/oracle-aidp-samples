@@ -10,11 +10,12 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const SERVER_VERSION = '0.7.2';
+const SERVER_VERSION = '0.8.0';
 const SERVER_NAME = 'ask-aidp';
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const CLI_REFERENCE_PATH = path.join(PLUGIN_ROOT, 'assets', 'aidp-cli-command-reference.json');
+const REST_API_REFERENCE_PATH = path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-reference.json');
 const requireFromPlugin = createRequire(import.meta.url);
 
 const TOOLS = [
@@ -399,6 +400,92 @@ const TOOLS = [
         dryRun: { type: 'boolean', default: false }
       },
       required: ['details'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_create_agent',
+    description: 'Create an AIDP agent with typed common inputs. Wraps aidp agent create; advanced agent-card, diagram, and guardrail fields are supported as JSON objects.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        displayName: { type: 'string', description: 'Agent display name.' },
+        pathInfo: { type: 'string', description: 'Workspace path that contains the agent source or definition.' },
+        agentType: { type: 'string', description: 'Agent type supported by the target service, for example CANVAS.' },
+        description: { type: 'string' },
+        computeKey: { type: 'string', description: 'Optional agent compute key.' },
+        entryFilePath: { type: 'string', description: 'Optional entry file path relative to pathInfo.' },
+        dependenciesFilePath: { type: 'string', description: 'Optional dependency file path relative to pathInfo.' },
+        agentCardConfig: { type: 'object', additionalProperties: true, description: 'Optional AgentCardConfigDetail payload.' },
+        diagram: { type: 'object', additionalProperties: true, description: 'Optional AgentDiagram payload.' },
+        guardrails: { type: 'object', additionalProperties: true, description: 'Optional GuardrailsConfiguration payload.' },
+        sessionConfig: { type: 'object', additionalProperties: true, description: 'Optional AgentSessionConfig payload.' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      required: ['displayName', 'pathInfo'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_deploy_agent',
+    description: 'Deploy an existing AIDP agent with typed deployment, OAuth, and session-retention inputs. Wraps aidp agent deploy.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        agentKey: { type: 'string' },
+        displayName: { type: 'string' },
+        description: { type: 'string' },
+        agentComputeKey: { type: 'string' },
+        oAuthConfig: { type: 'object', additionalProperties: true, description: 'Optional OAuthConfiguration payload.' },
+        sessionRetentionConfig: { type: 'object', additionalProperties: true, description: 'Optional SessionRetentionConfiguration payload.' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      required: ['agentKey'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_list_agents',
+    description: 'List AIDP agents with typed compute, display-name, pagination, and sort filters. Wraps aidp agent list.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        computeKey: { type: 'string' },
+        displayName: { type: 'string' },
+        displayNameContains: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 1000 },
+        page: { type: 'string' },
+        sortOrder: { type: 'string', enum: ['ASC', 'DESC'] },
+        sortBy: { type: 'string', enum: ['timeCreated', 'displayName'] },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_get_agent_session_trace',
+    description: 'Get trace details for an AIDP agent session message. Wraps aidp agent get-session-trace.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        agentKey: { type: 'string' },
+        sessionId: { type: 'string' },
+        traceKey: { type: 'string' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      required: ['agentKey', 'sessionId', 'traceKey'],
       $defs: { config: configSchema() }
     }
   },
@@ -798,6 +885,17 @@ const TOOLS = [
         maxOutputChars: { type: 'integer', minimum: 1000, maximum: 100000, default: 30000 }
       },
       $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_rest_api_reference',
+    description: 'Look up the current Oracle AIDP Workbench REST API version, category coverage, and official reference links used for REST fallback decisions.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        category: { type: 'string', description: 'Optional REST category, for example Agent, Git, Workflow, or Schema.' }
+      }
     }
   },
   {
@@ -1549,6 +1647,143 @@ async function cliReference(input) {
       commandCount: group.commands.length
     }))
   }, null, 2));
+}
+
+function loadRestApiReference() {
+  return JSON.parse(readFileSync(REST_API_REFERENCE_PATH, 'utf8'));
+}
+
+async function restApiReference(input) {
+  const reference = loadRestApiReference();
+  const category = normalizeLookup(input.category);
+  const categories = category
+    ? reference.categories.filter((item) => normalizeLookup(item.name) === category || normalizeLookup(item.id) === category)
+    : reference.categories;
+
+  if (category && !categories.length) {
+    return toolText(JSON.stringify({
+      found: false,
+      message: `No REST API category found for ${input.category}.`,
+      source: reference.referenceUrl,
+      availableCategories: reference.categories.map((item) => item.name)
+    }, null, 2), true);
+  }
+
+  return toolText(JSON.stringify({
+    apiVersion: reference.apiVersion,
+    endpointTemplate: reference.endpointTemplate,
+    referenceUrl: reference.referenceUrl,
+    whatsNewUrl: reference.whatsNewUrl,
+    latestChange: reference.latestChange,
+    categories
+  }, null, 2));
+}
+
+function addDefinedProperties(target, source, fields) {
+  for (const field of fields) {
+    if (source[field] !== undefined && source[field] !== '') target[field] = source[field];
+  }
+  return target;
+}
+
+async function createAgent(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  const body = addDefinedProperties({
+    displayName: requireValue(input.displayName, 'displayName'),
+    pathInfo: requireValue(input.pathInfo, 'pathInfo')
+  }, {
+    ...input,
+    type: input.agentType
+  }, [
+    'type',
+    'description',
+    'computeKey',
+    'entryFilePath',
+    'dependenciesFilePath',
+    'agentCardConfig',
+    'diagram',
+    'guardrails',
+    'sessionConfig'
+  ]);
+
+  return await runJsonBodyCommand({
+    label: 'Create agent',
+    args: ['agent', 'create', workspaceKey],
+    body,
+    config,
+    dryRun: input.dryRun === true,
+    timeoutSeconds: input.timeoutSeconds || 120
+  });
+}
+
+async function deployAgent(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  const agentKey = requireValue(input.agentKey, 'agentKey');
+  const body = addDefinedProperties({ agentKey }, input, [
+    'displayName',
+    'description',
+    'agentComputeKey',
+    'oAuthConfig',
+    'sessionRetentionConfig'
+  ]);
+
+  return await runJsonBodyCommand({
+    label: 'Deploy agent',
+    args: ['agent', 'deploy', workspaceKey, agentKey],
+    body,
+    config,
+    dryRun: input.dryRun === true,
+    timeoutSeconds: input.timeoutSeconds || 120
+  });
+}
+
+async function listAgents(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  const args = ['agent', 'list', workspaceKey];
+  if (input.computeKey) args.push('--compute-key', input.computeKey);
+  if (input.displayName) args.push('--display-name', input.displayName);
+  if (input.displayNameContains) args.push('--display-name-contains', input.displayNameContains);
+  if (input.limit) args.push('--limit', String(input.limit));
+  if (input.page) args.push('--page', input.page);
+  if (input.sortOrder) args.push('--sort-order', input.sortOrder);
+  if (input.sortBy) args.push('--sort-by', input.sortBy);
+
+  if (input.dryRun === true) {
+    return toolText(JSON.stringify({ dryRun: true, command: scrubCommand([...args, ...commonFlags(config)]) }, null, 2));
+  }
+
+  const result = await runAidp(args, { config, timeoutSeconds: input.timeoutSeconds || 120 });
+  return toolText(JSON.stringify({
+    command: result.command,
+    exitCode: result.exitCode,
+    response: safeData(result)
+  }, null, 2), result.exitCode !== 0);
+}
+
+async function getAgentSessionTrace(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  const args = [
+    'agent',
+    'get-session-trace',
+    workspaceKey,
+    requireValue(input.agentKey, 'agentKey'),
+    requireValue(input.sessionId, 'sessionId'),
+    requireValue(input.traceKey, 'traceKey')
+  ];
+  if (input.dryRun === true) {
+    return toolText(JSON.stringify({ dryRun: true, command: scrubCommand([...args, ...commonFlags(config)]) }, null, 2));
+  }
+
+  const result = await runAidp(args, { config, timeoutSeconds: input.timeoutSeconds || 120 });
+  return toolText(JSON.stringify({
+    command: result.command,
+    exitCode: result.exitCode,
+    response: safeData(result)
+  }, null, 2), result.exitCode !== 0);
 }
 
 async function createSchema(input) {
@@ -3203,6 +3438,14 @@ async function handleToolCall(name, args = {}) {
       return await gitRebase(args);
     case 'aidp_git_reset':
       return await gitReset(args);
+    case 'aidp_create_agent':
+      return await createAgent(args);
+    case 'aidp_deploy_agent':
+      return await deployAgent(args);
+    case 'aidp_list_agents':
+      return await listAgents(args);
+    case 'aidp_get_agent_session_trace':
+      return await getAgentSessionTrace(args);
     case 'aidp_collect_logs':
       return await collectLogs(args);
     case 'aidp_track_runs':
@@ -3233,6 +3476,8 @@ async function handleToolCall(name, args = {}) {
       return await deployBundle(args);
     case 'aidp_command_help':
       return await commandHelp(args);
+    case 'aidp_rest_api_reference':
+      return await restApiReference(args);
     case 'aidp_cli_reference':
       return await cliReference(args);
     default:

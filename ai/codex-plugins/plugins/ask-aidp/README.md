@@ -20,7 +20,7 @@ here.
 
 For file work in notebooks, use AIDP Workbench path patterns such as `/Volumes/<catalog>/<schema>/<volume>/<file>`, `/Workspace/<folder>/<file>`, `file:///Volumes/...`, `file:///Workspace/...`, and `oci://<bucket>@<namespace>/<folder-or-file>`.
 
-If both `aidp-cli` and the TypeScript SDK fail for an operation, fall back to the documented Oracle AI Data Platform Workbench REST API only when the needed endpoint is present in the REST catalog.
+If both `aidp-cli` and the TypeScript SDK fail for an operation, use `aidp_rest_api_reference` to verify the documented Oracle AI Data Platform Workbench REST API coverage before a REST fallback. The current documented endpoint version is `/20260430`; Oracle's June 2026 update added SDK and CLI resource links, and no later REST endpoint version is listed.
 
 ## Install From GitHub
 
@@ -152,9 +152,17 @@ Use Ask AIDP to create bronze, silver, and gold schemas for my lakehouse catalog
 Use Ask AIDP to create a bundle for this job and deploy the bundle.
 ```
 
-For generic commands, the plugin passes an argument array to `aidp-cli` and appends common endpoint, instance, profile, auth, and timeout flags from the environment.
+```text
+Use Ask AIDP to create an agent from /Workspace/agents/support_agent and deploy it on my agent compute.
+```
 
-The generated CLI reference covers these command groups: `async-operations`, `audit`, `bundle`, `catalog`, `cluster`, `credentials`, `delta-share`, `mlops`, `notebook`, `role`, `schema`, `user-setting`, `volume`, `workflow`, `workspace`, and `workspace-object`. Use `aidp_cli_reference` to list groups, list commands in a group, fetch one command reference, or search all documented commands.
+```text
+Use Ask AIDP to list my agents and retrieve the trace for this agent session message.
+```
+
+For generic commands, the plugin passes an argument array to `aidp-cli` and appends common endpoint, instance, profile, auth, and timeout flags from the environment. The plugin also has typed `aidp_create_agent`, `aidp_deploy_agent`, `aidp_list_agents`, and `aidp_get_agent_session_trace` helpers for common Agent work.
+
+The generated CLI reference covers all 242 current documented commands in these groups: `agent`, `async-operations`, `audit`, `bundle`, `catalog`, `cluster`, `credentials`, `delta-share`, `mlops`, `notebook`, `role`, `schema`, `user-setting`, `volume`, `workflow`, `workspace`, and `workspace-object`. Use `aidp_cli_reference` to list groups, list commands in a group, fetch one command reference, or search all documented commands. Use `aidp_rest_api_reference` to verify REST version `/20260430`, category coverage, and the official REST catalog before using a REST fallback.
 
 Convenience tool prompts:
 

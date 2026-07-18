@@ -88,7 +88,7 @@ async function main() {
 
   const server = startServer(env);
   try {
-    const init = await server.request('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'ask-aidp-qa', version: '0.7.2' } });
+    const init = await server.request('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'ask-aidp-qa', version: '0.8.0' } });
     assert(init.serverInfo.name === 'ask-aidp', 'server did not initialize as ask-aidp');
 
     const list = await server.request('tools/list');
@@ -112,6 +112,10 @@ async function main() {
       'aidp_git_merge',
       'aidp_git_rebase',
       'aidp_git_reset',
+      'aidp_create_agent',
+      'aidp_deploy_agent',
+      'aidp_list_agents',
+      'aidp_get_agent_session_trace',
       'aidp_collect_logs',
       'aidp_track_runs',
       'aidp_create_schema',
@@ -127,6 +131,7 @@ async function main() {
       'aidp_create_bundle',
       'aidp_deploy_bundle',
       'aidp_command_help',
+      'aidp_rest_api_reference',
       'aidp_cli_reference'
     ]) {
       assert(names.includes(name), `missing tool: ${name}`);
@@ -143,8 +148,26 @@ async function main() {
     const cliReferenceSummary = await server.request('tools/call', { name: 'aidp_cli_reference', arguments: {} });
     assert(!cliReferenceSummary.isError, `CLI reference summary failed: ${toolText(cliReferenceSummary)}`);
     const cliReferencePlan = JSON.parse(toolText(cliReferenceSummary));
-    assert(cliReferencePlan.groupCount === 16, 'CLI reference expected 16 command groups');
-    assert(cliReferencePlan.commandCount === 215, 'CLI reference expected 215 commands');
+    assert(cliReferencePlan.groupCount === 17, 'CLI reference expected 17 command groups');
+    assert(cliReferencePlan.commandCount === 242, 'CLI reference expected 242 commands');
+
+    const agentReference = await server.request('tools/call', {
+      name: 'aidp_cli_reference',
+      arguments: { group: 'agent', command: 'deploy' }
+    });
+    assert(!agentReference.isError, `agent deploy reference failed: ${toolText(agentReference)}`);
+    const agentReferencePlan = JSON.parse(toolText(agentReference));
+    assert(agentReferencePlan.command.fullName === 'aidp agent deploy', 'agent reference command mismatch');
+    assert(agentReferencePlan.command.usage.includes('agent deploy'), 'agent reference usage mismatch');
+
+    const restReference = await server.request('tools/call', {
+      name: 'aidp_rest_api_reference',
+      arguments: { category: 'Agent' }
+    });
+    assert(!restReference.isError, `REST agent reference failed: ${toolText(restReference)}`);
+    const restReferencePlan = JSON.parse(toolText(restReference));
+    assert(restReferencePlan.apiVersion === '20260430', 'REST API version mismatch');
+    assert(restReferencePlan.categories[0].id === 'agent', 'REST Agent category mismatch');
 
     const schemaReference = await server.request('tools/call', {
       name: 'aidp_cli_reference',
@@ -299,6 +322,67 @@ async function main() {
     assert(!gitBranchDryRun.isError, `git branch dry run failed: ${toolText(gitBranchDryRun)}`);
     const gitBranchPlan = JSON.parse(toolText(gitBranchDryRun));
     assert(gitBranchPlan.request.createGitBranchDetails.gitBranchName === 'feature/qa', 'git branch dry run missing branch name');
+
+    const createAgentDryRun = await server.request('tools/call', {
+      name: 'aidp_create_agent',
+      arguments: {
+        displayName: 'qa_agent',
+        pathInfo: '/Workspace/agents/qa_agent',
+        agentType: 'CANVAS',
+        entryFilePath: 'agent.py',
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!createAgentDryRun.isError, `create agent dry run failed: ${toolText(createAgentDryRun)}`);
+    const createAgentPlan = JSON.parse(toolText(createAgentDryRun));
+    assert(createAgentPlan.command.includes('agent create workspace-key'), 'create agent command mismatch');
+    assert(createAgentPlan.body.type === 'CANVAS', 'create agent type mismatch');
+    assert(createAgentPlan.body.entryFilePath === 'agent.py', 'create agent entry file mismatch');
+
+    const deployAgentDryRun = await server.request('tools/call', {
+      name: 'aidp_deploy_agent',
+      arguments: {
+        agentKey: 'agent-key',
+        agentComputeKey: 'agent-compute-key',
+        sessionRetentionConfig: { retentionPeriodInDays: 30 },
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!deployAgentDryRun.isError, `deploy agent dry run failed: ${toolText(deployAgentDryRun)}`);
+    const deployAgentPlan = JSON.parse(toolText(deployAgentDryRun));
+    assert(deployAgentPlan.command.includes('agent deploy workspace-key agent-key'), 'deploy agent command mismatch');
+    assert(deployAgentPlan.body.agentComputeKey === 'agent-compute-key', 'deploy agent compute mismatch');
+
+    const listAgentsDryRun = await server.request('tools/call', {
+      name: 'aidp_list_agents',
+      arguments: {
+        displayNameContains: 'qa',
+        sortBy: 'displayName',
+        sortOrder: 'ASC',
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!listAgentsDryRun.isError, `list agents dry run failed: ${toolText(listAgentsDryRun)}`);
+    const listAgentsPlan = JSON.parse(toolText(listAgentsDryRun));
+    assert(listAgentsPlan.command.includes('agent list workspace-key'), 'list agents command mismatch');
+    assert(listAgentsPlan.command.includes('--display-name-contains qa'), 'list agents filter mismatch');
+
+    const agentTraceDryRun = await server.request('tools/call', {
+      name: 'aidp_get_agent_session_trace',
+      arguments: {
+        agentKey: 'agent-key',
+        sessionId: 'session-id',
+        traceKey: 'trace-key',
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!agentTraceDryRun.isError, `agent trace dry run failed: ${toolText(agentTraceDryRun)}`);
+    const agentTracePlan = JSON.parse(toolText(agentTraceDryRun));
+    assert(agentTracePlan.command.includes('agent get-session-trace workspace-key agent-key session-id trace-key'), 'agent trace command mismatch');
 
     const schemaDryRun = await server.request('tools/call', {
       name: 'aidp_create_schema',
