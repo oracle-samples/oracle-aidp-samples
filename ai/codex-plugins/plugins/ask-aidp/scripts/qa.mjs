@@ -88,7 +88,7 @@ async function main() {
 
   const server = startServer(env);
   try {
-    const init = await server.request('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'ask-aidp-qa', version: '0.7.2' } });
+    const init = await server.request('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'ask-aidp-qa', version: '0.9.0' } });
     assert(init.serverInfo.name === 'ask-aidp', 'server did not initialize as ask-aidp');
 
     const list = await server.request('tools/list');
@@ -112,6 +112,13 @@ async function main() {
       'aidp_git_merge',
       'aidp_git_rebase',
       'aidp_git_reset',
+      'aidp_create_agent',
+      'aidp_deploy_agent',
+      'aidp_list_agents',
+      'aidp_get_agent_session_trace',
+      'aidp_create_ai_compute',
+      'aidp_list_ai_computes',
+      'aidp_update_ai_compute',
       'aidp_collect_logs',
       'aidp_track_runs',
       'aidp_create_schema',
@@ -127,6 +134,8 @@ async function main() {
       'aidp_create_bundle',
       'aidp_deploy_bundle',
       'aidp_command_help',
+      'aidp_rest',
+      'aidp_rest_api_reference',
       'aidp_cli_reference'
     ]) {
       assert(names.includes(name), `missing tool: ${name}`);
@@ -143,8 +152,33 @@ async function main() {
     const cliReferenceSummary = await server.request('tools/call', { name: 'aidp_cli_reference', arguments: {} });
     assert(!cliReferenceSummary.isError, `CLI reference summary failed: ${toolText(cliReferenceSummary)}`);
     const cliReferencePlan = JSON.parse(toolText(cliReferenceSummary));
-    assert(cliReferencePlan.groupCount === 16, 'CLI reference expected 16 command groups');
-    assert(cliReferencePlan.commandCount === 215, 'CLI reference expected 215 commands');
+    assert(cliReferencePlan.groupCount === 17, 'CLI reference expected 17 command groups');
+    assert(cliReferencePlan.commandCount === 242, 'CLI reference expected 242 commands');
+
+    const agentReference = await server.request('tools/call', {
+      name: 'aidp_cli_reference',
+      arguments: { group: 'agent', command: 'deploy' }
+    });
+    assert(!agentReference.isError, `agent deploy reference failed: ${toolText(agentReference)}`);
+    const agentReferencePlan = JSON.parse(toolText(agentReference));
+    assert(agentReferencePlan.command.fullName === 'aidp agent deploy', 'agent reference command mismatch');
+    assert(agentReferencePlan.command.usage.includes('agent deploy'), 'agent reference usage mismatch');
+
+    const restReference = await server.request('tools/call', {
+      name: 'aidp_rest_api_reference',
+      arguments: { category: 'Agent' }
+    });
+    assert(!restReference.isError, `REST agent reference failed: ${toolText(restReference)}`);
+    const restReferencePlan = JSON.parse(toolText(restReference));
+    assert(restReferencePlan.apiVersion === '20260430', 'REST API version mismatch');
+    assert(restReferencePlan.category.id === 'agent', 'REST Agent category mismatch');
+    assert(restReferencePlan.category.operationCount === 21, 'REST Agent operation count mismatch');
+
+    const restReferenceSummary = await server.request('tools/call', { name: 'aidp_rest_api_reference', arguments: {} });
+    assert(!restReferenceSummary.isError, `REST reference summary failed: ${toolText(restReferenceSummary)}`);
+    const restReferenceSummaryPlan = JSON.parse(toolText(restReferenceSummary));
+    assert(restReferenceSummaryPlan.categoryCount === 18, 'REST reference expected 18 categories');
+    assert(restReferenceSummaryPlan.operationCount === 257, 'REST reference expected 257 operations');
 
     const schemaReference = await server.request('tools/call', {
       name: 'aidp_cli_reference',
@@ -299,6 +333,127 @@ async function main() {
     assert(!gitBranchDryRun.isError, `git branch dry run failed: ${toolText(gitBranchDryRun)}`);
     const gitBranchPlan = JSON.parse(toolText(gitBranchDryRun));
     assert(gitBranchPlan.request.createGitBranchDetails.gitBranchName === 'feature/qa', 'git branch dry run missing branch name');
+
+    const createAgentDryRun = await server.request('tools/call', {
+      name: 'aidp_create_agent',
+      arguments: {
+        displayName: 'qa_agent',
+        pathInfo: '/Workspace/agents/qa_agent',
+        agentType: 'CANVAS',
+        entryFilePath: 'agent.py',
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!createAgentDryRun.isError, `create agent dry run failed: ${toolText(createAgentDryRun)}`);
+    const createAgentPlan = JSON.parse(toolText(createAgentDryRun));
+    assert(createAgentPlan.command.includes('agent create workspace-key'), 'create agent command mismatch');
+    assert(createAgentPlan.body.type === 'CANVAS', 'create agent type mismatch');
+    assert(createAgentPlan.body.entryFilePath === 'agent.py', 'create agent entry file mismatch');
+
+    const deployAgentDryRun = await server.request('tools/call', {
+      name: 'aidp_deploy_agent',
+      arguments: {
+        agentKey: 'agent-key',
+        agentComputeKey: 'agent-compute-key',
+        sessionRetentionConfig: { retentionPeriodInDays: 30 },
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!deployAgentDryRun.isError, `deploy agent dry run failed: ${toolText(deployAgentDryRun)}`);
+    const deployAgentPlan = JSON.parse(toolText(deployAgentDryRun));
+    assert(deployAgentPlan.command.includes('agent deploy workspace-key agent-key'), 'deploy agent command mismatch');
+    assert(deployAgentPlan.body.agentComputeKey === 'agent-compute-key', 'deploy agent compute mismatch');
+
+    const listAgentsDryRun = await server.request('tools/call', {
+      name: 'aidp_list_agents',
+      arguments: {
+        displayNameContains: 'qa',
+        sortBy: 'displayName',
+        sortOrder: 'ASC',
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!listAgentsDryRun.isError, `list agents dry run failed: ${toolText(listAgentsDryRun)}`);
+    const listAgentsPlan = JSON.parse(toolText(listAgentsDryRun));
+    assert(listAgentsPlan.command.includes('agent list workspace-key'), 'list agents command mismatch');
+    assert(listAgentsPlan.command.includes('--display-name-contains qa'), 'list agents filter mismatch');
+
+    const agentTraceDryRun = await server.request('tools/call', {
+      name: 'aidp_get_agent_session_trace',
+      arguments: {
+        agentKey: 'agent-key',
+        sessionId: 'session-id',
+        traceKey: 'trace-key',
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!agentTraceDryRun.isError, `agent trace dry run failed: ${toolText(agentTraceDryRun)}`);
+    const agentTracePlan = JSON.parse(toolText(agentTraceDryRun));
+    assert(agentTracePlan.command.includes('agent get-session-trace workspace-key agent-key session-id trace-key'), 'agent trace command mismatch');
+
+    const aiComputeDryRun = await server.request('tools/call', {
+      name: 'aidp_create_ai_compute',
+      arguments: {
+        displayName: 'qa_ai_compute',
+        driverShape: 'VM.Standard.E5.Flex',
+        ocpus: 2,
+        memoryInGBs: 32,
+        minReplicas: 1,
+        maxReplicas: 2,
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!aiComputeDryRun.isError, `AI Compute create dry run failed: ${toolText(aiComputeDryRun)}`);
+    const aiComputePlan = JSON.parse(toolText(aiComputeDryRun));
+    assert(aiComputePlan.command.includes('cluster create workspace-key'), 'AI Compute create command mismatch');
+    assert(aiComputePlan.body.type === 'AI_COMPUTE', 'AI Compute type mismatch');
+    assert(aiComputePlan.body.replicaConfig.maxReplica === 2, 'AI Compute replica configuration mismatch');
+
+    const listAiComputesDryRun = await server.request('tools/call', {
+      name: 'aidp_list_ai_computes',
+      arguments: { displayNameContains: 'qa', config: { workspaceKey: 'workspace-key' }, dryRun: true }
+    });
+    assert(!listAiComputesDryRun.isError, `AI Compute list dry run failed: ${toolText(listAiComputesDryRun)}`);
+    const listAiComputesPlan = JSON.parse(toolText(listAiComputesDryRun));
+    assert(listAiComputesPlan.command.includes('cluster list workspace-key --type AI_COMPUTE'), 'AI Compute list type filter mismatch');
+
+    const updateAiComputeDryRun = await server.request('tools/call', {
+      name: 'aidp_update_ai_compute',
+      arguments: {
+        clusterKey: 'ai-compute-key',
+        ocpus: 4,
+        memoryInGBs: 64,
+        config: { workspaceKey: 'workspace-key' },
+        dryRun: true
+      }
+    });
+    assert(!updateAiComputeDryRun.isError, `AI Compute update dry run failed: ${toolText(updateAiComputeDryRun)}`);
+    const updateAiComputePlan = JSON.parse(toolText(updateAiComputeDryRun));
+    assert(updateAiComputePlan.command.includes('cluster update workspace-key ai-compute-key'), 'AI Compute update command mismatch');
+    assert(updateAiComputePlan.body.driverConfig.driverShapeConfig.ocpus === 4, 'AI Compute update shape mismatch');
+
+    const restDryRun = await server.request('tools/call', {
+      name: 'aidp_rest',
+      arguments: {
+        method: 'GET',
+        path: '/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters',
+        query: { type: 'AI_COMPUTE' },
+        config: {
+          endpoint: 'https://aidp.example.com',
+          instanceId: 'ocid1.aidataplatform.oc1..example',
+          workspaceKey: 'workspace-key'
+        },
+        dryRun: true
+      }
+    });
+    assert(!restDryRun.isError, `REST dry run failed: ${toolText(restDryRun)}`);
+    const restPlan = JSON.parse(toolText(restDryRun));
+    assert(restPlan.url.includes('/20260430/aiDataPlatforms/ocid1.aidataplatform.oc1..example/workspaces/workspace-key/clusters?type=AI_COMPUTE'), 'REST URL expansion mismatch');
 
     const schemaDryRun = await server.request('tools/call', {
       name: 'aidp_create_schema',

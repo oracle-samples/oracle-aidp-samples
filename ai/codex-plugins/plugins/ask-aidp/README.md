@@ -1,6 +1,6 @@
 # Ask AIDP Codex Plugin
 
-This plugin connects Codex to Oracle AI Data Platform Workbench through CLI commands with a REST API as a backup. Use this for general work such as to create workflows, clusters and even upload notebooks.
+This plugin connects Codex to Oracle AI Data Platform Workbench through every documented `aidp-cli` command, OCI-signed REST endpoints, and native SDK Git tools. Use it to create workflows, AI Compute clusters, agents, catalogs, schemas, tables, bundles, and notebooks, as well as upload workspace code and collect run logs.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ here.
 
 For file work in notebooks, use AIDP Workbench path patterns such as `/Volumes/<catalog>/<schema>/<volume>/<file>`, `/Workspace/<folder>/<file>`, `file:///Volumes/...`, `file:///Workspace/...`, and `oci://<bucket>@<namespace>/<folder-or-file>`.
 
-If both `aidp-cli` and the TypeScript SDK fail for an operation, fall back to the documented Oracle AI Data Platform Workbench REST API only when the needed endpoint is present in the REST catalog.
+For REST-only or advanced operations, use `aidp_rest_api_reference` to find the documented operation, then call `aidp_rest` with `dryRun: true` before a live request. The plugin signs the request with the configured OCI identity and only permits endpoint/method pairs from the generated Oracle REST catalog. The current documented endpoint version is `/20260430`.
 
 ## Install From GitHub
 
@@ -152,9 +152,41 @@ Use Ask AIDP to create bronze, silver, and gold schemas for my lakehouse catalog
 Use Ask AIDP to create a bundle for this job and deploy the bundle.
 ```
 
-For generic commands, the plugin passes an argument array to `aidp-cli` and appends common endpoint, instance, profile, auth, and timeout flags from the environment.
+```text
+Use Ask AIDP to create an agent from /Workspace/agents/support_agent and deploy it on my agent compute.
+```
 
-The generated CLI reference covers these command groups: `async-operations`, `audit`, `bundle`, `catalog`, `cluster`, `credentials`, `delta-share`, `mlops`, `notebook`, `role`, `schema`, `user-setting`, `volume`, `workflow`, `workspace`, and `workspace-object`. Use `aidp_cli_reference` to list groups, list commands in a group, fetch one command reference, or search all documented commands.
+```text
+Use Ask AIDP to create an AI Compute cluster named support-agent-compute with shape VM.GPU.A10.1, 8 OCPUs, 64 GB memory, and one to two replicas.
+```
+
+```text
+Use Ask AIDP to list my agents and retrieve the trace for this agent session message.
+```
+
+For generic commands, the plugin passes an argument array to `aidp-cli` and appends common endpoint, instance, profile, auth, and timeout flags from the environment. The plugin also has typed `aidp_create_agent`, `aidp_deploy_agent`, `aidp_list_agents`, and `aidp_get_agent_session_trace` helpers for common Agent work.
+
+The generated CLI reference covers all 242 current documented commands in these groups: `agent`, `async-operations`, `audit`, `bundle`, `catalog`, `cluster`, `credentials`, `delta-share`, `mlops`, `notebook`, `role`, `schema`, `user-setting`, `volume`, `workflow`, `workspace`, and `workspace-object`. Use `aidp_cli_reference` to list groups, list commands in a group, fetch one command reference, or search all documented commands. The generated REST reference covers all 257 current documented `/20260430` operations across 18 categories. Use `aidp_rest_api_reference` to search or inspect an endpoint, then use `aidp_rest` for the signed call.
+
+AI Compute convenience tool prompts:
+
+```text
+Use Ask AIDP to dry-run creating an AI Compute cluster named inference-compute with one to three replicas.
+```
+
+```text
+Use Ask AIDP to list all my AI Compute clusters.
+```
+
+```text
+Use Ask AIDP to update AI Compute cluster <cluster-key> to use two replicas.
+```
+
+For any REST operation without a dedicated helper:
+
+```text
+Use Ask AIDP to search the REST reference for "create credential", dry-run the matching request, then run it.
+```
 
 Convenience tool prompts:
 
