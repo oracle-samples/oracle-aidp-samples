@@ -2,6 +2,18 @@
 
 All notable changes to this plugin are documented here.
 
+## [0.9.0] - 2026-07-20
+
+### Added
+
+- Typed AI Compute helpers: `aidp_create_ai_compute`, `aidp_list_ai_computes`, and `aidp_update_ai_compute`. AI Compute is managed as a cluster with `type: AI_COMPUTE`, typed driver shape/configuration, and replica settings.
+- Generic `aidp_rest` tool for any endpoint in the generated Oracle REST catalog. It applies OCI request signing, expands configured AIDP/workspace/cluster identifiers, supports request bodies and query parameters, and rejects paths or methods outside the documented catalog.
+- Generated REST endpoint catalog refreshed from Oracle documentation: 18 categories and 257 operations for API version `/20260430`.
+
+### Changed
+
+- `aidp_rest_api_reference` can now summarize coverage, filter a category, find an exact operation, or search the complete REST catalog.
+
 ## [0.8.0] - 2026-07-17
 
 ### Added

@@ -28,6 +28,9 @@ When the Ask AIDP MCP tools are available, prefer them over shelling out manuall
 - `aidp_list_agents`: list agents with typed display-name, compute, pagination, and sort filters.
 - `aidp_get_agent_session_trace`: retrieve a trace for an agent session message.
 - `aidp_collect_logs`: collect logs for an existing workflow run.
+- `aidp_create_ai_compute`: create an AI Compute cluster with a typed driver shape/configuration and replica range.
+- `aidp_list_ai_computes`: list only AI Compute clusters.
+- `aidp_update_ai_compute`: update the typed configuration of an AI Compute cluster.
 - `aidp_track_runs`: track workflow runs, task runs, notebook sessions, task outputs, and logs.
 - `aidp_create_schema`: create a schema from catalog name and display name.
 - `aidp_create_delta_table`: create a managed or external Delta table from catalog/schema keys and typed column inputs.
@@ -44,7 +47,8 @@ When the Ask AIDP MCP tools are available, prefer them over shelling out manuall
 - `aidp_cli`: run any `aidp-cli` command group or command not covered by the higher-level tools.
 - `aidp_command_help`: inspect `aidp-cli` command groups and command help.
 - `aidp_cli_reference`: inspect the generated command reference for all documented CLI command groups and commands from the aidataplatform-sdk CLI README.
-- `aidp_rest_api_reference`: inspect the current REST API version, category coverage, and official REST reference links.
+- `aidp_rest_api_reference`: summarize, search, or inspect the generated catalog of documented REST operations.
+- `aidp_rest`: make an OCI-signed request to any method/path pair in the documented REST catalog.
 
 If tools are not available, use `aidp-cli` directly with argument arrays or shell commands. For workspace Git repository push, pull, status, diff, branch, merge, rebase, and reset operations, prefer the native SDK-backed Git tools because those operations are not covered by `aidp-cli`.
 
@@ -120,7 +124,7 @@ For medallion architecture, use `aidp_create_medallion_architecture` to create b
 
 For bundle workflows, use `aidp_create_bundle`, `aidp_deploy_bundle`, and `aidp_cli` or `aidp_command_help` for advanced bundle sync/purge operations.
 
-If an operation fails through both `aidp-cli` and the TypeScript SDK, REST API fallback is acceptable when the operation is documented in the Oracle AI Data Platform Workbench REST API catalog. The current REST API version is `/20260430`; Oracle's June 2026 update added SDK and CLI resource links, while the May 2026 release introduced the REST API documentation and no later REST endpoint version is listed. Use `aidp_rest_api_reference` before a fallback, OCI request signing, and the same endpoint/config values already used for SDK calls. Report that REST was used as a fallback and include the endpoint, method, request body path, and response evidence.
+The plugin supports every documented `aidp-cli` command through `aidp_cli` and every documented REST endpoint through `aidp_rest`. For a REST operation, first call `aidp_rest_api_reference` to find the canonical method/path, then run `aidp_rest` with `dryRun: true`. The tool expands configured AIDP/workspace/cluster identifiers, signs live calls with the configured OCI identity, and rejects endpoint/method pairs not present in its generated catalog. The current REST API version is `/20260430`; the catalog contains 18 categories and 257 operations. Report the endpoint, method, request body path, response status, and evidence.
 
 ## Safety
 

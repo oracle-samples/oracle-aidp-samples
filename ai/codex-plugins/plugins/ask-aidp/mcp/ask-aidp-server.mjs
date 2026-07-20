@@ -10,7 +10,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const SERVER_VERSION = '0.8.0';
+const SERVER_VERSION = '0.9.0';
 const SERVER_NAME = 'ask-aidp';
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
@@ -490,6 +490,79 @@ const TOOLS = [
     }
   },
   {
+    name: 'aidp_create_ai_compute',
+    description: 'Create an AIDP AI Compute cluster for agent playground and deployment workloads. Wraps aidp cluster create with type AI_COMPUTE.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        displayName: { type: 'string' },
+        driverShape: { type: 'string', description: 'OCI compute shape for each AI Compute replica.' },
+        ocpus: { type: 'integer', minimum: 1, maximum: 64 },
+        memoryInGBs: { type: 'integer', minimum: 1, maximum: 1024 },
+        gpus: { type: 'integer', minimum: 0 },
+        minReplicas: { type: 'integer', minimum: 1, maximum: 10, default: 1 },
+        maxReplicas: { type: 'integer', minimum: 1, maximum: 10, default: 1 },
+        driverNodeType: { type: 'string' },
+        nodeType: { type: 'string' },
+        description: { type: 'string' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      required: ['displayName', 'driverShape', 'ocpus', 'memoryInGBs'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_list_ai_computes',
+    description: 'List AIDP AI Compute clusters. Wraps aidp cluster list with type AI_COMPUTE.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        state: { type: 'string' },
+        displayName: { type: 'string' },
+        displayNameContains: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 1000 },
+        page: { type: 'string' },
+        sortOrder: { type: 'string', enum: ['ASC', 'DESC'] },
+        sortBy: { type: 'string', enum: ['timeCreated', 'displayName'] },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_update_ai_compute',
+    description: 'Update an AIDP AI Compute cluster configuration. Wraps aidp cluster update with type AI_COMPUTE.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        clusterKey: { type: 'string' },
+        displayName: { type: 'string' },
+        driverShape: { type: 'string' },
+        ocpus: { type: 'integer', minimum: 1, maximum: 64 },
+        memoryInGBs: { type: 'integer', minimum: 1, maximum: 1024 },
+        gpus: { type: 'integer', minimum: 0 },
+        minReplicas: { type: 'integer', minimum: 1, maximum: 10 },
+        maxReplicas: { type: 'integer', minimum: 1, maximum: 10 },
+        driverNodeType: { type: 'string' },
+        nodeType: { type: 'string' },
+        description: { type: 'string' },
+        ifMatch: { type: 'string' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      required: ['clusterKey'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
     name: 'aidp_collect_logs',
     description: 'Collect cluster logs for an existing AIDP workflow job run.',
     inputSchema: {
@@ -888,13 +961,37 @@ const TOOLS = [
     }
   },
   {
+    name: 'aidp_rest',
+    description: 'Call any documented AIDP Workbench REST endpoint with OCI request signing. Use aidp_rest_api_reference to find the canonical method and path.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'] },
+        path: { type: 'string', description: 'Documented endpoint path. May use {aiDataPlatformId}, {workspaceKey}, and {clusterKey} placeholders from config.' },
+        query: { type: 'object', additionalProperties: { type: ['string', 'number', 'boolean', 'array'] }, default: {} },
+        headers: { type: 'object', additionalProperties: { type: 'string' }, default: {} },
+        body: { description: 'Optional JSON-serializable request body.' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 },
+        maxOutputChars: { type: 'integer', minimum: 1000, maximum: 200000, default: 40000 }
+      },
+      required: ['method', 'path'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
     name: 'aidp_rest_api_reference',
     description: 'Look up the current Oracle AIDP Workbench REST API version, category coverage, and official reference links used for REST fallback decisions.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
-        category: { type: 'string', description: 'Optional REST category, for example Agent, Git, Workflow, or Schema.' }
+        category: { type: 'string', description: 'Optional REST category, for example Agent, Git, Workflow, or Schema.' },
+        operation: { type: 'string', description: 'Optional exact REST operation name.' },
+        search: { type: 'string', description: 'Optional search text matched against operation names, methods, and paths.' },
+        limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
       }
     }
   },
@@ -1656,6 +1753,8 @@ function loadRestApiReference() {
 async function restApiReference(input) {
   const reference = loadRestApiReference();
   const category = normalizeLookup(input.category);
+  const operation = normalizeLookup(input.operation);
+  const limit = input.limit || 20;
   const categories = category
     ? reference.categories.filter((item) => normalizeLookup(item.name) === category || normalizeLookup(item.id) === category)
     : reference.categories;
@@ -1669,13 +1768,72 @@ async function restApiReference(input) {
     }, null, 2), true);
   }
 
+  const allOperations = categories.flatMap((item) => item.operations.map((entry) => ({ ...entry, category: item.name, categoryId: item.id })));
+  if (input.search) {
+    const terms = normalizeLookup(input.search).split(/\s+/).filter(Boolean);
+    const matches = allOperations
+      .filter((entry) => {
+        const haystack = `${entry.category} ${entry.name} ${entry.method} ${entry.path}`.toLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      })
+      .slice(0, limit);
+    return toolText(JSON.stringify({
+      source: reference.source,
+      generatedAt: reference.generatedAt,
+      apiVersion: reference.apiVersion,
+      search: input.search,
+      count: matches.length,
+      matches
+    }, null, 2));
+  }
+
+  if (operation) {
+    const matches = allOperations.filter((entry) => normalizeLookup(entry.name) === operation);
+    if (!matches.length) {
+      return toolText(JSON.stringify({
+        found: false,
+        message: `No REST operation found for ${input.operation}.`,
+        source: reference.source
+      }, null, 2), true);
+    }
+    return toolText(JSON.stringify({
+      source: reference.source,
+      generatedAt: reference.generatedAt,
+      apiVersion: reference.apiVersion,
+      operations: matches
+    }, null, 2));
+  }
+
+  if (category) {
+    const selected = categories[0];
+    return toolText(JSON.stringify({
+      source: reference.source,
+      generatedAt: reference.generatedAt,
+      apiVersion: reference.apiVersion,
+      category: {
+        id: selected.id,
+        name: selected.name,
+        description: selected.description,
+        operationCount: selected.operationCount,
+        operations: selected.operations.slice(0, limit),
+        truncated: selected.operationCount > limit
+      }
+    }, null, 2));
+  }
+
   return toolText(JSON.stringify({
     apiVersion: reference.apiVersion,
     endpointTemplate: reference.endpointTemplate,
-    referenceUrl: reference.referenceUrl,
+    source: reference.source,
     whatsNewUrl: reference.whatsNewUrl,
-    latestChange: reference.latestChange,
-    categories
+    categoryCount: reference.categoryCount,
+    operationCount: reference.operationCount,
+    categories: reference.categories.map((item) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      operationCount: item.operationCount
+    }))
   }, null, 2));
 }
 
@@ -1684,6 +1842,182 @@ function addDefinedProperties(target, source, fields) {
     if (source[field] !== undefined && source[field] !== '') target[field] = source[field];
   }
   return target;
+}
+
+function aiComputeBody(input, { requireShape = false } = {}) {
+  const body = addDefinedProperties({ type: 'AI_COMPUTE' }, input, [
+    'displayName',
+    'description',
+    'nodeType'
+  ]);
+  const driverConfig = addDefinedProperties({}, input, ['driverNodeType']);
+  if (input.driverShape) driverConfig.driverShape = input.driverShape;
+  if (input.ocpus !== undefined || input.memoryInGBs !== undefined || input.gpus !== undefined) {
+    driverConfig.driverShapeConfig = addDefinedProperties({}, input, ['ocpus', 'memoryInGBs', 'gpus']);
+  }
+  if (requireShape) {
+    body.displayName = requireValue(input.displayName, 'displayName');
+    driverConfig.driverShape = requireValue(input.driverShape, 'driverShape');
+    if (input.ocpus === undefined) throw new Error('Missing required AI Compute setting: ocpus');
+    if (input.memoryInGBs === undefined) throw new Error('Missing required AI Compute setting: memoryInGBs');
+  }
+  if (Object.keys(driverConfig).length) body.driverConfig = driverConfig;
+
+  const minReplica = requireShape ? (input.minReplicas ?? 1) : input.minReplicas;
+  const maxReplica = requireShape ? (input.maxReplicas ?? minReplica) : input.maxReplicas;
+  if (minReplica !== undefined || maxReplica !== undefined) {
+    const min = minReplica ?? maxReplica;
+    const max = maxReplica ?? minReplica;
+    if (min > max) throw new Error('minReplicas cannot be greater than maxReplicas.');
+    body.replicaConfig = { minReplica: min, maxReplica: max };
+  }
+  return body;
+}
+
+async function createAiCompute(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  return await runJsonBodyCommand({
+    label: 'Create AI Compute',
+    args: ['cluster', 'create', workspaceKey],
+    body: aiComputeBody(input, { requireShape: true }),
+    config,
+    dryRun: input.dryRun === true,
+    timeoutSeconds: input.timeoutSeconds || 120
+  });
+}
+
+async function listAiComputes(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  const args = ['cluster', 'list', workspaceKey, '--type', 'AI_COMPUTE'];
+  if (input.state) args.push('--state', input.state);
+  if (input.displayName) args.push('--display-name', input.displayName);
+  if (input.displayNameContains) args.push('--display-name-contains', input.displayNameContains);
+  if (input.limit) args.push('--limit', String(input.limit));
+  if (input.page) args.push('--page', input.page);
+  if (input.sortOrder) args.push('--sort-order', input.sortOrder);
+  if (input.sortBy) args.push('--sort-by', input.sortBy);
+  if (input.dryRun === true) return toolText(JSON.stringify({ dryRun: true, command: scrubCommand([...args, ...commonFlags(config)]) }, null, 2));
+
+  const result = await runAidp(args, { config, timeoutSeconds: input.timeoutSeconds || 120 });
+  return toolText(JSON.stringify({ command: result.command, exitCode: result.exitCode, response: safeData(result) }, null, 2), result.exitCode !== 0);
+}
+
+async function updateAiCompute(input) {
+  const config = workflowConfig(input.config || {});
+  const workspaceKey = requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY');
+  const args = ['cluster', 'update', workspaceKey, requireValue(input.clusterKey, 'clusterKey')];
+  if (input.ifMatch) args.push('--if-match', input.ifMatch);
+  const body = aiComputeBody(input);
+  if (Object.keys(body).length === 1) throw new Error('Specify at least one AI Compute property to update.');
+  return await runJsonBodyCommand({
+    label: 'Update AI Compute',
+    args,
+    body,
+    config,
+    dryRun: input.dryRun === true,
+    timeoutSeconds: input.timeoutSeconds || 120
+  });
+}
+
+function expandRestPath(value, config, apiVersion) {
+  if (!String(value).startsWith('/') || String(value).includes('?') || String(value).includes('://') || String(value).split('/').includes('..')) {
+    throw new Error('path must be a documented absolute API path without a query string, protocol, or parent-directory segments.');
+  }
+  const replacements = {
+    aiDataPlatformId: requireValue(config.instanceId, 'instanceId, AIDP_OCID, or AIDP_INSTANCE_ID'),
+    workspaceKey: config.workspaceKey,
+    clusterKey: config.clusterKey
+  };
+  const expanded = String(value).replace(/\{([^}]+)\}/g, (_match, key) => {
+    const replacement = replacements[key];
+    if (!replacement) throw new Error(`Replace {${key}} in path with the target resource key before calling aidp_rest.`);
+    return encodeURIComponent(replacement);
+  });
+  if (!expanded.startsWith(`/${apiVersion}/aiDataPlatforms/`)) {
+    throw new Error(`path must start with /${apiVersion}/aiDataPlatforms/{aiDataPlatformId}/.`);
+  }
+  return expanded;
+}
+
+function restPathMatchesOperation(path, method, reference) {
+  return reference.categories
+    .flatMap((category) => category.operations)
+    .some((operation) => {
+      if (operation.method !== method) return false;
+      const pattern = `^${operation.path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{[^}]+\\\}/g, '[^/]+')}$`;
+      return new RegExp(pattern).test(path);
+    });
+}
+
+function restSafeHeaders(headers = {}) {
+  const blocked = new Set(['authorization', 'host', 'x-date', 'content-length', 'x-content-sha256']);
+  const result = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (blocked.has(key.toLowerCase())) throw new Error(`Do not set signed REST header: ${key}`);
+    result[key] = value;
+  }
+  return result;
+}
+
+async function runRest(input) {
+  const config = workflowConfig(input.config || {});
+  const reference = loadRestApiReference();
+  const method = String(input.method || '').toUpperCase();
+  const pathValue = expandRestPath(input.path, config, reference.apiVersion);
+  if (!restPathMatchesOperation(pathValue, method, reference)) {
+    throw new Error('method and path do not match a documented AIDP REST operation. Use aidp_rest_api_reference to find a supported endpoint.');
+  }
+  const endpoint = requireValue(config.endpoint, 'endpoint or AIDP_ENDPOINT').replace(/\/+$/, '');
+  const headers = restSafeHeaders(input.headers || {});
+  const query = input.query || {};
+  const body = input.body === undefined ? undefined : JSON.stringify(input.body);
+  const url = new URL(`${endpoint}${pathValue}`);
+  for (const [key, value] of Object.entries(query)) {
+    for (const item of Array.isArray(value) ? value : [value]) url.searchParams.append(key, String(item));
+  }
+
+  if (input.dryRun === true) {
+    return toolText(JSON.stringify({
+      dryRun: true,
+      method,
+      url: url.toString(),
+      headers,
+      body: input.body,
+      implementation: 'oci-common DefaultRequestSigner + FetchHttpClient'
+    }, null, 2));
+  }
+
+  const { common, authProvider } = await createSdkAuthProvider(config);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), (input.timeoutSeconds || 120) * 1000);
+  try {
+    const request = await common.composeRequest({
+      baseEndpoint: endpoint,
+      path: pathValue,
+      defaultHeaders: { accept: 'application/json' },
+      headerParams: headers,
+      queryParams: query,
+      method,
+      bodyContent: body
+    });
+    const client = new common.FetchHttpClient(new common.DefaultRequestSigner(authProvider), null, { signal: controller.signal });
+    const response = await client.send(request);
+    const responseText = await response.text();
+    let responseBody = responseText;
+    try { responseBody = responseText ? JSON.parse(responseText) : null; } catch { /* Non-JSON responses are returned as text. */ }
+    return toolText(JSON.stringify({
+      method,
+      url: url.toString(),
+      status: response.status,
+      ok: response.ok,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: typeof responseBody === 'string' ? truncate(responseBody, input.maxOutputChars || 40000) : responseBody
+    }, null, 2), !response.ok);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function createAgent(input) {
@@ -3446,6 +3780,12 @@ async function handleToolCall(name, args = {}) {
       return await listAgents(args);
     case 'aidp_get_agent_session_trace':
       return await getAgentSessionTrace(args);
+    case 'aidp_create_ai_compute':
+      return await createAiCompute(args);
+    case 'aidp_list_ai_computes':
+      return await listAiComputes(args);
+    case 'aidp_update_ai_compute':
+      return await updateAiCompute(args);
     case 'aidp_collect_logs':
       return await collectLogs(args);
     case 'aidp_track_runs':
@@ -3476,6 +3816,8 @@ async function handleToolCall(name, args = {}) {
       return await deployBundle(args);
     case 'aidp_command_help':
       return await commandHelp(args);
+    case 'aidp_rest':
+      return await runRest(args);
     case 'aidp_rest_api_reference':
       return await restApiReference(args);
     case 'aidp_cli_reference':

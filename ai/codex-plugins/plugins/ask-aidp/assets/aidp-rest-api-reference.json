@@ -1,27 +1,1697 @@
 {
+  "generatedAt": "2026-07-20T16:25:36.708Z",
+  "source": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/rest-endpoints.html",
+  "whatsNewUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/whatsnew.html",
   "apiVersion": "20260430",
   "endpointTemplate": "/20260430/aiDataPlatforms/{aiDataPlatformId}/...",
-  "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/rest-endpoints.html",
-  "whatsNewUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/whatsnew.html",
-  "latestChange": "June 2026: SDK and CLI resource links were added. May 2026: first REST API documentation release. No later REST endpoint version is listed in What's New.",
+  "categoryCount": 18,
+  "operationCount": 257,
   "categories": [
-    { "id": "agent", "name": "Agent", "coverage": "Agents, deployments, sessions, session traces, cards, validation, and permissions." },
-    { "id": "async-operations", "name": "Async Operations", "coverage": "Async operation inspection and filtering." },
-    { "id": "audit", "name": "Audit", "coverage": "Audit-log retention and search." },
-    { "id": "bundle", "name": "Bundle", "coverage": "Preview bundle create, deploy, purge, status, and sync." },
-    { "id": "catalog", "name": "Catalog", "coverage": "Catalog CRUD, connections, refresh, and permissions." },
-    { "id": "cluster", "name": "Cluster", "coverage": "Cluster lifecycle, logs, metrics, libraries, and permissions." },
-    { "id": "credentials", "name": "Credentials", "coverage": "Credential CRUD." },
-    { "id": "delta-share", "name": "Delta Share", "coverage": "Shares, recipients, data assets, access, and permissions." },
-    { "id": "git", "name": "Git", "coverage": "Preview workspace Git branches, diffs, merge, rebase, reset, pull, and push." },
-    { "id": "mlops", "name": "MLOps", "coverage": "Preview MLflow experiments, runs, artifacts, models, and tags." },
-    { "id": "notebook", "name": "Notebook", "coverage": "Notebook content and session lifecycle." },
-    { "id": "role", "name": "Role", "coverage": "Role CRUD, membership, and permissions." },
-    { "id": "schema", "name": "Schema", "coverage": "Schemas, tables, views, inference, refresh, PARs, and permissions." },
-    { "id": "user-setting", "name": "User Setting", "coverage": "Preview user credentials and integrations." },
-    { "id": "volume", "name": "Volume", "coverage": "Volumes, files, directories, PAR upload/download, and permissions." },
-    { "id": "workflow", "name": "Workflow", "coverage": "Jobs, job runs, task runs, outputs, repair, and permissions." },
-    { "id": "workspace", "name": "Workspace", "coverage": "Workspace CRUD, Git folders, async status, and permissions." },
-    { "id": "workspace-object", "name": "Workspace Object", "coverage": "Workspace object lifecycle, upload/download PARs, move/copy/rename, and permissions." }
+    {
+      "id": "agent",
+      "name": "Agent",
+      "description": "The operations from the Agent category.",
+      "operationCount": 21,
+      "operations": [
+        {
+          "name": "Copy an Agent",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/actions/copy",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-actions-copy-post.html"
+        },
+        {
+          "name": "Create an Agent",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-post.html"
+        },
+        {
+          "name": "Delete an Agent",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-delete.html"
+        },
+        {
+          "name": "Delete an Agent Deployment.",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/deployments/{agentDeploymentKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-deployments-agentdeploymentkey-delete.html"
+        },
+        {
+          "name": "Delete an Agent Session.",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/sessions/{sessionId}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-sessions-sessionid-delete.html"
+        },
+        {
+          "name": "Deploy an Agent.",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/deployments/actions/deploy",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-deployments-actions-deploy-post.html"
+        },
+        {
+          "name": "Get Agent deployment details.",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/deployments/{agentDeploymentKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-deployments-agentdeploymentkey-get.html"
+        },
+        {
+          "name": "Get Agent details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-get.html"
+        },
+        {
+          "name": "Get Agent permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-permissions-get.html"
+        },
+        {
+          "name": "Get Agent Session chat messages",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/sessions/{sessionId}/chatHistory",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-sessions-sessionid-chathistory-get.html"
+        },
+        {
+          "name": "Get Agent Session details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/sessions/{sessionId}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-sessions-sessionid-get.html"
+        },
+        {
+          "name": "Get Agent Session trace for a given message key",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/sessions/{sessionId}/traces/{traceKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-sessions-sessionid-traces-tracekey-get.html"
+        },
+        {
+          "name": "Get Agents in schema",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-get.html"
+        },
+        {
+          "name": "List all deployments of an Agent.",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/deployments",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-deployments-get.html"
+        },
+        {
+          "name": "List all test sessions of an agent.",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/sessions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-sessions-get.html"
+        },
+        {
+          "name": "Preview agent card",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/actions/previewAgentCard",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-actions-previewagentcard-post.html"
+        },
+        {
+          "name": "Redeploy an Agent.",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/deployments/actions/redeploy",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-deployments-actions-redeploy-post.html"
+        },
+        {
+          "name": "Update agent card details",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/actions/updateDeploymentMetadata",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-actions-updatedeploymentmetadata-put.html"
+        },
+        {
+          "name": "Update Agent permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Update an Agent",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-put.html"
+        },
+        {
+          "name": "Validate Agent diagram",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/agents/{agentKey}/actions/validate",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-agents-agentkey-actions-validate-post.html"
+        }
+      ]
+    },
+    {
+      "id": "async-operations",
+      "name": "AsyncOperations",
+      "description": "The operations from the AsyncOperations category.",
+      "operationCount": 2,
+      "operations": [
+        {
+          "name": "Get information about an async operation.",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/asyncOperations/{asyncOperationKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-asyncoperations-asyncoperationkey-get.html"
+        },
+        {
+          "name": "List all async operations for a resource type",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/asyncOperations",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-asyncoperations-get.html"
+        }
+      ]
+    },
+    {
+      "id": "audit",
+      "name": "Audit",
+      "description": "The operations from the Audit category.",
+      "operationCount": 2,
+      "operations": [
+        {
+          "name": "Manage audit logs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/actions/manageAuditLogs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-actions-manageauditlogs-post.html"
+        },
+        {
+          "name": "Search audit logs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/actions/searchAuditLogs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-actions-searchauditlogs-post.html"
+        }
+      ]
+    },
+    {
+      "id": "bundle",
+      "name": "Bundle",
+      "description": "The operations from the Bundle category.",
+      "operationCount": 10,
+      "operations": [
+        {
+          "name": "(Deprecated) Create a bundle",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/bundles",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-bundles-post.html"
+        },
+        {
+          "name": "(Deprecated) Deploy all bundle resources",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/bundles/actions/deploy",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-bundles-actions-deploy-post.html"
+        },
+        {
+          "name": "(Deprecated) Destroy all deployed bundle resources",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/bundles/actions/purge",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-bundles-actions-purge-post.html"
+        },
+        {
+          "name": "(Deprecated) Returns the latest known deployment summary for a bundle.",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/bundles/actions/getDeploymentStatus",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-bundles-actions-getdeploymentstatus-post.html"
+        },
+        {
+          "name": "(Deprecated) Sync bundle artifacts and descriptors",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/bundles/actions/sync",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-bundles-actions-sync-post.html"
+        },
+        {
+          "name": "(Preview) Create a bundle",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/createBundle",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-createbundle-post.html"
+        },
+        {
+          "name": "(Preview) Deploy all bundle resources",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/deployBundle",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-deploybundle-post.html"
+        },
+        {
+          "name": "(Preview) Destroy all deployed bundle resources",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/purgeBundle",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-purgebundle-post.html"
+        },
+        {
+          "name": "(Preview) Returns the latest known deployment summary for a bundle.",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/getBundleDeploymentStatus",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-getbundledeploymentstatus-post.html"
+        },
+        {
+          "name": "(Preview) Sync bundle artifacts and descriptors",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/syncBundle",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-syncbundle-post.html"
+        }
+      ]
+    },
+    {
+      "id": "catalog",
+      "name": "Catalog",
+      "description": "The operations from the Catalog category.",
+      "operationCount": 9,
+      "operations": [
+        {
+          "name": "Create a catalog",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-post.html"
+        },
+        {
+          "name": "Delete a catalog",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs/{catalogKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-catalogkey-delete.html"
+        },
+        {
+          "name": "Get a list of catalogs",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-get.html"
+        },
+        {
+          "name": "Get catalog details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs/{catalogKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-catalogkey-get.html"
+        },
+        {
+          "name": "Get list of catalog permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs/{catalogKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-catalogkey-permissions-get.html"
+        },
+        {
+          "name": "Refresh catalog through crawler",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs/{catalogKey}/actions/refresh",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-catalogkey-actions-refresh-post.html"
+        },
+        {
+          "name": "Test external catalog connection",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/actions/testConnection",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-actions-testconnection-post.html"
+        },
+        {
+          "name": "Update catalog details",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs/{catalogKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-catalogkey-put.html"
+        },
+        {
+          "name": "Update permissions for a catalog",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/catalogs/{catalogKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-catalogs-catalogkey-actions-managepermission-post.html"
+        }
+      ]
+    },
+    {
+      "id": "cluster",
+      "name": "Cluster",
+      "description": "The operations from the Cluster category.",
+      "operationCount": 17,
+      "operations": [
+        {
+          "name": "Create a cluster",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-post.html"
+        },
+        {
+          "name": "Delete a cluster",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-delete.html"
+        },
+        {
+          "name": "Download cluster logs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/downloadLogs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-downloadlogs-post.html"
+        },
+        {
+          "name": "Get cluster details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-get.html"
+        },
+        {
+          "name": "Get cluster libraries",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/libraries",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-libraries-get.html"
+        },
+        {
+          "name": "Get cluster permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-permissions-get.html"
+        },
+        {
+          "name": "Get clusters in a workspace",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-get.html"
+        },
+        {
+          "name": "Get default cluster",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/defaultCluster",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-defaultcluster-get.html"
+        },
+        {
+          "name": "Patch cluster libraries",
+          "method": "PATCH",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/libraries",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-libraries-patch.html"
+        },
+        {
+          "name": "Query compute replica identifiers from metrics data",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/queryReplicaIds",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-queryreplicaids-post.html"
+        },
+        {
+          "name": "Restart running cluster",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/restart",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-restart-post.html"
+        },
+        {
+          "name": "Search cluster logs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/searchLogs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-searchlogs-post.html"
+        },
+        {
+          "name": "Start a termintated cluster",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/start",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-start-post.html"
+        },
+        {
+          "name": "Stop a Cluster",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/stop",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-stop-post.html"
+        },
+        {
+          "name": "Summarize compute metrics data",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/summarizeMetricsData",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-summarizemetricsdata-post.html"
+        },
+        {
+          "name": "Update cluster details",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-put.html"
+        },
+        {
+          "name": "Update cluster permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/clusters/{clusterKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-managepermission-post.html"
+        }
+      ]
+    },
+    {
+      "id": "credentials",
+      "name": "Credentials",
+      "description": "The operations from the Credentials category.",
+      "operationCount": 5,
+      "operations": [
+        {
+          "name": "Create new credential",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/credentials",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-credentials-post.html"
+        },
+        {
+          "name": "Delete credentials",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/credentials/{credentialKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-credentials-credentialkey-delete.html"
+        },
+        {
+          "name": "Get credential details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/credentials/{credentialKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-credentials-credentialkey-get.html"
+        },
+        {
+          "name": "Get list of credentials",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/credentials",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-credentials-get.html"
+        },
+        {
+          "name": "Update credentials",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/credentials/{credentialKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-credentials-credentialkey-put.html"
+        }
+      ]
+    },
+    {
+      "id": "delta-share",
+      "name": "DeltaShare",
+      "description": "The operations from the DeltaShare category.",
+      "operationCount": 19,
+      "operations": [
+        {
+          "name": "Create a Delta Share",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-post.html"
+        },
+        {
+          "name": "Create a Delta Share recipient",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-post.html"
+        },
+        {
+          "name": "Delete a Delta Share",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-delete.html"
+        },
+        {
+          "name": "Delete a recipient",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients/{recipientKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-recipientkey-delete.html"
+        },
+        {
+          "name": "Get a list of Delta Share access for a recipient",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients/{recipientKey}/shares",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-recipientkey-shares-get.html"
+        },
+        {
+          "name": "Get a list of Delta Share access for a recipient",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-permissions-get.html"
+        },
+        {
+          "name": "Get a list of Delta Share recipients",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-get.html"
+        },
+        {
+          "name": "Get a list of Delta Shares",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-get.html"
+        },
+        {
+          "name": "Get a list of recipients specific to a Delta Share",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}/recipients",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-recipients-get.html"
+        },
+        {
+          "name": "Get Delta Share details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-get.html"
+        },
+        {
+          "name": "Get Delta Share recipient details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients/{recipientKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-recipientkey-get.html"
+        },
+        {
+          "name": "Get list of Delta Share recipient permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients/{recipientKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-recipientkey-permissions-get.html"
+        },
+        {
+          "name": "Gets a list of Delta Share assets",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}/dataAssets",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-dataassets-get.html"
+        },
+        {
+          "name": "Update a Delta Share",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-put.html"
+        },
+        {
+          "name": "Update a Delta Share recipient",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients/{recipientKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-recipientkey-put.html"
+        },
+        {
+          "name": "Update consumer-side access on a share for a recipient",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}/actions/manageAccess",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-actions-manageaccess-post.html"
+        },
+        {
+          "name": "Update Delta Share permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Update recipient permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/recipients/{recipientKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-recipients-recipientkey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Updates Delta Share data assets",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/shares/{shareKey}/actions/manageDataAsset",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-shares-sharekey-actions-managedataasset-post.html"
+        }
+      ]
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "description": "The operations from the Git category.",
+      "operationCount": 15,
+      "operations": [
+        {
+          "name": "(Preview) Check out a Git branch",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/checkOutBranch",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-checkoutbranch-post.html"
+        },
+        {
+          "name": "(Preview) Commit and push Git changes",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/commitPush",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-commitpush-post.html"
+        },
+        {
+          "name": "(Preview) Create a Git branch",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/gitBranches",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-gitbranches-post.html"
+        },
+        {
+          "name": "(Preview) Get a list of Git branches",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/gitBranches",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-gitbranches-get.html"
+        },
+        {
+          "name": "(Preview) Get connected Git repository",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-get.html"
+        },
+        {
+          "name": "(Preview) Get Git file diff",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/gitDiffDetails",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-gitdiffdetails-get.html"
+        },
+        {
+          "name": "(Preview) Get Git operation state",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/gitOperationState",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-gitoperationstate-get.html"
+        },
+        {
+          "name": "(Preview) Get list of file-level Git diffs",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/gitDiff",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-gitdiff-get.html"
+        },
+        {
+          "name": "(Preview) Merge Git branch",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/merge",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-merge-post.html"
+        },
+        {
+          "name": "(Preview) Pull Git changes",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/pull",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-pull-post.html"
+        },
+        {
+          "name": "(Preview) Rebase Git branch",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/rebase",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-rebase-post.html"
+        },
+        {
+          "name": "(Preview) Reset Git branch",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/reset",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-reset-post.html"
+        },
+        {
+          "name": "(Preview) Reset workspace Git state",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/resetState",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-resetstate-post.html"
+        },
+        {
+          "name": "(Preview) Resolve Git conflicts",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}/actions/resolveConflicts",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-actions-resolveconflicts-post.html"
+        },
+        {
+          "name": "(Preview) Update Git repository metadata",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitRepositories/{gitRepositoryKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitrepositories-gitrepositorykey-put.html"
+        }
+      ]
+    },
+    {
+      "id": "mlops",
+      "name": "MLOps",
+      "description": "The operations from the MLOps category.",
+      "operationCount": 46,
+      "operations": [
+        {
+          "name": "(Preview) Create a model version",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/create",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-create-post.html"
+        },
+        {
+          "name": "(Preview) Create a model version in a workspace",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/model-versions/create",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-model-versions-create-post.html"
+        },
+        {
+          "name": "(Preview) Create a new experiment run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/create",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-create-post.html"
+        },
+        {
+          "name": "(Preview) Create a registered model",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/create",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-create-post.html"
+        },
+        {
+          "name": "(Preview) Create an experiment",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/create",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-create-post.html"
+        },
+        {
+          "name": "(Preview) Delete a model version",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/delete",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-delete-post.html"
+        },
+        {
+          "name": "(Preview) Delete a registered model",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/delete",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-delete-post.html"
+        },
+        {
+          "name": "(Preview) Delete an experiment",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/delete",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-delete-post.html"
+        },
+        {
+          "name": "(Preview) Delete an experiment run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/delete",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-delete-post.html"
+        },
+        {
+          "name": "(Preview) Delete an experiment run tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/delete-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-delete-tag-post.html"
+        },
+        {
+          "name": "(Preview) Delete an experiment tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/delete-experiment-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-delete-experiment-tag-post.html"
+        },
+        {
+          "name": "(Preview) Delete model version tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/delete-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-delete-tag-post.html"
+        },
+        {
+          "name": "(Preview) Delete registered model tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/delete-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-delete-tag-post.html"
+        },
+        {
+          "name": "(Preview) Get experiment metadata by ID",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/get",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-get-get.html"
+        },
+        {
+          "name": "(Preview) Get experiment run details by ID",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/get",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-get-get.html"
+        },
+        {
+          "name": "(Preview) Get experiment run metric history",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/metrics/get-history",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-metrics-get-history-get.html"
+        },
+        {
+          "name": "(Preview) Get metadata for an experiment by name",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/get-by-name",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-get-name-get.html"
+        },
+        {
+          "name": "(Preview) Get model version details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/get",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-get-get.html"
+        },
+        {
+          "name": "(Preview) Get registered model details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/get",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-get-get.html"
+        },
+        {
+          "name": "(Preview) List artifacts",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/artifacts/list",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-artifacts-list-get.html"
+        },
+        {
+          "name": "(Preview) List experiment runs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/search",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-search-post.html"
+        },
+        {
+          "name": "(Preview) List experiments",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/search",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-search-post.html"
+        },
+        {
+          "name": "(Preview) List logged models",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/logged-models/search",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-logged-models-search-post.html"
+        },
+        {
+          "name": "(Preview) List model versions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/search",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-search-get.html"
+        },
+        {
+          "name": "(Preview) List registered models",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/search",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-search-get.html"
+        },
+        {
+          "name": "(Preview) Log an experiment run batch",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/log-batch",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-log-batch-post.html"
+        },
+        {
+          "name": "(Preview) Log an experiment run metric",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/log-metric",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-log-metric-post.html"
+        },
+        {
+          "name": "(Preview) Log an experiment run model",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/log-model",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-log-model-post.html"
+        },
+        {
+          "name": "(Preview) Log an experiment run parameter",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/log-parameter",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-log-parameter-post.html"
+        },
+        {
+          "name": "(Preview) Log experiment run inputs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/log-inputs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-log-inputs-post.html"
+        },
+        {
+          "name": "(Preview) Rename a registered model",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/rename",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-rename-post.html"
+        },
+        {
+          "name": "(Preview) Restore an experiment",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/restore",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-restore-post.html"
+        },
+        {
+          "name": "(Preview) Restore an experiment run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/restore",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-restore-post.html"
+        },
+        {
+          "name": "(Preview) Set an experiment run tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/set-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-set-tag-post.html"
+        },
+        {
+          "name": "(Preview) Set an experiment tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/set-experiment-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-set-experiment-tag-post.html"
+        },
+        {
+          "name": "(Preview) Set model version tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/set-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-set-tag-post.html"
+        },
+        {
+          "name": "(Preview) Set registered model tag",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/set-tag",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-set-tag-post.html"
+        },
+        {
+          "name": "(Preview) Transition a model version stage",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/transition-stage",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-transition-stage-post.html"
+        },
+        {
+          "name": "(Preview) Update a model version",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/model-versions/update",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-model-versions-update-post.html"
+        },
+        {
+          "name": "(Preview) Update a registered model",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/registered-models/update",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-registered-models-update-post.html"
+        },
+        {
+          "name": "(Preview) Update an experiment",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/experiments/update",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-experiments-update-post.html"
+        },
+        {
+          "name": "(Preview) Update an experiment run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/runs/update",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-runs-update-post.html"
+        },
+        {
+          "name": "(Preview) Update experiment run tags",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/internal/runs/update-tags",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-internal-runs-update-tags-post.html"
+        },
+        {
+          "name": "(Preview) Update experiment tags",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/mlops/api/2.0/mlflow/internal/experiments/update-experiment-tags",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-mlops-api-2.0-mlflow-internal-experiments-update-experiment-tags-post.html"
+        },
+        {
+          "name": "(Preview) Update model version tags",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/internal/model-versions/update-tags",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-internal-model-versions-update-tags-post.html"
+        },
+        {
+          "name": "(Preview) Update registered model tags",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/mlflow/internal/registered-models/update-tags",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-mlops-api-2.0-mlflow-internal-registered-models-update-tags-post.html"
+        }
+      ]
+    },
+    {
+      "id": "notebook",
+      "name": "Notebook",
+      "description": "The operations from the Notebook category.",
+      "operationCount": 11,
+      "operations": [
+        {
+          "name": "Create a new notebook file or directory",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/contents/{contentPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-contents-contentpath-post.html"
+        },
+        {
+          "name": "Create a new session",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/sessions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-sessions-post.html"
+        },
+        {
+          "name": "Delete a notebook file or directory",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/contents/{contentPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-contents-contentpath-delete.html"
+        },
+        {
+          "name": "Delete a session",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/sessions/{sessionId}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-sessions-sessionid-delete.html"
+        },
+        {
+          "name": "Export notebook file contents",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/actions/export/contents/{contentPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-actions-export-contents-contentpath-post.html"
+        },
+        {
+          "name": "Get available sessions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/sessions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-sessions-get.html"
+        },
+        {
+          "name": "Get file or directory content",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/contents/{contentPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-contents-contentpath-get.html"
+        },
+        {
+          "name": "Get session details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/sessions/{sessionId}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-sessions-sessionid-get.html"
+        },
+        {
+          "name": "Patch a session",
+          "method": "PATCH",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/sessions/{sessionId}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-sessions-sessionid-patch.html"
+        },
+        {
+          "name": "Rename a file or directory",
+          "method": "PATCH",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/contents/{contentPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-contents-contentpath-patch.html"
+        },
+        {
+          "name": "Update notebook contents",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/notebook/api/contents/{contentPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-notebook-api-contents-contentpath-put.html"
+        }
+      ]
+    },
+    {
+      "id": "role",
+      "name": "Role",
+      "description": "The operations from the Role category.",
+      "operationCount": 8,
+      "operations": [
+        {
+          "name": "Add member to role",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles/{roleKey}/actions/addMember",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-rolekey-actions-addmember-post.html"
+        },
+        {
+          "name": "Create a role",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-post.html"
+        },
+        {
+          "name": "Delete a role",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles/{roleKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-rolekey-delete.html"
+        },
+        {
+          "name": "Get list of role permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles/{roleKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-rolekey-permissions-get.html"
+        },
+        {
+          "name": "Get list of roles",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-get.html"
+        },
+        {
+          "name": "Get role details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles/{roleKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-rolekey-get.html"
+        },
+        {
+          "name": "Remove member from role",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles/{roleKey}/actions/removeMember",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-rolekey-actions-removemember-post.html"
+        },
+        {
+          "name": "Update a role",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/roles/{roleKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-roles-rolekey-put.html"
+        }
+      ]
+    },
+    {
+      "id": "schema",
+      "name": "Schema",
+      "description": "The operations from the Schema category.",
+      "operationCount": 28,
+      "operations": [
+        {
+          "name": "Create a managed table from sample file",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/dataTables",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-datatables-post.html"
+        },
+        {
+          "name": "Create a schema",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-post.html"
+        },
+        {
+          "name": "Create a table",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-post.html"
+        },
+        {
+          "name": "Create a view",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-post.html"
+        },
+        {
+          "name": "Delete a table",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-delete.html"
+        },
+        {
+          "name": "Delete a view",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views/{viewKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-viewkey-delete.html"
+        },
+        {
+          "name": "Delete schema",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-delete.html"
+        },
+        {
+          "name": "Generate URI for uploading a sample file to a temporary folder in a schema",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}/actions/generateTempFileUploadTarget",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-actions-generatetempfileuploadtarget-post.html"
+        },
+        {
+          "name": "Get schema details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-get.html"
+        },
+        {
+          "name": "Get schema permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-permissions-get.html"
+        },
+        {
+          "name": "Get schema views",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-get.html"
+        },
+        {
+          "name": "Get schemas",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-get.html"
+        },
+        {
+          "name": "Get table details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-get.html"
+        },
+        {
+          "name": "Get table permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-permissions-get.html"
+        },
+        {
+          "name": "Get table schema and data",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}/actions/inferSchemaWithPreview",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-actions-inferschemawithpreview-post.html"
+        },
+        {
+          "name": "Get table schema details",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}/actions/inferSchema",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-actions-inferschema-post.html"
+        },
+        {
+          "name": "Get tables in schema",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-get.html"
+        },
+        {
+          "name": "Get view details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views/{viewKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-viewkey-get.html"
+        },
+        {
+          "name": "Get view permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views/{viewKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-viewkey-permissions-get.html"
+        },
+        {
+          "name": "Refresh schema",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}/actions/refresh",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-actions-refresh-post.html"
+        },
+        {
+          "name": "Refresh table",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}/actions/refresh",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-actions-refresh-post.html"
+        },
+        {
+          "name": "Retrieve PAR for created entities",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}/actions/getPar",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-actions-getpar-post.html"
+        },
+        {
+          "name": "Update a table",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-put.html"
+        },
+        {
+          "name": "Update a view",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views/{viewKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-viewkey-put.html"
+        },
+        {
+          "name": "Update schema",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-put.html"
+        },
+        {
+          "name": "Update schema permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/schemas/{schemaKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-schemas-schemakey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Update table permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/tables/{tableKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-tables-tablekey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Update view permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/views/{viewKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-views-viewkey-actions-managepermission-post.html"
+        }
+      ]
+    },
+    {
+      "id": "user-setting",
+      "name": "UserSetting",
+      "description": "The operations from the UserSetting category.",
+      "operationCount": 5,
+      "operations": [
+        {
+          "name": "(Preview) Delete a user setting",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/userSettings/{settingKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-usersettings-settingkey-delete.html"
+        },
+        {
+          "name": "(Preview) Get list of user settings by type or default status",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/userSettings",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-usersettings-get.html"
+        },
+        {
+          "name": "(Preview) Get user settings",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/userSettings/{settingKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-usersettings-settingkey-get.html"
+        },
+        {
+          "name": "(Preview) Manage user credentials and integrations",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/userSettings",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-usersettings-post.html"
+        },
+        {
+          "name": "(Preview) Update a stored user setting",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/userSettings/{settingKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-usersettings-settingkey-put.html"
+        }
+      ]
+    },
+    {
+      "id": "volume",
+      "name": "Volume",
+      "description": "The operations from the Volume category.",
+      "operationCount": 16,
+      "operations": [
+        {
+          "name": "Create a volume",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-post.html"
+        },
+        {
+          "name": "Create directory in volume",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/mkdir",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-mkdir-post.html"
+        },
+        {
+          "name": "Delete a volume",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-delete.html"
+        },
+        {
+          "name": "Delete a volume file",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/deleteFile",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-deletefile-delete.html"
+        },
+        {
+          "name": "Delete volume directory",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/deleteDir",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-deletedir-delete.html"
+        },
+        {
+          "name": "Download a file to Volume by generating par",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/downloadFileMeta",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-downloadfilemeta-post.html"
+        },
+        {
+          "name": "Download file from volume",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/downloadFile",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-downloadfile-post.html"
+        },
+        {
+          "name": "Get files in volume",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/files",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-files-get.html"
+        },
+        {
+          "name": "Get volume details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-get.html"
+        },
+        {
+          "name": "Get volume permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-permissions-get.html"
+        },
+        {
+          "name": "Get volumes",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-get.html"
+        },
+        {
+          "name": "Update a volume",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-put.html"
+        },
+        {
+          "name": "Update volume directory",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/updateDir",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-updatedir-put.html"
+        },
+        {
+          "name": "Update volume permissions",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-managepermission-put.html"
+        },
+        {
+          "name": "Upload a file to volume",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/uploadFile",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-uploadfile-post.html"
+        },
+        {
+          "name": "Upload a file to volume by generating PAR",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/volumes/{volumeKey}/actions/uploadFileMeta",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-volumes-volumekey-actions-uploadfilemeta-post.html"
+        }
+      ]
+    },
+    {
+      "id": "workflow",
+      "name": "Workflow",
+      "description": "The operations from the Workflow category.",
+      "operationCount": 19,
+      "operations": [
+        {
+          "name": "Cancel a job run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobRuns/{jobRunKey}/actions/cancel",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobruns-jobrunkey-actions-cancel-post.html"
+        },
+        {
+          "name": "Cancel job runs",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs/{jobKey}/actions/cancelJobRuns",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-jobkey-actions-canceljobruns-post.html"
+        },
+        {
+          "name": "Create a job",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-post.html"
+        },
+        {
+          "name": "Create a job run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobRuns",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobruns-post.html"
+        },
+        {
+          "name": "Delete a job",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs/{jobKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-jobkey-delete.html"
+        },
+        {
+          "name": "Delete a job run",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobRuns/{jobRunKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobruns-jobrunkey-delete.html"
+        },
+        {
+          "name": "Export task run output",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/taskRuns/{taskRunKey}/outputs/{taskRunOutputKey}/actions/export",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-taskruns-taskrunkey-outputs-taskrunoutputkey-actions-export-post.html"
+        },
+        {
+          "name": "Fetch task run output from runtime engine",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/taskRuns/{taskRunKey}/actions/fetchOutput",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-taskruns-taskrunkey-actions-fetchoutput-post.html"
+        },
+        {
+          "name": "Get job details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs/{jobKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-jobkey-get.html"
+        },
+        {
+          "name": "Get job permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs/{jobKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-jobkey-permissions-get.html"
+        },
+        {
+          "name": "Get job run details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobRuns/{jobRunKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobruns-jobrunkey-get.html"
+        },
+        {
+          "name": "Get job runs",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobRuns",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobruns-get.html"
+        },
+        {
+          "name": "Get latest job runs",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/recentJobRuns",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-recentjobruns-get.html"
+        },
+        {
+          "name": "Get list of jobs",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-get.html"
+        },
+        {
+          "name": "Get task run details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/taskRuns/{taskRunKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-taskruns-taskrunkey-get.html"
+        },
+        {
+          "name": "Get task runs",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/taskRuns",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-taskruns-get.html"
+        },
+        {
+          "name": "Repair job run",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobRuns/{jobRunKey}/actions/repair",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobruns-jobrunkey-actions-repair-post.html"
+        },
+        {
+          "name": "Update job permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs/{jobKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-jobkey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Updates a job",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/jobs/{jobKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-jobs-jobkey-put.html"
+        }
+      ]
+    },
+    {
+      "id": "workspace",
+      "name": "Workspace",
+      "description": "The operations from the Workspace category.",
+      "operationCount": 11,
+      "operations": [
+        {
+          "name": "Create a workspace",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-post.html"
+        },
+        {
+          "name": "Creates a git folder in the workspace",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/gitFolders",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-gitfolders-post.html"
+        },
+        {
+          "name": "Delete a workspace",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-delete.html"
+        },
+        {
+          "name": "Get a list of create workspace permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/createWorkspacePermissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-createworkspacepermissions-get.html"
+        },
+        {
+          "name": "Get a list of workspace permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-permissions-get.html"
+        },
+        {
+          "name": "Get a list of workspaces",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-get.html"
+        },
+        {
+          "name": "Get workspace details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-get.html"
+        },
+        {
+          "name": "Update a workspace",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-put.html"
+        },
+        {
+          "name": "Update create workspace permissions on a workspace",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/actions/manageCreateWorkspacePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-actions-managecreateworkspacepermission-post.html"
+        },
+        {
+          "name": "Update permissions on a workspace",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Update workspace status",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/asyncOperations/{asyncOperationKey}/status",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-asyncoperations-asyncoperationkey-status-put.html"
+        }
+      ]
+    },
+    {
+      "id": "workspace-object",
+      "name": "WorkspaceObject",
+      "description": "The operations from the WorkspaceObject category.",
+      "operationCount": 13,
+      "operations": [
+        {
+          "name": "Copy a workspace object",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/copyObject",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-copyobject-post.html"
+        },
+        {
+          "name": "Create a workspace object",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-post.html"
+        },
+        {
+          "name": "Delete a workspace object",
+          "method": "DELETE",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects/{objectPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-objectpath-delete.html"
+        },
+        {
+          "name": "Download a workspace file by generating PAR",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/downloadFileMeta",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-downloadfilemeta-post.html"
+        },
+        {
+          "name": "Get a list of objects in the workspace",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-get.html"
+        },
+        {
+          "name": "Get a list of workspace object permissions",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects/{objectKey}/permissions",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-objectkey-permissions-get.html"
+        },
+        {
+          "name": "Get workspace object details",
+          "method": "GET",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects/{objectPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-objectpath-get.html"
+        },
+        {
+          "name": "Get workspace object summary metadata",
+          "method": "HEAD",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects/{objectPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-objectpath-head.html"
+        },
+        {
+          "name": "Move a workspace object",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/moveObject",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-moveobject-post.html"
+        },
+        {
+          "name": "Rename a workspace object",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/renameObject",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-renameobject-post.html"
+        },
+        {
+          "name": "Update a workspace object",
+          "method": "PUT",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects/{objectPath}",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-objectpath-put.html"
+        },
+        {
+          "name": "Update workspace object permissions",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/objects/{objectKey}/actions/managePermission",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-objects-objectkey-actions-managepermission-post.html"
+        },
+        {
+          "name": "Upload a workspace file by generating PAR",
+          "method": "POST",
+          "path": "/20260430/aiDataPlatforms/{aiDataPlatformId}/workspaces/{workspaceKey}/actions/uploadFileMeta",
+          "referenceUrl": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-actions-uploadfilemeta-post.html"
+        }
+      ]
+    }
   ]
 }
