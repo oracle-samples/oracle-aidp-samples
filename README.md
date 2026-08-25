@@ -160,7 +160,7 @@ Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cr
 
 | Sample | Description |
 |---|---|
-| [ADW External Table on Delta UniForm](data-engineering/adw-ext-table-on-uniform/README.md) | Automates recreating an ADW Iceberg external table against the latest UniForm-generated metadata file when a UniForm-enabled Delta table evolves — ADW + Python + a stored procedure that resolves the newest `vN.metadata.json`. |
+| [ADW External Table on Delta UniForm](data-engineering/adw-ext-table-on-uniform/README.md) | Automates recreating an ADW Iceberg external table against the latest UniForm-generated metadata file when a UniForm-enabled Delta table evolves — ADW + Python + a stored procedure that resolves the newest `vN.metadata.json`. Start here to learn the pattern on one table; to automate a whole catalog across a fleet of ADWs on a schedule, see [ADW Iceberg External Table Sync](shared-utils/adw-iceberg-external-table-sync/README.md). |
 
 #### Other Utilities
 
@@ -254,7 +254,7 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
 | [AIDP Customer Workbench Usage UI](shared-utils/aidp-customer-admin-ui/README.md) | Browser UI and read-only local proxy for viewing AIDP Workbench workspaces, compute clusters, notebooks, workflows, and cluster libraries from fixture data or live Workbench REST APIs. |
 | [AIDP Workbench Migration Toolkit](shared-utils/aidp-workspace-bundles/README.md) | Parameterized archive and Bundle-based migration process for AIDP Workbench metadata, workspace files, jobs, and agent flows. |
-| [ADW Iceberg External Table Sync](shared-utils/adw-iceberg-external-table-sync/adw_external_table_sync.ipynb) | Serve an AIDP Delta UniForm lakehouse to a fleet of Oracle Autonomous Databases as read-only Iceberg external tables — no data copy and no catalog service in the read path, with schema drift detected by fingerprint and only changed tables recreated. |
+| [ADW Iceberg External Table Sync](shared-utils/adw-iceberg-external-table-sync/adw_external_table_sync.ipynb) | Scheduled, fleet-scale automation that keeps an entire AIDP catalog queryable from N Autonomous Databases as read-only Iceberg external tables — no data copy, no catalog service in the read path. Runs as an AIDP job parameterized by catalog: fingerprints the Iceberg metadata so only schema-drifted tables are recreated (steady state issues zero DDL against the fleet), reads every secret from OCI Vault, preserves consumer grants across recreates, and keeps sync state in a per-catalog registry. Measured at 4,777 tables × 2 ADWs. For the single-table, manually-run version of the same pattern, see [ADW External Table on Delta UniForm](data-engineering/adw-ext-table-on-uniform/README.md). |
 
 ---
 

@@ -14,6 +14,34 @@ executes zero statements against the ADWs.
 
 ---
 
+## Is this the sample you want?
+
+This repository carries the same AIDP -> ADW Iceberg pattern at two very different sizes. They
+are complements, not alternatives: the other one teaches the mechanism, this one operates it.
+
+| | [ADW External Table on Delta UniForm](../../data-engineering/adw-ext-table-on-uniform/README.md) | **This sample** |
+|---|---|---|
+| Scope | one table you name | every eligible table in a catalog |
+| Consumers | one ADW | a fleet of N ADWs, provisioned in parallel |
+| Where the logic lives | a PL/SQL procedure inside the ADW | an AIDP notebook; the ADWs stay pure consumers |
+| How it runs | by hand, one call per table | an AIDP job with a `CATALOG` parameter, on a schedule |
+| What it does per run | always drops and recreates | fingerprints the Iceberg metadata and recreates **only** what drifted; steady state issues zero DDL |
+| Credentials | placeholders edited into the SQL and the notebook | OCI Vault through the AIDP Credential Store; nothing in code or config |
+| Consumer grants | lost on every recreate | recaptured before the drop and reapplied |
+| State | none | per-catalog registry table in each ADW |
+| Scale proven | a demo table | 4,777 tables x 2 ADWs, discovery in ~30s |
+
+**Read the other one first if the pattern is new to you.** It is short, it shows the raw
+`DBMS_CLOUD.CREATE_EXTERNAL_TABLE` call this sample generates, and its manual verification
+section is the best tool available for debugging a credential or ACL problem - which is where
+most first-time failures actually live, in either sample.
+
+**Come here when the manual pattern stops scaling**: more tables than a person can track, more
+than one warehouse to keep in sync, a schedule to meet, or an auditor asking where the passwords
+are.
+
+---
+
 ## Scope: Autonomous Database on OCI
 
 This automation targets **Oracle Autonomous Database - ADW or ATP - on commercial OCI**. Other
