@@ -254,6 +254,7 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
 | [AIDP Customer Workbench Usage UI](shared-utils/aidp-customer-admin-ui/README.md) | Browser UI and read-only local proxy for viewing AIDP Workbench workspaces, compute clusters, notebooks, workflows, and cluster libraries from fixture data or live Workbench REST APIs. |
 | [AIDP Workbench Migration Toolkit](shared-utils/aidp-workspace-bundles/README.md) | Parameterized archive and Bundle-based migration process for AIDP Workbench metadata, workspace files, jobs, and agent flows. |
+| [ADW Iceberg External Table Sync](shared-utils/adw-iceberg-external-table-sync/adw_external_table_sync.ipynb) | Serve an AIDP Delta UniForm lakehouse to a fleet of Oracle Autonomous Databases as read-only Iceberg external tables — no data copy and no catalog service in the read path, with schema drift detected by fingerprint and only changed tables recreated. |
 
 ---
 

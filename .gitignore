@@ -100,3 +100,9 @@ ai/agent-flows/code-first/multi-mcp-chat-agent/oac-jwt-key.pem
 ai/agent-flows/code-first/multi-mcp-chat-agent/oac-jwt-key.txt
 ai/agent-flows/code-first/multi-mcp-chat-agent/oac-cert.pem
 ai/aidp_chat_client/web_ui/config-deploy.yaml
+ai/agent-flows/code-first/multi-mcp-chat-agent/session-variables-agent/config.yaml
+
+# =========================
+# Local-only product source / large artifacts (never commit)
+# =========================
+ai/agent-flows/code-first/multi-mcp-chat-agent/samples-and-resources/

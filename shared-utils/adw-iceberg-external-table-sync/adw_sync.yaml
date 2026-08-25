@@ -1,0 +1,99 @@
+# =====================================================================
+#  Iceberg external table sync: AIDP -> Oracle Autonomous Database
+#  Deployment configuration: adw_sync.yaml
+#
+#  Holds NO secret - only prefixes, region and tuning knobs. Every secret
+#  lives in OCI Vault and is read through the AIDP Credential Store.
+#  Safe to version and share.
+#
+#  The only per-run input is CATALOG, passed as a job parameter.
+#
+#  The file name matters. The notebook locates this file without assuming
+#  any path, and 'adw_sync.yaml' is a distinctive name: found on its own
+#  under /Workspace it already resolves, even if the notebook is renamed
+#  or the folder moved. A generic 'config.yaml' is only accepted when it
+#  sits next to the notebook, because a real workspace usually holds
+#  several files with that name, belonging to other projects.
+# =====================================================================
+
+# Region of the OBJECT STORAGE / lakehouse - NOT the ADWs.
+# Each ADW carries its own host in the DSN, so a multi-region fleet works unchanged.
+region: us-ashburn-1
+
+# --- OCI service account ---
+# Prefix of the credentials in the Credential Store. Expects four:
+#   <prefix>_user_id  <prefix>_tenancy_id  <prefix>_fingerprint  <prefix>_privkey
+oci_credential_prefix: demo_oci
+
+# --- ADW fleet ---
+# One prefix per ADW. Each expects four credentials:
+#   <prefix>_dsn  <prefix>_wallet_zip  <prefix>_pwd  <prefix>_wallet_pwd
+#
+# _wallet_zip accepts 'oci://<bucket>@<namespace>/<object>' - preferred, because
+# provisioning becomes a CLI or Terraform call - or an AIDP Volume path.
+#
+# The ADW name in the logs is the prefix itself.
+adw_prefixes:
+  - demo_adw1
+  - demo_adw2
+
+# Administrative user. One value for the whole fleet, or a list with one per ADW
+# in the same order as adw_prefixes. It lives HERE and not in the Vault: it is not
+# a secret, and the AIDP masking layer would redact "ADMIN" throughout the
+# notebook output, including SELECT user FROM dual and every error message.
+adw_user: ADMIN
+
+# --- Naming ---
+naming:
+  # The SCHEMA prefix is not listed here: it is always <catalog>_ , derived and not
+  # configurable. It is what stops two catalogs holding a same-named schema and table
+  # from writing to the same ADW object; leaving it as a knob would only allow the
+  # protection to be switched off.
+  table_prefix: ""
+  cred_name: null        # null = OCI_CRED_<CATALOG>
+  raw_suffix: "__RAW"
+
+# --- Behaviour ---
+flags:
+  create_views: false     # true = <T>__RAW plus view <T>
+  preserve_grants: true   # recapture and reapply grants on recreate
+  # Realigns tables whose tip snapshot references a schema older than current-schema-id,
+  # which matters for consumers that resolve the table shape through the snapshot.
+  # Writes to the SOURCE lakehouse and waits for asynchronous metadata regeneration - several
+  # seconds per table - so it can dominate the run time. Recommended OFF; enable per run.
+  force_snapshot: false
+  retry_failed: true      # one retry before writing the registry
+  bulk_discovery: true    # bulk listing through the Object Storage SDK
+
+# --- Parallelism ---
+# Connections per run = min(fleet size, adw_workers_cap) x workers
+parallelism:
+  workers: 8
+  adw_workers_cap: 4
+  intra_schema_workers: 1
+  introspect_workers: 8
+  discovery_workers: 8
+  read_workers: 32
+
+# --- Discovery ---
+discovery:
+  fallback_max_per_schema: 20
+  list_page: 1000
+  exclude_schemas:
+    - information_schema
+    - default_schema
+    - default
+
+# --- Infrastructure ---
+registry_table: ADMIN.EXT_REGISTRY_V4
+acl_privileges:
+  - connect
+vault_key: VaultSecretReference
+
+progress:
+  every_n: 100
+  every_pct: 5
+
+# CATALOG fallback for INTERACTIVE TESTING, when no job parameter exists.
+# Leave null in production: the banner warns loudly if this value is used.
+catalog: null
