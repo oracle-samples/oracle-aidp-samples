@@ -19,7 +19,7 @@ executes zero statements against the ADWs.
 This repository carries the same AIDP -> ADW Iceberg pattern at two very different sizes. They
 are complements, not alternatives: the other one teaches the mechanism, this one operates it.
 
-| | [ADW External Table on Delta UniForm](../../data-engineering/adw-ext-table-on-uniform/README.md) | **This sample** |
+| | [ADW External Table on Delta UniForm](../adw-ext-table-on-uniform/README.md) | **This sample** |
 |---|---|---|
 | Scope | one table you name | every eligible table in a catalog |
 | Consumers | one ADW | a fleet of N ADWs, provisioned in parallel |

@@ -15,7 +15,7 @@ The sample artifacts are:
 > smallest thing that shows the mechanism end to end. For the same pattern automated across an
 > entire catalog and a fleet of ADWs, on a schedule, with incremental schema-drift detection and
 > secrets in OCI Vault, see
-> [ADW Iceberg External Table Sync](../../shared-utils/adw-iceberg-external-table-sync/README.md).
+> [ADW Iceberg External Table Sync](../adw-iceberg-external-table-sync/README.md).
 > The [manual verification section](#manually-verifying-credentials-and-external-table-creation)
 > below stays useful either way: it is the fastest way to isolate a credential or ACL failure.
 
