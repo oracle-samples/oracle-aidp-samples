@@ -41,7 +41,10 @@ a configuration change.
 - A catalog whose tables are written with Delta **UniForm**: `delta.columnMapping.mode = name`,
   `delta.enableIcebergCompatV2 = true`,
   `delta.universalFormat.enabledFormats = iceberg`.
-- Python packages available to the notebook: `oracledb`, `oci`, `pyyaml`.
+- **`oracledb`, `oci` and `pyyaml` installed as cluster libraries** on the compute cluster the
+  job runs on - see [Dependencies](#dependencies). `oracledb` is the one that is *not* present
+  by default: without it cell 1 fails immediately with `ModuleNotFoundError: No module named
+  'oracledb'`. A `%pip install` inside the notebook does not survive a scheduled job.
 - Permission to create jobs and read the Credential Store.
 
 **On the OCI side**
@@ -213,9 +216,18 @@ Symptom of a missing policy: cell 1 fails with `404 NotAuthorizedOrNotFound`. No
 appears for a **non-existent** credential, so also check that the name matches the prefix in the
 YAML exactly.
 
-### Step 6 - Fill in `adw_sync.yaml`
+### Step 6 - Create `adw_sync.yaml`
 
-Point `oci_credential_prefix` and `adw_prefixes` at the prefixes you chose, and set `region`.
+This folder ships only the commented template. Copy it to the name the notebook looks for:
+
+```bash
+cp adw_sync.sample.yaml adw_sync.yaml
+```
+
+**The name matters** - `adw_sync.yaml` is the distinctive name the notebook resolves on its own
+under `/Workspace`. Keep the template untouched as a reference.
+
+Then point `oci_credential_prefix` and `adw_prefixes` at the prefixes you chose, and set `region`.
 Nothing else is required; the banner in cell 1 lists which absent keys fell back to defaults.
 
 The YAML holds **no secret** - only prefixes, region and knobs. Version it freely.
@@ -459,8 +471,7 @@ carries the key is rejected rather than silently ignored. Reasoning in `ARCHITEC
 | Path | What it is |
 |---|---|
 | `adw_external_table_sync.ipynb` | the notebook |
-| `adw_sync.yaml` | active configuration - ships as a copy of the template; edit it in place |
-| `adw_sync.sample.yaml` | the commented template, kept pristine as a reference |
+| `adw_sync.sample.yaml` | the commented template. Copy it to `adw_sync.yaml` - see Step 6 |
 | `ARCHITECTURE.md` | design, diagrams, measured scale, limitations, references |
 | `Architecture-EXT-TABLE-Sync.drawio.png` | component diagram, editable in draw.io |
 | `requirements.txt` | `oracledb`, `oci`, `pyyaml` - install as cluster libraries |
@@ -468,6 +479,15 @@ carries the key is rejected rather than silently ignored. Reasoning in `ARCHITEC
 
 ## Dependencies
 
-`oracledb`, `oci` and `pyyaml`, listed in `requirements.txt`. Install them as cluster libraries
-on the compute cluster that runs the job; cell 1 also carries a `%pip install` line, commented
-out, for a quick interactive test.
+`oracledb`, `oci` and `pyyaml`, listed in `requirements.txt`.
+
+**Install them as cluster libraries**, on the compute cluster attached to the notebook and to the
+job. In AIDP Workbench: **Compute -> your cluster -> Libraries -> Install new -> PyPI**, one entry
+per package, then restart the cluster.
+
+`oci` and `pyyaml` are usually already present; **`oracledb` is not**, and it is the whole database
+driver - cell 1 fails with `ModuleNotFoundError: No module named 'oracledb'` without it.
+
+Cell 1 also carries a `%pip install` line, commented out. It is fine for a quick interactive test,
+but it installs into the session only: a **scheduled job runs in a fresh session and will fail**.
+For anything you schedule, the cluster library is the only option.
