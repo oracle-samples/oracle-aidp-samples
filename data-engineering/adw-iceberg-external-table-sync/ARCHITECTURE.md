@@ -4,8 +4,7 @@ A single-writer lakehouse in Oracle AI Data Platform, served **read-only** to N 
 Data Warehouses as Iceberg external tables, with **no data copy** and **no catalog service in
 the read path**.
 
-This document is the design record: what it solves, how it works, what was measured, what is
-assumed and where the edges are.
+This document is the design record: what it solves, how it works, and what was measured.
 
 ---
 
@@ -313,7 +312,7 @@ open-source Spark and is not used.
 
 ### ADW side
 
-| Item What for |
+| Item | What for |
 |---|---|
 | `DBMS_CLOUD.CREATE_EXTERNAL_TABLE` | creates the read-only Iceberg external table |
 | `iceberg_catalog_type = hadoop` | file-based resolution, no catalog service |
@@ -555,62 +554,7 @@ minutes. Treat it as a deliberate, per-run choice.
 
 ---
 
-## 10. Known limitations
-
-| Limitation | Impact | Status |
-|---|---|---|
-| Autonomous Database only | `DBMS_CLOUD` does not exist elsewhere | by design; see README |
-| Schema password rotated every run | breaks concurrent jobs in the same schema | fix known: proxy authentication |
-| Metadata-only changes need a data commit to realign the snapshot | snapshot-resolving consumers lag until then | `force_snapshot`, or the next ETL write |
-| AIDP Credential Store is Preview | `aidputils.secrets` is not in the API reference | monitor |
-| Grant scoping by compartment only | every AIDP instance in the compartment can read the secrets | AIDP does not tag referenced secrets |
-| `PRESERVE_GRANTS` main path never exercised | every test run reported `grants=0` | needs a test with real consumer grants |
-| Snapshot auto-resolve not tested in isolation | Oracle docs say new snapshots are not picked up automatically, which contradicts observed behaviour | test: INSERT then SELECT without recreating |
-| Partitioned tables contradict the docs | Oracle says unsupported; a controlled test read them correctly | see below |
-| Commercial OCI realm assumed | `.oraclecloud.com` is built into two places | Gov and sovereign realms need a change |
-
-### On partitioning
-
-Oracle states verbatim that *"Partitioned Iceberg tables are not supported; only
-non-partitioned tables are allowed"*. A controlled test read **both** a `PARTITIONED BY` table
-and a `CLUSTER BY` control without error, with correct values and correct filter results. The
-metadata confirms a real `partition-specs` entry with an identity transform.
-
-The honest reading: partitioned Delta UniForm tables read correctly in ADW **because the writer
-materialises the partition column into every Parquet file**. That is a Delta protocol obligation
-for IcebergCompatV2, not luck - *"Require that partition column values be materialized when
-writing Parquet data files"*. So the case Oracle's restriction likely protects against -
-partition values present only in metadata - is unreachable through UniForm.
-
-Safe in this architecture; still worth asking Oracle whether the doc is outdated.
-
----
-
-## 11. What would make this a product
-
-Ordered by value per unit of work.
-
-1. **Proxy authentication** instead of password rotation. Removes the only real concurrency
-   hazard and one statement per schema per run.
-2. **TLS without a wallet.** If ADB has mTLS set to not required, the wallet, its password, the
-   bucket and an entire notebook cell disappear - two of the four secrets per ADW, so 84
-   credentials become 44 at 20 ADWs. Oracle names avoiding wallet rotation as the benefit.
-   Requires a network ACL or private endpoint, so it is a security decision.
-3. **Programmatic Credential Store provisioning at scale.** Registering one Vault Reference per
-   secret is manual today: at 20 ADWs that is 84 entries. The AIDP SDK exposes
-   `CredentialsClient.create_credential` with `VaultReferenceCredentialDetails`, so this is
-   scriptable; a first-class bulk import would remove the last manual step of onboarding.
-4. **Emit metrics and lineage.** Counts per action per ADW are already computed; publishing them
-   as OCI metrics would make drift observable without reading job logs.
-5. **A consumer-facing read role.** Grants are preserved across recreates, but there is no
-   opinionated model for who consumes what.
-6. **Publish the alignment state as a metric** rather than a log warning, so a
-   snapshot-resolving consumer lagging behind the current schema is detectable without reading
-   job output.
-
----
-
-## 12. Test evidence
+## 10. Test evidence
 
 What was actually exercised, and what was not.
 
@@ -640,7 +584,7 @@ tied to a specific environment and were intentionally left out of this folder.
 
 ---
 
-## 13. References
+## 11. References
 
 **Delta UniForm**
 - [Delta Lake Universal Format - UniForm](https://docs.delta.io/latest/delta-uniform.html)

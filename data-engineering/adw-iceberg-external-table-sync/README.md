@@ -7,7 +7,7 @@ automatically.
 The sync is **incremental**: only tables whose schema changed are recreated. In steady state it
 executes zero statements against the ADWs.
 
-- **`ARCHITECTURE.md`** - design, diagrams, measured scale, limitations and references. Read it
+- **`ARCHITECTURE.md`** - design, diagrams, measured scale, test evidence and references. Read it
   if you are going to change the code or need to explain the solution.
 - **`Architecture-EXT-TABLE-Sync.drawio.png`** - the component view, editable in draw.io.
 - **This file** - onboarding, day-two operations and how to add an ADW.
@@ -500,7 +500,7 @@ carries the key is rejected rather than silently ignored. Reasoning in `ARCHITEC
 |---|---|
 | `adw_external_table_sync.ipynb` | the notebook |
 | `adw_sync.sample.yaml` | the commented template. Copy it to `adw_sync.yaml` - see Step 6 |
-| `ARCHITECTURE.md` | design, diagrams, measured scale, limitations, references |
+| `ARCHITECTURE.md` | design, diagrams, measured scale, test evidence, references |
 | `Architecture-EXT-TABLE-Sync.drawio.png` | component diagram, editable in draw.io |
 | `requirements.txt` | `oracledb`, `oci`, `pyyaml` - install as cluster libraries |
 | `README.md` | this file |
