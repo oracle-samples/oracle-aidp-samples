@@ -578,9 +578,11 @@ What was actually exercised, and what was not.
 | **Not tested:** more than 2 ADWs in one fleet | - |
 | **Not tested:** concurrent catalogs against one ADW | deliberately: the recommendation is sequential |
 
-The raw experiment notebooks for the concurrency and drift tests live in
-`../provision_catalog_to_adw_v5-FINAL.ipynb`, cells 20 to 23. They are exploratory scaffolding
-tied to a specific environment and were intentionally left out of this folder.
+The raw experiment notebooks behind the concurrency and drift rows are not part of this sample.
+They were exploratory scaffolding, wired to one specific environment and not reproducible
+elsewhere without rewriting them, so the table above is what survives of that work. The
+conditions each row exercised are described in sections 7 and 8, which is enough to rebuild any
+of these tests against your own fleet.
 
 ---
 
