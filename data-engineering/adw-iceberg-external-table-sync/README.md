@@ -5,7 +5,8 @@ tables**. No data copy, no catalog service in the read path, and schema drift ha
 automatically.
 
 The sync is **incremental**: only tables whose schema changed are recreated. In steady state it
-executes zero statements against the ADWs.
+issues **zero DDL** against the ADWs (a run still performs a few lightweight reads per ADW — a
+connectivity probe, `ALTER SESSION DISABLE PARALLEL DML`, and the registry lookups).
 
 - **`ARCHITECTURE.md`** - design, diagrams, measured scale, test evidence and references. Read it
   if you are going to change the code or need to explain the solution.

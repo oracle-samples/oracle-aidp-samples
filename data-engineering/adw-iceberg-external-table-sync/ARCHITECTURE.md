@@ -223,6 +223,13 @@ partition spec.
 
 That split is what makes discovery O(schemas) instead of O(tables).
 
+> **Caveat — partitioned Iceberg tables.** Oracle's Autonomous Database documentation lists
+> *partitioned* Iceberg tables under the restrictions for `DBMS_CLOUD.CREATE_EXTERNAL_TABLE`.
+> This sample syncs them anyway because AIDP Delta UniForm materializes the data files so ADW
+> reads them as a flat external table, but partition **pruning** is not pushed down and behavior
+> can change with ADB versions. Validate partitioned sources against your target ADB release
+> before relying on them in production.
+
 ---
 
 ## 4. The incremental engine
@@ -274,7 +281,7 @@ parallel DML by default and the registry MERGE is followed by reads of the same 
 | fingerprint matches | **SKIP** | none |
 | in registry, absent from source | DROP | drop table and view |
 
-**SKIP is the common case in steady state and costs zero statements.** That is what makes the
+**SKIP is the common case in steady state and costs zero DDL** (only the per-run registry read and session setup). That is what makes the
 run time proportional to *change*, not to fleet size.
 
 ### Idempotency
