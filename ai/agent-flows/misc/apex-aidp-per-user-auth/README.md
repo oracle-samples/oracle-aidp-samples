@@ -11,8 +11,8 @@ It has three phases:
 1. **`1-login/` - login phase**: SSO login that signs the user in and establishes the
    end-user identity (`:APP_USER` = the `sub` claim).
 2. **`2-per-user-oac-token/` - per-user OAC token phase**: on that identity, mint a per-user
-   downstream (OAC) token, cached per user. *(Placeholder - filled by the per-user minting
-   work; not duplicated here.)*
+   downstream (OAC) token, cached per user - a Vault/KMS-signed JWT assertion exchanged at the
+   identity domain (see the setup steps in that folder).
 3. **`3-token-injection-and-refresh/` - injection + refresh phase**: inject the per-user token
    into the `/chat` request **body** as a session variable, and keep it fresh automatically so
    the chat never breaks when a token expires.

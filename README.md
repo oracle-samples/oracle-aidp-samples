@@ -198,6 +198,7 @@ Notebooks covering generative AI, NLP, ML model training, and LLM-powered analyt
 | [Agent Flow Schedule Trigger](ai/agent-flows/misc/agent-flow-schedule-trigger/task_notebook.ipynb) | Invoke AIDP agent flows via REST API using OCI request signing, demonstrating programmatic agent orchestration with custom message handling. |
 | [Invoke Agent Flows from APEX](ai/agent-flows/misc/invoke-agent-flows-from-apex/README.md) | Oracle APEX region plugin that adds a chat UI for AIDP agents, with persistent conversation history, async Oracle AQ-backed response processing, and conversation summarization. |
 | [Invoke Agent Flows from Streamlit](ai/agent-flows/misc/invoke-agent-flows-from-streamlit/README.md) | Streamlit chat app for AIDP agents with streaming responses, trace/span visualization, multiple auth modes (API key, security token, resource principal), and OCI Container Instance deployment. |
+| [APEX to AIDP with Per-User Authentication](ai/agent-flows/misc/apex-aidp-per-user-auth/) | Oracle APEX app that calls an AIDP agent as the real end user: SSO login, a per-user OAC token minted in-database and passed in the chat request body so OAC enforces per-user authorization, plus token injection and scheduler-based auto-refresh. |
 
 #### Visual (No-Code) Agent Flows
 
