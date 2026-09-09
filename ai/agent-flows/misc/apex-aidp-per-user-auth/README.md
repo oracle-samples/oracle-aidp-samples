@@ -1,8 +1,10 @@
 # APEX → AIDP with per-user authentication
 
-A sample showing how an Oracle APEX app calls an AIDP AI agent **as the real end user**, so
+A sample showing how an Oracle APEX app calls an AIDP AI agent, so that
 every request carries that user's identity end to end (their own downstream token, their own
 data) instead of a shared service account - and the token stays fresh automatically.
+
+Note that in this sample, APEX -> AIDP authentication is done through a service account but the APEX app mints a per-user OAC bearer token after SSO login and passes the same to AIDP. The AIDP agent uses this bearer token as is to call the OAC API, so that per-user authorization can be enforced in the OAC API.
 
 It has three phases:
 
