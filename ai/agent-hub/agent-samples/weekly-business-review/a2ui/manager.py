@@ -44,12 +44,16 @@ CATALOG_STYLES_KEY = "styles"
 ENCODING = "utf-8"
 BASE_SCHEMA_URL = "https://a2ui.org/"
 SUPPORTED_VERSIONS = (VERSION_0_8, VERSION_0_9)
-SUPPORTED_VERSION = VERSION_0_8
+SUPPORTED_VERSION = VERSION_0_9
 SUPPORTED_VERSION_KEY = "v0.9"
 DEFAULT_CATALOG_NAME = "default"
 V09_CATALOG_ID = "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
 V08_CATALOG_ID = "/a2ui_specification/1.0.0/agent_hub_a2ui_custom_component_catalog.json"
 DEFAULT_CATALOG_ID = V09_CATALOG_ID
+DEFAULT_CATALOG_ID_BY_VERSION = {
+    VERSION_0_8: V08_CATALOG_ID,
+    VERSION_0_9: V09_CATALOG_ID,
+}
 BASIC_CATALOG_NAME = "basic"
 CUSTOM_CATALOG_NAME = "custom"
 INLINE_CATALOG_NAME = "inline"
@@ -507,6 +511,9 @@ def _merge_catalog_schemas(
 
   merged_functions = merged.setdefault("functions", {})
   merged_functions.update(copy.deepcopy(custom_catalog_schema.get("functions", {})))
+
+  merged_defs = merged.setdefault("$defs", {})
+  merged_defs.update(copy.deepcopy(custom_catalog_schema.get("$defs", {})))
 
   _rebuild_catalog_defs(merged)
   return merged

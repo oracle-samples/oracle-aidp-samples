@@ -24,8 +24,27 @@ import re
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
-from a2a.types import DataPart, Part, TextPart
-from langchain_core.messages import AIMessage
+try:
+  from langchain_core.messages import AIMessage
+except ModuleNotFoundError:
+
+  @dataclass
+  class AIMessage:
+    content: str
+
+
+# AIDP currently transports A2UI as serialized A2A-shaped dictionaries. Keep
+# that wire representation independent of whichever a2a-sdk version is present.
+def TextPart(*, text: str) -> dict[str, Any]:
+  return {"kind": "text", "text": text}
+
+
+def DataPart(*, data: Any, metadata: dict[str, Any]) -> dict[str, Any]:
+  return {"kind": "data", "data": data, "metadata": metadata}
+
+
+def Part(*, root: dict[str, Any]) -> dict[str, Any]:
+  return {"root": root}
 
 
 logger = logging.getLogger(__name__)
@@ -285,26 +304,22 @@ def _parse_response_to_parts(
       A list of A2A Part objects (TextPart and/or DataPart).
   """
   parts = []
-  try:
-    response_parts = _parse_response(content)
+  response_parts = _parse_response(content)
 
-    for part in response_parts:
-      if part.text:
-        parts.append(Part(root=TextPart(text=part.text)))
+  for part in response_parts:
+    if part.text:
+      parts.append(Part(root=TextPart(text=part.text)))
 
-      if part.a2ui_json:
-        json_data = part.a2ui_json
-        if validator:
-          _run_validator(validator, json_data)
+    if part.a2ui_json:
+      json_data = part.a2ui_json
+      if validator:
+        _run_validator(validator, json_data)
 
-        if isinstance(json_data, list):
-          for message in json_data:
-            parts.append(create_a2ui_part(message))
-        else:
-          parts.append(create_a2ui_part(json_data))
-
-  except Exception as e:
-    logger.warning(f"Failed to parse or validate A2UI response: {e}")
+      if isinstance(json_data, list):
+        for message in json_data:
+          parts.append(create_a2ui_part(message))
+      else:
+        parts.append(create_a2ui_part(json_data))
 
   if not parts and fallback_text:
     parts.append(Part(root=TextPart(text=fallback_text)))

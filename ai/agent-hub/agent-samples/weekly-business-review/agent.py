@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from importlib import metadata as importlib_metadata
 import json
 import logging
 import os
@@ -49,6 +50,10 @@ DEFAULT_FILTERS = {
     "end_date": "2026-08-02",
     "region": "North America",
     "segment": "Enterprise",
+}
+MIN_SCHEMA_DEPENDENCIES = {
+    "jsonschema": (4, 18, 0),
+    "referencing": (0, 30, 0),
 }
 
 
@@ -129,6 +134,18 @@ def _sql_tool(name: str, description: str, query: str, params: list[dict[str, st
     return create_langgraph_tool(configuration.model_dump())
 
 
+def _latest_snapshot_where(table_name: str, row_alias: str) -> str:
+    """Return a bounded filter that selects one latest complete weekly snapshot."""
+
+    return (
+        f"{row_alias}.week_start = (SELECT MAX(latest_row.week_start) FROM {table_name} latest_row "
+        "WHERE latest_row.week_start >= TO_DATE({{start_date}}, 'YYYY-MM-DD') "
+        "AND latest_row.week_end <= TO_DATE({{end_date}}, 'YYYY-MM-DD') "
+        "AND latest_row.region = {{region}} AND latest_row.segment = {{segment}}) "
+        f"AND {row_alias}.region = {{{{region}}}} AND {row_alias}.segment = {{{{segment}}}} "
+    )
+
+
 def build_tools() -> list[Any]:
     if not CATALOG_KEY:
         raise RuntimeError("WBR_CATALOG_KEY must be configured for this deployment.")
@@ -146,56 +163,53 @@ def build_tools() -> list[Any]:
         ),
         _sql_tool(
             "get_weekly_business_summary",
-            "Return executive WBR KPIs for a bounded date range, region, and segment. For a full WBR, call this and all four detail tools before synthesizing insights.",
-            "SELECT region, segment, MIN(week_start) AS start_date, MAX(week_end) AS end_date, "
-            "SUM(active_accounts) AS active_accounts, SUM(pipeline_usd) AS pipeline_usd, "
-            "SUM(renewal_risk_usd) AS renewal_risk_usd, SUM(product_active_users) AS product_active_users, "
-            "AVG(support_sla_pct) AS support_sla_pct, SUM(open_escalations) AS open_escalations, "
-            "AVG(nps) AS nps FROM weekly_business_metrics "
-            "WHERE week_start >= TO_DATE({{start_date}}, 'YYYY-MM-DD') "
-            "AND week_end <= TO_DATE({{end_date}}, 'YYYY-MM-DD') "
-            "AND region = {{region}} AND segment = {{segment}} "
-            "GROUP BY region, segment FETCH FIRST 10 ROWS ONLY",
+            "Return executive WBR KPIs from the latest complete weekly snapshot inside a bounded date range, region, and segment. For a full WBR, call this and all four detail tools before synthesizing insights.",
+            "SELECT summary_row.region, summary_row.segment, summary_row.week_start AS start_date, "
+            "summary_row.week_end AS end_date, summary_row.active_accounts, summary_row.pipeline_usd, "
+            "summary_row.renewal_risk_usd, summary_row.product_active_users, summary_row.support_sla_pct, "
+            "summary_row.open_escalations, summary_row.nps FROM weekly_business_metrics summary_row WHERE "
+            + _latest_snapshot_where("weekly_business_metrics", "summary_row")
+            + "FETCH FIRST 1 ROW ONLY",
             params,
         ),
         _sql_tool(
             "get_pipeline_by_stage",
-            "Return opportunity counts and pipeline value by stage for the requested WBR scope.",
-            "SELECT stage, SUM(pipeline_usd) AS pipeline_usd, SUM(opportunity_count) AS opportunity_count "
-            "FROM pipeline_by_stage WHERE week_start >= TO_DATE({{start_date}}, 'YYYY-MM-DD') "
-            "AND week_end <= TO_DATE({{end_date}}, 'YYYY-MM-DD') "
-            "AND region = {{region}} AND segment = {{segment}} "
-            "GROUP BY stage ORDER BY pipeline_usd DESC FETCH FIRST 12 ROWS ONLY",
+            "Return dated opportunity counts and pipeline value by stage from the latest complete weekly snapshot inside the requested WBR scope.",
+            "SELECT pipeline_row.week_start, pipeline_row.week_end, pipeline_row.stage, "
+            "pipeline_row.pipeline_usd, pipeline_row.opportunity_count FROM pipeline_by_stage pipeline_row WHERE "
+            + _latest_snapshot_where("pipeline_by_stage", "pipeline_row")
+            + "ORDER BY pipeline_row.pipeline_usd DESC FETCH FIRST 12 ROWS ONLY",
             params,
         ),
         _sql_tool(
             "get_renewal_risk_accounts",
-            "Return renewal-risk accounts, ARR exposure, risk reason, owner, and days to renewal for the requested scope.",
-            "SELECT account_id, account_name, arr_usd, risk_level, risk_reason, days_to_renewal, owner "
-            "FROM renewal_risk_accounts WHERE week_start >= TO_DATE({{start_date}}, 'YYYY-MM-DD') "
-            "AND week_end <= TO_DATE({{end_date}}, 'YYYY-MM-DD') "
-            "AND region = {{region}} AND segment = {{segment}} "
-            "ORDER BY arr_usd DESC FETCH FIRST 12 ROWS ONLY",
+            "Return dated renewal-risk accounts, ARR exposure, risk reason, owner, and days to renewal from the latest complete weekly snapshot inside the requested scope.",
+            "SELECT renewal_row.week_start, renewal_row.week_end, renewal_row.account_id, "
+            "renewal_row.account_name, renewal_row.arr_usd, renewal_row.risk_level, renewal_row.risk_reason, "
+            "renewal_row.days_to_renewal, renewal_row.owner FROM renewal_risk_accounts renewal_row WHERE "
+            + _latest_snapshot_where("renewal_risk_accounts", "renewal_row")
+            + "ORDER BY renewal_row.arr_usd DESC FETCH FIRST 12 ROWS ONLY",
             params,
         ),
         _sql_tool(
             "get_product_usage_by_account",
-            "Return active users, workflow runs, feature adoption, and usage movement by account for the requested scope.",
-            "SELECT account_id, account_name, active_users, workflow_runs, feature_adoption_pct, usage_delta_pct "
-            "FROM product_usage_by_account WHERE week_start >= TO_DATE({{start_date}}, 'YYYY-MM-DD') "
-            "AND week_end <= TO_DATE({{end_date}}, 'YYYY-MM-DD') "
-            "AND region = {{region}} AND segment = {{segment}} "
-            "ORDER BY usage_delta_pct ASC FETCH FIRST 12 ROWS ONLY",
+            "Return dated active users, workflow runs, feature adoption, and usage movement by account from the latest complete weekly snapshot inside the requested scope.",
+            "SELECT usage_row.week_start, usage_row.week_end, usage_row.account_id, usage_row.account_name, "
+            "usage_row.active_users, usage_row.workflow_runs, usage_row.feature_adoption_pct, "
+            "usage_row.usage_delta_pct FROM product_usage_by_account usage_row WHERE "
+            + _latest_snapshot_where("product_usage_by_account", "usage_row")
+            + "ORDER BY usage_row.usage_delta_pct ASC FETCH FIRST 12 ROWS ONLY",
             params,
         ),
         _sql_tool(
             "get_support_health_by_account",
-            "Return ticket volume, priority cases, SLA breaches, response time, and open escalations by account for the requested scope.",
-            "SELECT * FROM support_health_by_account "
-            "WHERE week_start >= TO_DATE({{start_date}}, 'YYYY-MM-DD') "
-            "AND week_end <= TO_DATE({{end_date}}, 'YYYY-MM-DD') "
-            "AND region = {{region}} AND segment = {{segment}} "
-            "FETCH FIRST 12 ROWS ONLY",
+            "Return dated ticket volume, priority cases, SLA breaches, response time, and open escalations by account from the latest complete weekly snapshot inside the requested scope.",
+            "SELECT support_row.week_start, support_row.week_end, support_row.account_id, "
+            "support_row.account_name, support_row.tickets_opened, support_row.p1_p2_tickets, "
+            "support_row.sla_breaches, support_row.avg_response_hours, support_row.open_escalations "
+            "FROM support_health_by_account support_row WHERE "
+            + _latest_snapshot_where("support_health_by_account", "support_row")
+            + "ORDER BY support_row.open_escalations DESC FETCH FIRST 12 ROWS ONLY",
             params,
         ),
     ]
@@ -405,6 +419,8 @@ You are an enterprise Weekly Business Review analyst. You converse naturally, ca
 Data policy:
 - Never invent rows, metrics, trends, customer names, risks, or recommendations.
 - Use only SQLTool results for quantitative claims. Never write or request arbitrary SQL.
+- Treat all business tables as weekly snapshots. For a multi-week scope, use the latest complete snapshot returned by each tool; never add snapshot balances across weeks.
+- Preserve the returned week_start and week_end when describing pipeline, renewal, usage, or support records.
 - Every SQL call uses exactly start_date, end_date, region, and segment unless the tool has no parameters.
 - Approved regions: {ALLOWED_REGIONS}. Approved segments: {ALLOWED_SEGMENTS}.
 - If the user omits scope, use {json.dumps(DEFAULT_FILTERS, sort_keys=True)}.
@@ -426,6 +442,7 @@ Response policy:
 - For A2UI, return visible filters, at most four KPIs, one useful chart, one compact table, one to four insights, one to four recommendations, and up to three next-question actions when supported by the data.
 - The chart and table must use only values from tool results. Tables are for compact values, not narrative paragraphs.
 - Include the SQL tool names used in sources.
+- Every action prompt must repeat the exact start_date, end_date, region, and segment. Never use phrases such as "same date range" or "current scope" without the concrete values.
 - For no results, use screen.type "no_results", omit metrics/chart/table, explain the missing scope, and include valid alternatives from list_wbr_scopes.
 
 Return exactly one JSON object with no prose outside it.
@@ -447,7 +464,7 @@ A2UI shape:
     "table":{{"title":"Priority accounts","columns":[{{"key":"account","label":"Account"}}],"rows":[{{"id":"row-1","account":"Example"}}]}},
     "insights":[{{"heading":"Observed signal","body":"Evidence-based interpretation with values."}}],
     "recommendations":[{{"heading":"Recommended action","body":"Specific action tied to evidence; proposed owner and timing where useful."}}],
-    "actions":[{{"label":"Review renewal risk","prompt":"Show renewal risk for the same date range, region, and segment"}}],
+    "actions":[{{"label":"Review renewal risk","prompt":"Show renewal risk for North America Enterprise from 2026-07-27 to 2026-08-02"}}],
     "sources":["get_weekly_business_summary","get_pipeline_by_stage"]
   }}
 }}
@@ -531,6 +548,29 @@ def _template_for_screen(screen_type: str) -> str:
         "support": "support_health_by_account",
         "no_results": "weekly_business_review_summary",
     }[screen_type]
+
+
+def _scoped_follow_up(prompt: str, filters: dict[str, str]) -> dict[str, str]:
+    base = prompt.strip().rstrip(".")
+    base = re.sub(
+        r"\s+for (?:the )?(?:same date range(?:, region,? and segment)?|current scope)$",
+        "",
+        base,
+        flags=re.IGNORECASE,
+    )
+    if len(base) > 120:
+        base = base[:117].rstrip() + "..."
+    scoped_prompt = (
+        f"{base}. Scope: start_date={filters['start_date']}, end_date={filters['end_date']}, "
+        f"region={filters['region']}, segment={filters['segment']}."
+    )
+    return {
+        "prompt": scoped_prompt,
+        "start_date": filters["start_date"],
+        "end_date": filters["end_date"],
+        "region": filters["region"],
+        "segment": filters["segment"],
+    }
 
 
 def _catalog_id() -> str:
@@ -674,12 +714,13 @@ def render_operations(plan: dict[str, Any]) -> list[dict[str, Any]]:
         for index, action in enumerate(actions, 1):
             button_id = f"action_{index}_button"
             action_ids.append(button_id)
+            action_context = _scoped_follow_up(action["prompt"], filters)
             components.extend(_button(
                 button_id,
                 f"action_{index}_label",
                 action["label"],
                 "ask_wbr_question",
-                {"prompt": action["prompt"]},
+                action_context,
             ))
         components.append(_row("actions_row", action_ids, "start"))
 
@@ -727,6 +768,26 @@ def _contains_legacy_literal(value: Any) -> bool:
     if isinstance(value, list):
         return any(_contains_legacy_literal(item) for item in value)
     return False
+
+
+def _version_tuple(value: str) -> tuple[int, int, int]:
+    parts = [int(part) for part in re.findall(r"\d+", value)[:3]]
+    return tuple((parts + [0, 0, 0])[:3])
+
+
+def _require_schema_validation_dependencies() -> None:
+    for package, minimum in MIN_SCHEMA_DEPENDENCIES.items():
+        minimum_text = ".".join(str(part) for part in minimum)
+        try:
+            installed = importlib_metadata.version(package)
+        except importlib_metadata.PackageNotFoundError as exc:
+            raise RuntimeError(
+                f"A2UI schema validation requires {package}>={minimum_text}; the package is not installed."
+            ) from exc
+        if _version_tuple(installed) < minimum:
+            raise RuntimeError(
+                f"A2UI schema validation requires {package}>={minimum_text}; found {installed}."
+            )
 
 
 def validate_operations(operations: list[dict[str, Any]]) -> None:
@@ -782,27 +843,24 @@ def validate_operations(operations: list[dict[str, Any]]) -> None:
     if missing:
         raise ValueError(f"A2UI components reference missing IDs: {sorted(missing)}")
 
+    _require_schema_validation_dependencies()
     try:
         from a2ui.manager import A2uiSchemaManager
         A2uiSchemaManager(version=A2UI_VERSION).get_selected_catalog().validator.validate(
             operations,
             root_id=ROOT_ID,
         )
-    except ModuleNotFoundError:
-        return
+    except (ImportError, ModuleNotFoundError) as exc:
+        raise RuntimeError(
+            "A2UI schema validation is unavailable. Install jsonschema>=4.18.0 "
+            "and referencing>=0.30.0."
+        ) from exc
 
 
 def serialize_operations(operations: list[dict[str, Any]]) -> dict[str, Any]:
-    try:
-        from a2ui.parser import build_text_response_from_operations
+    from a2ui.parser import build_text_response_from_operations
 
-        return build_text_response_from_operations(operations)
-    except ModuleNotFoundError:
-        parts = [
-            {"root": {"kind": "data", "data": operation, "metadata": {"mimeType": "application/json+a2ui"}}}
-            for operation in operations
-        ]
-        return {"messages": [AIMessage(content="A2UI\n" + json.dumps(parts, separators=(",", ":")))]}
+    return build_text_response_from_operations(operations)
 
 
 def text_response(message: str) -> dict[str, Any]:
@@ -813,10 +871,20 @@ def _message_value(message: Any, key: str, default: Any = None) -> Any:
     return message.get(key, default) if isinstance(message, dict) else getattr(message, key, default)
 
 
+def _current_turn_messages(messages: list[Any]) -> list[Any]:
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        message_type = str(_message_value(message, "type", _message_value(message, "role", ""))).lower()
+        if message_type in {"human", "user"} or message.__class__.__name__ == "HumanMessage":
+            return messages[index + 1 :]
+    return messages
+
+
 def extract_tool_failures(result: Any) -> list[tuple[str, str]]:
     messages = result.get("messages", []) if isinstance(result, dict) else []
     failures = []
-    for message in messages if isinstance(messages, list) else []:
+    current_messages = _current_turn_messages(messages) if isinstance(messages, list) else []
+    for message in current_messages:
         message_type = str(_message_value(message, "type", _message_value(message, "role", ""))).lower()
         if message_type != "tool" and message.__class__.__name__ != "ToolMessage":
             continue

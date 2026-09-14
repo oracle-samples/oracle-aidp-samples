@@ -28,6 +28,8 @@ Python validation and A2UI rendering
 
 The model decides which tools are needed and synthesizes the business narrative from their results. It does not generate or execute arbitrary SQL. Python validates the response plan, asks the model to repair an invalid plan, and only then converts the approved plan into A2UI operations.
 
+The source tables contain weekly snapshots. When a request spans multiple weeks, each SQLTool selects the latest complete weekly snapshot inside the requested range and returns its reporting dates. Snapshot balances are not added across weeks.
+
 When data is unavailable or no rows match the requested scope, the agent reports that state explicitly. It does not substitute fabricated fallback data.
 
 ## Capabilities
@@ -49,6 +51,7 @@ When data is unavailable or no rows match the requested scope, the agent reports
 weekly-business-review-github/
 |-- agent.py                     # Deployment entrypoint and complete agent
 |-- requirements.txt             # Additional Python dependency
+|-- test_agent_contract.py       # Offline regression and contract tests
 |-- .env.example                 # Configuration names with placeholder values
 |-- a2ui/                        # A2UI v0.9 manager, parser, schemas, and catalogs
 |-- sample_data/                 # Synthetic CSV tables for the example
@@ -78,6 +81,8 @@ The sample data uses fictional, anonymized organizations:
 - An Agent Hub renderer that supports the included A2UI catalog components
 
 The AIDP runtime is expected to provide `aidputils`, LangChain, and LangGraph. `requirements.txt` lists the extra package used directly by this example.
+
+Schema validation is required and fails closed. Deployments must install the declared minimum `jsonschema` and `referencing` versions; the agent will return an explicit rendering error if validation cannot run.
 
 ## Load the sample data
 
@@ -136,6 +141,17 @@ agent.py
 requirements.txt
 a2ui/
 ```
+
+## Validate locally
+
+Install the declared dependencies and run the contract suite from this directory:
+
+```bash
+python3 -m pip install -r requirements.txt
+python3 -m unittest -v test_agent_contract.py
+```
+
+The tests cover required schema validation, deterministic A2UI serialization, current-turn tool errors, latest-snapshot SQL semantics, reporting dates, and explicit action scope.
 
 ## Example prompts
 
