@@ -19,7 +19,9 @@ oracle-aidp-samples/
 │   └── migration/            # Migrating workloads to AIDP
 ├── data-engineering/
 │   ├── ingestion/            # Connectors and data loading patterns
+│   ├── lineage/              # Deriving and verifying data lineage
 │   └── transformation/       # Pipeline architectures and table formats
+│       ├── delta-clone-metadata/
 │       ├── liquid-clustering/
 │       ├── medallion-lake/
 │       ├── scd/
@@ -84,6 +86,14 @@ Patterns for connecting to and loading data from a wide range of sources.
 | [Read Excel Files](data-engineering/ingestion/Read_excel_data/read_excel.ipynb) | Read Excel (`.xlsx`) files using the Spark Excel connector and convert them to Spark DataFrames or CSV. |
 | [Streaming from OCI Streaming Service](data-engineering/ingestion/Streaming/StreamingFromOCIStreamingService.ipynb) | Consume messages from OCI Streaming (Kafka-compatible) using Spark Structured Streaming with SASL/OAUTHBearer authentication. |
 | [Streaming from Volume Path](data-engineering/ingestion/Streaming/StreamingFromVolumePath.ipynb) | Process CSV files from a workspace volume using one-time micro-batch streaming with `Trigger.Once()`. |
+
+---
+
+### Data Engineering — Lineage
+
+| Notebook | Description |
+|---|---|
+| [Verify Data Lineage](data-engineering/lineage/Verify_Data_Lineage.ipynb) | Derive table- and column-level lineage from Spark's analyzed plan and verify it against a known DAG, using negative controls and the Delta commit log as corroboration. |
 
 ---
 
@@ -155,6 +165,7 @@ Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cr
 | [Slowly Changing Dimensions (SCD Type 2)](data-engineering/transformation/scd/slowly_changing_dimension_template.ipynb) | Track historical changes to dimension records using SCD Type 2 with Jinja2-templated merge logic. |
 | [Streaming — Energy Delta Liquid Clustering](data-engineering/transformation/streaming/energy_delta_streaming_liquid_clustering_demo.ipynb) | Real-time smart grid monitoring with streaming Delta tables, anomaly detection, and statistical baselines for energy consumption. |
 | [Streaming — Manufacturing Delta Liquid Clustering](data-engineering/transformation/streaming/manufacturing_delta_streaming_liquid_clustering_demo.ipynb) | Continuous ingestion and clustering of manufacturing sensor data using Spark Structured Streaming and Delta Lake. |
+| [Zero-Copy Clone and Table Metadata](data-engineering/transformation/delta-clone-metadata/zero_copy_clone_and_table_metadata.ipynb) | Create constant-time zero-copy clones with Delta `SHALLOW CLONE`, observe copy-on-write divergence from the source, and attach and read table and column metadata in SQL. |
 
 #### Cross-Format & External Table Interop
 

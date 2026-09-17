@@ -57,6 +57,7 @@ Sample Catalog to include it. Follow these steps:
    - `getting-started/` — introductory or foundational examples
    - `data-engineering/ingestion/` — data connectors and loading patterns
    - `data-engineering/transformation/` — pipeline architectures and table formats
+   - `data-engineering/lineage/` — lineage capture and verification
    - `ai/ml-datascience/` — ML models, LLM integrations, and AI services
    - `ai/agent-flows/` — agent orchestration examples
    - `shared-utils/` — reusable utilities
