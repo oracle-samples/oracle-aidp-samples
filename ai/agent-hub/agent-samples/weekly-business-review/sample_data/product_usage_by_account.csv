@@ -1,0 +1,16 @@
+week_start,week_end,account_id,account_name,region,segment,active_users,workflow_runs,feature_adoption_pct,usage_delta_pct
+2026-07-27,2026-08-02,acct_001,Account A,North America,Enterprise,3860,14420,63,4.2
+2026-07-27,2026-08-02,acct_002,Account B,North America,Enterprise,2410,8120,48,-8.7
+2026-07-27,2026-08-02,acct_006,Account D,North America,Enterprise,5120,19840,71,6.1
+2026-07-27,2026-08-02,acct_008,Account F,North America,Strategic,6210,24110,78,3.4
+2026-07-27,2026-08-02,acct_011,Account H,North America,Enterprise,2270,6840,42,-11.3
+2026-07-27,2026-08-02,acct_004,Account C,EMEA,Enterprise,7390,18620,58,-2.1
+2026-07-27,2026-08-02,acct_007,Account E,APAC,Enterprise,3630,10240,55,-4.8
+2026-07-27,2026-08-02,acct_010,Account G,APAC,Enterprise,5600,17180,66,5.9
+2026-08-03,2026-08-09,acct_001,Account A,North America,Enterprise,4020,15110,66,4.1
+2026-08-03,2026-08-09,acct_002,Account B,North America,Enterprise,2505,8620,51,3.9
+2026-08-03,2026-08-09,acct_006,Account D,North America,Enterprise,5350,20440,74,4.5
+2026-08-03,2026-08-09,acct_011,Account H,North America,Enterprise,2190,6720,43,-3.5
+2026-08-03,2026-08-09,acct_004,Account C,EMEA,Enterprise,7580,19340,61,2.6
+2026-08-03,2026-08-09,acct_007,Account E,APAC,Enterprise,3710,10720,57,2.2
+2026-08-03,2026-08-09,acct_010,Account G,APAC,Enterprise,5750,17910,68,2.7
