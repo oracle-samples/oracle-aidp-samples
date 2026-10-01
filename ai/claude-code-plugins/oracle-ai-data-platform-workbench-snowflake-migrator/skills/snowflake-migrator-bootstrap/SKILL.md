@@ -9,10 +9,11 @@ Getting from "nothing set up" to "both ends verified". Five steps, in order.
 
 ## 1. Dependencies — nothing to install, nothing left behind
 
-`bin/snowmig` needs no bootstrap step and creates nothing that persists. It
-runs `engine/snowmig.py` on the first interpreter on `PATH` that already
-imports `yaml` and `snowflake.connector` (`SNOWMIG_PYTHON` is tried first,
-then `python3`, `python3.13`, `python3.12`, `python3.11`, `python`). If none
+`bin/snowmig` needs no bootstrap step and creates nothing that persists
+beyond the artifact directory. It runs `engine/snowmig.py` on the first
+interpreter on `PATH` that already imports `yaml` and `snowflake.connector`
+(`SNOWMIG_PYTHON` is tried first, then `python3`, `python3.14`, `python3.13`,
+`python3.12`, `python3.11`, `python3.10`, `python`). If none
 does, it builds a throwaway venv under `$TMPDIR` for that one invocation,
 prints `building a throwaway environment (removed on exit)` to stderr — a
 notice, not an error — and deletes the venv on exit, failure or interrupt.
@@ -81,7 +82,7 @@ one file to fill in, and the secret goes *in that file*, not into the chat:
 | Snowflake account/host, user, warehouse, database, role, schema | `snowmig-config.yaml`, under `snowflake:` | created from the template; `0600` on POSIX; gitignored only inside the plugin folder — tell the user to add it to their own `.gitignore` when it lives elsewhere |
 | The Snowflake **password or private key** | the same file — `password:` or `private_key: |` inline | inline is the default; `*_path` variants exist but are not what you propose first |
 | Which AIDP resources to use (DataLake OCID, workspace, cluster, catalog) | the same file, under `aidp:` | any of them can also be passed as a flag, and a flag wins |
-| AIDP **authentication** | `~/.oci/config` (`oci setup config`) | never a value in the config file. `aidp.oci_profile`, when set, is announced on stdout and passed as `--profile` to every `oci` and `aidp` call; otherwise each CLI uses `OCI_CLI_PROFILE`, else `DEFAULT`. Both CLIs always get an explicit `--auth`: `aidp.oci_auth`, else `OCI_CLI_AUTH`, else `security_token` for a profile with a `security_token_file` and `api_key` for any other. Every `aidp` call also gets `--region <from the OCID>`. On an auth error, check that profile and the mode the run announced |
+| AIDP **authentication** | `~/.oci/config` (`oci setup config`), or the file `OCI_CLI_CONFIG_FILE` names | never a value in the config file. `aidp.oci_profile`, when set, is announced on stdout and passed as `--profile` to every `oci` and `aidp` call; otherwise each CLI uses `OCI_CLI_PROFILE`, else `DEFAULT`. Both CLIs always get an explicit `--auth`: `aidp.oci_auth`, else `OCI_CLI_AUTH`, else `security_token` for a profile with a `security_token_file` and `api_key` for any other. Every `aidp` call also gets `--region <from the OCID>`. On an auth error, check that profile and the mode the run announced |
 
 Rules that come with an inline secret, and they are not optional:
 

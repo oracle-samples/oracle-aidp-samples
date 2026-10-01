@@ -174,9 +174,9 @@ def assert_pushdown_read_only(sql: str) -> None:
     """Refuse anything that is not a single read. Fails closed.
 
     The cluster-side counterpart of the control plane's `assert_read_only`:
-    the credential the notebook holds may well be able to write, and the
-    only thing standing between a migration and a modified SOURCE is this
-    check.
+    the credential the notebook holds may be able to write; this check
+    refuses anything not led by a read verb, and the read-only role is what
+    prevents writes.
     """
     code = _code_only(sql or "")
     if "->>" in code:

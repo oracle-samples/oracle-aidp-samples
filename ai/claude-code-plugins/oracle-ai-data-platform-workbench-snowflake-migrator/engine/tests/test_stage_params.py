@@ -126,8 +126,8 @@ def test_an_undeclared_stage_param_is_refused_before_anything_is_called(
 
 
 def test_the_copy_scope_flags_reach_the_notebook_and_its_parser(tmp_path):
-    """The review's scenario: a dry run of ONE table must not become an
-    overwrite of the whole schema."""
+    """A dry run of ONE table must not become an overwrite of the whole
+    schema."""
     fake = Fake()
     provision(call=fake, workspace_name="acme", scripts=[], execute=True,
               delays=(), target_catalog="lake",
@@ -238,10 +238,9 @@ def test_the_docs_document_stage_param_and_no_driver_notebook():
 
 # ---------------- a value one declaring stage would reject
 #
-# Found on review of the fix above. A --stage-param goes into every stage
-# that declares the name, but `mode` is declared by 01_create_structure
-# (choices ddl-plan / ctas / manifest) AND 02_copy_schema (skip-existing /
-# append / overwrite). `provision --execute --stage-param schema=SALES
+# A --stage-param goes into every stage that declares the name, but `mode`
+# is declared by 01_create_structure (choices ddl-plan / ctas / manifest)
+# AND 02_copy_schema (skip-existing / append / overwrite). `provision --execute --stage-param schema=SALES
 # --stage-param mode=overwrite` -- the example the help, the README, the
 # overview and the NAME=VALUE refusal all gave -- reported every step
 # verified and wrote `--mode overwrite` into 01's PARAMS, which 01's

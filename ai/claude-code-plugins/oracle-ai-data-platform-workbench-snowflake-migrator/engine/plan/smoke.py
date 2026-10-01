@@ -5,8 +5,8 @@ Source needs READ. Destination needs READ and, to be proven, WRITE.
 Proving write means actually writing, so the probe creates a clearly-named
 schema at the DESTINATION and then removes it again.
 
-The no-DROP rule is a SOURCE guarantee -- nothing is ever written to or dropped
-from Snowflake, whatever the credential permits. It does not extend to AIDP,
+The no-DROP rule is a SOURCE guarantee -- a non-read verb never reaches
+Snowflake, whatever the credential permits. It does not extend to AIDP,
 which is where this plugin legitimately creates objects, so cleaning up its own
 probe schema there is correct rather than forbidden. An earlier version applied
 the source rule to the destination and therefore could not clean up, which is

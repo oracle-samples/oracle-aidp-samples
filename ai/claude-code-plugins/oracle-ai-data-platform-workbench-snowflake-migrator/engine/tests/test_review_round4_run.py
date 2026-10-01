@@ -1,4 +1,4 @@
-"""Two claims this branch makes, held to what they say.
+"""Two claims the run stage makes, held to what they say.
 
 * "A dry run never silently becomes a write": a task parameter spelled the
   way an operator types it in the console (`dryRun`, `dryrun`) was read by

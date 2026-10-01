@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# snowmig — the entry point. CREATES NO FOLDERS. Leaves nothing behind.
+# snowmig — the entry point. Creates no folder of its own; the only one that
+# persists is the engine's artifact directory (./migration-artifacts/ in the
+# working directory, the demo's ./snowmig_demo*, or the --out-dir you name).
 #
 # THE RULE THIS SCRIPT EXISTS TO KEEP: the migrator is self-contained. It does
 # not install a virtualenv into your home directory, it does not leave a cache
 # beside the plugin, and it does not add a folder anywhere that you then have
-# to know about and clean up. Everything it writes outside the plugin is a
-# TEMPORARY directory that is removed when the process exits, on success, on
-# failure and on interrupt.
+# to know about and clean up. Apart from that artifact directory, everything
+# it writes outside the plugin is a TEMPORARY directory that is removed when
+# the process exits, on success, on failure and on interrupt.
 #
 # HOW IT RUNS THE ENGINE, in order of preference:
 #

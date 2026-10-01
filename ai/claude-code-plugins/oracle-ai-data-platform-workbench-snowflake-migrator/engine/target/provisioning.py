@@ -1953,8 +1953,10 @@ def render_provision(res: dict) -> str:
             f"| workspace | `{ws_key}` |", f"| cluster | `{cl_key}` |", "",
             f"Pass `--workspace {ws_key} --cluster-id {cl_key}` on each later "
             "command, or put them under `aidp.workspace` / `aidp.cluster_id` "
-            "in the config -- one or the other. They are never read from "
-            "this record implicitly.", ""]
+            "in the config -- one or the other. No command reads them from "
+            "this record implicitly, except the opt-in per-stage report "
+            "publish (`reporting.publish_each_stage: true`), which uploads "
+            "to the workspace this record names.", ""]
 
     if res.get("warehouse_clusters"):
         lines += ["## Snowflake warehouses → AIDP compute clusters", "",

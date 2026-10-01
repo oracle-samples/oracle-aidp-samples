@@ -5,8 +5,8 @@
 #
 #   cp snowmig-config.example.yaml ./snowmig-config.yaml
 #   $EDITOR ./snowmig-config.yaml
-#   python3 engine/snowmig.py preflight --out-dir ./snowmig_out \
-#       --config ./snowmig-config.yaml --test-source
+#   python3 engine/snowmig.py preflight --config ./snowmig-config.yaml \
+#       --test-source
 #
 # `preflight` reads every field back to you with the secrets masked, then
 # actually connects. Do that before anything else.

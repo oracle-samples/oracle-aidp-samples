@@ -389,14 +389,16 @@ def _source_facts(spec: dict, row: dict, db: str | None, schema: str,
     read -- no statement is added for it. Only fields the row CARRIES are
     kept: an absent column stays absent rather than reading as "none". A
     body (`_BODY_FACTS`) is kept only with `include_bodies`; without it
-    `body_captured: false` says so, and a generated job names the flag."""
+    `body_captured: false` says so, and a generated job names the flag. A
+    materialized view is not marked: its query is also on SHOW VIEWS, which
+    the inventory keeps as the view text whatever the flag."""
     keep = spec.get("facts")
     if not keep:
         return None
     facts = {f: _iso(row[f]) for f in keep if f in row
              and (include_bodies or f not in _BODY_FACTS)}
-    if not include_bodies and any(f in row for f in keep
-                                  if f in _BODY_FACTS):
+    if (not include_bodies and spec["kind"] != "MATERIALIZED_VIEW"
+            and any(f in row for f in keep if f in _BODY_FACTS)):
         facts["body_captured"] = False
     if "predecessors" in facts and db is not None:
         raw = facts.pop("predecessors")

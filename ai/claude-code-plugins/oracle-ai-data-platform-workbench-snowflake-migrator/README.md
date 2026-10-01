@@ -118,7 +118,9 @@ Any field can be overridden per run with a flag (`--role`, `--warehouse`,
 `--catalog`, `--datalake-ocid`).
 
 **AIDP authentication is not in this file.** The plugin drives the `oci` and
-`aidp` CLIs with your OCI setup (`~/.oci/config`, from `oci setup config`):
+`aidp` CLIs with your OCI setup (`~/.oci/config`, from `oci setup config`,
+or the file `OCI_CLI_CONFIG_FILE` names — the plugin reads the same file the
+`oci` CLI does):
 
 - **Profile.** When the config sets `aidp.oci_profile`, it is announced and
   passed as `--profile <name>` to every `oci` and `aidp` call. Otherwise
@@ -246,7 +248,8 @@ another migration cannot redirect a write. The one exception is the opt-in
 per-stage report publish (`reporting.publish_each_stage: true`), which
 uploads reports to the workspace that record names. Every command prints the
 destination it resolved and whether each value came from a flag or from the
-config file.
+config file; the per-stage publish line names its workspace and says the
+record named it.
 
 **The Snowflake credential on the workspace.** `--source-config` places the
 config's `snowflake:` block — only that block, as JSON — at
@@ -916,6 +919,14 @@ deploys nothing):
 cd engine && SNOWMIG_LIVE=1 SNOWFLAKE_ACCOUNT=... SNOWFLAKE_USER=... \
   SNOWFLAKE_PRIVATE_KEY_PATH=... python3 -m pytest tests/test_live_smoke.py -q
 ```
+
+Set `SNOWMIG_LIVE_DB` to a database of yours (the default is the config's
+`snowflake.database`, else `SNOWMIG_TESTDB`); nothing the plugin ships creates
+one. A check whose object is missing skips: it wants at least one view, NUMBER
+and TIMESTAMP_NTZ columns, and three or more tables in `PUBLIC`. The
+semi-structured check reads `SNOWFLAKE.ACCOUNT_USAGE` as `SNOWFLAKE_ROLE`
+(else the config's `snowflake.role`), and skips if that role cannot connect
+or read it.
 
 
 ## Scope

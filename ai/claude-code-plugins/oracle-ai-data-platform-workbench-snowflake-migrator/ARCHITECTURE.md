@@ -92,6 +92,12 @@ the workspace, not in `--out-dir`.
   `--scope credential` it removes the workspace credential, and with
   `--scope all` everything the migration created.
 - Plus, narrowly and opt-in, `smoke --write-probe --execute`.
+- Outside the count, because neither is a board stage: `jobs --register`
+  (the flag is the confirmation; there is no `--execute`) uploads the
+  generated notebooks under `backup-snowflake-migration/generated_jobs/` and
+  creates their jobs, and the opt-in per-stage report publish
+  (`reporting.publish_each_stage: true`) uploads the report to the
+  workspace after every phase.
 
 The stage board says exactly that, lists `provision` and `catalog` in their
 dependency positions, and reads their artifacts (a `create_requested` that
@@ -367,7 +373,7 @@ The default (EXTERNAL) path, as the agent drives it.
 
 ```bash
 E=${CLAUDE_PLUGIN_ROOT}/engine/snowmig.py
-OUT=./snowmig_out
+OUT=./migration-artifacts   # the default; every stage below can omit --out-dir
 
 # --- Investigate (read-only, Snowflake) ---
 python3 $E assess      --out-dir $OUT --account ... --database MYDB

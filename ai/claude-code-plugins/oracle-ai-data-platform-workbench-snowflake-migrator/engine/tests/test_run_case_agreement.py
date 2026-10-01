@@ -1,8 +1,8 @@
 """One decision for every reading of a job run.
 
 cmd_run's exit branches, RUN.md and the stage board each used to test the
-same flags in their own hand-kept order; round 3's verdicts became dead
-code on the board that way. run_case() now decides, and all three word the
+same flags in their own hand-kept order; some verdicts became dead code
+on the board that way. run_case() now decides, and all three word the
 case. These pin that each case reads as itself everywhere.
 """
 import pytest

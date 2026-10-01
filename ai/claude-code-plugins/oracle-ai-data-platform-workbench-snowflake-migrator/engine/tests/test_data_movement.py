@@ -240,7 +240,7 @@ def test_data_options_json_names_the_implemented_copy_path(tmp_path, capsys):
 
 def test_the_json_note_is_the_markdowns_own_sentence(tmp_path):
     """One constant for both artifacts. The CLI and the renderer were each
-    fixed to stop saying "implements no transfer", in two lanes, in two
+    fixed to stop saying "implements no transfer", in two
     different wordings -- which is the drift the shared constant exists to
     stop."""
     import json

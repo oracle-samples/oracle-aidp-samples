@@ -1,5 +1,5 @@
-"""Regressions for the review of the coverage branch: each test pins one
-behaviour a finding showed was unsafe or misleading."""
+"""Regressions: each test pins one behaviour that was once unsafe or
+misleading."""
 import json
 import sys
 
@@ -241,6 +241,33 @@ def test_a_snapshot_the_plan_leaves_out_is_still_counted():
     assert tmap["totals"]["table_snapshots"] == 0
     assert tmap["totals"]["snapshots_not_planned"] == 1
     assert "**1** more not in the plan" in render_translation_map(tmap)
+
+
+def test_a_view_the_plan_leaves_out_is_not_counted_as_carried():
+    """A plain view the plan does not migrate gets no DDL, so it is neither
+    carried verbatim nor translated: it is counted as not in the plan, and
+    so is a materialized view left out with it."""
+    from report.render import render_translation_map, translation_map_section
+    from report.translation_map import build_translation_map
+    view = {"source_identifier": "DB.S.V", "object_type": "VIEW",
+            "view_text_show": "create view V as select A from T",
+            "columns": []}
+    mv = {"source_identifier": "DB.S.MV", "object_type": "VIEW",
+          "source_metadata": {"is_materialized": "Y"}, "columns": []}
+    inventory = {"inventory": [view, mv]}
+    carried = build_translation_map(
+        inventory, {"can_migrate": [{"source_identifier": "DB.S.V"}]}, None)
+    assert carried["totals"]["views_verbatim"] == 1
+    assert carried["totals"]["views_not_planned"] == 0
+    tmap = build_translation_map(inventory, {"can_migrate": []}, None)
+    t = tmap["totals"]
+    assert t["views_verbatim"] == 0 and t["views_translated"] == 0
+    assert t["views_not_planned"] == 1
+    assert t["snapshots_not_planned"] == 1
+    assert "**1** not in the plan" in render_translation_map(tmap)
+    summary = " ".join(translation_map_section(tmap))
+    assert "1 not in the plan" in summary
+    assert "1 more snapshot(s) not in the plan" in summary
 
 
 @pytest.mark.parametrize("body", [

@@ -18,7 +18,10 @@ Two rules it holds to, both learned the hard way elsewhere in this plugin:
     the migration's clusters), both dry runs without `--execute`. The one
     further write is `smoke --write-probe --execute`:
     one probe schema, created and removed; `--write-probe` alone is a dry
-    run. `notebook --upload` sends nothing -- a dry run without `--execute`,
+    run. Outside the stages, `jobs --register` creates the generated jobs
+    and their notebooks (the flag is the confirmation), and the opt-in
+    per-stage report publish (`reporting.publish_each_stage`) uploads the
+    report after every phase. `notebook --upload` sends nothing -- a dry run without `--execute`,
     refused with it.
 """
 from __future__ import annotations
@@ -313,8 +316,8 @@ def run_case(run: dict) -> str:
     """Which of RUN_CASES a job-run record is. The single decision behind
     the console's exit branches (cmd_run), RUN.md (_render_run) and the
     board (run_verdict): each words the case its own way, none re-decides
-    it. Three hand-kept copies of this order are how round 3's verdicts
-    became dead code on the board without a test noticing.
+    it. Three hand-kept copies of this order once left some of the board's
+    verdicts as dead code without a test noticing.
 
     A record written before `terminal` existed is read as terminal.
     """

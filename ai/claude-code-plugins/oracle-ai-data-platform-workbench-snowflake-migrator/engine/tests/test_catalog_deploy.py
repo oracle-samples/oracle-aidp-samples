@@ -414,7 +414,7 @@ class SettlesLate(Folding):
     """The schema reports CREATING for `creating_lists` listings, then
     ACTIVE. A create POSTed while it is CREATING is accepted and dropped.
     With `settle_on_first_create`, it settles right after the first such
-    create -- the review's timing: the planned table is dropped, and the
+    create -- the timing that loses a create: the planned table is dropped, and the
     diagnosis probe that follows lands in a schema that is ACTIVE by then."""
 
     def __init__(self, creating_lists, *, settle_on_first_create=False):

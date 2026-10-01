@@ -124,7 +124,7 @@ def test_a_manifest_object_discovery_could_not_read_is_unassessed():
 
 # ------------------------------------------------ a failure with no message
 #
-# Review of 90d7dd9: the failure was carried as the error TEXT and tested for
+# The failure was once carried as the error TEXT and tested for
 # truthiness. An exception whose message is empty -- TimeoutError() is the
 # realistic one -- produced an empty string, so the read counted as a
 # success: compatibility_status `supported`, columns_read `ok`, no

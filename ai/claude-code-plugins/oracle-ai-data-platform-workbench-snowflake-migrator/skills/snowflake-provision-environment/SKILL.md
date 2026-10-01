@@ -111,7 +111,9 @@ that the database is empty. Use it only when the user explicitly asks for it.
   `--cluster-id` on every later command, or have the user put them under
   `aidp:` in `snowmig-config.yaml` (`aidp.workspace`, `aidp.cluster_id`) —
   one or the other. `provision` does not write them back, and no command
-  reads them from the record implicitly.
+  reads them from the record implicitly, except the opt-in per-stage report
+  publish (`reporting.publish_each_stage: true`), which uploads to the
+  workspace the record names.
 - **Re-push (the plan push, S9/S10).** `provision --execute --reuse-existing
   --workspace-name <the S1 name> --plan-label FULL|REDUCED` re-adopts this
   migration's own workspace, uploads the approved plans to `plan/`, backs them
