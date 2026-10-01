@@ -23,7 +23,9 @@ Thin wrapper over the registration phase of
    name collision and ask for another name. Pass `--reuse-existing` only when
    the user explicitly says to migrate into that existing catalog; a catalog
    of the other type stops the stage either way. `create_requested` means the create was accepted but the
-   catalog never became visible: say it is pending, not done.
+   catalog never became visible: say it is pending, not done. The ledger
+   records it, so re-running `--execute` once it is listed reuses it as this
+   migration's (never pass `--reuse-existing` for that).
 5. Validate the EXTERNAL catalog with `--test-connection` (with `--execute`)
    and report the result as it is; `PENDING` is not a pass. If it returns
    `FAILED` without a reason, keep the registration and continue: discovery

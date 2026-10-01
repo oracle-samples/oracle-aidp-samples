@@ -284,3 +284,28 @@ def test_register_never_takes_its_keys_from_provision_result(tmp_path, monkeypat
     assert rc != 0
     assert "--workspace" in capsys.readouterr().err
     assert not [op for op, _ in fake.ops if op == "create_job"]
+
+
+def test_every_uploaded_notebook_is_ledgered_for_teardown(tmp_path,
+                                                          monkeypatch):
+    """A notebook uploaded for a job whose create then failed is on the
+    workspace all the same: the ledger records it (on this aiDataPlatform),
+    so `teardown --scope all` can remove it."""
+    name = "snowmig_task_db_core_tsk_call"
+
+    class Refuses(Workspace):
+        def __call__(self, op, **kw):
+            if op == "create_job" and kw["body"]["name"] == name:
+                self.ops.append((op, kw))
+                raise RuntimeError("400 InvalidParameter")
+            return super().__call__(op, **kw)
+
+    fake = Refuses()
+    assert _register(tmp_path, monkeypatch, fake) == 1
+    ledger = [json.loads(line) for line in
+              _read(tmp_path, "resources.jsonl").splitlines()]
+    ledgered = {r["name"] for r in ledger if r["kind"] == "ws_object"}
+    assert ledgered == fake.files
+    assert any(name in p for p in ledgered)
+    assert name not in {r["name"] for r in ledger if r["kind"] == "job"}
+    assert all(r["datalake_ocid"] == OCID for r in ledger)

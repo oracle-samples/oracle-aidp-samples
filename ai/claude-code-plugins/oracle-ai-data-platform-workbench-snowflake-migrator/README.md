@@ -297,7 +297,8 @@ dry-running S4 after S3 has executed leaves the S3 record intact.
 
 A catalog that already carries the name (in any case) is reused only when
 the resource ledger (`resources.jsonl`) records this migration creating it
-on this DataLake — re-running `catalog --execute` is safe — or when you pass
+on this DataLake — re-running `catalog --execute` is safe, after a create
+that was still `create_requested` too — or when you pass
 `--reuse-existing`. Otherwise the stage refuses it, exit 1, and nothing is
 written into it. A catalog of the other type (an INTERNAL one where the
 EXTERNAL registration was asked for, or the reverse) is refused either way.
@@ -519,14 +520,21 @@ bin/snowmig teardown --scope all [--include-data] [--execute]   # undo the migra
   the workspace. Run it after the copies: the copy jobs need it.
 - **`--scope all`** is for a lab, a rehearsal or an abandoned migration: the
   credential, the jobs, the clusters, the catalogs it created and the
-  workspace, each only where `provision_result.json` and the catalog ledger
-  prove this migration created it, and each read back gone. The INTERNAL
-  catalog holds the migrated rows; `teardown --scope all` deletes it only
-  with `--include-data`.
+  workspace, each only where `provision_result.json` and the resource ledger
+  (`resources.jsonl`) prove this migration created it, and each read back
+  gone. The INTERNAL catalog holds the migrated rows; `teardown --scope all`
+  deletes it only with `--include-data`. What `jobs --register` and
+  `catalog --execute` created is reached even when the provision record is a
+  dry run.
 
 Anything adopted with `--reuse-existing` is never deleted; a catalog the
 catalog stage created stays this migration's even after a re-run records it
-`reused`, and a cluster whose provenance the record cannot establish is
+`reused`. Only what was created on the DataLake teardown targets is deleted:
+a catalog the ledger records on another DataLake, or on none, and a job or
+notebook `jobs --register` put on a workspace other than the record's, are
+listed as left alone, never looked up by name here. A job of the record's
+name listed under another key than the one it was created with is someone
+else's and is left alone too. A cluster whose provenance the record cannot establish is
 left alone and reported (exit 1) for you to confirm in the console. Every
 scope is a dry run unless `--execute`, and `TEARDOWN.md` lists what was, or
 would be, removed.

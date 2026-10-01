@@ -4,7 +4,9 @@ The registration NAME is the thing under test: it may come from `--catalog`
 or from the config's `aidp:` block, and which config key applies depends on
 the catalog type. `external_catalog` names the Snowflake source's EXTERNAL
 catalog; `catalog` names the INTERNAL target. They are never swapped for
-one another, because ensure_catalog reuses ANY catalog carrying the name.
+one another: ensure_catalog refuses a catalog of the other type carrying the
+name, and one this migration has no record of creating unless
+--reuse-existing is passed.
 """
 import json
 import subprocess
@@ -191,3 +193,34 @@ def test_a_ledger_row_from_another_datalake_proves_nothing(tmp_path, rec):
     cfg = _cfg(tmp_path, AIDP)
     assert snowmig.main(["catalog", "--config", cfg, "--out-dir",
                          str(tmp_path), "--execute"]) == 1
+
+
+def test_a_create_still_pending_is_ledgered_and_the_re_run_owns_it(
+        tmp_path, rec, monkeypatch):
+    """The create is accepted but not listed within the read-back budget
+    (`create_requested`). Once it is listed, a re-run must reuse it as this
+    migration's, and teardown must still reach it."""
+    from target import catalog_provision
+    from target.teardown import catalogs_created
+    monkeypatch.setattr(catalog_provision.time, "sleep", lambda _s: None)
+    hidden = [True]                    # listed only after the first run
+
+    def slow(operation, **kw):
+        if operation == "list_catalogs" and hidden[0]:
+            rec.ops.append((operation, kw))
+            return {"items": []}
+        return rec(operation, **kw)
+    monkeypatch.setattr(snowmig, "make_call",
+                        lambda target, *, backend, **kw: slow)
+    cfg = _cfg(tmp_path, AIDP)
+    argv = ["catalog", "--config", cfg, "--out-dir", str(tmp_path), "--execute"]
+    assert snowmig.main(argv) == 0
+    assert _result(tmp_path)["action"] == "create_requested"
+    hidden[0] = False
+    assert snowmig.main(argv) == 0
+    assert len(rec.creates()) == 1
+    assert _result(tmp_path)["reused_because"] == "created by this migration"
+    ledger = [json.loads(line) for line in
+              (tmp_path / "resources.jsonl").read_text().splitlines()]
+    assert [r["action"] for r in ledger] == ["create_requested", "reused"]
+    assert [c["name"] for c in catalogs_created(ledger, OCID)] == ["my_ext"]

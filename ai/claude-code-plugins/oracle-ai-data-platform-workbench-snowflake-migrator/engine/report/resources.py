@@ -226,7 +226,8 @@ def build_resources(out_dir) -> dict:
 
     # A catalog is this migration's allocation only on evidence that it
     # CREATED it: a ledger row, or an executed catalog_result, with action
-    # `created`. provision's two catalog names are job parameters (it
+    # `created` -- or `create_requested`, a create sent and not yet listed
+    # (the catalog stage then reuses it as its own). provision's two catalog names are job parameters (it
     # creates no catalog), and a `reused` catalog existed before; both are
     # listed apart, never billed here.
     cats: dict[str, dict] = {}
@@ -247,7 +248,7 @@ def build_resources(out_dir) -> dict:
             evidence.append((rec["name"], rec.get("type") or "?",
                              rec.get("stage", "catalog"), rec.get("action")))
     for name, ctype, stage, action in evidence:
-        if action == "created":
+        if action in ("created", "create_requested"):
             cats[name] = {"type": ctype, "stage": stage}
         elif action == "reused" and name not in cats:
             others[name] = {"type": ctype,

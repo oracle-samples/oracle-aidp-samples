@@ -181,3 +181,30 @@ def test_a_record_of_another_workspace_proves_nothing():
     res = _push(fake, ["SALES"], prior=other, delete_stale_copy_jobs=True)
     assert fake.deleted == []
     assert res["created_jobs"] == []
+
+
+def test_a_job_whose_create_was_not_read_back_is_still_ours():
+    """Push 1 creates HR but does not see it listed in time
+    (`create_requested`); push 2 finds it and records it `reused`. The
+    create was sent only because no job of that name was listed, so push 3
+    must still know this migration created it."""
+    class Slow(Deletes):
+        hide = True
+
+        def __call__(self, operation, **kw):
+            res = super().__call__(operation, **kw)
+            if operation == "list_jobs" and self.hide:
+                res = {"items": [j for j in res["items"]
+                                 if j["name"] != "snowmig_02_copy_hr"]}
+            return res
+
+    fake = Slow()
+    first = _push(fake, ["SALES", "HR"])
+    assert any(s["action"] == "create_requested"
+               and s["detail"].startswith("snowmig_02_copy_hr")
+               for s in first["steps"])
+    fake.hide = False
+    second = _push(fake, ["SALES", "HR"], prior=first)
+    res = _push(fake, ["SALES"], prior=second, delete_stale_copy_jobs=True)
+    assert res["deleted_copy_jobs"] == ["snowmig_02_copy_hr"]
+    assert "snowmig_02_copy_hr" not in _jobs(fake)

@@ -1485,8 +1485,10 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
                  found is not None,
                  f'{spec["name"]}: read_back_failed: {job_list_error}'
                  if job_list_error is not None else spec["name"])
-            if found is not None:
-                _own(spec["name"], found)
+            # Ours even when the read-back missed it: the create was sent
+            # only because no job of that name was listed. Its key is then
+            # unknown, so a later listing of the name is not held to one.
+            _own(spec["name"], found or {})
             _outcome(spec, "created" if found else
                      "create requested, not confirmed")
         except Exception as exc:

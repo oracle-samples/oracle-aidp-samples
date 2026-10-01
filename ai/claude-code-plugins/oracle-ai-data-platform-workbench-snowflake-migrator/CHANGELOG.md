@@ -77,7 +77,9 @@ migrator plugin, newest first. The format loosely follows
   included, on the laptop (`assess`, `preflight`) as in the notebooks; a
   quoted, mixed-case database name is supported.
 - `teardown --scope all` also removes the jobs and notebooks `jobs --register`
-  created.
+  created, every notebook it uploaded included, even when the provision record
+  is a dry run. Ones registered on a workspace other than the record's are
+  listed as left alone, not dropped silently.
 - The copy compares every column's live source type with the type its plan
   spec was decided for, not only DECIMAL columns (in connector mode: the type
   name, a NUMBER's precision and scale and a TIME's precision; in
@@ -106,7 +108,16 @@ migrator plugin, newest first. The format loosely follows
   `snowmig_02_copy_*` jobs on a reused workspace are reported, not deleted.
 - `catalog --execute` reuses an existing catalog only when this migration
   created it or `--reuse-existing` is passed, and refuses a catalog of the
-  other type in every case.
+  other type in every case. A create still `create_requested` is ledgered,
+  so the re-run reuses it as this migration's and teardown still owns it.
+- `teardown --scope all` deletes only catalogs the ledger records creating on
+  the DataLake it targets. A row from another DataLake, or naming none, is
+  listed as left alone: catalog keys are names, so a same-named catalog there
+  is not the one this migration created.
+- `teardown --scope all` leaves alone a job of the record's name listed under
+  another key than the one it was created with, and `provision
+  --delete-stale-copy-jobs` counts a job whose create was not read back as
+  this migration's.
 - A catalog recorded `created` stays a teardown target after a re-run of
   `catalog --execute` records it `reused`.
 - `teardown`, `publish` and the per-stage publish pass the configured OCI

@@ -1832,9 +1832,12 @@ def _catalogs_created_here(out: pathlib.Path,
                            datalake_ocid: str | None) -> list[str]:
     """The keys and names of every catalog the resource ledger records this
     migration CREATING -- on this aiDataPlatform, when the row says which.
-    `catalog --execute` reuses an existing catalog only if it is one of
-    these, or --reuse-existing is passed."""
+    A create sent but not yet listed (`create_requested`) counts: no
+    catalog of that name existed when it was sent. `catalog --execute`
+    reuses an existing catalog only if it is one of these, or
+    --reuse-existing is passed."""
     from report.resources import LEDGER
+    from target.teardown import CATALOG_CREATED
     path = out / LEDGER
     names: list[str] = []
     if not path.is_file():
@@ -1844,7 +1847,8 @@ def _catalogs_created_here(out: pathlib.Path,
             row = json.loads(line)
         except ValueError:
             continue
-        if row.get("kind") != "catalog" or row.get("action") != "created":
+        if (row.get("kind") != "catalog"
+                or row.get("action") not in CATALOG_CREATED):
             continue
         if (datalake_ocid and row.get("datalake_ocid")
                 and row["datalake_ocid"] != datalake_ocid):
@@ -1898,9 +1902,9 @@ def cmd_catalog(args) -> int:
     # The name to register, resolved ONCE and keyed strictly by catalog type:
     # `aidp.external_catalog` is the Snowflake source's EXTERNAL catalog,
     # `aidp.catalog` the INTERNAL target. Neither stands in for the other --
-    # ensure_catalog reuses ANY catalog carrying the name, whatever its type,
+    # ensure_catalog refuses a catalog of the other type carrying the name,
     # so registering the source under the target's name would make the later
-    # `--catalog-type standard` step silently "reuse" the EXTERNAL one.
+    # `--catalog-type standard` step fail on the EXTERNAL one.
     coords = _target_coords(args)
     aidp = aidp_block(_load_migration_config(args)) if config_path else {}
     key = "external_catalog" if catalog_type == "EXTERNAL" else "catalog"
@@ -2008,8 +2012,11 @@ def cmd_catalog(args) -> int:
         print(f"  note: catalog_result.json keeps the executed record of "
               f"{latest.get('catalog')}; this dry run is in {own_json}")
     # The per-catalog records keep each report; the ledger is the record of
-    # every catalog this migration allocated (for billing).
-    if args.execute and result.get("action") in ("created", "reused"):
+    # every catalog this migration allocated (for billing), a create not yet
+    # listed included: a re-run then reuses it, and teardown still owns it.
+    if args.execute and result.get("action") in ("created",
+                                                 "create_requested",
+                                                 "reused"):
         from report.resources import record_resource
         record_resource(out, stage="catalog", kind="catalog",
                         name=name, type=catalog_type,
@@ -2621,20 +2628,19 @@ def cmd_jobs(args) -> int:
         # The ledger is the record of what this migration allocated;
         # generated_jobs.json is rewritten by every run, so a job the first
         # --register created would drop out of it. `teardown --scope all`
-        # reads these rows (a create not yet confirmed is tried too).
+        # reads these rows (a create not yet confirmed is tried too), and
+        # every notebook uploaded, its job created or not.
         from report.resources import record_resource
-        leaves = {t["notebook"].rsplit("/", 1)[-1]: j["name"]
-                  for j in res["jobs"] for t in j["tasks"]}
         for name in reg["created"] + reg["unconfirmed"]:
             record_resource(out, stage="jobs", kind="job", name=name,
                             workspace=workspace,
                             action=("created" if name in reg["created"]
-                                    else "create_requested"))
-        for leaf, job_name in leaves.items():
-            if job_name in reg["created"] + reg["unconfirmed"]:
-                record_resource(out, stage="jobs", kind="ws_object",
-                                name=f'{reg["folder"]}/{leaf}',
-                                workspace=workspace, action="created")
+                                    else "create_requested"),
+                            datalake_ocid=coords["datalake_ocid"])
+        for path in reg.get("uploaded") or []:
+            record_resource(out, stage="jobs", kind="ws_object", name=path,
+                            workspace=workspace, action="created",
+                            datalake_ocid=coords["datalake_ocid"])
         if reg["failed"] or reg["name_taken"] or reg["unconfirmed"]:
             code = 1
     _write(out, "generated_jobs.json", payload)

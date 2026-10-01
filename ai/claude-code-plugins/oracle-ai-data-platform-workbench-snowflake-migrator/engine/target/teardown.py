@@ -31,9 +31,10 @@ import time
 from .provenance import (CREATED, NOT_CREATED, REQUESTED, UNKNOWN,
                          cluster_records)
 
-__all__ = ["ACTIONS", "RELEASED_ACTIONS", "SCOPES", "STOPPED_STATES",
-           "catalogs_created", "ledger_workspace_rows", "teardown",
-           "teardown_everything", "render_teardown"]
+__all__ = ["ACTIONS", "CATALOG_CREATED", "RELEASED_ACTIONS", "SCOPES",
+           "STOPPED_STATES", "catalogs_created", "catalogs_elsewhere",
+           "ledger_workspace_rows", "teardown", "teardown_everything",
+           "render_teardown"]
 
 ACTIONS = ("stop", "delete")
 # One stopped set, shared with the billing report (report/resources.py).
@@ -322,38 +323,85 @@ _ASYNC_DELAYS = (5.0, 10.0, 10.0, 15.0, 15.0, 20.0, 30.0, 30.0, 30.0, 60.0,
                  60.0)
 
 
-def catalogs_created(ledger: list[dict]) -> list[dict]:
-    """The catalogs the resource ledger says this migration CREATED (the
-    catalog stage records one row per create or reuse), one per key.
-    A reused catalog is not this migration's and is never deleted -- but
-    once a key is recorded `created`, a later `reused` row does not change
-    that: re-running `catalog --execute` finds the catalog this migration
-    created and records it reused, which is no proof someone else owns it.
-    The same rule report/resources.py follows."""
-    by_key: dict[str, dict] = {}
+# A create the catalog stage sent but did not see listed in time is still
+# this migration's: no catalog of that name existed when it asked.
+CATALOG_CREATED = ("created", "create_requested")
+
+
+def _catalogs_owned(ledger: list[dict]) -> list[dict]:
+    """Every catalog the ledger says this migration CREATED, one per
+    (aiDataPlatform, key): a catalog key is its name, unique only within
+    one platform."""
+    by_key: dict[tuple, dict] = {}
     for row in ledger or []:
         if row.get("kind") != "catalog":
             continue
         key = str(row.get("key") or row.get("name") or "")
-        if key and (row.get("action") == "created"
-                    or (by_key.get(key) or {}).get("action") != "created"):
-            by_key[key] = row
+        at = (row.get("datalake_ocid"), key)
+        if key and (row.get("action") in CATALOG_CREATED
+                    or (by_key.get(at) or {}).get("action")
+                    not in CATALOG_CREATED):
+            by_key[at] = row
     return [{"catalog": key, "name": row.get("name") or key,
-             "type": str(row.get("type") or "").upper()}
-            for key, row in by_key.items() if row.get("action") == "created"]
+             "type": str(row.get("type") or "").upper(),
+             "datalake_ocid": lake}
+            for (lake, key), row in by_key.items()
+            if row.get("action") in CATALOG_CREATED]
+
+
+def catalogs_created(ledger: list[dict],
+                     datalake_ocid: str | None = None) -> list[dict]:
+    """The catalogs the resource ledger says this migration CREATED (the
+    catalog stage records one row per create or reuse), one per key -- on
+    `datalake_ocid` when given: a row of another aiDataPlatform, or one
+    naming none, is not a catalog of this one (see catalogs_elsewhere).
+    A reused catalog is not this migration's and is never deleted -- but
+    once a key is recorded `created`, a later `reused` row on the same
+    platform does not change that: re-running `catalog --execute` finds the
+    catalog this migration created and records it reused, which is no proof
+    someone else owns it. The same rule report/resources.py follows."""
+    owned = _catalogs_owned(ledger)
+    if datalake_ocid:
+        return [c for c in owned if c["datalake_ocid"] == datalake_ocid]
+    seen: set[str] = set()
+    return [c for c in owned
+            if not (c["catalog"] in seen or seen.add(c["catalog"]))]
+
+
+def catalogs_elsewhere(ledger: list[dict],
+                       datalake_ocid: str | None) -> list[dict]:
+    """Catalogs the ledger says this migration created on ANOTHER
+    aiDataPlatform than `datalake_ocid`, or on one the row does not name.
+    Never deleted from here: a same-named catalog on this platform is not
+    the one that was created."""
+    if not datalake_ocid:
+        return []
+    return [c for c in _catalogs_owned(ledger)
+            if c["datalake_ocid"] != datalake_ocid]
 
 
 def ledger_workspace_rows(ledger: list[dict], kind: str,
                           workspace: str) -> list[str]:
     """Names the ledger records this migration creating on `workspace`
     (`jobs --register`'s jobs and notebooks), each once, in order."""
-    names: list[str] = []
+    return [r["name"] for r in _ledger_rows(ledger, kind)
+            if r["workspace"] == workspace]
+
+
+def _ledger_rows(ledger: list[dict], kind: str) -> list[dict]:
+    """{name, workspace, datalake_ocid} of every `kind` row the ledger
+    records this migration creating, each (workspace, name) once."""
+    rows, seen = [], set()
     for row in ledger or []:
-        if (row.get("kind") == kind and row.get("workspace") == workspace
+        at = (row.get("workspace"), row.get("name"))
+        if (row.get("kind") == kind and row.get("name")
                 and row.get("action") in ("created", "create_requested")
-                and row.get("name") and row["name"] not in names):
-            names.append(str(row["name"]))
-    return names
+                and at not in seen):
+            seen.add(at)
+            rows.append({"name": str(row["name"]),
+                         "workspace": row.get("workspace"),
+                         "datalake_ocid": row.get("datalake_ocid")})
+    return rows
 
 
 def _job_names(prov: dict) -> list[str]:
@@ -386,6 +434,13 @@ def _job_names(prov: dict) -> list[str]:
         if name and name not in deleted and name not in names:
             names.append(name)
     return names
+
+
+def _recorded_job_keys(prov: dict) -> dict[str, str]:
+    """name -> the key `created_jobs` records the job was created with."""
+    return {str(e["name"]): str(e["key"])
+            for e in prov.get("created_jobs") or []
+            if e.get("name") and e.get("key")}
 
 
 def _listed(call, operation: str, name: str, **kw) -> dict | None:
@@ -458,11 +513,22 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
     base = {"dry_run": not execute, "scope": scope, "action": "delete",
             "workspace": ws_key, "include_data": include_data,
             "steps": [], "kept": [], "left_alone": []}
-    if prov.get("dry_run"):
+    lake = datalake_ocid or prov.get("datalake_ocid")
+    # A dry-run record created nothing, but `jobs --register` and `catalog
+    # --execute` record what they create in the ledger, record or not.
+    dry_record = bool(prov.get("dry_run"))
+    if dry_record and (scope != "all" or not (
+            _catalogs_owned(ledger) or _ledger_rows(ledger, "job")
+            or _ledger_rows(ledger, "ws_object"))):
         return {**base, "verified": 0,
                 "note": "provision never ran for real, so this migration "
                         "created nothing to remove"}
-    if not ws_key:
+    if dry_record:
+        ws, ws_key, ws_created = {}, None, False
+        base["note"] = ("provision never ran for real; only what the "
+                        "resource ledger records `jobs --register` and "
+                        "`catalog --execute` creating is listed")
+    elif not ws_key:
         return {**base, "verified": 0, "unknown": True,
                 "note": "the executed provision record names no workspace "
                         "key, so this teardown cannot tell what the "
@@ -477,7 +543,7 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
 
     # What is to go, in the order it goes.
     plan: list[dict] = []
-    credentials = list(dict.fromkeys(
+    credentials = [] if dry_record else list(dict.fromkeys(
         list(prov.get("credential_objects") or [])
         + list(prov.get("credential_unconfirmed") or [])))
     for path in credentials:
@@ -489,24 +555,57 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
                    f'by an earlier push; remove it there'})
     if scope == "all":
         # The provisioned jobs, then the ones `jobs --register` created
-        # (recorded in the ledger, not in provision_result.json).
-        job_names = _job_names(prov)
-        for name in ledger_workspace_rows(ledger or [], "job", ws_key):
-            if name not in job_names:
-                job_names.append(name)
+        # (recorded in the ledger, not in provision_result.json), each on
+        # the workspace it was registered on.
+        keys = _recorded_job_keys(prov)
+        job_names = [] if dry_record else _job_names(prov)
         for name in job_names:
-            plan.append({"kind": "job", "name": name})
-        if not ws_created:
-            # On a workspace this migration did not create, its generated
-            # notebooks go one by one; on its own, with the workspace.
-            for path in ledger_workspace_rows(ledger or [], "ws_object",
-                                              ws_key):
-                plan.append({"kind": "notebook", "name": path})
-        targets, left, unresolved = _targets(prov)
+            plan.append({"kind": "job", "name": name,
+                         **({"recorded_key": keys[name]} if name in keys
+                            else {})})
+        for kind, step_kind in (("job", "job"), ("ws_object", "notebook")):
+            for row in _ledger_rows(ledger, kind):
+                where = row["workspace"]
+                if lake and row["datalake_ocid"] not in (None, lake):
+                    base["left_alone"].append({
+                        "name": row["name"], "kind": step_kind,
+                        "why": f'registered by `jobs --register` on '
+                               f'aiDataPlatform {row["datalake_ocid"]}; '
+                               f're-run teardown with --datalake-ocid '
+                               f'{row["datalake_ocid"]}'})
+                elif ws_key and where != ws_key:
+                    base["left_alone"].append({
+                        "name": row["name"], "kind": step_kind,
+                        "why": f"registered by `jobs --register` on "
+                               f"workspace {where}, not on this record's "
+                               f"workspace ({ws_key}); remove it there"})
+                elif kind == "job" and row["name"] in job_names:
+                    continue
+                elif kind == "ws_object" and ws_created:
+                    # On its own workspace a generated notebook goes with
+                    # the workspace; on any other, one by one.
+                    continue
+                else:
+                    plan.append({"kind": step_kind, "name": row["name"],
+                                 **({"workspace": where}
+                                    if where != ws_key else {})})
+        targets, left, unresolved = (([], [], []) if dry_record
+                                     else _targets(prov))
         for t in targets:
             plan.append({"kind": "cluster", **t})
         base["left_alone"] += [{**x, "kind": "cluster"} for x in left]
-        for cat in catalogs_created(ledger or []):
+        for cat in catalogs_elsewhere(ledger, lake):
+            base["left_alone"].append({
+                "name": cat["name"], "kind": "catalog",
+                "why": (f'created on aiDataPlatform {cat["datalake_ocid"]}; '
+                        f're-run teardown with --datalake-ocid '
+                        f'{cat["datalake_ocid"]}' if cat["datalake_ocid"]
+                        else "the ledger row names no aiDataPlatform, so a "
+                             "same-named catalog here may not be the one "
+                             "this migration created; delete it in the "
+                             "console if it is")})
+        for cat in catalogs_created(ledger, lake):
+            cat.pop("datalake_ocid")
             if cat["type"] == "INTERNAL" and not include_data:
                 base["kept"].append(
                     f'catalog `{cat["name"]}` (INTERNAL): it holds the '
@@ -517,6 +616,9 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
         if ws_created:
             plan.append({"kind": "workspace", "name": ws.get("name"),
                          "key": ws_key})
+        elif dry_record:
+            base["kept"].append("the workspace and clusters: provision "
+                                "never ran for real, so it created none")
         else:
             base["kept"].append(
                 f'workspace `{ws.get("name")}`: this migration did not '
@@ -527,43 +629,56 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
         base["kept"].append("everything else: the workspace, its jobs, the "
                             "clusters and the catalogs (the copy jobs can no "
                             "longer read Snowflake without the credential)")
-    if not credentials:
+    if not credentials and not dry_record:
         base["kept"].append("no credential object is on record (provision "
                             "ran without --source-config)")
 
+    note = base.pop("note", "")
     if not execute:
         base["steps"] = [{**p, "action": "would delete", "verified": None}
                          for p in plan] + base["steps"]
-        return {**base, "verified": 0, "note": ""}
+        return {**base, "verified": 0, "note": note}
 
     done_steps = []
     for p in plan:
         step = dict(p)
         try:
+            where = p.get("workspace") or ws_key
             if p["kind"] in ("credential", "notebook"):
                 parent, _, leaf = p["name"].rstrip("/").rpartition("/")
                 verified, detail = _gone_after(
                     call,
-                    lambda: call("delete_ws_object", workspace=ws_key,
+                    lambda: call("delete_ws_object", workspace=where,
                                  path=p["name"]),
                     lambda: _listed(call, "list_ws_objects", p["name"],
-                                    workspace=ws_key, path=parent),
+                                    workspace=where, path=parent),
                     (), sleep)
             elif p["kind"] == "job":
                 found = _listed(call, "list_jobs", p["name"],
-                                workspace=ws_key)
+                                workspace=where)
                 if found is None:
                     step.update(action="already_gone", verified=True,
                                 at=_now())
                     done_steps.append(step)
                     continue
                 key = found.get("key") or found.get("id")
+                if (p.get("recorded_key") and key
+                        and str(key) != p["recorded_key"]):
+                    # Same name, another key: a job made later by someone
+                    # else, as provision --delete-stale-copy-jobs decides.
+                    base["left_alone"].append({
+                        "name": p["name"], "kind": "job",
+                        "why": f'listed under key {key}, not the key '
+                               f'{p["recorded_key"]} this migration created '
+                               f'it with; a job of that name made later is '
+                               f'not this migration\'s'})
+                    continue
                 step["key"] = key
                 verified, detail = _gone_after(
                     call,
-                    lambda: call("delete_job", workspace=ws_key, job_key=key),
+                    lambda: call("delete_job", workspace=where, job_key=key),
                     lambda: _listed(call, "list_jobs", p["name"],
-                                    workspace=ws_key),
+                                    workspace=where),
                     (), sleep)
             elif p["kind"] == "cluster":
                 # The same delete-and-read-back as the compute scope; the
@@ -627,5 +742,5 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
                     verified=verified, detail=detail, at=_now())
         done_steps.append(step)
     base["steps"] = done_steps + base["steps"]
-    return {**base, "note": "", "at": _now(),
+    return {**base, "note": note, "at": _now(),
             "verified": sum(1 for s in base["steps"] if s.get("verified"))}
