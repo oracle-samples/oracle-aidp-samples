@@ -193,12 +193,11 @@ def test_deploy_dry_run_creates_nothing(out):
 
 
 def test_show_pagination_resumes_exclusively_and_in_name_order(tmp_path):
-    """Assumption B9, verified live.
-
-    The inventory pages past SHOW's 10k cap with `LIMIT n FROM '<name>'`. If
-    the resume were inclusive an object would be listed twice; if the order
-    were not by name, paging would silently MISS objects -- the worst outcome
-    available to an assessment, because the result still looks complete.
+    """Verified live: the inventory pages past SHOW's 10k cap with
+    `LIMIT n FROM '<name>'`. If the resume were inclusive an object would be
+    listed twice; if the order were not by name, paging would silently MISS
+    objects -- the worst outcome available to an assessment, because the
+    result still looks complete.
     """
     import os as _os
     from snowflake_source import conn as _conn

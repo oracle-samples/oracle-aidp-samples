@@ -38,9 +38,19 @@ migrator plugin, newest first. The format loosely follows
 - Artifacts default to `./migration-artifacts/` in the working directory, not
   the plugin folder, so a plugin update keeps the record `teardown` works
   from. Any out-dir the migrator creates, or finds empty, gets its own
-  `.gitignore`; the demo writes to `./snowmig_demo`.
+  `.gitignore`; the demo writes to `./snowmig_demo`, and
+  `demo --estate enterprise` to `./snowmig_demo_enterprise`, so neither
+  overwrites the other. The artifacts line and the run log name that
+  directory.
+- `clean` refuses a directory whose `provision_result.json` or
+  `resources.jsonl` records an executed provision or created resources, the
+  record `teardown` works from. Run `teardown` first, then `clean --force`.
 - The OCI auth mode falls back to `OCI_CLI_AUTH`, and the profile it is
-  inferred from to `OCI_CLI_PROFILE`, when the config sets neither.
+  inferred from to `OCI_CLI_PROFILE`, when the config sets neither. The
+  config file it is inferred from is the one the `oci` CLI reads:
+  `OCI_CLI_CONFIG_FILE`, else `~/.oci/config`, else `OCI_CONFIG_FILE`.
+- The per-stage report publish line names its workspace and says that
+  `provision_result.json` supplied it.
 - The launchers show why a temporary venv could not be created, try
   `SNOWMIG_PYTHON` first, and write no bytecode or pytest cache.
 
@@ -68,7 +78,10 @@ migrator plugin, newest first. The format loosely follows
 - Task bodies and dynamic-table queries are kept only with
   `--capture-definitions`; without it, the generated job or refresh names the
   flag that keeps the body. A materialized view's query is always captured,
-  with the view text.
+  with the view text, and is no longer marked `body_captured: false`.
+- TRANSLATION_MAP.md counted a view the plan leaves out as carried verbatim
+  or translated. It is counted as not in the plan, and SUMMARY shows the
+  views and snapshots not in the plan.
 - `--mode append` refuses to start after an unfinished copy run of another
   mode, and `--tables` is deduplicated before the parallel copy. A later run
   over a narrower `--tables` scope carries the unfinished run's other tables

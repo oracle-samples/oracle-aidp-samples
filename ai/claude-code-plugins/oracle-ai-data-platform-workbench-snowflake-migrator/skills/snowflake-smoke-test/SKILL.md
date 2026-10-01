@@ -41,9 +41,9 @@ so no earlier probe's name is ever reused) in the target catalog,
 confirms it is visible, then **drops that one schema**. Never `CASCADE`; it
 only ever removes the schema it just created.
 
-The no-`DROP` rule is a **source** guarantee: nothing is ever written to or
-dropped from Snowflake. It does not extend to AIDP, which is where this plugin
-legitimately creates objects.
+The no-`DROP` rule is a **source** guarantee: a non-read verb never reaches
+Snowflake (the read-only role is what prevents writes). It does not extend to
+AIDP, which is where this plugin legitimately creates objects.
 
 It is still off by default, because it writes, and like every write it needs
 `--execute`: `--write-probe` alone is a dry run that prints what it would create
