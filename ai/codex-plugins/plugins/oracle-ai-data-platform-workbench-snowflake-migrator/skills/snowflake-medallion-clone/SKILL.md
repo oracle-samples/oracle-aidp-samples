@@ -76,6 +76,16 @@ that go with that are the bootstrap skill's, and they apply here too:
 Without `--execute` this is a dry run: it validates the config, reports which
 connection fields were built, and creates nothing. Show `CATALOG.md`.
 
+Report `action` and `verified` from `catalog_result.json`, never `executed`.
+If a catalog of that name exists and this migration did not create it, the
+stage stops (exit 1) without touching it: report a name collision and ask for
+another name. Pass `--reuse-existing` only when the user explicitly says to
+migrate into that existing catalog; a catalog of the other type stops the
+stage either way. `create_requested` means the create was accepted but the
+catalog never became visible: say it is pending, not done. The ledger records
+it, so re-running `--execute` once it is listed reuses it as this migration's
+(never pass `--reuse-existing` for that).
+
 Then validate the connection with `--test-connection` on the same command
 (`"<plugin-root>/bin/snowmig" catalog ... --execute --test-connection`;
 it only runs with `--execute`, because the API resolves RBAC on an existing

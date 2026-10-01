@@ -199,10 +199,16 @@ def test_dialect_translation_reference_reports_honest_coverage():
 
 
 def test_overview_states_the_source_read_only_guarantee_as_enforced():
+    """What is enforced is a verb gate; the read-only role prevents writes.
+    The skill is the agent's own prompt, so an absolute "nothing is ever
+    written" would be repeated to users as a guarantee the gate cannot give
+    (a SELECT can call a function with side effects)."""
     text = (ROOT / "skills/snowflake-migrator-overview/SKILL.md").read_text(encoding="utf-8")
-    low = text.lower()
-    assert "enforced" in low
-    assert "ever written to or dropped from the source" in low
+    low = " ".join(text.lower().split())
+    assert "verb gate" in low
+    assert "read-only role is what prevents writes" in low
+    assert "pushdown refuses every cte" in low
+    assert "ever written to or dropped from the source" not in low
     assert "assume none" in low, "no destination means no assumption"
 
 
@@ -1125,11 +1131,7 @@ _CLAUDE_COPY = ROOT.parents[2] / "claude-code-plugins" / ROOT.name
 # that each words for itself.
 _SHARED_TREES = ("engine", "bin", "references", "data-migration-scripts")
 _PACKAGING_FILES = {"engine/tests/test_plugin_surface.py",
-                    "data-migration-scripts/README.md",
-                    # Skips its commands/ case where no commands/ ships. The
-                    # guard is a no-op in the Claude Code copy; once that copy
-                    # carries it too, this entry goes.
-                    "engine/tests/test_run_param_copy_jobs.py"}
+                    "data-migration-scripts/README.md"}
 
 
 def _shared_files(root: pathlib.Path) -> dict:

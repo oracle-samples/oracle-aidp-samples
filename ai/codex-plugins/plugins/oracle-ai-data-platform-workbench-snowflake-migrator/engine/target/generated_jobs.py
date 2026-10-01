@@ -1073,7 +1073,7 @@ def register_generated_jobs(call, *, workspace: str, cluster_key: str,
 
     folder = folder or generated_folder()
     res = {"folder": folder, "created": [], "unconfirmed": [],
-           "name_taken": [], "failed": [], "steps": [],
+           "name_taken": [], "failed": [], "uploaded": [], "steps": [],
            "schedule": SCHEDULE_NOT_APPLIED}
 
     def step(what, outcome, detail):
@@ -1119,6 +1119,8 @@ def register_generated_jobs(call, *, workspace: str, cluster_key: str,
                 call("upload_ws_file", workspace=workspace, path=remote,
                      local_path=str(base / task["notebook"]),
                      object_type="NOTEBOOK")
+                # On the workspace whether or not its job is then created.
+                res["uploaded"].append(remote)
             except Exception as exc:
                 upload_errors[leaf] = str(exc)[:160]
                 step("notebook", "upload_failed", f"{remote}: {str(exc)[:160]}")

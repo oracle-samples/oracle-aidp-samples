@@ -43,7 +43,10 @@ ddl_plan.json by `ddl`) the table is `type_drift` and NOT copied; with
 `convert` the column is read under its NEW type into the existing target
 column, the table's record names it under `source_type_drift` with a
 warning, and a table whose counts then verify is `verified_with_conversion`,
-never plain `verified`.
+never plain `verified`. In external-catalog mode the spec's types cannot be
+compared (DESCRIBE there gives Spark's types), and only a DECIMAL target
+column whose source is neither DECIMAL nor integer is caught, under the
+same setting.
 
 CONNECTOR MODE READS EACH TABLE WITH ONE QUALIFIED PUSHDOWN, never the
 connector's table read (minutes a table, and lossy for NUMBER, TIME and
@@ -78,8 +81,9 @@ written at most every REPORT_WRITE_INTERVAL seconds (and at every chunk's
 end), so a job that stops can lose its last few records; the report's `run`
 marker says a run did not finish, and `--mode append` then refuses the
 tables that run could have touched -- resume in the stopped run's own mode
-first. A later run over a narrower --tables scope carries the others
-forward, still refused for append, until a run covers them.
+first. A later run over a narrower --tables scope, in any mode, carries the
+others forward, still refused for append, until a run covers them (a
+marker that does not name its tables puts every unverified table at risk).
 """
 from __future__ import annotations
 
@@ -110,6 +114,9 @@ DEFAULT_OUTPUT_DIR = "/Workspace/report/output"
 MANIFEST_NAME = "discovery_manifest.json"
 
 _DECIMAL = re.compile(r"^decimal\((\d+)\s*,\s*(\d+)\)$", re.IGNORECASE)
+# Spark's integer types: what an external catalog may call a NUMBER(p,0).
+_INTEGERS = ("tinyint", "smallint", "int", "integer", "bigint", "long",
+             "short", "byte")
 
 # Copy statuses that mean the table is NOT verified. A later run that copies
 # nothing (skip-existing over a table with rows) never softens one of these.
@@ -374,7 +381,9 @@ def _planned_type_drift(live_types: dict[str, str],
     chosen for the planned type; run on another type they can round values
     or turn them NULL with the row count intact. A spec entry without a
     `source_type` (a plan written before it was recorded) cannot be
-    compared and is left out.
+    compared and is left out (`_unchecked` names it). A TIME planned
+    without its precision (`time`) was read with all nine digits, which
+    no live precision loses any of.
     """
     live = {k.casefold(): (k, v) for k, v in live_types.items()}
     drift = {}
@@ -386,9 +395,70 @@ def _planned_type_drift(live_types: dict[str, str],
             continue            # a missing column is the layout check's
         name, live_type = found
         planned = str(entry["source_type"]).strip().lower()
-        if live_type.strip().lower() != planned:
+        live_key = live_type.strip().lower()
+        if planned == "time" and re.fullmatch(r"time\(\d+\)", live_key):
+            continue
+        if live_key != planned:
             drift[name] = {"planned": planned, "live": live_type}
     return drift
+
+
+def _unchecked(live_types: dict[str, str], spec: list[dict] | None) -> list:
+    """Live columns whose spec entry carries no `source_type`: a type
+    change since the plan is NOT detected for them."""
+    by_fold = {str(e.get("name")).casefold(): e for e in spec or []
+               if isinstance(e, dict) and e.get("name")}
+    return [n for n in live_types
+            if n.casefold() in by_fold
+            and not by_fold[n.casefold()].get("source_type")]
+
+
+# Said on every table whose spec could not be compared with the live source.
+_UNCHECKED_NOTE = (
+    "the plan's spec records no source_type for these column(s) (a "
+    "ddl_plan.json written before it was recorded), so a type change since "
+    "the plan was NOT checked for them. Re-run the migrator's `ddl` stage "
+    "to record it")
+
+
+def _approximate_into_decimal(src_types: dict[str, str],
+                              tgt_types: dict[str, str]) -> dict:
+    """External-catalog mode's type check against the plan, keyed off the
+    TARGET: a DECIMAL target column whose source column is neither a
+    DECIMAL nor an integer. The plan maps only NUMBER to DECIMAL, so such a
+    source changed type since the plan, and the INSERT's store-assignment
+    cast would round or NULL its values with the row count intact -- the
+    sums follow the source's DECIMAL columns and never look at it. The
+    external catalog's DESCRIBE types are Spark's, not the
+    INFORMATION_SCHEMA names the spec records, so nothing finer is compared
+    in this mode.
+    """
+    by_fold = {k.casefold(): k for k in src_types}
+    drift = {}
+    for name, target in tgt_types.items():
+        if not _DECIMAL.match(target):
+            continue
+        source = by_fold.get(name.casefold())
+        live = src_types.get(source, "") if source else ""
+        if source and not _DECIMAL.match(live) and \
+                live.strip().lower() not in _INTEGERS:
+            # The plan maps only NUMBER to DECIMAL.
+            drift[source] = {"planned": "number", "live": live,
+                             "target": target}
+    return drift
+
+
+def _convert_warning(live: str, target_type: str) -> str:
+    """What a column copied under `mapping.source_type_drift: convert`
+    carries on its record."""
+    return (f"copied with the copy's fixed read for the live type {live} "
+            f"into the existing {target_type} column "
+            f"(mapping.source_type_drift: convert); the plan's mapping modes "
+            f"(semi_structured, geospatial) are not re-applied -- a "
+            f"GEOGRAPHY/GEOMETRY reads as GeoJSON, a VARIANT/OBJECT/ARRAY as "
+            f"JSON text. This conversion was never reviewed: values the "
+            f"target type cannot hold may be rounded or NULL, which the row "
+            f"count does not show")
 
 
 def _decimal_sums(spark, fqn: str,
@@ -571,7 +641,8 @@ def copy_table(source, schema: str, table: str, tgt: str, *, mode: str,
         return _copy(spark, src, tgt, mode=mode, verify=verify,
                      retries=retries, retry_base_delay=retry_base_delay,
                      retry_multiplier=retry_multiplier, started=started,
-                     source_count=source_count)
+                     source_count=source_count,
+                     source_type_drift=source_type_drift)
     finally:
         source.drop_temp_view(view)
 
@@ -607,7 +678,9 @@ def _preflight(src_types: dict[str, str], tgt_types: dict[str, str], *,
                           f"not DECIMAL on the target; an INSERT would round "
                           f"or truncate them with the row count unchanged. "
                           f"NOT copied. Recreate the table from the approved "
-                          f"plan."}
+                          f"plan -- or, if the source changed since the plan, "
+                          f"re-run assess, plan and ddl and recreate it from "
+                          f"the new plan."}
     return None
 
 
@@ -655,7 +728,8 @@ def _insert(spark, statement: str, tgt: str, *, retries: int,
 def _copy(spark, src: str, tgt: str, *, mode: str, verify: str,
           retries: int, retry_base_delay: float, retry_multiplier: float = 2.0,
           started: str,
-          source_count: int | None = None) -> dict:
+          source_count: int | None = None,
+          source_type_drift: str = "refuse") -> dict:
     # The batched count from the caller when there is one: a per-table
     # COUNT(*) opens its own Snowflake session in connector mode.
     if source_count is None:
@@ -669,6 +743,22 @@ def _copy(spark, src: str, tgt: str, *, mode: str, verify: str,
                          started=started)
     if refusal:
         return refusal
+    drift = _approximate_into_decimal(src_types, tgt_types)
+    if drift and source_type_drift != "convert":
+        cols = ", ".join(f"{c} ({d['live']} -> {d['target']})"
+                         for c, d in drift.items())
+        return {"status": "type_drift", "source_type_drift": drift,
+                "source_count": source_count, "started_at": started,
+                "reason": f"{len(drift)} source column(s) are neither DECIMAL "
+                          f"nor integer while their target column is DECIMAL: "
+                          f"{cols}. The plan maps only NUMBER to DECIMAL, so "
+                          f"the source changed type since the plan; the "
+                          f"INSERT's cast would round values or turn them "
+                          f"NULL with the row count intact. NOT copied. "
+                          f"Re-run assess, plan and ddl and recreate the "
+                          f"table from the new plan, or set "
+                          f"mapping.source_type_drift: convert and re-run "
+                          f"ddl (mapping.source_type_drift: refuse)."}
     skipped = _skip_existing(spark, tgt, mode=mode, source_count=source_count,
                              started=started)
     if skipped:
@@ -693,6 +783,11 @@ def _copy(spark, src: str, tgt: str, *, mode: str, verify: str,
     out = {"started_at": started,
            "finished_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
            "mode": mode}
+    if drift:
+        # Converted by the INSERT's own store-assignment cast.
+        out["source_type_drift"] = {
+            c: {**d, "warning": _convert_warning(d["live"], d["target"])}
+            for c, d in drift.items()}
 
     # The verification IS the claim. The rows have landed by now, so a
     # failure from here on must say so: a `failed` record that looked like a
@@ -761,10 +856,13 @@ def _copy_pushdown(source, schema: str, table: str, tgt: str, *,
                 "source_count": source_count, "started_at": started,
                 "reason": f"{len(drift)} source column(s) changed type "
                           f"since the plan was approved: {cols}. The plan's "
-                          f"conversion was decided for the old type and "
-                          f"could round values or turn them NULL with the "
-                          f"row count intact. NOT copied. Re-run assess and "
-                          f"plan to pick up the new type, or set "
+                          f"read and conversion were decided for the old "
+                          f"type, and are not run unreviewed on the new one "
+                          f"(on some types they lose digits or turn values "
+                          f"NULL with the row count intact). NOT copied. "
+                          f"Re-run assess, plan and ddl to pick up the new "
+                          f"type (the spec lives in ddl_plan.json) and "
+                          f"recreate the table from the new plan, or set "
                           f"mapping.source_type_drift: convert and re-run "
                           f"ddl (mapping.source_type_drift: refuse)."}
 
@@ -780,16 +878,16 @@ def _copy_pushdown(source, schema: str, table: str, tgt: str, *,
         converted[r["name"]] = {
             **drift[r["name"]], "target": target_type,
             "read_expr": r["read_expr"], "convert_expr": r["convert_expr"],
-            "warning": f"copied under the mapping rules for its NEW type "
-                       f"{drift[r['name']]['live']} into the existing "
-                       f"{target_type} column (mapping.source_type_drift: "
-                       f"convert). This conversion was never reviewed: "
-                       f"values the target type cannot hold may be "
-                       f"rounded or NULL, which the row count does not "
-                       f"show"}
+            "warning": _convert_warning(drift[r["name"]]["live"],
+                                        target_type)}
     read = _read_record(reads)
     if converted:
         read["converted"] = converted
+    unchecked = _unchecked(live_types, spec)
+    if unchecked:
+        read["source_type_unchecked"] = unchecked
+        read["source_type_note"] = (f"{len(unchecked)} column(s): "
+                                    f"{_UNCHECKED_NOTE}")
     view = _view_name(schema, table)
     try:
         try:
@@ -1594,10 +1692,22 @@ def main(argv: list[str] | None = None) -> int:
             f"one is " + ("copied under its new type and the table recorded "
                           "verified_with_conversion" if drift_mode == "convert"
                           else "refused and its table recorded type_drift"))
-    elif specs and todo:
-        log("the plan's per-column read spec is NOT applied in "
-            "external-catalog mode (its read expressions are Snowflake SQL); "
-            "columns are read as the external catalog types them")
+        unchecked = [n for n in todo if n in specs and any(
+            isinstance(e, dict) and not e.get("source_type")
+            for e in specs[n])]
+        if unchecked:
+            log(f"source type drift NOT checked for {len(unchecked)} "
+                f"table(s): their spec records no source_type (a "
+                f"ddl_plan.json written before it was recorded); re-run ddl")
+    elif todo:
+        if specs:
+            log("the plan's per-column read spec is NOT applied in "
+                "external-catalog mode (its read expressions are Snowflake "
+                "SQL); columns are read as the external catalog types them")
+        log(f"source type drift: {drift_mode}, external-catalog mode -- only "
+            f"a source column that is neither DECIMAL nor integer while its "
+            f"target is DECIMAL is detected; other type changes since the "
+            f"plan are NOT checked in this mode")
     log(f"{len(todo)} table(s) to copy, {args.parallel} at a time, in "
         f"chunk(s) of {COUNT_CHUNK}")
 
@@ -1611,34 +1721,55 @@ def main(argv: list[str] | None = None) -> int:
     # over a narrower --tables scope does not clear an unfinished run's
     # other tables: they are carried forward (`carried`), unverified, and
     # the marker stays unfinished until a run covers them.
+    # A marker of an append run counts only for what it carried: an append
+    # run writes each table's record the moment its copy finishes, so its
+    # own tables are not at risk -- but the tables it carried still are.
     prev_run = report.get("run") or {}
+    prev_mode = prev_run.get("mode")
     unfinished = (bool(prev_run) and not prev_run.get("finished")
-                  and prev_run.get("mode") not in (None, "append"))
+                  and (prev_mode not in (None, "append")
+                       or bool(prev_run.get("carried"))))
+    # The mode the stopped run's tables are resumed in.
+    resume_mode = (prev_run.get("carried_mode") if prev_mode == "append"
+                   else None) or prev_mode
     at_risk = None
-    if unfinished and "todo" in prev_run:
+    if unfinished:
+        if prev_mode == "append":
+            touched = []
+        elif "todo" in prev_run:
+            touched = prev_run.get("todo") or []
+        else:
+            # A marker written before it named its tables: which ones the
+            # stopped run touched is unknown, so every table this schema
+            # could have been copied is at risk.
+            touched = [*(t["name"] for t in record["tables"]),
+                       *(planned_snapshots(ddl_plan, args.schema)
+                         if ddl_plan else []),
+                       *report["tables"], *names]
         at_risk = [n for n in dict.fromkeys(
-                       [*(prev_run.get("carried") or []),
-                        *(prev_run.get("todo") or [])])
+                       [*(prev_run.get("carried") or []), *touched])
                    if report["tables"].get(n, {}).get("status")
                    not in _COPY_DONE]
     if not args.dry_run and args.mode == "append" and unfinished:
-        blocked = (todo if at_risk is None
-                   else [n for n in todo if n in set(at_risk)])
+        blocked = [n for n in todo if n in set(at_risk)]
         if blocked:
             listed = ", ".join(blocked[:20]) + (
                 f" and {len(blocked) - 20} more" if len(blocked) > 20 else "")
+            which = (f"the previous copy run of {args.schema} (--mode "
+                     f"{prev_mode}, started {prev_run.get('started_at')})"
+                     if prev_mode != "append" else
+                     f"an earlier copy run of {args.schema} (--mode "
+                     f"{resume_mode})")
             return fail(
-                f"error: the previous copy run of {args.schema} (--mode "
-                f"{prev_run.get('mode')}, started "
-                f"{prev_run.get('started_at')}) did not finish, and its last "
+                f"error: {which} did not finish, and its last "
                 f"records may not have been written: a table it copied in its "
                 f"last seconds can hold rows with no record, and --mode "
                 f"append would add them a second time. Tables at risk: "
-                f"{listed}. Resume with --mode {prev_run.get('mode')} first; "
+                f"{listed}. Resume with --mode {resume_mode} first; "
                 f"append once that run has finished.")
     if not args.dry_run:
         carried = ([n for n in at_risk if n not in set(todo)]
-                   if unfinished and at_risk is not None else [])
+                   if unfinished else [])
         report["run"] = {"mode": args.mode, "finished": False,
                          "started_at": datetime.datetime.now(
                              datetime.timezone.utc).isoformat(),

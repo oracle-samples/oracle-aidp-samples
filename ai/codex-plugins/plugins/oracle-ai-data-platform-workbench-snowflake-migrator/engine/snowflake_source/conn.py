@@ -79,6 +79,16 @@ def assert_read_only(sql: str) -> None:
             f"Snowflake (allowed: {', '.join(READ_ONLY_VERBS)})")
 
     for part in statements:
+        # The shared lexer reads a backtick span as a quoted name -- Spark's
+        # quoting, for the SQL this plugin emits. Snowflake has no such
+        # quoting, so a `;` or `->>` between backticks is code to it and
+        # hidden from the checks below. Nothing sent to Snowflake has one.
+        if any(kind == "ident" and text.startswith("`")
+               for kind, text in lexer.segments(part)):
+            raise SourceWriteRefused(
+                "a backtick is not Snowflake quoting and could hide a "
+                "second statement; refused. This plugin only sends single "
+                "reads.")
         # `->>` (Snowflake's flow operator) chains a second statement into
         # the same request, so a write could ride behind an accepted read.
         if lexer.find_code(r"->>", part):
@@ -93,9 +103,9 @@ def assert_read_only(sql: str) -> None:
                 f"Allowed: {', '.join(READ_ONLY_VERBS)}.")
         if verb not in READ_ONLY_VERBS:
             raise SourceWriteRefused(
-                f"{verb}: not a recognised read verb. This plugin is strictly "
-                f"read-only against Snowflake and never writes to or drops "
-                f"from the source, regardless of what the credential permits. "
+                f"{verb}: not a recognised read verb. This plugin is "
+                f"read-only against Snowflake: it only sends read verbs, "
+                f"regardless of what the credential permits. "
                 f"Allowed: {', '.join(READ_ONLY_VERBS)}.")
         if verb == "WITH":
             body = lexer.cte_body_verb(part)
@@ -103,10 +113,9 @@ def assert_read_only(sql: str) -> None:
                 raise SourceWriteRefused(
                     f"WITH ... {body or '<no keyword>'}: a common table "
                     f"expression is only a read when the statement after the "
-                    f"CTE list is a SELECT; refused. This plugin is strictly "
-                    f"read-only against Snowflake and never writes to or drops "
-                    f"from the source, regardless of what the credential "
-                    f"permits. Allowed: {', '.join(READ_ONLY_VERBS)}.")
+                    f"CTE list is a SELECT; refused. This plugin is read-only "
+                    f"against Snowflake: it only sends read verbs, regardless "
+                    f"of what the credential permits. Allowed: {', '.join(READ_ONLY_VERBS)}.")
 
 
 def _read_secret_file(path: str, label: str) -> str:
@@ -280,8 +289,8 @@ def make_run_sql(conn) -> Callable[..., list[dict]]:
 
     Signature: run_sql(sql, params=None) -> list[dict]
 
-    Every statement passes assert_read_only first. A write never reaches
-    Snowflake, whatever the credential allows.
+    Every statement passes assert_read_only first, so a statement not led
+    by a read verb never reaches Snowflake, whatever the credential allows.
     """
     def run_sql(sql: str, params: dict | None = None) -> list[dict]:
         assert_read_only(sql)

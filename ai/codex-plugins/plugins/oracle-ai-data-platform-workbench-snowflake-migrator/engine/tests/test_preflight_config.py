@@ -383,3 +383,19 @@ def test_no_credential_at_all_is_still_called_out():
               "database": "DB", "auth": "password"}
     report = render_preflight_report(run_preflight(config))
     assert "No credential in the config at all" in report
+
+
+def test_init_config_points_preflight_at_the_default_directory(
+        tmp_path, monkeypatch, capsys):
+    """The next step init-config prints, and the template header, send
+    preflight to the same ./migration-artifacts/ every later stage uses: a
+    stale `--out-dir ./snowmig_out` split a run across two directories."""
+    from snowmig import PLUGIN_ROOT, main
+    monkeypatch.chdir(tmp_path)
+    assert main(["init-config"]) == 0
+    hint = next(line for line in capsys.readouterr().out.splitlines()
+                if "Then:" in line)
+    assert "preflight" in hint and "--out-dir" not in hint
+    for doc in ("snowmig-config.example.yaml", "ARCHITECTURE.md"):
+        text = (PLUGIN_ROOT / doc).read_text(encoding="utf-8")
+        assert "snowmig_out" not in text, doc

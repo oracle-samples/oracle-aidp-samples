@@ -5,8 +5,8 @@ Source needs READ. Destination needs READ and, to be proven, WRITE.
 Proving write means actually writing, so the probe creates a clearly-named
 schema at the DESTINATION and then removes it again.
 
-The no-DROP rule is a SOURCE guarantee -- nothing is ever written to or dropped
-from Snowflake, whatever the credential permits. It does not extend to AIDP,
+The no-DROP rule is a SOURCE guarantee -- a non-read verb never reaches
+Snowflake, whatever the credential permits. It does not extend to AIDP,
 which is where this plugin legitimately creates objects, so cleaning up its own
 probe schema there is correct rather than forbidden. An earlier version applied
 the source rule to the destination and therefore could not clean up, which is
@@ -36,6 +36,8 @@ opposite findings they are.
 from __future__ import annotations
 
 import uuid
+
+from snowflake_source.dialect import lexer
 
 __all__ = ["PROBE_SCHEMA", "run_smoke", "smoke_verdict"]
 
@@ -114,7 +116,8 @@ def run_smoke(*, source_run_sql, target=None, dest_call=None,
     def _read_information_schema() -> str:
         db = _probe_database()
         count = source_run_sql(
-            f'select count(*) N from "{db}".information_schema.tables')[0]["N"]
+            f"select count(*) N from {lexer.qualify(db)}"
+            ".information_schema.tables")[0]["N"]
         return f"{count} table(s) readable in {db}.INFORMATION_SCHEMA"
 
     source["checks"] = [

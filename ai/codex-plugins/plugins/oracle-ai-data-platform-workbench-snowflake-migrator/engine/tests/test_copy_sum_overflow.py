@@ -1,7 +1,7 @@
 """A decimal total past 38 digits is `sum_not_comparable`, said as such.
 
 `--verify counts+sums` sums every source DECIMAL column at the source's
-scale on both sides: in Snowflake (`sum("C")::VARCHAR`, round 4) and in
+scale on both sides: in Snowflake (`sum("C")::VARCHAR`) and in
 Spark over the target (`SUM(CAST(c AS DECIMAL(38, s)))`). Both engines
 keep that total at precision 38 and the column's own scale, so a
 high-scale column runs out of integer digits fast: a NUMBER(38,37) holds
@@ -14,7 +14,7 @@ one digit before the point, and 100 rows of 0.12 add up to 12. Then
   not: non-ANSI Spark (AIDP runs Spark 3.5.0 with ANSI off) returns NULL on
   a DECIMAL overflow, and the table read as `sum_mismatch` with a target
   of None and nothing saying why;
-* before round 4 both sides were Spark sums, both NULL, and NULL == NULL
+* when both sides were Spark sums, both NULL, and NULL == NULL
   read as `verified`: a check that never ran, recorded as a pass.
 
 Neither is a defect in the copy, and neither is a pass. The column's total

@@ -40,7 +40,7 @@ __all__ = ["TypeMapping", "map_type", "SEMI_STRUCTURED_MODES",
            "GEOSPATIAL_MODES", "TIMESTAMP_NTZ_MODES", "needs_type_detail",
            "TYPE_DETAIL_BASES", "TypeSyntaxError", "parse_type",
            "structured_spark_type", "time_format", "copy_expressions",
-           "source_type_key"]
+           "source_type_key", "time_precision"]
 
 SEMI_STRUCTURED_MODES = ("block", "string")
 # TIMESTAMP_NTZ is preserved by default because bare TIMESTAMP is
@@ -319,11 +319,7 @@ def copy_expressions(data_type, target_type: str, *, name: str,
     if key in _FLOATS or key == "DOUBLE PRECISION":
         return f"TO_VARCHAR({col}, 'TME')", f"CAST({out} AS {target})"
     if key == "TIME":
-        if datetime_precision in (None, "") and type_detail:
-            try:
-                datetime_precision = _detail_precision(parse_type(type_detail))
-            except TypeSyntaxError:
-                pass
+        datetime_precision = time_precision(datetime_precision, type_detail)
         return f"TO_VARCHAR({col}, '{time_format(datetime_precision)}')", out
     if key == "TIMESTAMP_NTZ":
         return f"TO_VARCHAR({col}, '{_NTZ_FORMAT}')", f"CAST({out} AS {target})"
@@ -338,21 +334,39 @@ def copy_expressions(data_type, target_type: str, *, name: str,
     return col, out
 
 
-def source_type_key(data_type, precision=None, scale=None) -> str:
+def source_type_key(data_type, precision=None, scale=None,
+                    datetime_precision=None) -> str:
     """One column's source type as the copy's pre-flight compares it.
 
-    NUMBER(p,s) is `decimal(p,s)`; anything else is INFORMATION_SCHEMA's own
+    NUMBER(p,s) is `decimal(p,s)`; TIME(p) is `time(p)`, since the read's
+    format keeps p fractional digits (a TIME of unknown precision is
+    `time`, read with all nine); anything else is INFORMATION_SCHEMA's own
     type name lower-cased. The plan records this per column (`source_type`)
     and the copy stage reads the live source the same way
     (`SnowflakeSource.live_columns`), so a column whose type changed after
     the plan was approved is caught before its old conversion runs. A
-    parity test holds the two spellings together.
+    parity test holds the two spellings together. The element types of a
+    structured VECTOR, MAP, OBJECT or ARRAY are not part of the key:
+    INFORMATION_SCHEMA does not carry them.
     """
     kind = str(data_type or "").strip()
     if kind.upper() in ("NUMBER", "DECIMAL", "NUMERIC") and \
             precision is not None:
         kind = f"decimal({int(precision)},{int(scale or 0)})"
+    elif kind.upper() == "TIME" and datetime_precision not in (None, ""):
+        kind = f"time({int(datetime_precision)})"
     return kind.lower()
+
+
+def time_precision(datetime_precision=None, type_detail=None):
+    """A TIME column's fractional precision: DATETIME_PRECISION, else the
+    one DESCRIBE's `TIME(p)` spells, else None (unknown)."""
+    if datetime_precision in (None, "") and type_detail:
+        try:
+            return _detail_precision(parse_type(type_detail))
+        except TypeSyntaxError:
+            return None
+    return datetime_precision
 
 
 def _detail_precision(node: _Node | None):

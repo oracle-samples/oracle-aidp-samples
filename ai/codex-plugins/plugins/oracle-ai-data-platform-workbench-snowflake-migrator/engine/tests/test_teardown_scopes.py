@@ -42,11 +42,11 @@ def _prov(**over):
 
 LEDGER = [
     {"kind": "catalog", "name": "src", "key": "src", "type": "EXTERNAL",
-     "action": "created"},
+     "action": "created", "datalake_ocid": OCID},
     {"kind": "catalog", "name": "tgt", "key": "tgt", "type": "INTERNAL",
-     "action": "created"},
+     "action": "created", "datalake_ocid": OCID},
     {"kind": "catalog", "name": "theirs", "key": "theirs", "type": "INTERNAL",
-     "action": "reused"},
+     "action": "reused", "datalake_ocid": OCID},
 ]
 
 
@@ -108,10 +108,10 @@ class Lake:
         return [op for op, _ in self.ops if op.startswith("delete_")]
 
 
-def _run(lake, prov=None, **kw):
+def _run(lake, prov=None, ledger=LEDGER, **kw):
     kw.setdefault("scope", "all")
     kw.setdefault("execute", True)
-    return teardown_everything(lake, prov or _prov(), ledger=LEDGER,
+    return teardown_everything(lake, prov or _prov(), ledger=ledger,
                                datalake_ocid=OCID, delays=(),
                                async_delays=(0,), sleep=lambda _s: None,
                                **kw)
@@ -216,6 +216,111 @@ def test_a_re_run_that_records_created_then_reused_still_owns_the_catalog():
               {"kind": "catalog", "name": "theirs", "key": "theirs",
                "type": "INTERNAL", "action": "reused"}]
     assert [c["catalog"] for c in catalogs_created(ledger)] == ["src", "tgt"]
+
+
+def test_a_catalog_created_on_another_platform_is_left_alone():
+    """One out dir rehearsed on another aiDataPlatform, then provisioned on
+    this one: that platform's `created` row for `tgt` proves nothing here,
+    and this platform's `reused` row (--reuse-existing) does not make the
+    same-named catalog ours."""
+    ledger = [LEDGER[0], {**LEDGER[1], "datalake_ocid": "ocid1.other"},
+              {**LEDGER[1], "action": "reused"}]
+    lake = Lake()
+    res = _run(lake, ledger=ledger, include_data=True)
+    assert "tgt" in lake.catalogs
+    assert [kw["catalog"] for op, kw in lake.ops
+            if op == "delete_catalog"] == ["src"]
+    left = [x for x in res["left_alone"] if x["kind"] == "catalog"]
+    assert [x["name"] for x in left] == ["tgt"]
+    assert "ocid1.other" in left[0]["why"]
+    assert [c["catalog"] for c in catalogs_created(ledger, OCID)] == ["src"]
+
+
+def test_a_catalog_row_naming_no_platform_is_not_force_deleted():
+    ledger = [LEDGER[0], {k: v for k, v in LEDGER[1].items()
+                          if k != "datalake_ocid"}]
+    lake = Lake()
+    res = _run(lake, ledger=ledger, include_data=True)
+    assert "tgt" in lake.catalogs
+    left = [x for x in res["left_alone"] if x["kind"] == "catalog"]
+    assert [x["name"] for x in left] == ["tgt"]
+    assert "names no aiDataPlatform" in left[0]["why"]
+
+
+def test_a_job_recreated_under_our_name_with_another_key_is_left_alone():
+    """`created_jobs` carries the key the job was created with. A job of
+    that name listed under another key was made later by someone else, as
+    provision --delete-stale-copy-jobs already decides."""
+    def prov(key):
+        return _prov(workspace={"name": "lab_ws", "key": "ws-1",
+                                "created": False},
+                     created_jobs=[{"name": "snowmig_02_copy_sales",
+                                    "key": key}])
+    lake = Lake()                     # lists snowmig_02_copy_sales as j2
+    res = _run(lake, prov("j-old"))
+    assert "snowmig_02_copy_sales" in lake.jobs
+    assert not [op for op, _ in lake.ops if op == "delete_job"]
+    left = [x for x in res["left_alone"] if x["kind"] == "job"]
+    assert [x["name"] for x in left] == ["snowmig_02_copy_sales"]
+    assert "j-old" in left[0]["why"] and "j2" in left[0]["why"]
+    lake = Lake()
+    _run(lake, prov("j2"))
+    assert "snowmig_02_copy_sales" not in lake.jobs
+
+
+def test_a_dry_run_record_still_reaches_what_the_ledger_records():
+    """provision never ran for real, but `jobs --register` and `catalog
+    --execute` did: their ledger rows are this migration's, each job and
+    notebook on the workspace it was registered on."""
+    nb = "backup-snowflake-migration/generated_jobs/mv.ipynb"
+    ledger = [*LEDGER,
+              {"kind": "job", "name": "snowmig_refresh_mv",
+               "workspace": "ws-9", "action": "created",
+               "datalake_ocid": OCID},
+              {"kind": "ws_object", "name": nb, "workspace": "ws-9",
+               "action": "created", "datalake_ocid": OCID},
+              {"kind": "job", "name": "snowmig_refresh_other",
+               "workspace": "ws-8", "action": "created",
+               "datalake_ocid": "ocid1.other"}]
+    prov = {"dry_run": True, "workspace": {"name": "lab_ws", "key": None}}
+    res = teardown_everything(None, prov, scope="all", execute=False,
+                              ledger=ledger, include_data=True,
+                              datalake_ocid=OCID)
+    planned = [(s["kind"], s.get("name"), s.get("workspace"))
+               for s in res["steps"]]
+    assert planned == [("job", "snowmig_refresh_mv", "ws-9"),
+                       ("notebook", nb, "ws-9"),
+                       ("catalog", "src", None), ("catalog", "tgt", None)]
+    assert [x["name"] for x in res["left_alone"]] == ["snowmig_refresh_other"]
+    lake = Lake()
+    lake.jobs["snowmig_refresh_mv"] = "j7"
+    lake.objects.add(nb)
+    res = _run(lake, prov, ledger=ledger, include_data=True)
+    assert res["verified"] == len(res["steps"]) == 4
+    assert ("delete_job", {"workspace": "ws-9", "job_key": "j7"}) in lake.ops
+    assert ("delete_ws_object", {"workspace": "ws-9", "path": nb}) in lake.ops
+    assert "ws-1" in lake.workspaces and "cl-1" in lake.clusters
+
+
+def test_a_dry_run_record_and_no_ledger_still_removes_nothing():
+    res = teardown_everything(None, {"dry_run": True}, scope="all",
+                              execute=False, ledger=[])
+    assert res["steps"] == [] and "never ran for real" in res["note"]
+
+
+def test_jobs_registered_on_another_workspace_are_named_not_dropped():
+    nb = "backup-snowflake-migration/generated_jobs/mv.ipynb"
+    ledger = [*LEDGER,
+              {"kind": "job", "name": "elsewhere", "workspace": "ws-2",
+               "action": "created"},
+              {"kind": "ws_object", "name": nb, "workspace": "ws-2",
+               "action": "created"}]
+    res = teardown_everything(None, _prov(), scope="all", execute=False,
+                              ledger=ledger)
+    assert "elsewhere" not in [s.get("name") for s in res["steps"]]
+    left = {(x["kind"], x["name"]): x["why"] for x in res["left_alone"]}
+    assert "ws-2" in left[("job", "elsewhere")]
+    assert "ws-2" in left[("notebook", nb)]
 
 
 # --- request shapes (live 2026-09-29) ------------------------------------------

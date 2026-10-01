@@ -14,3 +14,8 @@ migrator Codex plugin, newest first. The format loosely follows
   shipped; each was a thin wrapper over a skill listed in the README.
   Skills address the plugin's files as `<plugin-root>`, resolved from each
   `SKILL.md`.
+- The changes and fixes in that plugin's 0.28.0 notes apply to this copy too:
+  among them the every-column source type drift check
+  (`mapping.source_type_drift`), teardown deleting only what this migration
+  created on its own DataLake and workspace, and `clean` refusing a directory
+  that records created resources until `teardown` has run.

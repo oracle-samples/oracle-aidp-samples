@@ -313,14 +313,28 @@ def _oci_auth_mode(args) -> str | None:
     return mode or None
 
 
+def _oci_config_path() -> pathlib.Path:
+    """The config file the `oci` CLI reads, in its order: OCI_CLI_CONFIG_FILE,
+    else ~/.oci/config, else the SDK's OCI_CONFIG_FILE (read only when the
+    default file is absent). The mode inferred from it is forced onto every
+    call, so it has to be the file the CLI itself opens."""
+    named = os.environ.get("OCI_CLI_CONFIG_FILE")
+    if named:
+        return pathlib.Path(named).expanduser()
+    default = pathlib.Path.home() / ".oci" / "config"
+    fallback = os.environ.get("OCI_CONFIG_FILE")
+    if fallback and not default.is_file():
+        return pathlib.Path(fallback).expanduser()
+    return default
+
+
 def _profile_auth_mode(profile: str) -> str:
     """security_token when that profile names a token file, else api_key.
 
     Read-only, and it reads only the section headers and key NAMES -- never a
     value, so no credential is loaded to decide this.
     """
-    path = pathlib.Path(os.environ.get("OCI_CONFIG_FILE")
-                        or (pathlib.Path.home() / ".oci" / "config"))
+    path = _oci_config_path()
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -340,9 +354,10 @@ def _profile_auth_mode(profile: str) -> str:
 def _oci_runner(args):
     """The `run_process` every transport uses.
 
-    It states the profile and the auth mode on both CLIs -- `oci` takes
-    `--profile`, `aidp` takes `-p`, and both take `--auth` -- and hands the
-    child an environment that cannot repoint its interpreter.
+    It states the profile and the auth mode on both CLIs -- both get
+    `--profile` (nothing is added when `--profile` or `-p` is already in
+    argv) and `--auth` -- and hands the child an environment that cannot
+    repoint its interpreter.
     """
     import subprocess
 
@@ -773,7 +788,8 @@ def cmd_clean(args) -> int:
 
     Nothing else is touched -- an --out-dir the user chose is theirs, not
     ours to remove, and a demo directory is removed only when it carries the
-    demo's `emulation.json` marker.
+    demo's `emulation.json` marker. A default directory that records
+    resources the migration created is kept unless `--force` is given.
     """
     import shutil
     target = pathlib.Path(args.out_dir)
@@ -784,6 +800,18 @@ def cmd_clean(args) -> int:
         print(f"  refusing to delete {target}: `clean` only removes the "
               f"default artifact directory ({default}). Remove a directory "
               f"you chose yourself.", file=sys.stderr)
+        return 1
+    # An executed provision or a created catalog/job is the only local
+    # record `teardown` works from; deleting it strands what it created.
+    from report.resources import _ledger
+    if not getattr(args, "force", False) and (
+            _executed_record_exists(default, "provision_result.json")
+            or any(r.get("action") in ("created", "create_requested")
+                   for r in _ledger(default))):
+        print(f"  refusing to delete {default}: it records resources this "
+              f"migration created (provision_result.json / resources.jsonl), "
+              f"which `teardown` works from. Run `teardown` first, then "
+              f"`clean --force`.", file=sys.stderr)
         return 1
     for path in (default, *_demo_dirs()):
         if path != default and path.exists() and not (
@@ -1832,9 +1860,12 @@ def _catalogs_created_here(out: pathlib.Path,
                            datalake_ocid: str | None) -> list[str]:
     """The keys and names of every catalog the resource ledger records this
     migration CREATING -- on this aiDataPlatform, when the row says which.
-    `catalog --execute` reuses an existing catalog only if it is one of
-    these, or --reuse-existing is passed."""
+    A create sent but not yet listed (`create_requested`) counts: no
+    catalog of that name existed when it was sent. `catalog --execute`
+    reuses an existing catalog only if it is one of these, or
+    --reuse-existing is passed."""
     from report.resources import LEDGER
+    from target.teardown import CATALOG_CREATED
     path = out / LEDGER
     names: list[str] = []
     if not path.is_file():
@@ -1844,7 +1875,8 @@ def _catalogs_created_here(out: pathlib.Path,
             row = json.loads(line)
         except ValueError:
             continue
-        if row.get("kind") != "catalog" or row.get("action") != "created":
+        if (row.get("kind") != "catalog"
+                or row.get("action") not in CATALOG_CREATED):
             continue
         if (datalake_ocid and row.get("datalake_ocid")
                 and row["datalake_ocid"] != datalake_ocid):
@@ -1898,9 +1930,9 @@ def cmd_catalog(args) -> int:
     # The name to register, resolved ONCE and keyed strictly by catalog type:
     # `aidp.external_catalog` is the Snowflake source's EXTERNAL catalog,
     # `aidp.catalog` the INTERNAL target. Neither stands in for the other --
-    # ensure_catalog reuses ANY catalog carrying the name, whatever its type,
+    # ensure_catalog refuses a catalog of the other type carrying the name,
     # so registering the source under the target's name would make the later
-    # `--catalog-type standard` step silently "reuse" the EXTERNAL one.
+    # `--catalog-type standard` step fail on the EXTERNAL one.
     coords = _target_coords(args)
     aidp = aidp_block(_load_migration_config(args)) if config_path else {}
     key = "external_catalog" if catalog_type == "EXTERNAL" else "catalog"
@@ -2008,8 +2040,11 @@ def cmd_catalog(args) -> int:
         print(f"  note: catalog_result.json keeps the executed record of "
               f"{latest.get('catalog')}; this dry run is in {own_json}")
     # The per-catalog records keep each report; the ledger is the record of
-    # every catalog this migration allocated (for billing).
-    if args.execute and result.get("action") in ("created", "reused"):
+    # every catalog this migration allocated (for billing), a create not yet
+    # listed included: a re-run then reuses it, and teardown still owns it.
+    if args.execute and result.get("action") in ("created",
+                                                 "create_requested",
+                                                 "reused"):
         from report.resources import record_resource
         record_resource(out, stage="catalog", kind="catalog",
                         name=name, type=catalog_type,
@@ -2287,7 +2322,10 @@ def _publish_stage(args) -> None:
             make_provision_call(ocid, run_process=_oci_runner(args)),
             workspace, out, rep["workspace_dir"])
         total = len([s for s in res["steps"] if s["file"]])
-        print(f'  stage report -> workspace {rep["workspace_dir"]}/: '
+        # The one write whose workspace comes from the record, not from a
+        # flag or the config: say which, and from where.
+        print(f'  stage report -> workspace {workspace} (named by '
+              f'provision_result.json), {rep["workspace_dir"]}/: '
               f'{res["verified"]}/{total} file(s) read back '
               f'(snapshot {res["snapshot"]})', file=sys.stderr)
     except Exception as exc:
@@ -2621,20 +2659,19 @@ def cmd_jobs(args) -> int:
         # The ledger is the record of what this migration allocated;
         # generated_jobs.json is rewritten by every run, so a job the first
         # --register created would drop out of it. `teardown --scope all`
-        # reads these rows (a create not yet confirmed is tried too).
+        # reads these rows (a create not yet confirmed is tried too), and
+        # every notebook uploaded, its job created or not.
         from report.resources import record_resource
-        leaves = {t["notebook"].rsplit("/", 1)[-1]: j["name"]
-                  for j in res["jobs"] for t in j["tasks"]}
         for name in reg["created"] + reg["unconfirmed"]:
             record_resource(out, stage="jobs", kind="job", name=name,
                             workspace=workspace,
                             action=("created" if name in reg["created"]
-                                    else "create_requested"))
-        for leaf, job_name in leaves.items():
-            if job_name in reg["created"] + reg["unconfirmed"]:
-                record_resource(out, stage="jobs", kind="ws_object",
-                                name=f'{reg["folder"]}/{leaf}',
-                                workspace=workspace, action="created")
+                                    else "create_requested"),
+                            datalake_ocid=coords["datalake_ocid"])
+        for path in reg.get("uploaded") or []:
+            record_resource(out, stage="jobs", kind="ws_object", name=path,
+                            workspace=workspace, action="created",
+                            datalake_ocid=coords["datalake_ocid"])
         if reg["failed"] or reg["name_taken"] or reg["unconfirmed"]:
             code = 1
     _write(out, "generated_jobs.json", payload)
@@ -2751,8 +2788,7 @@ def cmd_init_config(args) -> int:
           "both live there.")
     print("  IT WILL HOLD LIVE CREDENTIALS: keep it out of git, tickets and "
           "chat.")
-    print(f"  Then: snowmig.py preflight --out-dir ./snowmig_out "
-          f"--config {written} --test-source")
+    print(f"  Then: snowmig.py preflight --config {written} --test-source")
     return 0
 
 
@@ -3037,13 +3073,9 @@ def cmd_demo(args) -> int:
     run.
     """
     from emulation.runbook import run_demo, run_enterprise_demo
-    # The demo gets its own default out-dir: emulated artifacts sitting next
-    # to a real run's is exactly the confusion the marker file exists to
-    # prevent. (set_defaults on the subparser cannot override the parent
-    # parser's already-applied default, so it is resolved here.)
-    out = pathlib.Path(_demo_dirs()[0]
-                       if args.out_dir == str(default_out_dir())
-                       else args.out_dir)
+    # main() has already swapped the real-run default for the demo's own
+    # directory (_demo_dirs).
+    out = pathlib.Path(args.out_dir)
     prepare_out_dir(out)
     enterprise = getattr(args, "estate", "standard") == "enterprise"
     result = run_enterprise_demo(out) if enterprise else run_demo(out)
@@ -3221,7 +3253,12 @@ def build_parser() -> argparse.ArgumentParser:
         "clean", parents=[common],
         help=f"delete ./{ARTIFACTS_DIRNAME}/ and the demo output "
                   f"(offline). Refuses to touch an --out-dir you chose "
-                  f"yourself")
+                  f"yourself, or one that records created resources "
+                  f"without --force")
+    cln.add_argument("--force", action="store_true",
+                     help="remove it even though it records resources this "
+                          "migration created (provision_result.json, "
+                          "resources.jsonl): run `teardown` first")
     cln.set_defaults(func=cmd_clean)
 
     bn = sub.add_parser(
@@ -3784,7 +3821,9 @@ was created on AIDP cannot: it is written when the object is created.
     bin/snowmig clean
 
 Deletes this directory. It refuses to touch an `--out-dir` you named
-yourself.
+yourself, and refuses this one while it records resources the migration
+created (an executed `provision_result.json`, or created rows in
+`resources.jsonl`): run `teardown` first, then `clean --force`.
 """
 
 
@@ -3882,6 +3921,15 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if getattr(args, "out_dir", None) is None:
         args.out_dir = str(default_out_dir())
+    # The demo gets its own default out-dir: emulated artifacts sitting next
+    # to a real run's is exactly the confusion the marker file exists to
+    # prevent. Resolved here, before the `artifacts:` line, the create and
+    # the run log, so all three name the directory the demo writes to.
+    # (set_defaults on the subparser cannot override the parent parser's
+    # already-applied default.)
+    if args.func is cmd_demo and args.out_dir == str(default_out_dir()):
+        enterprise = getattr(args, "estate", "standard") == "enterprise"
+        args.out_dir = str(_demo_dirs()[1 if enterprise else 0])
     # Say where output goes, every time. An artifact the user cannot find is
     # an artifact they do not have. `clean` is exempt from both the message
     # and the create -- building the directory in order to delete it would

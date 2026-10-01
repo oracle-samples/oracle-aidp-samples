@@ -21,11 +21,30 @@ REFUSED = [
     "select 'unclosed",
     "select 1 /* unclosed",
     "select $$unclosed",
+    # `$` continues an unquoted identifier, so `A$$B` is one name to
+    # Snowflake, not the start of a $$ string that hides what follows.
+    "select 1 as A$$B ->> delete from t ->> select 1 as C$$D",
+    "select 1 as A$$B; delete from t; select 1 as C$$D",
+    "select 1 as _$$x ->> delete from t ->> select $$x$$",
+    # A number or a `$1` column ends before `$$`; there it does open a string.
+    "select 1$$'$$; delete from t; select $$'$$",
+    "select $1$$'$$; delete from t; select $$'$$",
+    # A bare CR ends a line comment.
+    "select 1 -- c\r->> delete from t",
+    "select 1 // c\r->> delete from t",
+    "select 1 -- c\r; delete from t",
+    # Backticks are not Snowflake quoting: they hide nothing.
+    "select 1 `->> delete from t`",
+    "select 1 `; delete from t; `",
 ]
 ALLOWED = [
     "select '->>' as x",
     "select 1 /* a comment */",
     "select 'a;drop table t'",
+    "select $$a;b$$ as x",
+    "select 1 as A$$B, $$c;d$$ as e",
+    "select $1, $$a;b$$ from t",
+    "select 1 -- c\r\n",
 ]
 
 

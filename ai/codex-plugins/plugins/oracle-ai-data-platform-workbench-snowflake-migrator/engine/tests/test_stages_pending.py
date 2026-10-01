@@ -1,6 +1,6 @@
 """A job still going is RUNNING, its twin waits, and a partial copy is partial.
 
-Three ways the board still read more than was true (review of this branch):
+Three ways the board still read more than was true:
 
 * A structure run whose poll budget ran out (`terminal: False`, the live S10
   case on 2026-09-29, where the job went on to SUCCESS) read DONE and

@@ -123,6 +123,27 @@ def test_ddl_subcommand_generates_sql_offline(tmp_path):
     assert "USING DELTA" in ddl["statements"][0]["sql"]
 
 
+@pytest.mark.parametrize("configured,expected", [
+    (None, "refuse"), ("convert", "convert")])
+def test_ddl_records_the_source_type_drift_setting_for_the_copy(
+        tmp_path, monkeypatch, configured, expected):
+    """The copy stage has no config of its own: ddl_plan.json carries the
+    setting, and DDL_PLAN.md -- what is signed off -- shows it."""
+    if configured:
+        (tmp_path / "snowmig-config.yaml").write_text(
+            f"mapping:\n  source_type_drift: {configured}\n",
+            encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    write(tmp_path, "inventory.json", INV)
+    write(tmp_path, "dependencies.json", DEPS)
+    main(["plan", "--out-dir", str(tmp_path)])
+    assert main(["ddl", "--out-dir", str(tmp_path)]) == 0
+    ddl = json.loads((tmp_path / "ddl_plan.json").read_text(encoding="utf-8"))
+    assert ddl["source_type_drift"] == expected
+    md = (tmp_path / "DDL_PLAN.md").read_text(encoding="utf-8")
+    assert f"`mapping.source_type_drift: {expected}`" in md
+
+
 def test_ddl_emits_views_too_after_their_tables(tmp_path):
     inv = json.loads(json.dumps(INV))
     view = json.loads(json.dumps(inv["inventory"][0]))
@@ -492,6 +513,61 @@ def test_clean_removes_a_demo_directory_only_with_its_marker(
     assert main(["clean"]) == 0
     assert not demo.exists()
     assert (other / "mine.txt").is_file()
+
+
+@pytest.mark.parametrize("record", ["provision", "ledger"])
+def test_clean_keeps_the_record_teardown_works_from(
+        tmp_path, monkeypatch, capsys, record):
+    """After an executed provision or a created catalog/job, the directory
+    is the only local record of what to tear down: `clean` refuses it
+    unless the operator passes --force."""
+    default, _ = _clean_fixture(tmp_path, monkeypatch)
+    if record == "provision":
+        (default / "provision_result.json").write_text(
+            '{"dry_run": false}', encoding="utf-8")
+    else:
+        (default / "resources.jsonl").write_text(
+            '{"stage": "catalog", "kind": "catalog", "action": "created"}\n',
+            encoding="utf-8")
+    assert main(["clean"]) == 1
+    err = capsys.readouterr().err
+    assert "teardown" in err and "--force" in err
+    assert (default / "plan.json").is_file()
+    assert main(["clean", "--force"]) == 0
+    assert not default.exists()
+
+
+def test_clean_removes_a_dry_run_record_without_force(tmp_path, monkeypatch):
+    default, _ = _clean_fixture(tmp_path, monkeypatch)
+    (default / "provision_result.json").write_text(
+        '{"dry_run": true}', encoding="utf-8")
+    assert main(["clean"]) == 0
+    assert not default.exists()
+
+
+@pytest.mark.parametrize("estate,dirname", [
+    ("standard", "snowmig_demo"), ("enterprise", "snowmig_demo_enterprise")])
+def test_a_bare_demo_reports_and_logs_its_own_directory(
+        tmp_path, monkeypatch, capsys, estate, dirname):
+    """With no --out-dir the demo writes to its own directory. The
+    `artifacts:` line and the run log say so, no real-run
+    ./migration-artifacts/ is created beside it, and the enterprise estate
+    does not overwrite the standard one."""
+    import emulation.runbook as runbook
+    import snowmig
+
+    def fake(out):
+        (out / "emulation.json").write_text("{}", encoding="utf-8")
+        return {"narrative": [], "out_dir": str(out)}
+    monkeypatch.setattr(runbook, "run_demo", fake)
+    monkeypatch.setattr(runbook, "run_enterprise_demo", fake)
+    monkeypatch.chdir(tmp_path)
+    assert main(["demo", "--estate", estate]) == 0
+    out = tmp_path / dirname
+    assert f"artifacts: {out}" in capsys.readouterr().out
+    assert (out / "emulation.json").is_file()
+    assert (out / "run_log.jsonl").is_file()
+    assert not (tmp_path / snowmig.ARTIFACTS_DIRNAME).exists()
 
 
 def test_default_out_dir_is_the_working_directory(tmp_path, monkeypatch):
@@ -904,10 +980,40 @@ def test_the_auth_mode_is_read_from_the_profile_when_the_config_is_silent(
     (oci_dir / "config").write_text(
         "[DEFAULT]\nuser=ocid1.user.oc1..x\nkey_file=~/.oci/k.pem\n\n"
         "[SESSIONY]\nsecurity_token_file=~/.oci/token\n", encoding="utf-8")
-    monkeypatch.setenv("OCI_CONFIG_FILE", str(oci_dir / "config"))
+    monkeypatch.setenv("OCI_CLI_CONFIG_FILE", str(oci_dir / "config"))
     assert snowmig._profile_auth_mode("SESSIONY") == "security_token"
     assert snowmig._profile_auth_mode("DEFAULT") == "api_key"
     assert snowmig._profile_auth_mode("ABSENT") == "api_key"
+
+
+def test_the_auth_mode_reads_the_config_file_the_oci_cli_reads(
+        tmp_path, monkeypatch):
+    """The `oci` CLI reads OCI_CLI_CONFIG_FILE, else ~/.oci/config, else
+    the SDK's OCI_CONFIG_FILE. The inferred mode is forced onto every call,
+    so it is read from that same file."""
+    import snowmig
+    home = tmp_path / "home"
+    (home / ".oci").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    session = tmp_path / "session_config"
+    session.write_text("[SESS]\nsecurity_token_file=~/.oci/token\n",
+                       encoding="utf-8")
+    keyed = "[SESS]\nkey_file=~/.oci/k.pem\n"
+    monkeypatch.delenv("OCI_CLI_CONFIG_FILE", raising=False)
+    monkeypatch.setenv("OCI_CONFIG_FILE", str(session))
+    # No ~/.oci/config: the SDK's fallback variable is what the CLI reads.
+    assert snowmig._profile_auth_mode("SESS") == "security_token"
+    # A ~/.oci/config exists: the CLI reads it, not OCI_CONFIG_FILE.
+    (home / ".oci" / "config").write_text(keyed, encoding="utf-8")
+    assert snowmig._profile_auth_mode("SESS") == "api_key"
+    # OCI_CLI_CONFIG_FILE wins over both.
+    monkeypatch.setenv("OCI_CLI_CONFIG_FILE", str(session))
+    monkeypatch.delenv("OCI_CONFIG_FILE")
+    assert snowmig._profile_auth_mode("SESS") == "security_token"
+    # Named but missing: no guess, so no --auth is forced.
+    monkeypatch.setenv("OCI_CLI_CONFIG_FILE", str(tmp_path / "missing"))
+    assert snowmig._profile_auth_mode("SESS") == ""
 
 
 def test_the_shell_profile_and_auth_are_honoured_when_the_config_is_silent(
@@ -918,7 +1024,7 @@ def test_the_shell_profile_and_auth_are_honoured_when_the_config_is_silent(
     (oci_dir / "config").write_text(
         "[DEFAULT]\nuser=ocid1.user.oc1..x\nkey_file=~/.oci/k.pem\n\n"
         "[SESS]\nsecurity_token_file=~/.oci/token\n", encoding="utf-8")
-    monkeypatch.setenv("OCI_CONFIG_FILE", str(oci_dir / "config"))
+    monkeypatch.setenv("OCI_CLI_CONFIG_FILE", str(oci_dir / "config"))
     _cwd_config(tmp_path, monkeypatch, [f"datalake_ocid: {OCID}"])
     monkeypatch.setenv("OCI_CLI_PROFILE", "SESS")
     monkeypatch.delenv("OCI_CLI_AUTH", raising=False)
@@ -979,6 +1085,35 @@ def test_catalogs_hands_the_profile_runner_to_the_transport(tmp_path, monkeypatc
 
 class _CallCaptured(Exception):
     pass
+
+
+def test_the_stage_publish_names_its_workspace_and_where_it_came_from(
+        tmp_path, monkeypatch, capsys):
+    """The per-stage publish is the one write that takes its workspace from
+    provision_result.json rather than a flag or the config, so its line
+    says which workspace and that the record named it."""
+    import report.stage_output as stage_output
+    import snowmig
+    _cwd_config(tmp_path, monkeypatch,
+                [f"datalake_ocid: {OCID}", "workspace: other-key"])
+    with (tmp_path / "snowmig-config.yaml").open("a", encoding="utf-8") as fh:
+        fh.write("reporting:\n  publish_each_stage: true\n")
+    write(tmp_path, "provision_result.json",
+          {"dry_run": False, "workspace": {"key": "ws-key"}})
+    seen = {}
+
+    def fake_publish(call, workspace, out, folder):
+        seen["workspace"] = workspace
+        return {"steps": [{"file": "SUMMARY.md"}], "verified": 1,
+                "snapshot": "s1"}
+    monkeypatch.setattr(stage_output, "publish_stage_output", fake_publish)
+    monkeypatch.delenv("SNOWMIG_NO_STAGE_PUBLISH", raising=False)
+    args = snowmig.build_parser().parse_args(
+        ["teardown", "--out-dir", str(tmp_path)])
+    snowmig._publish_stage(args)
+    assert seen["workspace"] == "ws-key"
+    err = capsys.readouterr().err
+    assert "workspace ws-key" in err and "provision_result.json" in err
 
 
 @pytest.mark.parametrize("stage", ["teardown", "publish", "stage-publish"])

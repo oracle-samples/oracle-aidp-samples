@@ -159,9 +159,15 @@ class FakeSnowflake:
                                           and t not in names):
                 continue
             for i, (name, typ, p, sc) in enumerate(spec["columns"], 1):
+                # A TIME/TIMESTAMP's precision is its DATETIME_PRECISION,
+                # as Snowflake reports it; NUMERIC_PRECISION is NULL there.
+                timed = str(typ).upper().startswith("TIME")
                 rows.append({"TABLE_NAME": t, "COLUMN_NAME": name,
-                             "DATA_TYPE": typ, "NUMERIC_PRECISION": p,
-                             "NUMERIC_SCALE": sc, "ORDINAL_POSITION": i})
+                             "DATA_TYPE": typ,
+                             "NUMERIC_PRECISION": None if timed else p,
+                             "NUMERIC_SCALE": sc,
+                             "DATETIME_PRECISION": p if timed else None,
+                             "ORDINAL_POSITION": i})
         return Rows(rows)
 
     # -- batched counts ---------------------------------------------------

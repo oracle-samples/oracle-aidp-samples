@@ -5,8 +5,8 @@
 #
 #   cp snowmig-config.example.yaml ./snowmig-config.yaml
 #   $EDITOR ./snowmig-config.yaml
-#   python3 engine/snowmig.py preflight --out-dir ./snowmig_out \
-#       --config ./snowmig-config.yaml --test-source
+#   python3 engine/snowmig.py preflight --config ./snowmig-config.yaml \
+#       --test-source
 #
 # `preflight` reads every field back to you with the secrets masked, then
 # actually connects. Do that before anything else.
@@ -171,10 +171,13 @@ mapping:
   # source_type_drift: a source column whose type changed after the plan was
   #   approved. Recorded in ddl_plan.json by `ddl`; the copy job applies it.
   #   refuse (default) -- the table is not copied and is recorded `type_drift`;
-  #                       re-run assess and plan to pick up the new type.
-  #   convert          -- the column is copied using the mapping rules for its
-  #                       NEW type, with a warning on the column. The table is
-  #                       recorded `verified_with_conversion`, never plain
+  #                       re-run assess, plan and ddl to pick up the new type,
+  #                       and recreate the table from the new plan.
+  #   convert          -- the column is copied with the copy's fixed read for
+  #                       its live type into the existing target column (the
+  #                       semi_structured and geospatial modes above are not
+  #                       re-applied), with a warning on the column. The table
+  #                       is recorded `verified_with_conversion`, never plain
   #                       `verified`.
   source_type_drift: refuse
 

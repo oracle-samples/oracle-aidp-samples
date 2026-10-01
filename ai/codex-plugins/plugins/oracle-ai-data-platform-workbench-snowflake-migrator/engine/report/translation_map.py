@@ -83,12 +83,15 @@ def _snapshots(records: list[dict], plan: dict) -> list[dict]:
             and (planned is None or rec["source_identifier"] in refresh)]
 
 
-def _dialect(records: list[dict]) -> tuple[list[dict], dict]:
+def _dialect(records: list[dict], plan: dict) -> tuple[list[dict], dict]:
+    planned = plan.get("can_migrate")
+    if planned is not None:
+        planned = {c["source_identifier"] for c in planned}
     applied: dict[str, set] = collections.defaultdict(set)
     refused: dict[str, set] = collections.defaultdict(set)
     details: dict[str, list[str]] = collections.defaultdict(list)
     views = {"translated": 0, "verbatim": 0, "refused": 0, "no_sql": 0,
-             "unparseable": 0, "blocked_by_kind": []}
+             "unparseable": 0, "not_planned": 0, "blocked_by_kind": []}
     for rec in records:
         if rec.get("object_type") != "VIEW":
             continue
@@ -115,6 +118,13 @@ def _dialect(records: list[dict]) -> tuple[list[dict], dict]:
         except ValueError:
             # Captured, and not readable as a view: not "no SQL captured".
             views["unparseable"] += 1
+            continue
+        # A view the plan does not migrate (restricted, blocked or cascaded
+        # out) gets no DDL: not "carried verbatim", and no rule applied to
+        # it. One a rule refused is still counted as refused, for that rule.
+        if (planned is not None and ident not in planned
+                and not result.unsupported):
+            views["not_planned"] += 1
             continue
         for a in result.applied:
             applied[a["rule_id"]].add(ident)
@@ -199,7 +209,7 @@ def build_translation_map(inventory: dict, plan: dict,
                           ddl_payload: dict | None) -> dict:
     records = (inventory or {}).get("inventory") or []
     types = _types(records)
-    rules, views = _dialect(records)
+    rules, views = _dialect(records, plan or {})
     ddl_rules = collections.Counter(
         r["rule_id"] for s in (ddl_payload or {}).get("statements") or []
         for r in s.get("rules_applied") or [])
@@ -232,6 +242,7 @@ def build_translation_map(inventory: dict, plan: dict,
             "views_without_sql": views["no_sql"],
             "views_unparseable": views["unparseable"],
             "views_blocked_by_kind": len(views["blocked_by_kind"]),
+            "views_not_planned": views["not_planned"],
             "table_snapshots": len(snapshots),
             "snapshots_not_planned": not_planned,
             "rules_applied": sum(1 for r in rules if r["outcome"] == "applied"),

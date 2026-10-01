@@ -81,6 +81,36 @@ def _closing_quote(sql: str, start: int, quote: str) -> int:
         f"starting at offset {start}")
 
 
+def _line_end(sql: str, i: int) -> int:
+    """Index of the CR or LF that ends the line comment at `i`, or len(sql).
+
+    A bare CR ends the line too. Reading on to the next LF kept a `;` or
+    `->>` after the CR inside the comment here and in code to Snowflake.
+    """
+    ends = [e for e in (sql.find("\n", i), sql.find("\r", i)) if e != -1]
+    return min(ends) if ends else len(sql)
+
+
+def _word_state(state: str, ch: str) -> str:
+    """The unquoted word in progress after code character `ch`.
+
+    "ident", "number" or "". Snowflake allows `$` after the first character
+    of an unquoted identifier, so `A$$B` is ONE name and its `$$` does not
+    open a dollar-quoted string; opening one there hid a `->>` or `;` from
+    both read-only guards. A number or a `$1` column reference ends before
+    `$`, so after one -- `1$$x$$` -- the `$$` does open a string.
+    """
+    if ch.isalpha() or ch == "_":
+        if state == "number" and ch in "eE":
+            return "number"             # exponent: 1e5
+        return "ident"
+    if ch.isdigit():
+        return "ident" if state == "ident" else "number"
+    if ch == "$" and state == "ident":
+        return "ident"
+    return ""
+
+
 def segments(sql: str) -> list[tuple[str, str]]:
     """Split `sql` into (kind, text) runs. Concatenating the texts rebuilds it.
 
@@ -92,6 +122,7 @@ def segments(sql: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     buf: list[str] = []
     i, n = 0, len(sql)
+    word = ""
 
     def flush() -> None:
         if buf:
@@ -103,8 +134,7 @@ def segments(sql: str) -> list[tuple[str, str]]:
         two = sql[i:i + 2]
 
         if two in ("--", "//"):
-            end = sql.find("\n", i)
-            end = n if end == -1 else end
+            end = _line_end(sql, i)
             flush()
             out.append(("comment", sql[i:end]))
             i = end
@@ -116,7 +146,7 @@ def segments(sql: str) -> list[tuple[str, str]]:
             flush()
             out.append(("comment", sql[i:end + 2]))
             i = end + 2
-        elif two == "$$":
+        elif two == "$$" and word != "ident":
             end = sql.find("$$", i + 2)
             if end == -1:
                 raise UnterminatedLiteral(
@@ -145,7 +175,10 @@ def segments(sql: str) -> list[tuple[str, str]]:
             i = end
         else:
             buf.append(ch)
+            word = _word_state(word, ch)
             i += 1
+            continue
+        word = ""
 
     flush()
     return out

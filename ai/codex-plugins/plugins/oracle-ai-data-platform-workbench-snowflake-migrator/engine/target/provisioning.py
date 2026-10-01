@@ -1485,8 +1485,10 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
                  found is not None,
                  f'{spec["name"]}: read_back_failed: {job_list_error}'
                  if job_list_error is not None else spec["name"])
-            if found is not None:
-                _own(spec["name"], found)
+            # Ours even when the read-back missed it: the create was sent
+            # only because no job of that name was listed. Its key is then
+            # unknown, so a later listing of the name is not held to one.
+            _own(spec["name"], found or {})
             _outcome(spec, "created" if found else
                      "create requested, not confirmed")
         except Exception as exc:
@@ -1951,8 +1953,10 @@ def render_provision(res: dict) -> str:
             f"| workspace | `{ws_key}` |", f"| cluster | `{cl_key}` |", "",
             f"Pass `--workspace {ws_key} --cluster-id {cl_key}` on each later "
             "command, or put them under `aidp.workspace` / `aidp.cluster_id` "
-            "in the config -- one or the other. They are never read from "
-            "this record implicitly.", ""]
+            "in the config -- one or the other. No command reads them from "
+            "this record implicitly, except the opt-in per-stage report "
+            "publish (`reporting.publish_each_stage: true`), which uploads "
+            "to the workspace this record names.", ""]
 
     if res.get("warehouse_clusters"):
         lines += ["## Snowflake warehouses → AIDP compute clusters", "",

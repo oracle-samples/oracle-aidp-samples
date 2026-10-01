@@ -58,6 +58,27 @@ class SourceWriteRefused(PermissionError):
     """A statement that is not a read was handed to the pushdown transport."""
 
 
+def _word_state(state: str, ch: str) -> str:
+    """The unquoted word in progress after code character `ch`.
+
+    "ident", "number" or "". Snowflake allows `$` after the first character
+    of an unquoted identifier, so `A$$B` is ONE name and its `$$` does not
+    open a dollar-quoted string; opening one there hid a `->>` or `;` behind
+    it. A number or a `$1` column reference ends before `$`, so after one --
+    `1$$x$$` -- the `$$` does open a string. The engine's lexer applies the
+    same rule, so the two read-only guards agree.
+    """
+    if ch.isalpha() or ch == "_":
+        if state == "number" and ch in "eE":
+            return "number"             # exponent: 1e5
+        return "ident"
+    if ch.isdigit():
+        return "ident" if state == "ident" else "number"
+    if ch == "$" and state == "ident":
+        return "ident"
+    return ""
+
+
 def _code_only(sql: str) -> str:
     """`sql` with string literals and comments blanked, length preserved.
 
@@ -73,10 +94,12 @@ def _code_only(sql: str) -> str:
     """
     out = []
     i, n = 0, len(sql)
+    word = ""
     while i < n:
         c = sql[i]
         two = sql[i:i + 2]
         if c in ("'", '"'):
+            word = ""
             out.append(" ")
             i += 1
             closed = False
@@ -100,7 +123,8 @@ def _code_only(sql: str) -> str:
                 raise SourceWriteRefused(
                     f"an unclosed {c} literal; refused (fails closed)")
             continue
-        if two == "$$":
+        if two == "$$" and word != "ident":
+            word = ""
             out.append("  ")
             i += 2
             while i < n and sql[i:i + 2] != "$$":
@@ -114,13 +138,17 @@ def _code_only(sql: str) -> str:
             continue
         # `//` is a line comment in Snowflake exactly as `--` is. Missing it
         # let an apostrophe in `// it's` open a phantom literal that hid the
-        # `;` on the next line -- two statements read as one.
+        # `;` on the next line -- two statements read as one. A bare CR ends
+        # the line too: reading on to the next LF kept a `;` after the CR in
+        # the comment here and in code to Snowflake.
         if two in ("--", "//"):
-            while i < n and sql[i] != "\n":
+            word = ""
+            while i < n and sql[i] not in "\r\n":
                 out.append(" ")
                 i += 1
             continue
         if two == "/*":
+            word = ""
             # Snowflake ends a block comment at the FIRST `*/` (no nesting),
             # as the engine's lexer does. Counting depth made
             # `select 1 /* /* */ ; delete from t` one statement here and
@@ -137,6 +165,7 @@ def _code_only(sql: str) -> str:
             i += 2
             continue
         out.append(c)
+        word = _word_state(word, c)
         i += 1
     return "".join(out)
 
@@ -145,9 +174,9 @@ def assert_pushdown_read_only(sql: str) -> None:
     """Refuse anything that is not a single read. Fails closed.
 
     The cluster-side counterpart of the control plane's `assert_read_only`:
-    the credential the notebook holds may well be able to write, and the
-    only thing standing between a migration and a modified SOURCE is this
-    check.
+    the credential the notebook holds may be able to write; this check
+    refuses anything not led by a read verb, and the read-only role is what
+    prevents writes.
     """
     code = _code_only(sql or "")
     if "->>" in code:
@@ -543,8 +572,9 @@ class SnowflakeSource:
         own metadata lookup, at 126-241 s per table (2026-09-29); one
         INFORMATION_SCHEMA.COLUMNS query answers a chunk of tables instead.
         Types are what the copy's pre-flight compares: NUMBER(p,s) becomes
-        `decimal(p,s)` (the DECIMAL check), everything else is Snowflake's
-        own type name lower-cased. A table the query does not list is ABSENT
+        `decimal(p,s)` (the DECIMAL check), TIME(p) `time(p)` (the read's
+        format keeps p digits), everything else is Snowflake's own type
+        name lower-cased. A table the query does not list is ABSENT
         from the result, never an empty list -- the caller says so.
         Connector mode only.
         """
@@ -558,7 +588,8 @@ class SnowflakeSource:
             batch = tables[start:start + chunk]
             names = ", ".join(f"'{_sql_literal(t)}'" for t in batch)
             sql = ("select TABLE_NAME, COLUMN_NAME, DATA_TYPE, "
-                   "NUMERIC_PRECISION, NUMERIC_SCALE, ORDINAL_POSITION "
+                   "NUMERIC_PRECISION, NUMERIC_SCALE, DATETIME_PRECISION, "
+                   "ORDINAL_POSITION "
                    f"from {_sql_database(database)}.INFORMATION_SCHEMA.COLUMNS "
                    f"where TABLE_SCHEMA = '{_sql_literal(schema)}' "
                    f"and TABLE_NAME in ({names}) "
@@ -573,6 +604,9 @@ class SnowflakeSource:
                         data.get("NUMERIC_PRECISION") is not None:
                     kind = (f"decimal({int(data['NUMERIC_PRECISION'])},"
                             f"{int(data.get('NUMERIC_SCALE') or 0)})")
+                elif kind.upper() == "TIME" and \
+                        data.get("DATETIME_PRECISION") not in (None, ""):
+                    kind = f"time({int(data['DATETIME_PRECISION'])})"
                 out.setdefault(str(data["TABLE_NAME"]), {})[
                     str(data["COLUMN_NAME"])] = kind.lower()
         return out

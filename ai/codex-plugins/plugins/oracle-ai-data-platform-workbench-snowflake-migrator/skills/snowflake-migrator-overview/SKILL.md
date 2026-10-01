@@ -95,7 +95,9 @@ key (and records them in `provision_result.json`). Every later command needs
 them: pass `--workspace <key> --cluster-id <key>`, as the commands in this
 runbook do, or put them under `aidp.workspace` / `aidp.cluster_id` in the
 config — one or the other, never a mix. They are never read from the record
-implicitly.
+implicitly, except by the opt-in per-stage report publish
+(`reporting.publish_each_stage: true`), which uploads to the workspace the
+record names.
 
 **Re-pushing.** A `--reuse-existing` re-push into this workspace (the plan
 push at S9/S10) keeps the cluster name the first push recorded when no
@@ -298,7 +300,7 @@ Then bridge it into the shape the planning stages read:
 
 ```bash
 "<plugin-root>/bin/snowmig" ingest \
-  --manifest ./discovery_manifest.json --database-name <SOURCE_DB> \
+  --manifest ./migration-artifacts/discovery_manifest.json --database-name <SOURCE_DB> \
   [--semi-structured string] [--timestamp-ntz timestamp]
 
 "<plugin-root>/bin/snowmig" plan \
@@ -554,8 +556,9 @@ there. Say where to find it.
 
 Every stage writes to **`./migration-artifacts/`**, in the working directory
 the command runs from — the user's project, not the plugin folder. One
-directory; nothing is created anywhere else. Run every stage of a migration
-from the same directory.
+directory for a migration; the only other ones are the demo's
+(`./snowmig_demo`, `./snowmig_demo_enterprise`) and an `--out-dir` the user
+names. Run every stage of a migration from the same directory.
 
 It persists between commands because the stages chain: `plan` reads the
 `inventory.json` that `assess` wrote. It lives outside the plugin because an
@@ -572,10 +575,13 @@ public repository.
 "<plugin-root>/bin/snowmig" clean           # removes it
 ```
 
-`clean` deletes only that directory. It refuses to touch an `--out-dir` the
-operator named.
+`clean` deletes that directory and any demo directory that carries the demo's
+`emulation.json` marker. It refuses to touch an `--out-dir` the operator
+named, and it refuses the directory itself once it records resources the
+migration created (an executed `provision_result.json`, or created rows in
+`resources.jsonl`): run `teardown` first, then `clean --force`.
 
-**Nothing else is ever created.** No virtualenv in the user's home, no cache
+**Nothing else is created.** No virtualenv in the user's home, no cache
 beside the plugin, no scratch left behind. `bin/snowmig` runs on the current
 interpreter when it already imports the dependencies, and otherwise builds a
 venv in a temp directory that its `EXIT` trap removes — on success, on
@@ -630,12 +636,13 @@ Any directory it creates, or finds empty, also gets its own `.gitignore`.
    plans are backed up before they are reduced, and reports are written where
    the next person can find them.
 
-4. **Read-only against Snowflake — enforced, not promised.** The transport
-   rejects any statement whose verb is not `SELECT`, `SHOW`, `DESCRIBE`,
-   `DESC`, `WITH` (only when what follows the CTE list is a `SELECT`) or
-   `EXPLAIN`, before it reaches Snowflake.
-   **Nothing is ever written to or dropped from the source**, whatever the
-   credential permits and whatever any prompt asks for.
+4. **Read-only against Snowflake — a verb gate plus a read-only role.** The
+   transport refuses, before it reaches Snowflake, any statement not led by
+   `SELECT`, `SHOW`, `DESCRIBE`/`DESC` or `EXPLAIN` — whatever any prompt
+   asks for. The local connection also takes a CTE whose statement after the
+   CTE list is a `SELECT`; the in-AIDP pushdown refuses every CTE. The gate
+   reads the verb, not the whole statement, so the migration's read-only
+   role is what prevents writes.
 
 5. **Structure first; data only by an explicit job.** S1–S12 create schemas
    and empty tables and move no rows. Rows are copied only when the operator

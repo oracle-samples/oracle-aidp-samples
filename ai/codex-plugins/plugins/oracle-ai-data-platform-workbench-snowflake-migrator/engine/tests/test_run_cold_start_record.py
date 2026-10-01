@@ -30,7 +30,7 @@ OCID = "ocid1.aidataplatform.oc1.iad.aaaafake"
 def _no_oci_config(tmp_path, monkeypatch):
     # _oci_runner reads the auth mode off the OCI config; point it at
     # nothing so these tests never touch the operator's file.
-    monkeypatch.setenv("OCI_CONFIG_FILE", str(tmp_path / "no-oci-config"))
+    monkeypatch.setenv("OCI_CLI_CONFIG_FILE", str(tmp_path / "no-oci-config"))
 
 
 @pytest.fixture(autouse=True)

@@ -126,7 +126,9 @@ Any field can be overridden per run with a flag (`--role`, `--warehouse`,
 `--catalog`, `--datalake-ocid`).
 
 **AIDP authentication is not in this file.** The plugin drives the `oci` and
-`aidp` CLIs with your OCI setup (`~/.oci/config`, from `oci setup config`):
+`aidp` CLIs with your OCI setup (`~/.oci/config`, from `oci setup config`,
+or the file `OCI_CLI_CONFIG_FILE` names — the plugin reads the same file the
+`oci` CLI does):
 
 - **Profile.** When the config sets `aidp.oci_profile`, it is announced and
   passed as `--profile <name>` to every `oci` and `aidp` call. Otherwise
@@ -254,7 +256,8 @@ another migration cannot redirect a write. The one exception is the opt-in
 per-stage report publish (`reporting.publish_each_stage: true`), which
 uploads reports to the workspace that record names. Every command prints the
 destination it resolved and whether each value came from a flag or from the
-config file.
+config file; the per-stage publish line names its workspace and says the
+record named it.
 
 **The Snowflake credential on the workspace.** `--source-config` places the
 config's `snowflake:` block — only that block, as JSON — at
@@ -305,7 +308,8 @@ dry-running S4 after S3 has executed leaves the S3 record intact.
 
 A catalog that already carries the name (in any case) is reused only when
 the resource ledger (`resources.jsonl`) records this migration creating it
-on this DataLake — re-running `catalog --execute` is safe — or when you pass
+on this DataLake — re-running `catalog --execute` is safe, after a create
+that was still `create_requested` too — or when you pass
 `--reuse-existing`. Otherwise the stage refuses it, exit 1, and nothing is
 written into it. A catalog of the other type (an INTERNAL one where the
 EXTERNAL registration was asked for, or the reverse) is refused either way.
@@ -527,14 +531,21 @@ bin/snowmig teardown --scope all [--include-data] [--execute]   # undo the migra
   the workspace. Run it after the copies: the copy jobs need it.
 - **`--scope all`** is for a lab, a rehearsal or an abandoned migration: the
   credential, the jobs, the clusters, the catalogs it created and the
-  workspace, each only where `provision_result.json` and the catalog ledger
-  prove this migration created it, and each read back gone. The INTERNAL
-  catalog holds the migrated rows; `teardown --scope all` deletes it only
-  with `--include-data`.
+  workspace, each only where `provision_result.json` and the resource ledger
+  (`resources.jsonl`) prove this migration created it, and each read back
+  gone. The INTERNAL catalog holds the migrated rows; `teardown --scope all`
+  deletes it only with `--include-data`. What `jobs --register` and
+  `catalog --execute` created is reached even when the provision record is a
+  dry run.
 
 Anything adopted with `--reuse-existing` is never deleted; a catalog the
 catalog stage created stays this migration's even after a re-run records it
-`reused`, and a cluster whose provenance the record cannot establish is
+`reused`. Only what was created on the DataLake teardown targets is deleted:
+a catalog the ledger records on another DataLake, or on none, and a job or
+notebook `jobs --register` put on a workspace other than the record's, are
+listed as left alone, never looked up by name here. A job of the record's
+name listed under another key than the one it was created with is someone
+else's and is left alone too. A cluster whose provenance the record cannot establish is
 left alone and reported (exit 1) for you to confirm in the console. Every
 scope is a dry run unless `--execute`, and `TEARDOWN.md` lists what was, or
 would be, removed.
@@ -693,7 +704,16 @@ Rows are verified by the copy job, after the copy.
 | `VARIANT`, `OBJECT`, `ARRAY` | carried as JSON text (`STRING`), with a warning on every affected column (`mapping.semi_structured: string`) | `--semi-structured block`: the table is blocked until a typed struct/map/array design exists |
 | `GEOGRAPHY`, `GEOMETRY` | the table is blocked | `--geospatial string` (GeoJSON) or `--geospatial wkt` (WKT, which does not carry a `GEOMETRY`'s SRID): carried as text, with no spatial type, index or predicate support |
 | `TIMESTAMP_NTZ` | carried as `TIMESTAMP`, with the timezone caveat recorded on every affected column (`mapping.timestamp_ntz: timestamp`); values are read through the session timezone, so keep sessions on UTC | `--timestamp-ntz preserve`: kept as `TIMESTAMP_NTZ`, which the target refuses at CREATE TABLE, so `ddl` halts (exit 3) |
-| a column whose type changed after the plan was approved | the copy refuses the table, `type_drift`, before any row is read (`mapping.source_type_drift: refuse`); re-run `assess` and `plan` to pick up the new type | `mapping.source_type_drift: convert`, then re-run `ddl`: the column is copied under the mapping rules for its new type into the existing target column, with a warning on the column, and the table is recorded `verified_with_conversion`, never `verified` |
+| a column whose type changed after the plan was approved | the copy refuses the table, `type_drift`, before any row is read (`mapping.source_type_drift: refuse`); re-run `assess`, `plan` and `ddl` to pick up the new type (the per-column spec lives in `ddl_plan.json`), and recreate the table from the new plan | `mapping.source_type_drift: convert`, then re-run `ddl`: the column is copied with the copy's fixed read for its live type into the existing target column (the plan's `semi_structured` and `geospatial` modes are not re-applied: a GEOGRAPHY/GEOMETRY reads as GeoJSON, a VARIANT/OBJECT/ARRAY as JSON text), with a warning on the column, and the table is recorded `verified_with_conversion`, never `verified` |
+
+The type change is checked in `connector` mode (the default) for every
+column: the type name, a NUMBER's precision and scale, and a TIME's
+precision. It does not see a change inside a structured `VECTOR`, `MAP`,
+`OBJECT` or `ARRAY` (an element or field type), which
+`INFORMATION_SCHEMA` does not carry. In `external-catalog` mode only a
+DECIMAL target column whose source is now neither DECIMAL nor an integer is
+caught. A `ddl_plan.json` written before the spec recorded `source_type` is
+not checked at all; the copy's log and each table's `read` record say so.
 
 **Structured** types are typed, so neither switch applies to them:
 `VECTOR(FLOAT, n)` becomes `ARRAY<FLOAT>`, `MAP(K, V)` `MAP<STRING, v>`, a
@@ -911,6 +931,14 @@ deploys nothing):
 cd engine && SNOWMIG_LIVE=1 SNOWFLAKE_ACCOUNT=... SNOWFLAKE_USER=... \
   SNOWFLAKE_PRIVATE_KEY_PATH=... python3 -m pytest tests/test_live_smoke.py -q
 ```
+
+Set `SNOWMIG_LIVE_DB` to a database of yours (the default is the config's
+`snowflake.database`, else `SNOWMIG_TESTDB`); nothing the plugin ships creates
+one. A check whose object is missing skips: it wants at least one view, NUMBER
+and TIMESTAMP_NTZ columns, and three or more tables in `PUBLIC`. The
+semi-structured check reads `SNOWFLAKE.ACCOUNT_USAGE` as `SNOWFLAKE_ROLE`
+(else the config's `snowflake.role`), and skips if that role cannot connect
+or read it.
 
 
 ## Scope

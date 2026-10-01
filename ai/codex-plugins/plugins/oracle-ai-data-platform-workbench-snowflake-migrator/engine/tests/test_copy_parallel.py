@@ -82,10 +82,11 @@ def _run(monkeypatch, tmp_path, spark, statements, names, *argv):
 
 
 def _stable(report):
-    """The per-table records without the moments they were written."""
+    """The per-table records without the moments they were written or how
+    long each took: a slow scheduler tick puts 0.1 s in one run's elapsed_s."""
     out = copy.deepcopy(report["tables"])
     for rec in out.values():
-        for key in ("started_at", "finished_at"):
+        for key in ("started_at", "finished_at", "elapsed_s"):
             rec.pop(key, None)
     return out
 

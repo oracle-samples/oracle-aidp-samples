@@ -1,5 +1,5 @@
-"""Regressions for the review of the coverage branch: each test pins one
-behaviour a finding showed was unsafe or misleading."""
+"""Regressions: each test pins one behaviour that was once unsafe or
+misleading."""
 import json
 import sys
 
@@ -96,6 +96,63 @@ def test_a_narrower_finished_run_does_not_clear_the_append_guard(
     assert marker["finished"] is True and "carried" not in marker
 
 
+def test_a_narrower_append_run_does_not_clear_the_append_guard(
+        monkeypatch, tmp_path, capsys):
+    """An append over a table the stopped run never touched is allowed; it
+    must not leave a marker the next append reads as harmless because its
+    own mode is append."""
+    tables, lake, statements = _estate(6)
+    spark = _Dies(FakeSnowflake(tables), lake, kill="T003")
+    reports, config = _files(tmp_path, statements, _NAMES)
+    _inject_spark(monkeypatch, spark)
+    with pytest.raises(_Killed):
+        _main(reports, config, "--mode", "overwrite", "--tables",
+              "T000", "T001", "T002", "T003", "--parallel", "1")
+    spark.kill = None
+
+    assert _main(reports, config, "--mode", "append", "--tables", "T005",
+                 "--parallel", "1") == 0
+    marker = json.loads((reports / "copy_report_bulk.json").read_text(
+        encoding="utf-8"))["run"]
+    assert marker["finished"] is False and "T003" in marker["carried"]
+
+    before = {n: _rows(spark, n) for n in _NAMES}
+    capsys.readouterr()
+    assert _main(reports, config, "--mode", "append", "--parallel", "1") == 1
+    cap = capsys.readouterr()
+    assert "T000" in cap.out and "--mode overwrite" in cap.out
+    assert {n: _rows(spark, n) for n in _NAMES} == before, \
+        "the stopped run's tables may hold rows with no record"
+
+
+def test_a_marker_without_todo_still_guards_after_a_narrower_run(
+        monkeypatch, tmp_path):
+    """A report written before the marker named its tables: a finished
+    narrower run cannot know which tables the stopped one touched, so it
+    carries every table the manifest lists that is not verified."""
+    tables, lake, statements = _estate(6)
+    spark = _Dies(FakeSnowflake(tables), lake, kill="T003")
+    reports, config = _files(tmp_path, statements, _NAMES)
+    _inject_spark(monkeypatch, spark)
+    with pytest.raises(_Killed):
+        _main(reports, config, "--mode", "overwrite", "--parallel", "1")
+    spark.kill = None
+    path = reports / "copy_report_bulk.json"
+    report = json.loads(path.read_text(encoding="utf-8"))
+    del report["run"]["todo"]
+    path.write_text(json.dumps(report), encoding="utf-8")
+
+    assert _main(reports, config, "--mode", "overwrite", "--tables", "T005",
+                 "--parallel", "1") == 0
+    marker = json.loads(path.read_text(encoding="utf-8"))["run"]
+    assert marker["finished"] is False
+    assert "T003" in marker["carried"] and "T005" not in marker["carried"]
+
+    before = {n: _rows(spark, n) for n in _NAMES}
+    assert _main(reports, config, "--mode", "append", "--parallel", "1") == 1
+    assert {n: _rows(spark, n) for n in _NAMES} == before
+
+
 def test_a_table_named_twice_is_copied_once(monkeypatch, tmp_path):
     tables, lake, statements = _estate(2)
     spark = FakeLakeSpark(FakeSnowflake(tables), lake)
@@ -184,6 +241,33 @@ def test_a_snapshot_the_plan_leaves_out_is_still_counted():
     assert tmap["totals"]["table_snapshots"] == 0
     assert tmap["totals"]["snapshots_not_planned"] == 1
     assert "**1** more not in the plan" in render_translation_map(tmap)
+
+
+def test_a_view_the_plan_leaves_out_is_not_counted_as_carried():
+    """A plain view the plan does not migrate gets no DDL, so it is neither
+    carried verbatim nor translated: it is counted as not in the plan, and
+    so is a materialized view left out with it."""
+    from report.render import render_translation_map, translation_map_section
+    from report.translation_map import build_translation_map
+    view = {"source_identifier": "DB.S.V", "object_type": "VIEW",
+            "view_text_show": "create view V as select A from T",
+            "columns": []}
+    mv = {"source_identifier": "DB.S.MV", "object_type": "VIEW",
+          "source_metadata": {"is_materialized": "Y"}, "columns": []}
+    inventory = {"inventory": [view, mv]}
+    carried = build_translation_map(
+        inventory, {"can_migrate": [{"source_identifier": "DB.S.V"}]}, None)
+    assert carried["totals"]["views_verbatim"] == 1
+    assert carried["totals"]["views_not_planned"] == 0
+    tmap = build_translation_map(inventory, {"can_migrate": []}, None)
+    t = tmap["totals"]
+    assert t["views_verbatim"] == 0 and t["views_translated"] == 0
+    assert t["views_not_planned"] == 1
+    assert t["snapshots_not_planned"] == 1
+    assert "**1** not in the plan" in render_translation_map(tmap)
+    summary = " ".join(translation_map_section(tmap))
+    assert "1 not in the plan" in summary
+    assert "1 more snapshot(s) not in the plan" in summary
 
 
 @pytest.mark.parametrize("body", [

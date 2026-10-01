@@ -284,3 +284,20 @@ def test_every_writing_stage_is_named_as_a_writer():
         assert "destructive" in text, \
             f"{where}: teardown stops or deletes clusters"
         assert "snowmig_02_copy_<schema>" in text, where
+
+
+def test_the_writes_outside_the_stage_count_are_named_too(tmp_path):
+    """`jobs --register` creates AIDP jobs and notebooks with no --execute,
+    and the opt-in per-stage report publish uploads after every phase.
+    Neither is a board stage, so neither is in the count, but a reader
+    auditing what writes to AIDP must find both wherever the writers are
+    listed."""
+    import report.stages as stages_module
+    preamble = render_stages(build_stage_board(tmp_path)).split(
+        "| Stage |", 1)[0]
+    for where, text in (("SKILL.md point 1", _point_one()),
+                        ("ARCHITECTURE.md", _architecture_writers()),
+                        ("report/stages.py", stages_module.__doc__),
+                        ("board preamble", preamble)):
+        assert "jobs --register" in text, where
+        assert "publish_each_stage" in text, where

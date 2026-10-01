@@ -70,3 +70,17 @@ def test_an_executed_catalog_result_that_created_it_counts(tmp_path):
          "action": "created"}))
     res = build_resources(out)
     assert {c["name"] for c in _by(res, "catalog")} == {"src_ext"}
+
+
+def test_a_create_not_yet_listed_then_reused_is_allocated(tmp_path):
+    """`catalog --execute` sent the create, did not see it listed in time
+    (`create_requested`), and a re-run reused it: still this migration's
+    allocation, never "existed before this migration"."""
+    out = _out(tmp_path)
+    _ledger(out, name="tgt_int", type="INTERNAL", key="tgt_int",
+            action="create_requested")
+    _ledger(out, name="tgt_int", type="INTERNAL", key="tgt_int",
+            action="reused")
+    res = build_resources(out)
+    assert {c["name"] for c in _by(res, "catalog")} == {"tgt_int"}
+    assert "tgt_int" not in {r["name"] for r in res["not_allocated"]}

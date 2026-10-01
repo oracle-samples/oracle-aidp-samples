@@ -313,7 +313,7 @@ def test_discovery_selects_the_facts():
 
 
 def test_discovery_WRITES_the_facts_into_the_manifest():
-    """Selecting them is half. level2 selected them and still wrote a
+    """Selecting them is half. An earlier version selected them and still wrote a
     manifest without them, so the bridge flagged every object UNKNOWN."""
     src = _Source(
         tables=[{"TABLE_SCHEMA": "S", "TABLE_NAME": "T",

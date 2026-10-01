@@ -1,6 +1,6 @@
 """A copy killed mid-chunk leaves a record for every table it wrote into.
 
-`--parallel` (round 4) settles a chunk of 50 tables at once: ONE batched
+`--parallel` settles a chunk of 50 tables at once: ONE batched
 source after-count once every INSERT in the chunk has finished (live
 2026-09-29: 50 qualified counts in one UNION ALL, 25 s). The report was
 then written only when the whole chunk had settled -- even at --parallel 1,

@@ -38,10 +38,15 @@ Then say three things out loud:
    of the pushed plan) copies rows — so ask before every `run`. `publish`
    copies the finished report into the workspace, and `teardown` is
    **destructive**: it stops the clusters this migration allocated, or
-   deletes them when asked. Both are dry runs unless `--execute`. Everything
-   else is read-only, apart from one narrow opt-in that is itself gated by
-   `--execute` (`smoke --write-probe --execute`); `notebook --upload` writes
-   nothing (a dry run, refused with `--execute`). If someone is
+   deletes them when asked. Both are dry runs unless `--execute`. Outside the
+   board's stages, three more things write, each opt-in:
+   `smoke --write-probe --execute` (one probe schema, created and removed);
+   `jobs --register`, which uploads the generated notebooks and creates
+   their jobs (the flag is the confirmation, no `--execute`); and the
+   per-stage report publish (`reporting.publish_each_stage: true`), which
+   uploads the report after every phase. Everything else is read-only;
+   `notebook --upload` writes nothing (a dry run, refused with
+   `--execute`). If someone is
    nervous about running the pipeline, this is the sentence that answers them.
 2. **Read out every ⚠️ row.** A flagged stage either found something or could
    not look, and those are not the same. `0 policy exposures` means the check

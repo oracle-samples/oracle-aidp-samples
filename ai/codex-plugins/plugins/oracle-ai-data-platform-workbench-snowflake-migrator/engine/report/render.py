@@ -234,6 +234,18 @@ def render_ddl_plan(ddl: dict) -> str:
     stmts = ddl.get("statements") or []
     out = ["# Target DDL plan", "",
            f"{len(stmts)} statement(s). Nothing has been executed.", ""]
+    # What the copy does with a column whose type changed after this plan:
+    # signed off here, or `convert` would go unreviewed.
+    drift = ddl.get("source_type_drift")
+    if drift:
+        out += [f"Source type drift: `mapping.source_type_drift: {drift}` -- "
+                + ("a column whose live type is not the planned one is "
+                   "copied with a fixed read for its live type, never "
+                   "reviewed, and its table recorded "
+                   "`verified_with_conversion`."
+                   if drift == "convert" else
+                   "the copy refuses a table with a column whose live type "
+                   "is not the planned one (`type_drift`)."), ""]
     # LEAD with what the target will refuse. Buried at the bottom this reads
     # as a footnote; it is the reason the whole plan would fail.
     rejected = ddl.get("target_rejected") or []
@@ -985,7 +997,9 @@ def render_translation_map(tmap: dict) -> str:
            f'verbatim · **{t.get("views_refused", 0)}** refused · '
            f'**{t.get("views_blocked_by_kind", 0)}** refused by kind · '
            f'**{t.get("views_without_sql", 0)}** with no SQL captured · '
-           f'**{t.get("views_unparseable", 0)}** unparseable. '
+           f'**{t.get("views_unparseable", 0)}** unparseable'
+           + (f' · **{t["views_not_planned"]}** not in the plan'
+              if t.get("views_not_planned") else "") + '. '
            f'**{t.get("table_snapshots", 0)}** migrate as a table snapshot '
            f'(materialized view / dynamic table)'
            + (f', **{t["snapshots_not_planned"]}** more not in the plan'
@@ -1088,9 +1102,13 @@ def translation_map_section(tmap: dict | None) -> list[str]:
            f'{t.get("views_translated", 0)} translated · '
            f'{t.get("views_verbatim", 0)} verbatim · '
            f'{t.get("views_refused", 0)} refused · '
-           f'{t.get("views_blocked_by_kind", 0)} refused by kind; '
+           f'{t.get("views_blocked_by_kind", 0)} refused by kind'
+           + (f' · {t["views_not_planned"]} not in the plan'
+              if t.get("views_not_planned") else "") + '; '
            f'{t.get("table_snapshots", 0)} table snapshot(s) '
-           f'(materialized view / dynamic table).', "",
+           f'(materialized view / dynamic table)'
+           + (f', {t["snapshots_not_planned"]} more snapshot(s) not in the '
+              f'plan' if t.get("snapshots_not_planned") else "") + '.', "",
            f"- Dialect rules applied: {_tick(applied)}",
            f"- Dialect rules that refused a view: {_tick(refused)}",
            "- Type mappings: " + (", ".join(
@@ -1990,8 +2008,9 @@ def render_preflight(plan: dict, *, source: dict | None = None,
     out += ["## What would NOT happen", "",
             "- **No data moves.** Every table arrives with its columns and "
             "**zero rows**. This is a structural clone.",
-            "- **Nothing is written to Snowflake.** The source is **read-only**, "
-            "enforced at the transport, whatever the credential allows.",
+            "- **Nothing this plugin sends to Snowflake is a write.** "
+            "Statements are limited to read verbs at the transport, and the "
+            "migration runs under a **read-only** role.",
             "- **Nothing existing is replaced or dropped.** An object that "
             "already exists with a different structure is reported and left "
             "exactly as found.", ""]
@@ -2031,9 +2050,13 @@ def render_stages(board: dict) -> str:
            "`--execute`, so invoking it IS the write. **`publish`** copies the finished report into "
            "the workspace and **`teardown`**, destructive, stops (or deletes) the clusters "
            "this migration allocated, both dry runs unless `--execute`. "
-           "Every other stage is read-only. The one further write is "
-           "`smoke --write-probe --execute`, which creates one probe schema "
-           "and removes it again; `--write-probe` alone is a dry run. "
+           "Every other stage is read-only. Three further writes are "
+           "opt-in: `smoke --write-probe --execute`, which creates one probe "
+           "schema and removes it again (`--write-probe` alone is a dry "
+           "run); `jobs --register`, which uploads the generated notebooks "
+           "and creates their jobs; and the per-stage report publish "
+           "(`reporting.publish_each_stage: true`), which uploads the report "
+           "after every phase. "
            "`notebook --upload` sends nothing: without `--execute` it is a "
            "dry run, with `--execute` it is refused; the structure is "
            "created by `run --job snowmig_01_structure` (S10).", "",

@@ -95,7 +95,7 @@ def _stream_row(**over):
 
 def _census(bodies: bool = True, **rows):
     """A census over `rows`; `bodies` is --capture-definitions, which keeps
-    task bodies and dynamic-table / materialized-view queries."""
+    task bodies and dynamic-table queries."""
     fake = FakeSql(_responses(**rows))
     return build_census(fake, ["DB"], include_definitions=bodies), fake
 
@@ -130,9 +130,12 @@ def test_a_body_is_kept_only_with_capture_definitions():
     assert "definition" not in task["source_facts"]
     assert task["source_facts"]["body_captured"] is False
     assert task["source_facts"]["schedule"] == "60 MINUTE"
-    for kind in ("DYNAMIC_TABLE", "MATERIALIZED_VIEW"):
-        facts = _one(census, kind)["source_facts"]
-        assert "text" not in facts and facts["body_captured"] is False, kind
+    facts = _one(census, "DYNAMIC_TABLE")["source_facts"]
+    assert "text" not in facts and facts["body_captured"] is False
+    # A materialized view's query is captured anyway -- SHOW VIEWS puts it
+    # in the inventory as the view text -- so it is not marked missing.
+    facts = _one(census, "MATERIALIZED_VIEW")["source_facts"]
+    assert "text" not in facts and "body_captured" not in facts
     kept, _ = _census(True, **{"show tasks": [_task_row()]})
     assert _one(kept, "TASK")["source_facts"]["definition"].startswith(
         "INSERT INTO STAGING_EVENTS")

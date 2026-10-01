@@ -28,7 +28,8 @@ No bundled credentials, no MCP server, no third-party network calls.
 1. **Your Snowflake account** — read-only, from your machine through
    `snowflake-connector-python`, and from your AIDP cluster through the AIDP
    Snowflake connector when the data-plane jobs run. The transport refuses
-   any statement that is not a read.
+   any statement not led by a read verb; the read-only role is what prevents
+   writes.
 2. **Your AIDP tenancy** — through the `aidp` CLI or `oci raw-request`, using
    the OCI configuration already on your machine, over TLS. The plugin does
    not read or transmit your OCI credentials.
@@ -73,8 +74,11 @@ No bundled credentials, no MCP server, no third-party network calls.
   `reporting.publish_each_stage: true`, or `publish --execute`, these files
   are uploaded to the migration workspace with the reports.
 - **In your AIDP tenancy**, only with `--execute` (or, for `run`, when you
-  start a job): the migration workspace, cluster, folder, notebooks and jobs
-  (`provision --execute`); the catalogs (`catalog --execute`); the target
+  start a job, and for `jobs --register`, where the flag is the
+  confirmation): the migration workspace, cluster, folder, notebooks and jobs
+  (`provision --execute`); the generated notebooks under
+  `backup-snowflake-migration/generated_jobs/` and their jobs
+  (`jobs --register`); the catalogs (`catalog --execute`); the target
   schemas and tables and, when you run a copy job, the rows — the copy job
   reads every row of each in-scope table from Snowflake into your AIDP
   catalog (`run`); a probe schema `snowmig_permission_probe_<suffix>`,
