@@ -79,6 +79,16 @@ def assert_read_only(sql: str) -> None:
             f"Snowflake (allowed: {', '.join(READ_ONLY_VERBS)})")
 
     for part in statements:
+        # The shared lexer reads a backtick span as a quoted name -- Spark's
+        # quoting, for the SQL this plugin emits. Snowflake has no such
+        # quoting, so a `;` or `->>` between backticks is code to it and
+        # hidden from the checks below. Nothing sent to Snowflake has one.
+        if any(kind == "ident" and text.startswith("`")
+               for kind, text in lexer.segments(part)):
+            raise SourceWriteRefused(
+                "a backtick is not Snowflake quoting and could hide a "
+                "second statement; refused. This plugin only sends single "
+                "reads.")
         # `->>` (Snowflake's flow operator) chains a second statement into
         # the same request, so a write could ride behind an accepted read.
         if lexer.find_code(r"->>", part):

@@ -58,6 +58,27 @@ class SourceWriteRefused(PermissionError):
     """A statement that is not a read was handed to the pushdown transport."""
 
 
+def _word_state(state: str, ch: str) -> str:
+    """The unquoted word in progress after code character `ch`.
+
+    "ident", "number" or "". Snowflake allows `$` after the first character
+    of an unquoted identifier, so `A$$B` is ONE name and its `$$` does not
+    open a dollar-quoted string; opening one there hid a `->>` or `;` behind
+    it. A number or a `$1` column reference ends before `$`, so after one --
+    `1$$x$$` -- the `$$` does open a string. The engine's lexer applies the
+    same rule, so the two read-only guards agree.
+    """
+    if ch.isalpha() or ch == "_":
+        if state == "number" and ch in "eE":
+            return "number"             # exponent: 1e5
+        return "ident"
+    if ch.isdigit():
+        return "ident" if state == "ident" else "number"
+    if ch == "$" and state == "ident":
+        return "ident"
+    return ""
+
+
 def _code_only(sql: str) -> str:
     """`sql` with string literals and comments blanked, length preserved.
 
@@ -73,10 +94,12 @@ def _code_only(sql: str) -> str:
     """
     out = []
     i, n = 0, len(sql)
+    word = ""
     while i < n:
         c = sql[i]
         two = sql[i:i + 2]
         if c in ("'", '"'):
+            word = ""
             out.append(" ")
             i += 1
             closed = False
@@ -100,7 +123,8 @@ def _code_only(sql: str) -> str:
                 raise SourceWriteRefused(
                     f"an unclosed {c} literal; refused (fails closed)")
             continue
-        if two == "$$":
+        if two == "$$" and word != "ident":
+            word = ""
             out.append("  ")
             i += 2
             while i < n and sql[i:i + 2] != "$$":
@@ -114,13 +138,17 @@ def _code_only(sql: str) -> str:
             continue
         # `//` is a line comment in Snowflake exactly as `--` is. Missing it
         # let an apostrophe in `// it's` open a phantom literal that hid the
-        # `;` on the next line -- two statements read as one.
+        # `;` on the next line -- two statements read as one. A bare CR ends
+        # the line too: reading on to the next LF kept a `;` after the CR in
+        # the comment here and in code to Snowflake.
         if two in ("--", "//"):
-            while i < n and sql[i] != "\n":
+            word = ""
+            while i < n and sql[i] not in "\r\n":
                 out.append(" ")
                 i += 1
             continue
         if two == "/*":
+            word = ""
             # Snowflake ends a block comment at the FIRST `*/` (no nesting),
             # as the engine's lexer does. Counting depth made
             # `select 1 /* /* */ ; delete from t` one statement here and
@@ -137,6 +165,7 @@ def _code_only(sql: str) -> str:
             i += 2
             continue
         out.append(c)
+        word = _word_state(word, c)
         i += 1
     return "".join(out)
 
