@@ -79,10 +79,15 @@ migrator plugin, newest first. The format loosely follows
 - `teardown --scope all` also removes the jobs and notebooks `jobs --register`
   created.
 - The copy compares every column's live source type with the type its plan
-  spec was decided for, not only DECIMAL columns. A column whose type changed
-  after the plan was approved is refused by default (`type_drift`), and
-  `mapping.source_type_drift: convert` copies it under its new type as
-  `verified_with_conversion`, never plain `verified`.
+  spec was decided for, not only DECIMAL columns (in connector mode: the type
+  name, a NUMBER's precision and scale and a TIME's precision; in
+  external-catalog mode, a DECIMAL target whose source is neither DECIMAL nor
+  an integer). A column whose type changed after the plan was approved is
+  refused by default (`type_drift`), and `mapping.source_type_drift: convert`
+  copies it with a fixed read for its live type as
+  `verified_with_conversion`, never plain `verified`. `DDL_PLAN.md` shows
+  the setting, and a plan whose spec predates `source_type` is logged and
+  recorded as not checked.
 - An object name placed in a Snowflake string literal (Iceberg lookups,
   security attachments, SHOW paging) escapes the backslash as well as the
   quote, so a crafted name cannot close the literal. An external table's

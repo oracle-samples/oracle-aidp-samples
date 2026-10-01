@@ -29,7 +29,8 @@ import re
 from dataclasses import asdict, dataclass, field
 
 from snowflake_source.dialect import lexer
-from snowflake_source.dialect.types import copy_expressions, source_type_key
+from snowflake_source.dialect.types import (copy_expressions,
+                                            source_type_key, time_precision)
 from snowflake_source.dialect.views import (  # noqa: F401  (re-exported)
     detect_unsupported_constructs, extract_view_body, extract_view_columns,
     translate_view_body,
@@ -554,7 +555,9 @@ def copy_spec(columns: list[dict], *, geospatial: str | None = None
         out.append({"name": c["COLUMN_NAME"],
                     "source_type": source_type_key(
                         c.get("DATA_TYPE"), c.get("NUMERIC_PRECISION"),
-                        c.get("NUMERIC_SCALE")),
+                        c.get("NUMERIC_SCALE"),
+                        time_precision(c.get("DATETIME_PRECISION"),
+                                       c.get("type_detail"))),
                     "target_type": c["target_type"],
                     "read_expr": read, "convert_expr": convert})
     return out

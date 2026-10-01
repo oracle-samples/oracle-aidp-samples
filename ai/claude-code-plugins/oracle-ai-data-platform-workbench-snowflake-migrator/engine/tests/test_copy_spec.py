@@ -165,6 +165,9 @@ def test_every_table_statement_carries_the_spec_for_every_column():
                           "convert_expr": "CAST(`TINY` AS DECIMAL(38,37))"}
     assert by["V"]["convert_expr"] == "from_json(`V`, 'array<float>')"
     assert by["T"]["read_expr"] == "TO_VARCHAR(\"T\", 'HH24:MI:SS.FF3')"
+    # The read's format depends on the TIME precision, so the type the
+    # copy compares with the live source carries it.
+    assert by["T"]["source_type"] == "time(3)"
     assert by["NAME"]["read_expr"] == '"NAME"'
     # The inventory's own geospatial decision decides the read.
     assert by["G"]["read_expr"] == 'ST_ASWKT("G")'

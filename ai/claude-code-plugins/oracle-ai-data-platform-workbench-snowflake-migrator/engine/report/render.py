@@ -234,6 +234,18 @@ def render_ddl_plan(ddl: dict) -> str:
     stmts = ddl.get("statements") or []
     out = ["# Target DDL plan", "",
            f"{len(stmts)} statement(s). Nothing has been executed.", ""]
+    # What the copy does with a column whose type changed after this plan:
+    # signed off here, or `convert` would go unreviewed.
+    drift = ddl.get("source_type_drift")
+    if drift:
+        out += [f"Source type drift: `mapping.source_type_drift: {drift}` -- "
+                + ("a column whose live type is not the planned one is "
+                   "copied with a fixed read for its live type, never "
+                   "reviewed, and its table recorded "
+                   "`verified_with_conversion`."
+                   if drift == "convert" else
+                   "the copy refuses a table with a column whose live type "
+                   "is not the planned one (`type_drift`)."), ""]
     # LEAD with what the target will refuse. Buried at the bottom this reads
     # as a footnote; it is the reason the whole plan would fail.
     rejected = ddl.get("target_rejected") or []

@@ -543,8 +543,9 @@ class SnowflakeSource:
         own metadata lookup, at 126-241 s per table (2026-09-29); one
         INFORMATION_SCHEMA.COLUMNS query answers a chunk of tables instead.
         Types are what the copy's pre-flight compares: NUMBER(p,s) becomes
-        `decimal(p,s)` (the DECIMAL check), everything else is Snowflake's
-        own type name lower-cased. A table the query does not list is ABSENT
+        `decimal(p,s)` (the DECIMAL check), TIME(p) `time(p)` (the read's
+        format keeps p digits), everything else is Snowflake's own type
+        name lower-cased. A table the query does not list is ABSENT
         from the result, never an empty list -- the caller says so.
         Connector mode only.
         """
@@ -558,7 +559,8 @@ class SnowflakeSource:
             batch = tables[start:start + chunk]
             names = ", ".join(f"'{_sql_literal(t)}'" for t in batch)
             sql = ("select TABLE_NAME, COLUMN_NAME, DATA_TYPE, "
-                   "NUMERIC_PRECISION, NUMERIC_SCALE, ORDINAL_POSITION "
+                   "NUMERIC_PRECISION, NUMERIC_SCALE, DATETIME_PRECISION, "
+                   "ORDINAL_POSITION "
                    f"from {_sql_database(database)}.INFORMATION_SCHEMA.COLUMNS "
                    f"where TABLE_SCHEMA = '{_sql_literal(schema)}' "
                    f"and TABLE_NAME in ({names}) "
@@ -573,6 +575,9 @@ class SnowflakeSource:
                         data.get("NUMERIC_PRECISION") is not None:
                     kind = (f"decimal({int(data['NUMERIC_PRECISION'])},"
                             f"{int(data.get('NUMERIC_SCALE') or 0)})")
+                elif kind.upper() == "TIME" and \
+                        data.get("DATETIME_PRECISION") not in (None, ""):
+                    kind = f"time({int(data['DATETIME_PRECISION'])})"
                 out.setdefault(str(data["TABLE_NAME"]), {})[
                     str(data["COLUMN_NAME"])] = kind.lower()
         return out

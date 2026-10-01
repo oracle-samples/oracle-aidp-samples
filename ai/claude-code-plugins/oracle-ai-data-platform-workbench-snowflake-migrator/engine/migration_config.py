@@ -90,9 +90,10 @@ MAPPING_DEFAULTS = {
     # A source column whose type changed after the plan was approved. The
     # other defaults convert types that were reviewed when the plan was
     # approved; this type never was, so the table is refused (`type_drift`)
-    # until assess and plan are re-run. `convert` copies the column under
-    # the mapping rules for its NEW type and records the table
-    # `verified_with_conversion`, never plain `verified`.
+    # until assess, plan and ddl are re-run. `convert` copies the column
+    # with the copy's fixed read for its live type (the other modes here are
+    # not re-applied) and records the table `verified_with_conversion`,
+    # never plain `verified`.
     "source_type_drift": "refuse",
 }
 

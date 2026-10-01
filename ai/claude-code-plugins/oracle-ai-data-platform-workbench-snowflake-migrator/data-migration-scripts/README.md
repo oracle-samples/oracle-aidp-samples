@@ -127,9 +127,21 @@ offset, and cannot open a table holding a `VECTOR`, `MAP` or structured
   DECIMAL, is `type_drift` and nothing is read or written. A table
   `INFORMATION_SCHEMA` does not list, or a chunk whose query fails, is
   `failed`, NOT copied.
+- Every column's live type is then compared with the type the plan's spec
+  was decided for (`source_type`: the type name, a NUMBER's precision and
+  scale, a TIME's precision). A column whose type changed since the plan is
+  `type_drift` under `mapping.source_type_drift: refuse` (the default,
+  recorded in `ddl_plan.json` by `ddl`); under `convert` it is read with the
+  copy's fixed read for its live type into the existing target column and
+  the table is `verified_with_conversion`. A change inside a structured
+  VECTOR, MAP, OBJECT or ARRAY is not seen (`INFORMATION_SCHEMA` does not
+  carry element types). A spec without `source_type` (an older `ddl`) is not
+  compared; the run log and the table's `read.source_type_unchecked` say so.
 - `external-catalog` mode reads the three-part name; the plan's read
   expressions are Snowflake SQL and are not applied there (the run log says
-  so).
+  so). Its only type check against the plan is a DECIMAL target column
+  whose source is neither DECIMAL nor an integer, under the same
+  `mapping.source_type_drift`.
 
 ## Structure modes
 
@@ -187,11 +199,12 @@ manifest lists as tables.
 | Status | Meaning | Problem? |
 |---|---|---|
 | `verified` | counts equal after the copy (and decimal sums, with `counts+sums`) | no |
+| `verified_with_conversion` | verified as above, but a column whose type changed since the plan was copied under `mapping.source_type_drift: convert`; `source_type_drift` names each such column with its planned and live type and a warning. Never plain `verified`: that conversion was not reviewed | no |
 | `skipped_nonempty` | `skip-existing` found rows already there, **equal** to the source count; not re-verified | no |
 | `count_mismatch` | counts differ — after a copy, or on a `skip-existing` target that already held a different number of rows (nothing copied) | **yes** |
 | `sum_mismatch` | counts equal, a decimal column does not sum equal | **yes** |
 | `sum_not_comparable` | counts equal (and every other decimal column sums equal), but a decimal column's total is past 38 digits, which neither engine's SUM can hold; `sums_not_comparable` names each such column and why. Re-copying does not change it: re-copy with `--mode overwrite --verify counts` to accept the count check for that table | **yes** |
-| `type_drift` | the live source's column names are not the target's (renamed, dropped or added since the plan; `layout_drift` lists them), or a source DECIMAL column is not DECIMAL, or narrower, on the target; NOT copied — the rows would land in the wrong columns, or be rounded or truncated, with the count intact. A source whose columns are only **reordered** is copied: every column is selected by name, in the target's order | **yes** |
+| `type_drift` | the live source's column names are not the target's (renamed, dropped or added since the plan; `layout_drift` lists them), or a source DECIMAL column is not DECIMAL, or narrower, on the target, or (`source_type_drift`) a column's type changed since the plan was approved and `mapping.source_type_drift` is `refuse`; NOT copied — the rows would land in the wrong columns, or be rounded or truncated, with the count intact. A source whose columns are only **reordered** is copied: every column is selected by name, in the target's order | **yes** |
 | `failed` | the copy raised — including a `DESCRIBE` of the target that failed for any reason but not-found (a metastore timeout, a permission denied: "could not look" is never recorded as absent); `insert_completed: true` means the rows landed before verification failed (or, with `awaiting_source_recount: true`, before the run that wrote them stopped), so re-copy with `--mode overwrite`; an `append` run refuses such a table and records why | **yes** |
 | `target_missing` | Spark says there is no table to copy into (usually `not_in_plan` upstream); the table is skipped and the run continues | no — **yes** when the structure report records the table `created` or `already_existed`, or the approved plan places the table at this target (also with `--tables`, or before `01_create_structure` has run) |
 
@@ -208,6 +221,7 @@ live catalog)
 | Verdict | Meaning | Problem? |
 |---|---|---|
 | `MIGRATED_VERIFIED` | copy verified, table present (and, with `--counts`, still at the verified row count) | no |
+| `MIGRATED_WITH_CONVERSION` | as `MIGRATED_VERIFIED`, but the copy was `verified_with_conversion`: the reason names each column converted after a source type change (planned -> live, into the target type) | no |
 | `PRESENT_NOT_REVERIFIED` | rows were already there at the source's count; sums not re-checked | no |
 | `STRUCTURE_ONLY` | table present, no copy yet | no |
 | `NOT_MIGRATED` | not attempted yet (expected while the migration runs schema by schema) | no |

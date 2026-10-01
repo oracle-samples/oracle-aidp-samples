@@ -681,7 +681,16 @@ Rows are verified by the copy job, after the copy.
 | `VARIANT`, `OBJECT`, `ARRAY` | carried as JSON text (`STRING`), with a warning on every affected column (`mapping.semi_structured: string`) | `--semi-structured block`: the table is blocked until a typed struct/map/array design exists |
 | `GEOGRAPHY`, `GEOMETRY` | the table is blocked | `--geospatial string` (GeoJSON) or `--geospatial wkt` (WKT, which does not carry a `GEOMETRY`'s SRID): carried as text, with no spatial type, index or predicate support |
 | `TIMESTAMP_NTZ` | carried as `TIMESTAMP`, with the timezone caveat recorded on every affected column (`mapping.timestamp_ntz: timestamp`); values are read through the session timezone, so keep sessions on UTC | `--timestamp-ntz preserve`: kept as `TIMESTAMP_NTZ`, which the target refuses at CREATE TABLE, so `ddl` halts (exit 3) |
-| a column whose type changed after the plan was approved | the copy refuses the table, `type_drift`, before any row is read (`mapping.source_type_drift: refuse`); re-run `assess` and `plan` to pick up the new type | `mapping.source_type_drift: convert`, then re-run `ddl`: the column is copied under the mapping rules for its new type into the existing target column, with a warning on the column, and the table is recorded `verified_with_conversion`, never `verified` |
+| a column whose type changed after the plan was approved | the copy refuses the table, `type_drift`, before any row is read (`mapping.source_type_drift: refuse`); re-run `assess`, `plan` and `ddl` to pick up the new type (the per-column spec lives in `ddl_plan.json`), and recreate the table from the new plan | `mapping.source_type_drift: convert`, then re-run `ddl`: the column is copied with the copy's fixed read for its live type into the existing target column (the plan's `semi_structured` and `geospatial` modes are not re-applied: a GEOGRAPHY/GEOMETRY reads as GeoJSON, a VARIANT/OBJECT/ARRAY as JSON text), with a warning on the column, and the table is recorded `verified_with_conversion`, never `verified` |
+
+The type change is checked in `connector` mode (the default) for every
+column: the type name, a NUMBER's precision and scale, and a TIME's
+precision. It does not see a change inside a structured `VECTOR`, `MAP`,
+`OBJECT` or `ARRAY` (an element or field type), which
+`INFORMATION_SCHEMA` does not carry. In `external-catalog` mode only a
+DECIMAL target column whose source is now neither DECIMAL nor an integer is
+caught. A `ddl_plan.json` written before the spec recorded `source_type` is
+not checked at all; the copy's log and each table's `read` record say so.
 
 **Structured** types are typed, so neither switch applies to them:
 `VECTOR(FLOAT, n)` becomes `ARRAY<FLOAT>`, `MAP(K, V)` `MAP<STRING, v>`, a

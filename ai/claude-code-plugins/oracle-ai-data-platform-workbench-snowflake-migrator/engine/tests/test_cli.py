@@ -123,6 +123,27 @@ def test_ddl_subcommand_generates_sql_offline(tmp_path):
     assert "USING DELTA" in ddl["statements"][0]["sql"]
 
 
+@pytest.mark.parametrize("configured,expected", [
+    (None, "refuse"), ("convert", "convert")])
+def test_ddl_records_the_source_type_drift_setting_for_the_copy(
+        tmp_path, monkeypatch, configured, expected):
+    """The copy stage has no config of its own: ddl_plan.json carries the
+    setting, and DDL_PLAN.md -- what is signed off -- shows it."""
+    if configured:
+        (tmp_path / "snowmig-config.yaml").write_text(
+            f"mapping:\n  source_type_drift: {configured}\n",
+            encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    write(tmp_path, "inventory.json", INV)
+    write(tmp_path, "dependencies.json", DEPS)
+    main(["plan", "--out-dir", str(tmp_path)])
+    assert main(["ddl", "--out-dir", str(tmp_path)]) == 0
+    ddl = json.loads((tmp_path / "ddl_plan.json").read_text(encoding="utf-8"))
+    assert ddl["source_type_drift"] == expected
+    md = (tmp_path / "DDL_PLAN.md").read_text(encoding="utf-8")
+    assert f"`mapping.source_type_drift: {expected}`" in md
+
+
 def test_ddl_emits_views_too_after_their_tables(tmp_path):
     inv = json.loads(json.dumps(INV))
     view = json.loads(json.dumps(inv["inventory"][0]))
