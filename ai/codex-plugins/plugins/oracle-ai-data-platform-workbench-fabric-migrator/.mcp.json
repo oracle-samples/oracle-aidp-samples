@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "fabric-aidp-migrator": {
+      "command": "python3",
+      "args": [
+        "-m",
+        "fabric_aidp.mcp_server"
+      ],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}"
+      },
+      "cwd": "."
+    }
+  }
+}

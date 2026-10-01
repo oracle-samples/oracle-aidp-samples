@@ -1,0 +1,52 @@
+Third-party Fabric artifacts, vendored as a regression corpus
+==========================================================
+
+78 real Microsoft Fabric exports collected from 17 public GitHub
+repositories: 14 corpus, 25 notebooks, 30 pipelines, 9 warehouse.
+
+WHY THESE AND NOT MORE
+----------------------
+The set they were drawn from has 149 files from 42 repositories. Only the
+78 whose source repository carries a permissive licence are here.
+The other 71 are deliberately absent:
+
+  59  no licence at all -- all rights reserved, so redistribution is not ours
+      to grant
+   2  GPL-2.0 -- copyleft, and it would conflict with this repository's MIT
+      licence
+  10  a licence GitHub cannot identify, which is not the same as permission
+
+Licences represented: 77 x MIT, 1 x MPL-2.0
+
+Every file's source repository, path, URL and licence is recorded in the
+PROVENANCE.json beside it. Each remains under its own licence and its own
+copyright holders; vendoring here is redistribution under those terms, not a
+transfer of them. The copyright and permission notices those licences require
+are reproduced in full in ../THIRD_PARTY_LICENSES.md.
+
+WHY VENDOR THEM AT ALL
+----------------------
+A fixture written alongside the rules encodes the same misunderstanding as the
+rules and cannot falsify them. These can, and have: they are why .ipynb support
+exists, why the Synapse notebook header is accepted, why activities nested in a
+ForEach are walked, and why pipeline-to-pipeline ordering edges are captured.
+
+SOURCE REPOSITORIES
+-------------------
+  alisonpezzott/pyfabricops-examples
+  corneliascode/Automating-synthetic-data-creation-reporting-using-Microsoft-Fabric-
+  djouallah/aemo_fabric
+  ecotte/Fabric-Monitoring-RTI
+  edkreuk/FMD_FRAMEWORK
+  gbrueckl/Fabric.Toolbox
+  microsoft/FabConRTIWorkshop
+  microsoft/awesome-rayfin
+  microsoft/fabric-cicd
+  microsoft/fabric-samples
+  microsoft/fabric-task-flows
+  microsoft/fabric-toolbox
+  microsoft/terraform-provider-fabric
+  misantibanez/fabric_cicd
+  naveenjujaray/microsoft-fabric-schema-drift-detection
+  ryanMicrosoftTest/fabric-data-engineering-ws
+  wajahatzeeshan/fabric-repo
