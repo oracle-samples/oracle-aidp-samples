@@ -78,8 +78,9 @@ written at most every REPORT_WRITE_INTERVAL seconds (and at every chunk's
 end), so a job that stops can lose its last few records; the report's `run`
 marker says a run did not finish, and `--mode append` then refuses the
 tables that run could have touched -- resume in the stopped run's own mode
-first. A later run over a narrower --tables scope carries the others
-forward, still refused for append, until a run covers them.
+first. A later run over a narrower --tables scope, in any mode, carries the
+others forward, still refused for append, until a run covers them (a
+marker that does not name its tables puts every unverified table at risk).
 """
 from __future__ import annotations
 
@@ -1611,34 +1612,55 @@ def main(argv: list[str] | None = None) -> int:
     # over a narrower --tables scope does not clear an unfinished run's
     # other tables: they are carried forward (`carried`), unverified, and
     # the marker stays unfinished until a run covers them.
+    # A marker of an append run counts only for what it carried: an append
+    # run writes each table's record the moment its copy finishes, so its
+    # own tables are not at risk -- but the tables it carried still are.
     prev_run = report.get("run") or {}
+    prev_mode = prev_run.get("mode")
     unfinished = (bool(prev_run) and not prev_run.get("finished")
-                  and prev_run.get("mode") not in (None, "append"))
+                  and (prev_mode not in (None, "append")
+                       or bool(prev_run.get("carried"))))
+    # The mode the stopped run's tables are resumed in.
+    resume_mode = (prev_run.get("carried_mode") if prev_mode == "append"
+                   else None) or prev_mode
     at_risk = None
-    if unfinished and "todo" in prev_run:
+    if unfinished:
+        if prev_mode == "append":
+            touched = []
+        elif "todo" in prev_run:
+            touched = prev_run.get("todo") or []
+        else:
+            # A marker written before it named its tables: which ones the
+            # stopped run touched is unknown, so every table this schema
+            # could have been copied is at risk.
+            touched = [*(t["name"] for t in record["tables"]),
+                       *(planned_snapshots(ddl_plan, args.schema)
+                         if ddl_plan else []),
+                       *report["tables"], *names]
         at_risk = [n for n in dict.fromkeys(
-                       [*(prev_run.get("carried") or []),
-                        *(prev_run.get("todo") or [])])
+                       [*(prev_run.get("carried") or []), *touched])
                    if report["tables"].get(n, {}).get("status")
                    not in _COPY_DONE]
     if not args.dry_run and args.mode == "append" and unfinished:
-        blocked = (todo if at_risk is None
-                   else [n for n in todo if n in set(at_risk)])
+        blocked = [n for n in todo if n in set(at_risk)]
         if blocked:
             listed = ", ".join(blocked[:20]) + (
                 f" and {len(blocked) - 20} more" if len(blocked) > 20 else "")
+            which = (f"the previous copy run of {args.schema} (--mode "
+                     f"{prev_mode}, started {prev_run.get('started_at')})"
+                     if prev_mode != "append" else
+                     f"an earlier copy run of {args.schema} (--mode "
+                     f"{resume_mode})")
             return fail(
-                f"error: the previous copy run of {args.schema} (--mode "
-                f"{prev_run.get('mode')}, started "
-                f"{prev_run.get('started_at')}) did not finish, and its last "
+                f"error: {which} did not finish, and its last "
                 f"records may not have been written: a table it copied in its "
                 f"last seconds can hold rows with no record, and --mode "
                 f"append would add them a second time. Tables at risk: "
-                f"{listed}. Resume with --mode {prev_run.get('mode')} first; "
+                f"{listed}. Resume with --mode {resume_mode} first; "
                 f"append once that run has finished.")
     if not args.dry_run:
         carried = ([n for n in at_risk if n not in set(todo)]
-                   if unfinished and at_risk is not None else [])
+                   if unfinished else [])
         report["run"] = {"mode": args.mode, "finished": False,
                          "started_at": datetime.datetime.now(
                              datetime.timezone.utc).isoformat(),
