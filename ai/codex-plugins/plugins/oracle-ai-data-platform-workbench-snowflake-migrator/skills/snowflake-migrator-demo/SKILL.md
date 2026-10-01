@@ -5,6 +5,11 @@ description: Dev mode. Run the entire Snowflake-to-AIDP migration pipeline again
 
 > **Paths.** `<plugin-root>` is this plugin's directory, two levels above
 > this `SKILL.md`. Write its absolute path wherever `<plugin-root>` appears.
+> `bin/snowmig` is a bash script. Where no bash runs it (Windows, where
+> Codex uses PowerShell), call the engine with the same arguments:
+> `python -B "<plugin-root>/engine/snowmig.py" <stage> [...]`, once its
+> requirements are installed
+> (`python -m pip install -r "<plugin-root>/engine/requirements.txt"`).
 
 # Dev mode — the pipeline, emulated
 

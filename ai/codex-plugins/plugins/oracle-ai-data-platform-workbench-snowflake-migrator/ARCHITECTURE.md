@@ -13,7 +13,7 @@ The plugin is **one CLI plus a filesystem**. Every stage is a subcommand of
 `--out-dir`. There is no daemon, no session, no shared in-memory state.
 
 ```
-skill / slash command  →  snowmig.py <stage>  →  --out-dir/*.json + *.md
+        skill          →  snowmig.py <stage>  →  --out-dir/*.json + *.md
         (agent)              (engine)                 (the contract)
 ```
 
@@ -366,7 +366,7 @@ A gate is a point where the run stops and does not proceed on its own.
 The default (EXTERNAL) path, as the agent drives it.
 
 ```bash
-E=<plugin-root>/engine/snowmig.py
+E="<plugin-root>/engine/snowmig.py"
 OUT=./snowmig_out
 
 # --- Investigate (read-only, Snowflake) ---

@@ -1,4 +1,5 @@
 """Plugin manifest and skill/command structure."""
+import hashlib
 import json
 import pathlib
 
@@ -21,9 +22,9 @@ SKILLS = ["snowflake-migrator-overview", "snowflake-migrator-bootstrap",
           "snowflake-smoke-test", "snowflake-clone-notebook",
           "snowflake-stage-board", "snowflake-migrator-demo",
           "snowflake-provision-environment"]
-COMMANDS = ["snowflake-assess", "snowflake-plan", "snowflake-soft-clone",
-            "snowflake-compute", "snowflake-smoke", "snowflake-notebook",
-            "snowflake-catalog", "snowflake-demo", "snowflake-provision"]
+# No COMMANDS: Codex has no plugin-level commands, so the Claude Code
+# plugin's commands/ wrappers are not shipped (see the Codex packaging tests
+# at the end). The checks that read a command file read its skill instead.
 
 
 def frontmatter(path: pathlib.Path) -> dict:
@@ -54,12 +55,6 @@ def test_skill_exists_with_matching_frontmatter(name):
     assert len(fm["description"]) > 60, "description drives routing; make it specific"
     assert "SCAFFOLD" not in fm["description"]
     assert "Databricks" not in fm["description"]
-
-
-@pytest.mark.parametrize("name", COMMANDS)
-def test_command_exists(name):
-    fm = frontmatter(ROOT / "commands" / f"{name}.md")
-    assert fm["description"] and "SCAFFOLD" not in fm["description"]
 
 
 def test_no_databricks_scaffold_survives():
@@ -592,7 +587,10 @@ _DATA_SURFACES = (".claude-plugin/plugin.json", ".claude-plugin/marketplace.json
 
 
 def test_no_surface_claims_the_plugin_copies_no_data_unscoped():
-    paths = [ROOT / p for p in _DATA_SURFACES if (ROOT / p).is_file()]
+    # Only the other packaging's manifest is absent; any other missing
+    # surface is a failure, not a skip.
+    paths = [ROOT / p for p in _DATA_SURFACES
+             if not p.startswith(".") or (ROOT / p).parent.is_dir()]
     paths += sorted((ROOT / "skills").glob("*/SKILL.md"))
     offenders = []
     for path in paths:
@@ -672,8 +670,7 @@ def test_every_hand_off_sends_the_operator_to_provision_result_json_for_the_keys
     row = next(l for l in arch.splitlines() if "Provision the AIDP environment" in l)
     assert "provision_result.json" in row, row
     assert "Paste the printed workspace and cluster keys" not in arch
-    for rel in ("skills/snowflake-provision-environment/SKILL.md",
-                "commands/snowflake-provision.md"):
+    for rel in ("skills/snowflake-provision-environment/SKILL.md",):
         text = (ROOT / rel).read_text(encoding="utf-8")
         assert "provision_result.json" in text, rel
         assert "workspace.key" in text and "cluster.key" in text, rel
@@ -718,18 +715,14 @@ def _flat(text: str) -> str:
     return " ".join(text.split())
 
 
-def test_catalog_command_does_not_call_the_standard_catalog_refused():
-    text = (ROOT / "commands/snowflake-catalog.md").read_text(encoding="utf-8")
+def test_medallion_clone_skill_routes_standard_structure_to_s10():
+    # The Claude Code copy checks its /snowflake-catalog and
+    # /snowflake-soft-clone wrappers; here the skill they wrap carries it.
+    text = (ROOT / "skills/snowflake-medallion-clone/SKILL.md").read_text(encoding="utf-8")
     assert "refused" not in text.lower(), \
-        "the CLI creates the INTERNAL container (S4); the command said it refuses"
+        "the CLI creates the INTERNAL container (S4); the docs said it refuses"
     assert "--catalog-type standard" in text
-    assert "snowmig_01_structure" in text
     assert "container_only" in text
-
-
-def test_soft_clone_command_routes_standard_structure_to_s10():
-    text = (ROOT / "commands/snowflake-soft-clone.md").read_text(encoding="utf-8")
-    assert "--catalog-type standard" in text
     assert "snowmig_01_structure" in text
     assert "/Workspace/Shared/" not in text and "--upload" not in text, \
         "structure does not go through the notebook upload path"
@@ -805,10 +798,8 @@ def test_smoke_docs_state_the_three_valued_exit_contract():
     failed" sent the agent hunting a connectivity fault instead of asking
     for the coordinates."""
     skill = (ROOT / "skills/snowflake-smoke-test/SKILL.md").read_text(encoding="utf-8")
-    command = (ROOT / "commands/snowflake-smoke.md").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    for name, text in (("smoke skill", skill), ("smoke command", command)):
-        assert "partial" in text.lower(), f"{name}: name the PARTIAL verdict"
+    assert "partial" in skill.lower(), "smoke skill: name the PARTIAL verdict"
     low = " ".join(skill.lower().split())
     assert "not a pass" in low
     assert "exit 1 = at least one failed" not in low
@@ -907,15 +898,6 @@ def test_notebook_command_and_skill_do_not_promise_upload_or_execution():
     """cmd_notebook never places anything on the workspace: `--upload` is a
     dry run and `--upload --execute` exits 1 with "Upload refused". The command promised "place it in the AIDP workspace, ready for you
     to execute" and the skill "generate, upload, run"."""
-    text = (ROOT / "commands/snowflake-notebook.md").read_text(encoding="utf-8")
-    low = text.lower()
-    assert "snowmig_01_structure" in text
-    for stale in ("then upload", "ready for you to execute", "ask before executing"):
-        assert stale not in low, stale
-    for line in text.splitlines():
-        if "--upload" in line:
-            assert "refused" in line or "dry run" in line, line
-    assert "/Workspace/Shared/" not in text
     skill = (ROOT / "skills/snowflake-clone-notebook/SKILL.md").read_text(encoding="utf-8")
     flat = " ".join(skill.lower().split())
     for stale in ("three steps: generate, upload, run",
@@ -995,3 +977,182 @@ def test_the_docs_describe_the_derived_source_config_copy():
     scripts = (ROOT / "data-migration-scripts/README.md").read_text(encoding="utf-8")
     assert "plan/snowmig-config.yaml" not in scripts, "the derived copy is JSON"
     assert "plan/snowmig-config.json" in scripts
+
+
+# --------------------------------------------------------------------------
+# The Codex packaging. `.codex-plugin/plugin.json` replaces Claude Code's
+# manifest and marketplace, so the two @claude_only checks skip here; these
+# hold this copy to the same guarantees, and to the Claude Code copy it was
+# made from.
+# --------------------------------------------------------------------------
+
+codex_only = pytest.mark.skipif(
+    not (ROOT / ".codex-plugin").is_dir(),
+    reason="the Codex manifest (.codex-plugin/) is not part of this plugin")
+
+NAME = "oracle-ai-data-platform-workbench-snowflake-migrator"
+
+
+def _changelog_version() -> str:
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    return re.search(r"^## \[([^\]]+)\]", text, re.M).group(1)
+
+
+@codex_only
+def test_codex_manifest_is_valid_and_matches_the_changelog():
+    m = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+    assert m["name"] == NAME
+    assert m["version"] == _changelog_version(), \
+        "plugin.json and the newest CHANGELOG heading name one release"
+    assert m["license"] and "SCAFFOLD" not in m["description"]
+    assert m["skills"] == "./skills/"
+    ui = m["interface"]
+    # Rows move only through the per-schema copy job, as on the Claude side.
+    for desc in (m["description"], ui["longDescription"]):
+        assert "copy job per schema" in desc.lower(), desc
+    here = f"/ai/codex-plugins/plugins/{NAME}"
+    assert m["homepage"].endswith(here)
+    assert ui["privacyPolicyURL"].endswith(f"{here}/PRIVACY.md")
+
+
+@codex_only
+def test_both_codex_marketplaces_and_the_readme_list_this_plugin():
+    """The repository-root manifest serves a GitHub install and the nested
+    one a local `ai/codex-plugins` checkout; each must resolve to this
+    directory. An installed plugin has neither, so the test skips there."""
+    market_root = ROOT.parents[1]
+    manifests = [base / ".agents/plugins/marketplace.json"
+                 for base in (market_root, ROOT.parents[3])]
+    manifests = [p for p in manifests if p.is_file()]
+    if not manifests:
+        pytest.skip("not inside the marketplace checkout")
+    for path in manifests:
+        entries = [e for e in json.loads(path.read_text(encoding="utf-8"))["plugins"]
+                   if e["name"] == NAME]
+        assert len(entries) == 1, path
+        target = (path.parents[2] / entries[0]["source"]["path"]).resolve()
+        assert target == ROOT.resolve(), f"{path}: {entries[0]['source']['path']}"
+    readme = (market_root / "README.md").read_text(encoding="utf-8")
+    row = next(l for l in readme.splitlines() if l.startswith(f"| [`{NAME}`]"))
+    assert f"| {_changelog_version()} |" in row, row
+    assert f"codex plugin add {NAME}@" in readme
+    layout = readme[readme.index("## Layout"):]
+    assert f"{NAME}/" in layout, "the Layout tree must list the plugin too"
+
+
+@codex_only
+def test_the_codex_notice_names_the_codex_plugin():
+    lines = (ROOT / "NOTICE").read_text(encoding="utf-8").splitlines()
+    assert lines[1] == "Codex plugin", lines[1]
+
+
+_SLASH_COMMAND = re.compile(r"(?<![\w/.-])/snowflake-[a-z-]+")
+
+
+@codex_only
+def test_the_codex_copy_ships_and_advertises_no_slash_commands():
+    """Codex plugins carry skills, not plugin-level commands: the manifest
+    declares `skills` only, and the repo's other Codex ports fold their
+    commands into skills. A `/snowflake-plan` the docs advertise is a
+    command a Codex user types and nothing answers."""
+    assert not (ROOT / "commands").exists()
+    paths = [ROOT / p for p in ("README.md", "CHANGELOG.md", "PRIVACY.md",
+                                "ARCHITECTURE.md", "MIGRATION-ARCHITECTURE.md")]
+    paths += sorted((ROOT / "skills").glob("*/SKILL.md"))
+    offenders = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        offenders += [f"{path.relative_to(ROOT)}: {m.group(0)}"
+                      for m in _SLASH_COMMAND.finditer(text)]
+        if "slash command" in text.lower():
+            offenders.append(f"{path.relative_to(ROOT)}: 'slash command'")
+    assert offenders == [], offenders
+
+
+def test_no_shell_block_leaves_plugin_root_unquoted():
+    """`<plugin-root>` is a placeholder; bare on a shell line it is two
+    redirections, so `E=<plugin-root>/engine/snowmig.py` fails with "No such
+    file or directory" and never sets E. Quoted, it reads as the path to
+    substitute."""
+    offenders = []
+    for path in sorted(ROOT.rglob("*.md")):
+        fence = None  # the open block's info string, None outside a block
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("```"):
+                fence = line.strip()[3:] if fence is None else None
+                continue
+            if fence not in ("bash", "sh", "shell", "console", ""):
+                continue
+            for m in re.finditer(r"<plugin-root>", line):
+                if m.start() == 0 or line[m.start() - 1] not in "\"'":
+                    offenders.append(f"{path.relative_to(ROOT)}: {line.strip()}")
+    assert offenders == [], offenders
+
+
+def _paths_note(text: str) -> str:
+    start = text.index("> **Paths.**")
+    block = text[start:text.index("\n\n", start)]
+    return " ".join(l.lstrip("> ") for l in block.splitlines())
+
+
+def test_every_paths_note_says_how_to_run_the_engine_without_bash():
+    """`bin/snowmig` is a bash script. Codex on Windows runs commands in
+    PowerShell, which cannot execute it, so every stage would fail before the
+    engine starts; the engine itself runs wherever Python 3.10+ does."""
+    paths = [ROOT / "skills" / n / "SKILL.md" for n in SKILLS] + [ROOT / "README.md"]
+    for path in paths:
+        note = _paths_note(path.read_text(encoding="utf-8"))
+        assert "Windows" in note, path.relative_to(ROOT)
+        assert '"<plugin-root>/engine/snowmig.py"' in note, path.relative_to(ROOT)
+        assert "requirements.txt" in note, path.relative_to(ROOT)
+
+
+def test_privacy_scopes_the_transcript_read_to_a_claude_session_or_a_named_file():
+    """The engine does not know which agent runs it. It records
+    CLAUDE_CODE_SESSION_ID when set and then reads that session's
+    transcripts under ~/.claude/projects; `tokens --transcript` reads any
+    file it is given. "No transcript is read under Codex" held only while
+    the variable was unset."""
+    flat = _flat((ROOT / "PRIVACY.md").read_text(encoding="utf-8"))
+    assert "No agent transcript is read under Codex" not in flat
+    assert "CLAUDE_CODE_SESSION_ID" in flat
+    assert "~/.claude/projects/" in flat and "--transcript" in flat
+    assert "tokens.json" in flat and "not measured" in flat
+
+
+_CLAUDE_COPY = ROOT.parents[2] / "claude-code-plugins" / ROOT.name
+# The trees each packaging must ship byte for byte, and the files inside them
+# that each words for itself.
+_SHARED_TREES = ("engine", "bin", "references", "data-migration-scripts")
+_PACKAGING_FILES = {"engine/tests/test_plugin_surface.py",
+                    "data-migration-scripts/README.md",
+                    # Skips its commands/ case where no commands/ ships. The
+                    # guard is a no-op in the Claude Code copy; once that copy
+                    # carries it too, this entry goes.
+                    "engine/tests/test_run_param_copy_jobs.py"}
+
+
+def _shared_files(root: pathlib.Path) -> dict:
+    out = {}
+    for sub in _SHARED_TREES:
+        for p in (root / sub).rglob("*"):
+            rel = p.relative_to(root)
+            if (not p.is_file() or p.suffix == ".pyc"
+                    or {"__pycache__", ".pytest_cache"} & set(rel.parts)
+                    or rel.as_posix() in _PACKAGING_FILES):
+                continue
+            out[rel.as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+@codex_only
+@pytest.mark.skipif(not _CLAUDE_COPY.is_dir(),
+                    reason="the Claude Code copy is not beside this one")
+def test_the_engine_and_data_plane_match_the_claude_code_copy():
+    """The CHANGELOG says "same engine". Every fix through 0.28.0 landed in
+    the Claude Code copy first; without this check the Codex copy ships the
+    old engine under the same version. Apply the change to both trees."""
+    ours, theirs = _shared_files(ROOT), _shared_files(_CLAUDE_COPY)
+    drift = sorted(f for f in ours.keys() | theirs.keys()
+                   if ours.get(f) != theirs.get(f))
+    assert drift == [], f"differs from {_CLAUDE_COPY.name} (Claude Code): {drift}"

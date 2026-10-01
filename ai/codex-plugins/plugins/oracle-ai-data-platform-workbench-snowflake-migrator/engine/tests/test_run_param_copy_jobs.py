@@ -156,6 +156,8 @@ def test_run_help_does_not_advertise_param_as_a_job_parameter():
     "README.md", "skills/snowflake-provision-environment/SKILL.md",
     "commands/snowflake-provision.md"])
 def test_the_docs_describe_task_parameters_winning(rel):
+    if rel.startswith("commands/") and not (ROOT / "commands").is_dir():
+        pytest.skip("this packaging ships no commands/ (the Codex plugin)")
     text = " ".join((ROOT / rel).read_text(encoding="utf-8").split())
     assert "job parameters never reach a notebook" not in text
     assert "job parameters reach a notebook neither as argv nor" not in text

@@ -70,6 +70,11 @@ report upload after each stage.
 > **your** working directory, so run every stage of a migration from the same
 > one — an installed plugin's directory may be read-only, and an update
 > replaces it.
+>
+> `bin/snowmig` is a bash script. On Windows without bash (Codex uses
+> PowerShell there), run
+> `python -B "<plugin-root>/engine/snowmig.py" <stage>` instead, after
+> `python -m pip install -r "<plugin-root>/engine/requirements.txt"`.
 
 ### 0. Prerequisites
 
@@ -554,9 +559,9 @@ masking or row-access policy. `CENSUS.md` and `SECURITY.md` list them.
 | View | View, created after the tables at S10 — when every Snowflake-only construct in its SQL has an exact rewrite (see [Why a view might not migrate](#why-a-view-might-not-migrate)) |
 | Warehouse | Spark compute cluster (see the compute proposal) |
 
-The stand-alone `/snowflake-catalog` and `/snowflake-soft-clone` commands
-register the EXTERNAL catalog by default, and create a Standard (INTERNAL)
-catalog only when you ask for one.
+Outside the runbook, the `snowflake-medallion-clone` skill registers the
+EXTERNAL catalog by default, and creates a Standard (INTERNAL) catalog only
+when you ask for one.
 
 Bronze mirrors the source 1:1: table and column names are kept. With
 `--bronze-catalog-prefix <internal catalog>`, each source schema lands in
@@ -578,21 +583,25 @@ content is a requirement to define with the customer.
 | Assessment cost | **Free by default.** Row counts come from Snowflake's maintained metadata; a `COUNT(*)` per object, which executes every view, is opt-in |
 | Collisions | **Halt (exit 3).** Identifier-case and target-name collisions stop the run rather than picking a winner |
 
-## Skills and commands
+## Skills
 
-| Command | Skill | What it does |
-|---|---|---|
-| — | `snowflake-migrator-overview` | the S1–S12 runbook and shared rules; routes to the others |
-| — | `snowflake-migrator-bootstrap` | first-run setup: config, authentication, connection check |
-| `/snowflake-smoke` | `snowflake-smoke-test` | connectivity and permissions on both ends |
-| `/snowflake-assess` | `snowflake-assess-estate` | read-only preview of the estate |
-| `/snowflake-plan` | `snowflake-migration-plan` | the migration plan, for approval |
-| `/snowflake-provision` | `snowflake-provision-environment` | workspace, cluster, notebooks and jobs |
-| `/snowflake-catalog`, `/snowflake-soft-clone` | `snowflake-medallion-clone` | catalog registration and medallion structure |
-| `/snowflake-notebook` | `snowflake-clone-notebook` | an offline table-creation notebook for a Standard catalog |
-| `/snowflake-compute` | `snowflake-compute-proposal` | warehouse-to-cluster sizing and cost |
-| `/snowflake-demo` | `snowflake-migrator-demo` | dev mode against an emulated estate |
-| — | `snowflake-stage-board` | where the run stands, stage by stage |
+Codex plugins carry skills, not plugin-level commands, so the Claude Code
+plugin's `/snowflake-*` commands are not part of this copy: ask for the task,
+or name the skill.
+
+| Skill | What it does |
+|---|---|
+| `snowflake-migrator-overview` | the S1–S12 runbook and shared rules; routes to the others |
+| `snowflake-migrator-bootstrap` | first-run setup: config, authentication, connection check |
+| `snowflake-smoke-test` | connectivity and permissions on both ends |
+| `snowflake-assess-estate` | read-only preview of the estate |
+| `snowflake-migration-plan` | the migration plan, for approval |
+| `snowflake-provision-environment` | workspace, cluster, notebooks and jobs |
+| `snowflake-medallion-clone` | catalog registration and medallion structure |
+| `snowflake-clone-notebook` | an offline table-creation notebook for a Standard catalog |
+| `snowflake-compute-proposal` | warehouse-to-cluster sizing and cost |
+| `snowflake-migrator-demo` | dev mode against an emulated estate |
+| `snowflake-stage-board` | where the run stands, stage by stage |
 
 Each planning stage reads the previous stage's artifact (`inventory.json` →
 `plan.json` → `ddl_plan.json`) and can be re-run on its own; `summary` writes

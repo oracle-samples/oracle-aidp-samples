@@ -85,7 +85,7 @@ on it: the in-AIDP scripts read through the connector by default
 
 ## 4. Dev mode and prod mode
 
-**Dev mode** (`snowmig.py demo`, `/snowflake-demo`) runs the entire pipeline
+**Dev mode** (`snowmig.py demo`, the `snowflake-migrator-demo` skill) runs the entire pipeline
 against a built-in emulated estate and an emulated AIDP — production code,
 fake transports. It exists so anyone can see, in one minute and with zero
 credentials, every artifact a real run produces and every refusal the design

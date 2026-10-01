@@ -5,6 +5,11 @@ description: Router, runbook and shared rules for migrating a Snowflake estate o
 
 > **Paths.** `<plugin-root>` is this plugin's directory, two levels above
 > this `SKILL.md`. Write its absolute path wherever `<plugin-root>` appears.
+> `bin/snowmig` is a bash script. Where no bash runs it (Windows, where
+> Codex uses PowerShell), call the engine with the same arguments:
+> `python -B "<plugin-root>/engine/snowmig.py" <stage> [...]`, once its
+> requirements are installed
+> (`python -m pip install -r "<plugin-root>/engine/requirements.txt"`).
 
 # Snowflake → AIDP migrator — the runbook
 
@@ -537,8 +542,9 @@ migration's output and its record.
   an explicit yes in that turn.
 
 With `reporting.publish_each_stage: true`, every stage — this one included —
-also writes the accumulated report (tokens per stage and phase, the phase
-report, the run log) and a per-step snapshot into `report/output` in the
+also writes the accumulated report (tokens per stage and phase, which a
+Codex session usually reports as not measured, see PRIVACY.md; the phase
+report; the run log) and a per-step snapshot into `report/output` in the
 migration workspace, and each in-AIDP notebook saves its own `SXX_*.json`
 there. Say where to find it.
 

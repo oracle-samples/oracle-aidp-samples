@@ -84,7 +84,9 @@ oracle-aidp-samples/
         |-- oracle-ai-data-platform-workbench-engineer-agent/
         |-- oracle-ai-data-platform-workbench-spark-connectors/
         |-- ask-aidp/
-        `-- oracle-ai-data-platform-fusion-autopilot/
+        |-- oracle-ai-data-platform-fusion-autopilot/
+        |-- oracle-ai-data-platform-workbench-aws-migrator/
+        `-- oracle-ai-data-platform-workbench-snowflake-migrator/
 ```
 
 Each plugin has its own `.codex-plugin/plugin.json`, README, license/privacy files, skills, and references or helper files.

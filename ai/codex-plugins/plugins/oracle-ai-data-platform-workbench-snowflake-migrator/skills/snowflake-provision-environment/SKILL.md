@@ -5,6 +5,11 @@ description: Provision the migration environment inside AIDP for the prod flow -
 
 > **Paths.** `<plugin-root>` is this plugin's directory, two levels above
 > this `SKILL.md`. Write its absolute path wherever `<plugin-root>` appears.
+> `bin/snowmig` is a bash script. Where no bash runs it (Windows, where
+> Codex uses PowerShell), call the engine with the same arguments:
+> `python -B "<plugin-root>/engine/snowmig.py" <stage> [...]`, once its
+> requirements are installed
+> (`python -m pip install -r "<plugin-root>/engine/requirements.txt"`).
 
 # Provision the migration environment
 
@@ -39,7 +44,7 @@ API-contract note — and only then, on the user's go-ahead, re-run with
    in, and it is never what you offer first (its legitimate use is re-pushing
    into this migration's own workspace — see Rules).
 2. **Cluster `migration_assets`** — CREATED, default small config; sizing is
-   a later, explicit decision (`/snowflake-compute` proposes it). A taken
+   a later, explicit decision (`snowflake-compute-proposal` proposes it). A taken
    name stops the run, exactly as for the workspace.
 3. **Libraries** — only what `requirements-aidp.txt` enables (the default
    file enables NOTHING: the external-catalog path needs no extra library).
@@ -100,7 +105,7 @@ that the database is empty. Use it only when the user explicitly asks for it.
 
 ## Rules
 
-- The EXTERNAL catalog is registered by `/snowflake-catalog`, not here —
+- The EXTERNAL catalog is registered by `snowflake-medallion-clone`, not here —
   one writer per concern. Pass its name via `--external-catalog` so the jobs
   are born pointing at it.
 - Report `verified` per step, never `executed`. `create_requested` means the

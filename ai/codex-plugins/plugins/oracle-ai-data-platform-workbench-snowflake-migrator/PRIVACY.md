@@ -14,7 +14,7 @@ Table rows never pass through the operator's machine.
 
 ## What the plugin ships
 
-- **Skills and slash commands** (Markdown) under `skills/` and `commands/`.
+- **Skills** (Markdown) under `skills/`.
 - **The Python engine** under `engine/` (runtime dependencies:
   `snowflake-connector-python`, `cryptography`, `pyyaml`).
 - **Data-plane notebooks** under `data-migration-scripts/`, which `provision`
@@ -61,11 +61,17 @@ No bundled credentials, no MCP server, no third-party network calls.
   object and column names, types, row counts, view SQL, generated DDL and
   notebooks, and the AIDP coordinates a run used. No table rows. Treat these
   files as sensitive as your schema.
-- **A stage log**, in the same directory: each stage appends its start and
-  end to `run_log.jsonl`. No agent transcript is read under Codex, so token
-  use is reported as not measured. With `reporting.publish_each_stage: true`,
-  or `publish --execute`, the log is uploaded to the migration workspace with
-  the reports.
+- **A stage log and token accounting**, in the same directory: each stage
+  appends its start and end to `run_log.jsonl`, with the Claude Code session
+  id when `CLAUDE_CODE_SESSION_ID` is set. The engine looks for no Codex
+  transcript. It reads one only for a recorded Claude Code session, under
+  `~/.claude/projects/` (usage fields only; Codex started from a Claude Code
+  terminal can inherit the variable), or the file passed to
+  `snowmig tokens --transcript`, and then writes the token counts and the
+  transcript file paths to `tokens.json`. Otherwise `tokens.json` and
+  `TOKENS.md` report token use as not measured. With
+  `reporting.publish_each_stage: true`, or `publish --execute`, these files
+  are uploaded to the migration workspace with the reports.
 - **In your AIDP tenancy**, only with `--execute` (or, for `run`, when you
   start a job): the migration workspace, cluster, folder, notebooks and jobs
   (`provision --execute`); the catalogs (`catalog --execute`); the target

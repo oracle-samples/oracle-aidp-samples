@@ -5,6 +5,11 @@ description: "Read-only PREVIEW of a Snowflake environment from the operator's m
 
 > **Paths.** `<plugin-root>` is this plugin's directory, two levels above
 > this `SKILL.md`. Write its absolute path wherever `<plugin-root>` appears.
+> `bin/snowmig` is a bash script. Where no bash runs it (Windows, where
+> Codex uses PowerShell), call the engine with the same arguments:
+> `python -B "<plugin-root>/engine/snowmig.py" <stage> [...]`, once its
+> requirements are installed
+> (`python -m pip install -r "<plugin-root>/engine/requirements.txt"`).
 
 # Preview the estate — from the operator's machine
 

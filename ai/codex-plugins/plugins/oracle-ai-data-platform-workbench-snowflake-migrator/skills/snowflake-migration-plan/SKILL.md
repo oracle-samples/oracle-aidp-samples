@@ -5,6 +5,11 @@ description: Build a high-level Snowflake to AIDP migration plan and present it 
 
 > **Paths.** `<plugin-root>` is this plugin's directory, two levels above
 > this `SKILL.md`. Write its absolute path wherever `<plugin-root>` appears.
+> `bin/snowmig` is a bash script. Where no bash runs it (Windows, where
+> Codex uses PowerShell), call the engine with the same arguments:
+> `python -B "<plugin-root>/engine/snowmig.py" <stage> [...]`, once its
+> requirements are installed
+> (`python -m pip install -r "<plugin-root>/engine/requirements.txt"`).
 
 # Stage 2 — dependencies and plan
 
