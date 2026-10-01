@@ -1,0 +1,7 @@
+Copyright (c) 2026 Oracle and/or its affiliates.
+
+This software is released under the MIT License.
+See LICENSE for the full text.
+
+The test fixtures under tests/fixtures/real/ are third-party files vendored
+under their own licences; see tests/fixtures/real/THIRD_PARTY_LICENSES.md.

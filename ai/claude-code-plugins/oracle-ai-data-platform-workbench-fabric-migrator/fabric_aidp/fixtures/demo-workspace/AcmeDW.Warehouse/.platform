@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-264672044985"
+  },
+  "metadata": {
+    "type": "Warehouse",
+    "displayName": "AcmeDW",
+    "description": "Acme demo warehouse"
+  }
+}
