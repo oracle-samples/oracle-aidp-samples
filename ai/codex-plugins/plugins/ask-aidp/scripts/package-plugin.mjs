@@ -26,6 +26,7 @@ mkdirSync(DIST_DIR, { recursive: true });
 const STAGING_EXCLUDES = new Set(['vendor', 'dist', 'qa-runs', 'qa-live-result.json', 'aidp.env', '.DS_Store']);
 cpSync(PLUGIN_ROOT, STAGING_PLUGIN, {
   recursive: true,
+  verbatimSymlinks: true,
   filter: (src) => {
     const rel = path.relative(PLUGIN_ROOT, src);
     if (rel === '') return true;
@@ -48,7 +49,8 @@ if (missingVendorDeps.length) {
 }
 const vendorTarget = path.join(STAGING_PLUGIN, 'vendor', 'node_modules');
 mkdirSync(path.dirname(vendorTarget), { recursive: true });
-cpSync(vendorSource, vendorTarget, { recursive: true });
+// Keep npm's relative executable links portable outside the build machine.
+cpSync(vendorSource, vendorTarget, { recursive: true, verbatimSymlinks: true });
 
 const tarPath = path.join(DIST_DIR, `${baseName}.tar.gz`);
 const zipPath = path.join(DIST_DIR, `${baseName}.zip`);

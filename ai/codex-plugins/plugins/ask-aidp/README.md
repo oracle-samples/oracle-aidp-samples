@@ -73,7 +73,7 @@ Restart the Codex app, then start another new thread.
 
 ## Verify The Install
 
-Confirm that Codex installed and enabled version `0.9.1` and registered the MCP
+Confirm that Codex installed and enabled version `0.10.0` and registered the MCP
 server:
 
 ```bash
@@ -90,7 +90,7 @@ cd ai/codex-plugins/plugins/ask-aidp
 node scripts/qa.mjs
 ```
 
-Expected: `"ok": true`, 43 MCP tools, 242 CLI commands, and 257 REST operations.
+Expected: `"ok": true`, 43 MCP tools, 256 CLI commands, and 271 REST operations.
 
 ## Configure AIDP
 
@@ -145,6 +145,21 @@ If `oci login` does not work, configure OCI API key authentication using
 [Oracle's API signing key instructions](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm#two).
 Set `AIDP_AUTH=api_key`, select the profile with `OCI_PROFILE`, and set
 `OCI_CONFIG_FILE` when the OCI config is not in its default location.
+
+## Refresh CLI Reference - Maintainers
+
+To regenerate the CLI catalog, supply the upstream CLI README and the matching
+installed CLI operation manifest. The manifest identifies the root request model;
+the README also lists nested models, whose order must not determine the payload.
+
+```bash
+node scripts/generate-cli-command-reference.mjs /path/to/cli/README.md /path/to/node_modules/aidp-cli/dist/operation_manifest.json
+```
+
+Alternatively, set `AIDP_CLI_MANIFEST` to that manifest path. Generation rejects
+ambiguous models and mismatched root fields instead of guessing. MLflow field
+names retain their documented JSON spelling. The catalog records the manifest's
+specification hash. Run `node scripts/qa.mjs` after regeneration.
 
 ## Build Offline Archives — Maintainers
 
@@ -225,7 +240,37 @@ Use Ask AIDP to list my agents and retrieve the trace for this agent session mes
 
 For generic commands, the plugin passes an argument array to `aidp-cli` and appends common endpoint, instance, profile, auth, and timeout flags from the environment. The plugin also has typed `aidp_create_agent`, `aidp_deploy_agent`, `aidp_list_agents`, and `aidp_get_agent_session_trace` helpers for common Agent work.
 
-The generated CLI reference covers all 242 current documented commands in these groups: `agent`, `async-operations`, `audit`, `bundle`, `catalog`, `cluster`, `credentials`, `delta-share`, `mlops`, `notebook`, `role`, `schema`, `user-setting`, `volume`, `workflow`, `workspace`, and `workspace-object`. Use `aidp_cli_reference` to list groups, list commands in a group, fetch one command reference, or search all documented commands. The generated REST reference covers all 257 current documented `/20260430` operations across 18 categories. Use `aidp_rest_api_reference` to search or inspect an endpoint, then use `aidp_rest` for the signed call.
+The generated CLI reference, refreshed on September 21, 2026, covers 256 documented commands in these groups: `agent`, `async-operations`, `audit`, `bundle`, `catalog`, `cluster`, `credentials`, `data-lineage`, `delta-share`, `mlops`, `notebook`, `role`, `schema`, `user-setting`, `volume`, `workflow`, `workspace`, and `workspace-object`. Use `aidp_cli_reference` to list groups, list commands in a group, fetch one command reference, or search all documented commands. The generated REST reference covers 271 documented `/20260430` operations across 19 categories. Use `aidp_rest_api_reference` to search or inspect an endpoint, then use `aidp_rest` for the signed call.
+
+Version 0.10.0 adds references for Data Lineage export and retrieval, bundle
+publishing and publish status, Compute cloning and configuration import/export,
+Maven package search, volume/workspace ZIP operations, and task-run retry details.
+These operations use the existing generic tools; the number of dedicated MCP
+tools remains 43.
+
+Update the separately installed `aidp-cli` and SDK as well as the plugin. Refreshing
+the plugin catalog does not update an external CLI executable. If a command is
+unknown to the installed CLI, inspect `aidp_command_help`, update the CLI using
+the SDK repository's instructions, or use its documented REST equivalent.
+
+For new bundle publishing requests, use `bundle publish-bundle-action` and
+`bundle fetch-publish-status-action` through `aidp_cli`. Their REST equivalents
+are POST `actions/publishBundle` and POST `actions/getBundlePublishStatus` under
+the workspace path. The latter uses POST according to its operation reference,
+despite the GET entry in Oracle's What's New page. The `aidp_deploy_bundle`
+convenience tool retains the legacy deployment commands for compatibility;
+Oracle marks those endpoints deprecated. Follow preview restrictions documented
+on the individual endpoint pages.
+
+Example prompts for the new operations:
+
+```text
+Use Ask AIDP to look up data-lineage fetch-entity-lineage for this table.
+Use Ask AIDP to export this Compute configuration and plan a clone.
+Use Ask AIDP to publish my bundle and retrieve its publish status.
+Use Ask AIDP to list retry attempts for this workflow task run.
+Use Ask AIDP to look up how to upload and extract a workspace ZIP file.
+```
 
 AI Compute convenience tool prompts:
 
@@ -298,6 +343,28 @@ Use Ask AIDP to dry-run auto-healing job run <job-run-key>.
 ```
 
 `aidp_auto_heal_workflow` inspects the job run, selects failed task keys by default, and wraps `aidp workflow repair-job-run`. It can also accept explicit `taskKeys`, rerun parameters, and `pollToCompletion`.
+
+## Compute Configuration Export
+
+The [export operation](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/op-aidataplatforms-aidataplatformid-workspaces-workspacekey-clusters-clusterkey-actions-exportcomputeconfiguration-post.html)
+uses `ExportComputeConfigurationDetails` as its root request model, with
+`clusterScopedLibraries`, `environmentVariables`, `destinationPath`, and `fileName`.
+Library entries belong inside `clusterScopedLibraries`, not at the root.
+
+`aidp_rest` automatically uses `Accept: application/x-yaml` for this export POST
+and `Content-Type: application/json` for its JSON body. Dry runs show the same
+effective headers as live requests. Explicit header overrides are case-insensitive;
+duplicate header names with different casing are rejected.
+
+Live acceptance test (requires an instance with Compute Configuration enabled):
+
+1. Preview the request with `dryRun: true`; use non-secret values and a unique YAML filename.
+2. Export on a test cluster, then record HTTP 200, the request ID, response headers, and YAML.
+3. Retrieve the created file using the returned workspace path; parse its YAML and compare the selected libraries and environment variables.
+
+A 403 stating that Compute Configuration is not enabled is a feature-availability
+blocker, not successful payload validation. Offline QA tests headers and YAML
+response handling with a mocked transport; it does not replace this live test.
 
 ## Evidence
 

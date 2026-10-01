@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
+import { deepEqual, rejects } from 'node:assert/strict';
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { computeExportTransportTest, exportFields, exportModel, requestBodyReferenceTest } from './qa-compute-export.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const SERVER = path.join(PLUGIN_ROOT, 'mcp', 'ask-aidp-server.mjs');
-const EXPECTED_VERSION = '0.9.1';
+const EXPECTED_VERSION = '0.10.0';
 const EXPECTED_TOOLS = 43;
 const args = new Set(process.argv.slice(2));
 const live = args.has('--live');
@@ -196,6 +198,8 @@ async function main() {
   mcpConfigTest();
   marketplaceManifestTest();
   symlinkTest();
+  requestBodyReferenceTest();
+  await computeExportTransportTest();
   const env = {};
   const localAidp = path.resolve(PLUGIN_ROOT, '..', '..', 'samples', 'npm-cli', 'node_modules', '.bin', process.platform === 'win32' ? 'aidp.cmd' : 'aidp');
   if (!process.env.AIDP_CLI_BIN && existsSync(localAidp)) env.AIDP_CLI_BIN = localAidp;
@@ -276,8 +280,8 @@ async function main() {
     const cliReferenceSummary = await server.request('tools/call', { name: 'aidp_cli_reference', arguments: {} });
     assert(!cliReferenceSummary.isError, `CLI reference summary failed: ${toolText(cliReferenceSummary)}`);
     const cliReferencePlan = JSON.parse(toolText(cliReferenceSummary));
-    assert(cliReferencePlan.groupCount === 17, 'CLI reference expected 17 command groups');
-    assert(cliReferencePlan.commandCount === 242, 'CLI reference expected 242 commands');
+    assert(cliReferencePlan.groupCount === 18, 'CLI reference expected 18 command groups');
+    assert(cliReferencePlan.commandCount === 256, 'CLI reference expected 256 commands');
 
     const agentReference = await server.request('tools/call', {
       name: 'aidp_cli_reference',
@@ -301,8 +305,77 @@ async function main() {
     const restReferenceSummary = await server.request('tools/call', { name: 'aidp_rest_api_reference', arguments: {} });
     assert(!restReferenceSummary.isError, `REST reference summary failed: ${toolText(restReferenceSummary)}`);
     const restReferenceSummaryPlan = JSON.parse(toolText(restReferenceSummary));
-    assert(restReferenceSummaryPlan.categoryCount === 18, 'REST reference expected 18 categories');
-    assert(restReferenceSummaryPlan.operationCount === 257, 'REST reference expected 257 operations');
+    assert(restReferenceSummaryPlan.categoryCount === 19, 'REST reference expected 19 categories');
+    assert(restReferenceSummaryPlan.operationCount === 271, 'REST reference expected 271 operations');
+
+    // Exercise every August/September addition through the public MCP tools.
+    const basePath = '/20260430/aiDataPlatforms/{aiDataPlatformId}';
+    const workspacePath = `${basePath}/workspaces/{workspaceKey}`;
+    const clusterPath = `${workspacePath}/clusters/{clusterKey}`;
+    const latestOperations = [
+      ['bundle', 'publish-bundle-action', 'Bundle', 'POST', `${workspacePath}/actions/publishBundle`],
+      ['bundle', 'fetch-publish-status-action', 'Bundle', 'POST', `${workspacePath}/actions/getBundlePublishStatus`],
+      ['cluster', 'clone-compute', 'Cluster', 'POST', `${clusterPath}/actions/cloneCompute`],
+      ['cluster', 'export-compute-configuration', 'Cluster', 'POST', `${clusterPath}/actions/exportComputeConfiguration`],
+      ['cluster', 'get-compute-configuration', 'Cluster', 'GET', `${clusterPath}/actions/getComputeConfiguration`],
+      ['cluster', 'import-compute-configuration', 'Cluster', 'POST', `${clusterPath}/actions/importComputeConfiguration`],
+      ['cluster', 'search-maven-packages', 'Cluster', 'GET', `${clusterPath}/mavenPackages`],
+      ['data-lineage', 'export', 'DataLineage', 'POST', `${basePath}/actions/exportLineage`],
+      ['data-lineage', 'fetch-entity-lineage', 'DataLineage', 'POST', `${basePath}/actions/fetchLineage`],
+      ['volume', 'upload-and-extract-volume-zip', 'Volume', 'POST', `${basePath}/volumes/{volumeKey}/actions/uploadAndExtractZip`],
+      ['volume', 'zip-and-download-volume-folder', 'Volume', 'POST', `${basePath}/volumes/{volumeKey}/actions/zipAndDownloadFolder`],
+      ['workflow', 'list-task-run-retries', 'Workflow', 'GET', `${workspacePath}/taskRuns/{taskRunKey}/retries`],
+      ['workspace-object', 'upload-and-extract-workspace-zip', 'WorkspaceObject', 'POST', `${workspacePath}/actions/uploadAndExtractZip`],
+      ['workspace-object', 'zip-and-download-workspace-folder', 'WorkspaceObject', 'POST', `${workspacePath}/actions/zipAndDownloadFolder`]
+    ];
+    for (const [group, command, category, method, endpointPath] of latestOperations) {
+      const referenceResult = await server.request('tools/call', {
+        name: 'aidp_cli_reference', arguments: { group, command }
+      });
+      assert(!referenceResult.isError, `missing CLI reference: ${group} ${command}`);
+      const reference = JSON.parse(toolText(referenceResult)).command;
+      assert(reference.fullName === `aidp ${group} ${command}`, `wrong CLI reference: ${group} ${command}`);
+      assert(reference.usage.startsWith(reference.fullName), `missing usage: ${reference.fullName}`);
+      if (command === 'export-compute-configuration') {
+        assert(reference.bodyModel === exportModel, 'export default lookup must expose the root request model');
+        deepEqual(reference.bodyFields.map((field) => field.name).sort(), [...exportFields].sort());
+      }
+
+      const endpointResult = await server.request('tools/call', {
+        name: 'aidp_rest_api_reference', arguments: { category, search: endpointPath }
+      });
+      assert(!endpointResult.isError, `REST lookup failed: ${endpointPath}`);
+      const matches = JSON.parse(toolText(endpointResult)).matches;
+      assert(matches.some((op) => op.method === method && op.path === endpointPath), `missing REST method/path: ${method} ${endpointPath}`);
+
+      const requestPath = endpointPath.replace('{volumeKey}', 'volume-key').replace('{taskRunKey}', 'task-run-key');
+      const planResult = await server.request('tools/call', {
+        name: 'aidp_rest',
+        arguments: {
+          method, path: requestPath, dryRun: true,
+          config: {
+            endpoint: 'https://aidp.example.com',
+            instanceId: 'ocid1.aidataplatform.oc1..example',
+            workspaceKey: 'workspace-key', clusterKey: 'cluster-key'
+          }
+        }
+      });
+      assert(!planResult.isError, `REST dry run failed: ${method} ${endpointPath}: ${toolText(planResult)}`);
+      const plan = JSON.parse(toolText(planResult));
+      const expectedPath = requestPath.replace('{aiDataPlatformId}', 'ocid1.aidataplatform.oc1..example')
+        .replace('{workspaceKey}', 'workspace-key').replace('{clusterKey}', 'cluster-key');
+      assert(plan.method === method && new URL(plan.url).pathname === expectedPath, `REST request plan mismatch: ${endpointPath}`);
+      assert(plan.headers.accept === (command === 'export-compute-configuration' ? 'application/x-yaml' : 'application/json'), `wrong effective Accept header: ${endpointPath}`);
+    }
+
+    await rejects(server.request('tools/call', {
+      name: 'aidp_rest',
+      arguments: {
+        method: 'GET', path: `${workspacePath}/actions/getBundlePublishStatus`, dryRun: true,
+        config: { endpoint: 'https://aidp.example.com', instanceId: 'ocid1.aidataplatform.oc1..example', workspaceKey: 'workspace-key' }
+      }
+    }), /method and path do not match a documented AIDP REST operation/,
+    'bundle publish status must use POST as specified by its operation reference');
 
     const schemaReference = await server.request('tools/call', {
       name: 'aidp_cli_reference',
