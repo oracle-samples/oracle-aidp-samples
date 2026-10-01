@@ -46,6 +46,24 @@ def test_source_read_checks_all_pass():
     assert all(c["ok"] for c in r["source"]["checks"])
 
 
+def test_probed_database_name_is_quoted_not_spliced():
+    # The name comes back from SHOW DATABASES, so it is data: a `"` in it is
+    # doubled rather than closing the identifier.
+    sent = []
+
+    def odd_name(sql, params=None):
+        sent.append(sql)
+        if "show databases" in sql.lower():
+            return [{"name": 'X" ->> drop database prod ->> select "'}]
+        return sf_ok(sql, params)
+
+    run_smoke(source_run_sql=odd_name)
+    probe = [s for s in sent if "information_schema" in s.lower()]
+    assert probe == ['select count(*) N from '
+                     '"X"" ->> drop database prod ->> select """'
+                     '.information_schema.tables']
+
+
 def test_source_failure_is_captured_not_raised():
     def broken(sql, params=None):
         if "information_schema" in sql.lower():

@@ -35,13 +35,36 @@ def test_assess_queries_the_resolved_config_database(monkeypatch):
     assert seen["databases"] == ["MyDb"]
 
 
-def test_preflight_names_the_resolved_database():
+@pytest.mark.parametrize("value,qualified", [
+    ("sales_db", '"SALES_DB"'), ('"MyDb"', '"MyDb"')])
+@pytest.mark.parametrize("schema", ["PUBLIC", None])
+def test_preflight_names_the_resolved_database(value, qualified, schema):
     sent = []
 
     def run_sql(sql):
         sent.append(sql)
-        return [{"U": "u", "R": "r", "W": "w", "D": "d", "name": "PUBLIC"}]
+        return [{"U": "u", "R": "r", "W": "w", "D": "d", "name": "PUBLIC",
+                 "S": "PUBLIC", "N": 1}]
 
-    run_preflight({"database": "sales_db", "account": "a", "user": "u"},
-                  run_sql=run_sql)
-    assert 'show schemas in database "SALES_DB"' in sent
+    config = {"database": value, "account": "a", "user": "u"}
+    if schema:
+        config["schema"] = schema
+    run_preflight(config, run_sql=run_sql)
+    assert f"show schemas in database {qualified}" in sent
+    # Every statement that names the database names the same one: the
+    # session-schema check too, with or without `schema:`.
+    named = [s for s in sent if "INFORMATION_SCHEMA" in s]
+    assert named and all(f"{qualified}.INFORMATION_SCHEMA" in s
+                         for s in named), named
+
+
+def test_preflight_escapes_the_schema_literal_for_snowflake():
+    sent = []
+
+    def run_sql(sql):
+        sent.append(sql)
+        return [{"N": 1}]
+
+    run_preflight({"database": "DB", "schema": "WEIRD\\", "account": "a",
+                   "user": "u"}, run_sql=run_sql)
+    assert any("TABLE_SCHEMA = 'WEIRD\\\\'" in s for s in sent), sent

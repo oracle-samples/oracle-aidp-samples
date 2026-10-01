@@ -97,7 +97,12 @@ migrator plugin, newest first. The format loosely follows
   the database, schema and table they scope.
 - Both read-only guards refuse Snowflake's `->>` statement chaining. The
   in-AIDP guard ends a block comment at the first `*/`, as Snowflake does,
-  and refuses an unclosed literal, comment or `$$` string.
+  and refuses an unclosed literal, comment or `$$` string. Both read a `$$`
+  inside an unquoted name (`A$$B`) as part of the name and end a line
+  comment at a bare CR, as Snowflake does, and the laptop guard refuses a
+  backtick, which Snowflake does not read as quoting. `preflight`'s
+  session-schema check resolves the database by the same rule as the rest
+  of `preflight`, and `smoke` quotes the database name it probes.
 - A stage config that does not parse reports the line number only, never the
   line, which can hold the credential.
 - A dynamic table whose query was not captured names `--capture-definitions`,

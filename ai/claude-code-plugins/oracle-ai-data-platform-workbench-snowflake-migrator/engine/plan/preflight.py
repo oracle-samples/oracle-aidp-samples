@@ -168,7 +168,10 @@ def run_preflight(config: dict, *, run_sql: Callable[..., list] | None = None,
             # missing schema rather than an empty one. PUBLIC is the usual
             # default and the usual casualty. Caught here, this costs a
             # second; caught on the cluster it costs a job run.
-            db, schema = config.get("database"), config.get("schema")
+            # The database as `visible()` and the data plane resolve it:
+            # `sales_db` names SALES_DB, not a quoted lower-case "sales_db".
+            db = lexer.config_name(config.get("database") or "")
+            schema = config.get("schema")
 
             def candidates() -> str:
                 # DERIVED, never hardcoded: which schemas are populated is a
@@ -178,7 +181,7 @@ def run_preflight(config: dict, *, run_sql: Callable[..., list] | None = None,
                 try:
                     rows = run_sql(
                         "select TABLE_SCHEMA S, count(*) N from "
-                        f'"{db}".INFORMATION_SCHEMA.TABLES '
+                        f"{lexer.qualify(db)}.INFORMATION_SCHEMA.TABLES "
                         "where TABLE_SCHEMA <> 'INFORMATION_SCHEMA' "
                         "group by TABLE_SCHEMA order by 2 desc limit 3")
                 except Exception:
@@ -196,9 +199,10 @@ def run_preflight(config: dict, *, run_sql: Callable[..., list] | None = None,
             # current database (the transport does not `USE` one), so a bare
             # INFORMATION_SCHEMA is `090105 (22000): This session does not
             # have a current database`.
-            lit = str(schema).replace("'", "''")
+            lit = lexer.sql_literal(str(schema))
             rows = run_sql(
-                f'select count(*) N from "{db}".INFORMATION_SCHEMA.TABLES '
+                f"select count(*) N from {lexer.qualify(db)}"
+                ".INFORMATION_SCHEMA.TABLES "
                 f"where TABLE_SCHEMA = '{lit}'")
             n = int((rows[0] or {}).get("N") or 0) if rows else 0
             if n == 0:

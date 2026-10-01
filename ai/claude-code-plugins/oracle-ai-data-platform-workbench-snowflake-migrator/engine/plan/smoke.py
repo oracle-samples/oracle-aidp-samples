@@ -37,6 +37,8 @@ from __future__ import annotations
 
 import uuid
 
+from snowflake_source.dialect import lexer
+
 __all__ = ["PROBE_SCHEMA", "run_smoke", "smoke_verdict"]
 
 PROBE_SCHEMA = "snowmig_permission_probe"
@@ -114,7 +116,8 @@ def run_smoke(*, source_run_sql, target=None, dest_call=None,
     def _read_information_schema() -> str:
         db = _probe_database()
         count = source_run_sql(
-            f'select count(*) N from "{db}".information_schema.tables')[0]["N"]
+            f"select count(*) N from {lexer.qualify(db)}"
+            ".information_schema.tables")[0]["N"]
         return f"{count} table(s) readable in {db}.INFORMATION_SCHEMA"
 
     source["checks"] = [
