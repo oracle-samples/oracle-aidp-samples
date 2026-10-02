@@ -87,6 +87,18 @@
     "authentication": "ON_INSTALL"
    },
    "category": "Engineering"
+  },
+  {
+   "name": "oracle-ai-data-platform-workbench-fabric-migrator",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-fabric-migrator"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Engineering"
   }
  ]
 }

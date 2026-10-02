@@ -1,0 +1,12 @@
+{
+  "name": "fabric-aidp-mparse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Power Query (M) -> JSON contract for the Fabric AIDP migrator",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "parse.js",
+  "dependencies": {
+    "@microsoft/powerquery-parser": "^2.0.0"
+  }
+}

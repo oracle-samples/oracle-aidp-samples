@@ -22,6 +22,7 @@ manifest remains available when registering a local `ai/codex-plugins` checkout.
 | [`oracle-ai-data-platform-fusion-autopilot`](./plugins/oracle-ai-data-platform-fusion-autopilot/) | 0.1.0-alpha | Initial release | Build and operate curated Oracle Fusion ERP/HCM/SCM-to-AIDP medallion pipelines (BICC extracts, bronze/silver/gold content packs, guarded bootstrap/seed/incremental runs), gold marts, OAC datasets, and MCP-authored workbooks. |
 | [`oracle-ai-data-platform-workbench-aws-migrator`](./plugins/oracle-ai-data-platform-workbench-aws-migrator/) | 0.2.0 | Initial release | Migrate an AWS data stack (S3, Glue, Athena) to Oracle AIDP from Codex via an MCP server — inventory, plan, migrate, verify; deterministic translation with explicit review gates. |
 | [`oracle-ai-data-platform-workbench-snowflake-migrator`](./plugins/oracle-ai-data-platform-workbench-snowflake-migrator/) | 0.28.0 | Initial release | Migrate a Snowflake database to Oracle AIDP through a fixed twelve-step runbook: in-AIDP discovery, a reviewed translation plan, target schemas and Delta tables, and one verified copy job per schema. |
+| [`oracle-ai-data-platform-workbench-fabric-migrator`](./plugins/oracle-ai-data-platform-workbench-fabric-migrator/) | 0.1.0 | Initial release | Migrate a Microsoft Fabric workspace (notebooks, Warehouse T-SQL, Power Query M, Data Pipelines, shortcuts) to Oracle AIDP from Codex via an MCP server — inventory, plan, migrate, verify, publish (dry run); deterministic translation with explicit review gates. |
 
 ## Install
 

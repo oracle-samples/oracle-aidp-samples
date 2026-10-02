@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-721966536177"
+  },
+  "metadata": {
+    "type": "Lakehouse",
+    "displayName": "SalesLake",
+    "description": "Acme demo lakehouse"
+  }
+}
