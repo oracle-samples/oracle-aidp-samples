@@ -1,0 +1,1090 @@
+# Fabric notebook source
+
+# METADATA ********************
+
+# META {
+# META   "kernel_info": {
+# META     "name": "jupyter",
+# META     "jupyter_kernel_name": "python3.12"
+# META   },
+# META   "dependencies": {}
+# META }
+
+# MARKDOWN ********************
+
+# # Utility Functions
+# This notebook contains function declarations for the NB_SETUP_FMD framework. These functions are used to deploy workspaces, items, and manage connections in the Fabric environment. The functions handle tasks such as creating workspaces, assigning roles, replacing IDs in files, and managing domain assignments.
+
+# CELL ********************
+
+variable_parameters = {
+    "key_vault_uri_name": key_vault_uri_name,
+    "lakehouse_schema_enabled": lakehouse_schema_enabled,
+       "purview_account_name": purview_account_name
+}
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# Workspace icon definition. Setting the icons to None will delete the existing icon of the workspaces specified.
+workspace_icon_def = {
+    "icons": {
+        "code": "fmd_code_icon.png",
+        "data": "fmd_data_icon.png",
+        "config": "fmd_config_icon.png",
+        "reporting": "fmd_reporting_icon.png",
+        "business_domain": "fmd_gold_icon.png"
+    }
+}
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# -------------------------------
+# Deploy Utilities
+# -------------------------------
+
+def mapping_table_composite_key(row, keys):
+    return tuple(row.get(k) for k in keys)
+
+def upsert_mapping(mapping_table, new_item, keys=("Description","environment", "ItemType","old_id")):
+    new_key = mapping_table_composite_key(new_item, keys)
+    for i, row in enumerate(mapping_table):
+        if mapping_table_composite_key(row, keys) == new_key:
+            mapping_table[i] = {**row, **new_item}
+            return
+    mapping_table.append(new_item)
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# -------------------------------
+# FABRIC CLI Utilities
+# -------------------------------
+
+def run_fab_command(command, capture_output=False, silently_continue=False, raw_output=False):
+    """
+    Executes a Fabric CLI command with optional output capture and error handling.
+    """
+    result = subprocess.run(["fab", "-c", command], capture_output=capture_output, text=True)
+    if not silently_continue and (result.returncode > 0 or result.stderr):
+        raise Exception(f"Error running fab command. exit_code: '{result.returncode}'; stderr: '{result}'")
+    if capture_output:
+        return result if raw_output else result.stdout.strip()
+    return None
+
+def get_cluster_url():
+    """
+    Get the Fabric Cluster.
+    """
+    response = run_fab_command(f"api -A powerbi groups", capture_output=True, silently_continue=True)
+    # Parse the JSON response
+    response_json = json.loads(response)["text"]
+    # Extract the @odata.context URL
+    odata_context = response_json.get("@odata.context", "")
+    # Use re.search instead of re.match
+    match = re.search(r"(https://[^/]+/)", odata_context)
+    if match:
+        return match.group(1)
+    else:
+        print("Cluster URL not found.")
+        return None
+    
+# -------------------------------
+# Domain Management
+# -------------------------------
+def create_fabric_domain(domain_name):
+    """
+    Create a domain.
+    """
+    start = time()
+    DomainExists=run_fab_command(f'exists .domains/{domain_name}.Domain',capture_output=True, silently_continue=True)
+    if DomainExists != "* true":
+        try:
+            print(f"Creating Domain: {domain_name}")
+            result = run_fab_command(f'create .domains/{domain_name}.Domain',  capture_output=True, silently_continue=True)
+            print(f"✅ {domain_name} Domain Created'")
+        except Exception as e:
+            print(f"❌ Failed to create domain: {e}")
+
+    else:
+            result=('Domain already exists, skip creation')
+    assign_domain_description(domain_name)
+    assign_domain_contributor_roles(domain_contributor_role, domain_name)
+    tasks.append({"task_name": f"Create or Update Domain {domain_name}","task_duration": int(time() - start),"status": "success"})
+
+def create_fabric_business_domain(domain_name, business_domain):
+    """
+    Create a sub domain in a domain.
+    """
+    start = time()
+    try:
+        run_fab_command(f'create .domains/{business_domain}.Domain -P parentDomainName={domain_name}',  capture_output=True, silently_continue=True)
+        print(f"✅ {business_domain} created and assigned to '{domain_name}'")
+    except Exception as e:
+        print(f"❌ Failed to create sub domain: {e}")
+    assign_domain_description(domain_name)
+    tasks.append({"task_name": f"Create or update Sub Domain {business_domain}","task_duration": int(time() - start),"status": "success"})
+
+def assign_fabric_domain(domain_name, workspace_name):
+    """
+    Assigns a domain to the workspace.
+    """
+    try:
+        run_fab_command(f'assign .domains/{domain_name}.Domain -W {workspace_name}.Workspace -f',  capture_output=True, silently_continue=True)
+        print(f"✅ {domain_name} domain assigned to '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to assign domain: {e}")
+
+def assign_domain_description(domain_name):
+    """
+    Assigns a standard description to an Domain.
+    """
+    payload = 'Note: This Domain  was initially generated by the FMD Framework. For further details, please refer to the documentation at https://github.com/edkreuk/FMD_FRAMEWORK.'
+    try:
+        run_fab_command(f'set .domains/{domain_name}.Domain -q description -i {payload} -f', silently_continue=True)
+        print(f"✅ Description applied to {domain_name} ")
+    except Exception as e:
+        print(f"❌ Failed to assign description: {e}")
+
+def assign_domain_contributor_roles(domain_contributor_role,domain_name):
+    """
+    Assigns the Contributor role to a domain for a specific security group.
+    """
+    payload = 'SpecificUsersAndGroups'
+    run_fab_command(f'set .domains/{domain_name}.Domain -q contributorsScope -i {payload} -f', capture_output=True,silently_continue=True)
+    domain_id = get_domain_id_by_name(domain_name)
+    payload_role = json.dumps(domain_contributor_role)
+    try:
+        run_fab_command(f'api -X post admin/domains/{domain_id}/roleAssignments/bulkAssign -i "{payload_role}"',capture_output=True ,silently_continue=True  )
+        print(f"✅ Contributor role applied to {domain_name}")
+    except Exception as e:
+        print(f"❌ Failed to apply role: {e}")
+
+def get_domain_id_by_name(domain_name):
+    """
+    Retrieves the domain ID by its display name.
+    """
+    result = run_fab_command(f"get .domains/{domain_name}.Domain -q id", capture_output=True, silently_continue=True)
+    return result
+# -------------------------------
+# Workspace Management
+# -------------------------------
+
+def get_workspace_id_by_name(workspace_name):
+    """
+    Retrieves the workspace ID by its display name.
+    """
+    result = run_fab_command("api -X get workspaces/", capture_output=True, silently_continue=True)
+    workspaces = json.loads(result)["text"]["value"]
+    normalized_name = workspace_name.strip().lower()
+    match = next((w for w in workspaces if w['displayName'].strip().lower() == normalized_name), None)
+    return match['id'] if match else None
+
+def ensure_workspace_exists(workspace, workspace_name):
+    """
+    Ensures the workspace exists; creates it if not found.
+    Optionally reassigns capacity if requested.
+    """
+    workspace_id = get_workspace_id_by_name(workspace_name)
+
+    if workspace_id:
+        print(f" - Workspace '{workspace_name}' found. Workspace ID: {workspace_id}")
+        if reassign_capacity:
+            print(f" - Assigning capacity: {workspace['capacity_name']}")
+            try:
+                run_fab_command(f'assign ".capacities/{workspace["capacity_name"]}.Capacity" 'f'-W "{workspace_name}.Workspace" -f',capture_output=True, silently_continue=True)
+                print(f"✅ Capacity assigned: {workspace['capacity_name']}")
+            except Exception as e:
+                print(f"❌ Failed to assign capacity: {e}")
+            return workspace_id, "exists"
+        else:
+            print(f"✅ Capacity assignment disabled")
+            return workspace_id, "exists"
+    else:
+        print(f" - Workspace '{workspace_name}' not found. Creating new workspace...")
+        try:
+            run_fab_command(f'mkdir "{workspace_name}.workspace" -P capacityName="{workspace["capacity_name"]}"',capture_output=True, silently_continue=True)
+            print(f"✅ Workspace '{workspace_name}' created")
+        except Exception as e:
+            raise RuntimeError(f"❌ Failed to create workspace: {e}")
+
+        # Verify creation
+        workspace_id = get_workspace_id_by_name(workspace_name)
+        if workspace_id:
+            print(f" - Created workspace '{workspace_name}'. ID: {workspace_id}")
+            return workspace_id, "created"
+        else:
+            raise RuntimeError(f"Workspace '{workspace_name}' could not be created or found.")
+
+def set_fabric_runtime(workspace_name, spark_version="2.0"):
+    """
+    Sets the Spark Runtime version on a Workspace.
+    """
+    if not spark_version:
+        spark_version = "2.0"
+
+    try:
+        run_fab_command(
+            f"set /{workspace_name}.Workspace -q sparkSettings.environment.runtimeVersion -i {spark_version}",
+            capture_output=True,
+            silently_continue=True,
+        )
+        print(f"✅ Spark runtime version {spark_version} applied to {workspace_name}")
+    except Exception as e:
+        print(f"❌ Failed to set Spark runtime version {spark_version} for {workspace_name}: {e}")
+
+# -------------------------------
+# Item Utilities
+# -------------------------------
+
+def get_item_id(workspace_name, name, property):
+    """
+    Retrieves the item ID from a workspace.
+    """
+    return run_fab_command(f"get /{workspace_name}.Workspace/{name} -f -q {property}", capture_output=True, silently_continue=True)
+
+def get_item_display_name(workspace_name, name):
+    """
+    Retrieves the display name of an item.
+    """
+    return run_fab_command(f"get /{workspace_name}.Workspace/{name} -q displayName", capture_output=True, silently_continue=True)
+
+# -------------------------------
+# File and ID Replacement
+# -------------------------------
+def update_variable_library(folder_path, it_variables):
+    variable_file = f"{folder_path}/variables.json"  
+    variables_table = []
+    for it_variable in it_variables:
+        if it_variable["type"] == "variable":
+            new_variable = variable_parameters[it_variable["source"]]
+        variables_table.append(
+            {
+                "name": it_variable.get("name"),
+                "note": "",
+                "type": it_variable.get("datatype"),
+                "value": new_variable,
+            }
+        )
+
+    with open(variable_file, "r", encoding="utf-8") as file:
+        content = json.load(file)
+    content["variables"] = variables_table
+    with open(variable_file, "w", encoding="utf-8") as file:
+        json.dump(content, file, indent=4)
+
+def copy_to_tmp(name):
+    """
+    Extracts item files from a ZIP archive to a temporary directory,
+    including all subfolders under the specified path.
+    Checks src/{name} first; if not found, checks src/business_domain/{name}.
+    Returns the path for the first match only.
+    """
+    shutil.rmtree("./builtin/tmp", ignore_errors=True)
+    path2zip = "./builtin/src/src.zip"
+
+    prefixes = [
+        f"src/{name}",
+        f"src/business_domain/{name}"
+    ]
+
+    with ZipFile(path2zip) as archive:
+        for prefix in prefixes:
+            matched_files = [file for file in archive.namelist() if file.startswith(prefix)]
+            if matched_files:
+                for file in matched_files:
+                    archive.extract(file, "./builtin/tmp")
+                return f"./builtin/tmp/{prefix}"  # Return only the first matching prefix
+
+    return None  # Nothing found
+
+def replace_ids_in_folder(folder_path, mapping_table, environment_name):
+    """
+    Replaces old IDs with new ones in specified file types within a folder.
+    """
+    for root, _, files in os.walk(folder_path):
+        for file_name in files:
+            if file_name.endswith(('.py', '.json', '.pbir', '.platform', '.ipynb', '.tmdl')) and not file_name.endswith('report.json'):
+                file_path = os.path.join(root, file_name)
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                    for mapping in mapping_table:
+                        if mapping["environment"] in (environment_name, "config"):
+                            content = content.replace(mapping["old_id"], mapping["new_id"])
+                with open(file_path, 'w', encoding='utf-8') as file:
+                    file.write(content)
+
+def replace_ids_and_mark_inactive(folder_path, mapping_table, environment_name, target_guids):
+    """
+    Replaces old IDs with new ones in JSON-based files and deactivates activities
+    that reference connections not in the target_guids list.
+
+    Parameters:
+    - folder_path (str): Path to the folder containing files to process.
+    - mapping_table (list): List of dictionaries with 'old_id', 'new_id', and 'environment'.
+    - environment_name (str): Current environment name to filter applicable mappings.
+    - target_guids (list): List of valid connection GUIDs to retain as active.
+
+    Returns:
+    - None. Files are modified in-place.
+    """
+    def find_externalReferences_in_dict(j):
+        externalReferences = {}
+        for key, value in j.items():
+            if isinstance(value, dict):
+                externalReferences.update(find_externalReferences_in_dict(value))
+            if key == "externalReferences":
+                externalReferences[key] = value
+        return externalReferences
+
+    def should_deactivate(connection):
+        return (
+            connection not in target_guids and
+            connection not in ['@item().ConnectionGuid', '@pipeline().parameters.ConnectionGuid']
+        )
+
+    def process_nested_activities(activities):
+        for activity in activities:
+            result = find_externalReferences_in_dict(activity)
+            connection = result.get('externalReferences', {}).get('connection')
+            if connection and should_deactivate(connection):
+                print(f"Deactivate activity {activity.get('name')} for connection {connection}")
+                activity["state"] = "Inactive"
+                activity["onInactiveMarkAs"] = "Succeeded"
+
+    for root, _, files in os.walk(folder_path):
+        for file_name in files:
+            if file_name.endswith(('.py', '.json', '.pbir', '.platform', '.ipynb', '.tmdl')) and not file_name.endswith('report.json'):
+                file_path = os.path.join(root, file_name)
+
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+
+                # Replace IDs
+                for mapping in mapping_table:
+                    if mapping["environment"] in (environment_name, "config"):
+                        content = content.replace(mapping[f"old_id"], mapping[f"new_id"])
+
+                try:
+                    data = json.loads(content)
+                except json.JSONDecodeError:
+                    continue
+
+                if not data or not data.get("properties") or not data["properties"].get("activities"):
+                    continue
+
+                for activity in data["properties"]["activities"]:
+                    process_nested_activities([activity])
+                    for key in ["activities", "ifFalseActivities", "ifTrueActivities"]:
+                        nested = activity.get("typeProperties", {}).get(key)
+                        if nested:
+                            process_nested_activities(nested)
+
+                content = json.dumps(data, indent=2)
+                with open(file_path, 'w', encoding='utf-8') as file:
+                    file.write(content)
+
+# -------------------------------
+# Description and Identity Assignment
+# -------------------------------
+
+def assign_workspace_description(workspace_name):
+    """
+    Assigns a standard description to the workspace.
+    """
+    payload = 'Important: The items in this workspace are automatically generated by the FMD Framework. Each time the setup notebook is executed, all changes will be overwritten. For more information, please visit https://github.com/edkreuk/FMD_FRAMEWORK.'
+    try:
+        run_fab_command(f'set "/{workspace_name}.workspace -q description -i {payload} -f', silently_continue=True)
+        print(f"✅ Description applied to '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to apply description: {e}")
+
+def assign_item_description(workspace_name, item):
+    """
+    Assigns a standard description to an item.
+    """
+    payload = 'Note: This item was initially generated by the FMD Framework. Any modifications may introduce breaking changes. For further details, please refer to the documentation at https://github.com/edkreuk/FMD_FRAMEWORK.'
+    try:
+        run_fab_command(f'set "/{workspace_name}.workspace/{item} -q description -i {payload} -f', silently_continue=True)
+        print(f"✅ Description applied to {item} in '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to apply description: {e}")
+
+def create_workspace_identity(workspace_name):
+    """
+    Create workspace identity in the workspace.
+    """
+    try:
+        run_fab_command(f'create "/{workspace_name}.workspace/.managedidentities/{workspace_name}.ManagedIdentity"', capture_output=True, silently_continue=True)
+        print(f"✅ Managed identity created in '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to assign managed identity: {e}")
+
+# -------------------------------
+# Role Assignment
+# -------------------------------
+
+def assign_workspace_roles(workspace, workspace_name):
+    """
+    Assigns roles to principals in the workspace.
+    """
+    workspace_path = f"/{workspace_name}.workspace"
+    print(f" - Assigning Workspace roles")
+    for role in workspace['roles']:
+        try:
+            run_fab_command(f'acl set "{workspace_path}" -I {role["principal"]["id"]} -R {role["role"]} -f', capture_output=True, silently_continue=True)
+            print(f"✅'{role['principal']}' assigned to {role['role']} role in '{workspace_name}'")
+        except Exception as e:
+            print(f"❌ Failed to assign role: {e}")
+
+def assign_workspace_identity_role(workspace_name):
+    """
+    Assigns role to _workspace identity in the workspace.
+    """
+    workspace_path = f"/{workspace_name}.workspace"
+    servicePrincipalId= run_fab_command(f"ls {workspace_name}.Workspace/.managedidentities -l --query [0].servicePrincipalId", capture_output=True, silently_continue=True)
+    try:
+        run_fab_command(f'acl set "{workspace_path}" -I {servicePrincipalId} -R Contributor -f', capture_output=True, silently_continue=True)
+        print(f"✅ Managed identity assigned to contributor role in '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to assign managed identity: {e}")
+
+def assign_workspace_environment(workspace_name, environment_name):
+    """
+    Assigns Environment to workspace
+    """
+    try:
+        run_fab_command(
+            f"set {workspace_name}.workspace -q sparkSettings.environment.name -i {environment_name} -f",
+            capture_output=True,
+            silently_continue=False,
+        )
+        print(f"✅ Environment assigned to workspace '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Environment assignment failed: {e}")
+
+def assign_identity_role_to_different_workspace(source_workspace_identity,workspace_name ):
+    """
+    Assigns role to _workspace identity in the workspace.
+    source_workspace_identity= workspace identity(code workspace)
+    workspace_name=workspace to assign identity(data workspace)
+    """
+    workspace_path = f"/{workspace_name}.workspace"
+    servicePrincipalId= run_fab_command(f"ls {source_workspace_identity}.Workspace/.managedidentities -l --query [0].servicePrincipalId", capture_output=True, silently_continue=True)
+    try:
+        run_fab_command(f'acl set "{workspace_path}" -I {servicePrincipalId} -R Contributor -f', capture_output=True, silently_continue=True)
+        print(f"✅ Managed identity assigned to contributor role in '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to assign managed identity: {e}")
+
+# -------------------------------
+# Folder Handling
+# -------------------------------
+
+def get_workspace_folders(workspace_id):
+    """
+    Retrieves all folders in a workspace.
+    """
+    response = run_fab_command(f"api workspaces/{workspace_id}/folders", capture_output=True, silently_continue=True)
+    return json.loads(response).get('text', {}).get('value', [])
+
+def get_workspace_folder_id(workspace_name, folder_name):
+    """
+    Retrieves folder id by name.
+    """
+    result=run_fab_command(f"get {workspace_name}.workspace/{folder_name}.Folder -q id", capture_output=True, silently_continue=True)
+    return result
+
+def create_workspace_folder(workspace_name, folder_name):
+    """
+    Create folder  by name.
+    """
+    try:
+        result=run_fab_command(f"create {workspace_name}.workspace/{folder_name}.Folder", capture_output=True, silently_continue=True)
+        print(f"✅ Folder {folder_name} created in workspace '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to create folder: {e}")
+
+    return result
+
+def assign_item_to_folder(workspace_name, item_id, folder_name):
+    """
+    Assigns an item to a folder, creating the folder if it doesn't exist.
+    """
+    targetFolderId = get_workspace_folder_id(workspace_name, folder_name)
+    workspace_id=get_workspace_id_by_name(workspace_name)
+    if "NotFound" in targetFolderId:
+        print(f"Folder does not exist, creating {folder_name}")
+        create_workspace_folder(workspace_name, folder_name)
+        targetFolderId = get_workspace_folder_id(workspace_name, folder_name)
+    payload = json.dumps({'targetFolderId': targetFolderId})
+    try:
+        run_fab_command(f"api -X post workspaces/{workspace_id}/items/{item_id}/move -i {payload}", capture_output=True, silently_continue=True)
+        print(f"✅ Folder {folder_name} assigned to item in '{workspace_name}'")
+    except Exception as e:
+        print(f"❌ Failed to assign folder: {e}")
+
+# -------------------------------
+# Workspace deployment
+# -------------------------------
+def deploy_workspaces(domain_name,workspace, workspace_name, environment_name, old_id, mapping_table, tasks):
+    """
+    Deploys a workspace by ensuring its existence, assigning identity, roles, and description.
+    Updates the mapping table and logs the deployment task.
+
+    Parameters:
+    - workspace (dict): Workspace configuration including name and capacity.
+    - environment_name (str): Target environment name.
+    - old_id (str): Previous workspace ID to be replaced.
+    - mapping_table (list): List to store ID mappings.
+    - tasks (list): List to store task execution logs.
+    """
+    start = time()
+    print("\n#############################################")
+    print(f" - Processing: workspace {workspace_name}")
+
+    workspace_id, status = ensure_workspace_exists(workspace, workspace_name)
+    workspace["id"] = workspace_id
+
+    print("--------------------------")
+    print(f"Updating Mapping Table: {environment_name}")
+    mapping_table.append({"Description": workspace_name,"environment": environment_name,"ItemType": "Workspace","old_id": old_id,"new_id": workspace_id })
+    mapping_table.append({"Description": workspace_name,"environment": environment_name,"ItemType": "Workspace","old_id": "00000000-0000-0000-0000-000000000000","new_id": workspace_id})
+
+    assign_workspace_description(workspace_name)
+    assign_workspace_roles(workspace,workspace_name)
+    create_workspace_identity(workspace_name)
+
+    assign_workspace_identity_role(workspace_name)  #required to support Workspace identity in Fabric Pipelines connectionb
+
+    set_fabric_runtime(workspace_name, spark_version)
+
+    if create_domains:
+        assign_fabric_domain(domain_name, workspace_name) 
+
+    tasks.append({"task_name": f"Create or Update workspace {workspace_name}","task_duration": int(time() - start),"status": "success" })
+
+# -------------------------------
+# Item deployment
+# -------------------------------
+def deploy_item(workspace_name,name, mapping_table, environment_name, tasks, lakehouse_schema_enabled, it=None):
+    """
+    Deploys an item (Notebook, Lakehouse, DataPipeline) into a workspace.
+    Handles ID replacement, description assignment, and updates mapping and task logs.
+
+    Parameters:
+    - workspace (dict): Workspace configuration including name.
+    - name (str): Name of the item to deploy.
+    - mapping_table (list): List to store ID mappings.
+    - environment_name (str): Target environment name.
+    - connection_list (list): List of valid connection GUIDs.
+    - tasks (list): List to store task execution logs.
+    - lakehouse_schema_enabled (bool): Flag to enable schema creation for lakehouses.
+    - child (str, optional): Child item name if applicable.
+    - it (dict, optional): Item metadata including old ID.
+    """
+    start = time()
+    print("\n#############################################")
+    print(f"Deploying in {workspace_name}: {name}")
+
+    tmp_path = copy_to_tmp(name)
+
+    workspace_id = get_workspace_id_by_name(workspace_name)
+    cli_parameter = ''
+
+    if "Notebook" in name:
+        cli_parameter += " --format .py"
+        result = run_fab_command(f"import {workspace_name}.Workspace/{name} -i {tmp_path} -f {cli_parameter}",capture_output=True, silently_continue=True)
+        assign_item_description(workspace_name, name)  #added to Notebook import to speed up deployment
+        new_id = get_item_id(workspace_name, name, 'id')
+        assign_item_to_folder(workspace_name=workspace_name, item_id=new_id, folder_name='Notebooks')
+        mapping_type='Notebook'
+
+    elif "Lakehouse" in name:
+        LakehouseExists=run_fab_command(f'exists {workspace_name}.Workspace/{name}',capture_output=True, silently_continue=True)
+        if LakehouseExists != "* true":
+                try:
+                    print(f"Creating Lakehouse: {name}")
+                    if lakehouse_schema_enabled:
+                        result = run_fab_command(f"create {workspace_name}.Workspace/{name} -P enableschemas=true",capture_output=True, silently_continue=True)
+
+                    else:
+                        result = run_fab_command(f"create {workspace_name}.Workspace/{name} -P", capture_output=True, silently_continue=True)
+                        assign_item_description(workspace_name, name)
+                    print(f"✅ {name} Created/Imported'")
+                except Exception as e:
+                    raise RuntimeError(f"❌ Failed to create Lakehouse: {e}")
+        else:
+             result=('Lakehouse already exists, skip creation')
+        new_id = get_item_id(workspace_name, name, 'id')
+        assign_item_to_folder(workspace_name=workspace_name, item_id=new_id, folder_name='Lakehouses')
+        mapping_type='Lakehouse'
+
+    elif "DataPipeline" in name:
+        print(f"Replacing connections guid in {workspace_name}: {name}")
+        connection_list=get_existing_connections_by_id()
+        replace_ids_and_mark_inactive(tmp_path, mapping_table, environment_name, connection_list)
+        result = run_fab_command(f"import / {workspace_name}.Workspace/{name} -i {tmp_path} -f",capture_output=True, silently_continue=True)
+        assign_item_description(workspace_name, name)
+        new_id = get_item_id(workspace_name, name, 'id')
+        assign_item_to_folder(workspace_name=workspace_name, item_id=new_id, folder_name='DataPipelines')
+        mapping_type='DataPipeline'
+
+    elif "VariableLibrary" in name:   
+        VariableLibraryExists=run_fab_command(f'exists {workspace_name}.Workspace/{name}',capture_output=True, silently_continue=True)
+        if VariableLibraryExists != "* true" or overwrite_variable_library:
+                try:
+                    print(f"Creating or updating VariableLibrary: {name}")
+                    result = update_variable_library(tmp_path, it.get("variables"))
+                    result = run_fab_command(f"import {workspace_name}.Workspace/{name} -i {tmp_path} -f",capture_output=True, silently_continue=True)
+                    print(f"✅ {name} Created/Imported'")
+                except Exception as e:
+                    print(f"❌ Failed to create VariableLibrary: {e}")
+        else:
+             result=('VariableLibrary already exists, skip creation and do not overwrite')
+        new_id = get_item_id(workspace_name, name, 'id')
+        assign_item_to_folder(workspace_name=workspace_name, item_id=new_id, folder_name='VariableLibraries')
+        mapping_type='VariableLibrary'
+    
+    elif "Environment" in name:   
+        try:
+            print(f"Creating or updating Environment: {name}")
+            result = run_fab_command(f"import {workspace_name}.Workspace/{name} -i {tmp_path} -f",capture_output=True, silently_continue=True)
+            print(f"✅ {name} Created/Imported'")
+        except Exception as e:
+            print(f"❌ Failed to create Environment: {e}")
+        new_id = get_item_id(workspace_name, name, 'id')
+        assign_item_to_folder(workspace_name=workspace_name, item_id=new_id, folder_name='Environments')
+        mapping_type='Environment'
+    
+    elif "SQLDatabase" in name:  
+        tmp_path = copy_to_tmp('SQL_FMD_FRAMEWORK.SQLDatabase')  #This is the folder in Github repo
+        try:
+            print(f"Creating or updating SQLDatabase: {name}")
+            result = run_fab_command(f"import {workspace_name}.Workspace/{name} -i {tmp_path} -f",capture_output=True, silently_continue=True)
+            assign_item_description(workspace_name, name)
+            print(f"✅ {name} Created/Imported'")
+        except Exception as e:
+            raise RuntimeError(f"❌ Failed to create database: {e}")
+        new_id = get_item_id(workspace_name, name, 'id')
+        server = get_item_id(workspace_name, name, 'properties.serverFqdn')
+        database_name = get_item_id(workspace_name, name, 'properties.databaseName')
+        assign_item_to_folder(workspace_name=workspace_name, item_id=new_id, folder_name='Database')
+        variable_parameters["fmd_fabric_db_connection"]=server
+        variable_parameters["fmd_fabric_db_name"]=database_name
+        variable_parameters["fmd_config_database_guid"]=new_id
+        variable_parameters["fmd_config_workspace_guid"]=workspace_id
+        upsert_mapping(mapping_table, {"Description":deployment_item['name'] , "environment": 'config',"ItemType": 'SQLDatabase', "old_id": deployment_item["endpoint"], "new_id": server}, keys=("Description","environment", "ItemType","old_id"))
+        upsert_mapping(mapping_table, {"Description":deployment_item['name'] , "environment": 'config',"ItemType": 'SQLDatabase', "old_id": deployment_item["name"], "new_id": configuration['DatabaseName']}, keys=("Description","environment", "ItemType","old_id"))
+
+        mapping_type='SQLDatabase'
+        return server, database_name
+    if 'result' in locals() and result is not None:
+        print(result)
+    else:
+        print("No result produced for this item/path")
+
+    if it:
+        mapping_table.append({"Description": name,"environment": environment_name,"ItemType": mapping_type, "old_id": it["id"],"new_id": new_id})
+
+    tasks.append({
+        "task_name": f"Create or Update item Definition {workspace_name} - {name}","task_duration": int(time() - start),"status": result })
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# -------------------------------
+# Connections
+# -------------------------------
+def get_existing_connections_by_id():
+    """
+    Retrieves the connections ID 
+    """
+    result = run_fab_command("ls .connections -l -q [].{id:id}", capture_output=True, silently_continue=True)
+    connection_list = result[2:]
+    return connection_list
+
+
+def create_fabric_sql_connection(connection_name, tenant_id, client_id, client_secret):
+    """Create a FabricSql connection through the Fabric REST API.
+
+    The fab CLI cannot create this one, which is why it used to be a manual step.
+    Two things make it work:
+
+      * creationMethod must be 'FabricSql.Contents'. The supported creation
+        methods are listed by GET /v1/connections/supportedConnectionTypes.
+      * FabricSql accepts only OAuth2-family credentials. WorkspaceIdentity is
+        rejected with UnsupportedCredentialType. A service principal is accepted,
+        because a service principal is a way of obtaining an OAuth2 token.
+
+    The service principal must have access to the workspace that holds the
+    database, otherwise the connector reports
+    'No workspaces are available for the current account'.
+    """
+    payload = {
+        "connectivityType": "ShareableCloud",
+        "displayName": connection_name,
+        "connectionDetails": {
+            "type": "FabricSql",
+            "creationMethod": "FabricSql.Contents",
+            "parameters": []
+        },
+        "privacyLevel": "Organizational",
+        "credentialDetails": {
+            "singleSignOnType": "None",
+            "connectionEncryption": "NotEncrypted",
+            "skipTestConnection": False,
+            "credentials": {
+                "credentialType": "ServicePrincipal",
+                "tenantId": tenant_id,
+                "servicePrincipalClientId": client_id,
+                "servicePrincipalSecret": client_secret
+            }
+        }
+    }
+    headers = {
+        "Authorization": "Bearer " + notebookutils.credentials.getToken("pbi"),
+        "Content-Type": "application/json"
+    }
+    # A client secret created moments ago is not immediately usable: Entra has not
+    # propagated it yet, and Fabric answers DMTS_OAuthTokenRefreshFailedError. That
+    # is a timing problem, not a wrong secret, so retry before giving up. Observed:
+    # the first call failed and the next one, ~15 seconds later, succeeded.
+    error_code = ""
+    for attempt in range(4):
+        response = requests.post("https://api.fabric.microsoft.com/v1/connections",
+                                 headers=headers, json=payload, timeout=120)
+        if response.status_code in (200, 201):
+            print(f"\u2705 {connection_name} Created")
+            return response.json().get("id")
+
+        # Never print the response body: it echoes the request, secret included.
+        error_code = ""
+        try:
+            error_code = response.json().get("errorCode", "")
+        except Exception:
+            pass
+
+        if error_code != "DMTS_OAuthTokenRefreshFailedError" or attempt == 3:
+            break
+        print(f"   {connection_name}: credential not usable yet, retrying in 15s "
+              f"(attempt {attempt + 1} of 4)")
+        time.sleep(15)
+
+    print(f"\u274c Failed to create {connection_name}: HTTP {response.status_code} {error_code}")
+    if error_code == "DMTS_OAuthTokenRefreshFailedError":
+        print("   The secret was rejected. Check that it is the secret VALUE and not the "
+              "secret ID, and that the principal has access to the workspace holding the database.")
+    return None
+
+def create_or_get_fmd_connection(connection_name,connection_role, type):
+    """
+    Ensures the workspace exists; creates it if not found.
+    Optionally reassigns capacity if requested.
+    """
+    ConnectionExists=run_fab_command(f'exists .connections/{connection_name}.Connection',capture_output=True, silently_continue=True)
+    if ConnectionExists != "* true":
+        try:
+            if type =='FabricSql':
+                if fabric_sql_sp_tenant_id and fabric_sql_sp_client_id and fabric_sql_sp_secret:
+                    create_fabric_sql_connection(connection_name,
+                                                 fabric_sql_sp_tenant_id,
+                                                 fabric_sql_sp_client_id,
+                                                 fabric_sql_sp_secret)
+                else:
+                    print("FabricSql needs a service principal to be created automatically. "
+                          "Set fabric_sql_sp_tenant_id / _client_id / _secret, or create it manually.")
+            elif type =='AzureDataFactory':
+                print("AzureDataFactory can't created automated yet to CLI limitations, please create manual")
+            elif type =='FabricDataPipelines':
+                run_fab_command(f"""create .connections/{connection_name}.Connection 
+                    -P connectionDetails.type=FabricDataPipelines,connectionDetails.creationMethod=FabricDataPipelines.Actions,connectionDetails.parameters.dummy=x,credentialDetails.type=WorkspaceIdentity""")
+            elif type =='Notebooks':
+                run_fab_command(f"""create .connections/{connection_name}.Connection 
+                    -P connectionDetails.type=Notebook,connectionDetails.creationMethod=Notebook.Actions,connectionDetails.parameters.dummy=x,credentialDetails.type=WorkspaceIdentity""")
+                
+                print(f"✅ {connection_name} Created")
+        except Exception as e:
+            print(f"❌ Failed to create connection: {e}")
+        else:
+             print('Connection already exists, skip creation')
+    connection_id=run_fab_command(f"get .connections/{connection_name}.Connection -q id", silently_continue= True, capture_output= True)
+    payload_role = json.dumps(connection_role)
+    try:
+        run_fab_command(f'api -X post connections/{connection_id}/roleAssignments -i "{payload_role}"',capture_output=True ,silently_continue=True  )
+        print(f"✅ Role applied to {connection_name}")
+    except Exception as e:
+        print(f"❌ Failed to apply role: {e}")
+    return connection_id
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# -------------------------------
+# Workspace Handling for Cluster Request
+# -------------------------------
+
+FABRIC_API_BASE_URL = "https://api.fabric.microsoft.com/v1/"
+
+def invoke_fabric_api_request(method, path, payload=None):
+    """Call the Fabric public REST API with a path relative to /v1/.
+
+    invoke_fabric_request() polls long running operations through this helper, but
+    it was referenced without ever being defined, so reaching the 202 branch raised
+    NameError: name 'invoke_fabric_api_request' is not defined.
+
+    Deliberately does not handle 202 itself, so that it cannot recurse into the
+    poller that calls it.
+    """
+    headers = {
+        "Authorization": "Bearer " + notebookutils.credentials.getToken("pbi"),
+        "Content-Type": "application/json"
+    }
+    return requests.request(method,
+                            FABRIC_API_BASE_URL + path.lstrip("/"),
+                            headers=headers,
+                            json=payload,
+                            timeout=240)
+
+def invoke_fabric_request(method, url, payload=None):
+    
+    headers = {
+        "Authorization": "Bearer " + notebookutils.credentials.getToken("pbi"),
+        "Content-Type": "application/json"
+    }
+
+    try:
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=5, status_forcelist=[502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retries)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+
+        response = session.request(method, url, headers=headers, json=payload, timeout=240)      
+        if (response.status_code == 202):
+            operation_id = response.headers.get('x-ms-operation-id')
+            
+            # Poll the operation status until it's done - sleep 2 seconds between polls
+            while True:
+                operation_state_response = invoke_fabric_api_request("get", f"operations/{operation_id}")
+                operation_state = operation_state_response.json().get("status")
+
+                if operation_state in ["NotStarted", "Running"]:
+                    time.sleep(2)
+                elif operation_state == "Succeeded":
+                    response = invoke_fabric_api_request("get", f"operations/{operation_id}/result")
+                    break
+                else:
+                    break
+        
+        return response
+
+    except requests.RequestException as ex:
+        print(ex)
+
+def get_workspace_metadata(workspace_id):
+    response = invoke_fabric_request("get", f"{cluster_base_url}metadata/folders/{workspace_id}")
+    response.raise_for_status()
+    return response.json()
+
+def set_workspace_icon(workspace_id, base64_png):
+    icon=None
+    if base64_png == "":
+        icon = ""
+    elif base64_png:
+        icon = f"data:image/png;base64,{base64_png}"
+
+    if icon is not None:
+        payload = { "icon": icon }
+        try:
+            response = invoke_fabric_request("put", f"{cluster_base_url}metadata/folders/{workspace_id}", payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"Could not set icon on workspace id {workspace_id}: {e}. Ensure that the user is admin on workspace.")
+            return None
+# -------------------------------
+# FMD specific Icon functions
+# Inspiration and the code is coming from Peer, who wrote a blog post about this (https://peerinsights.hashnode.dev/automating-fabric-maintaining-workspace-icon-images) 
+# -------------------------------
+icon_display_size = "24"
+default_icon = f"<img height='{icon_display_size}' src='https://content.powerapps.com/resource/powerbiwfe/images/artifact-colored-icons.663f961f5a92d994a109.svg#c_group_workspace_24' />"
+
+def convert_svg_base64_to_png_base64(base64_svg):
+    svg_data = base64.b64decode(base64_svg)
+    png_bytes = cairosvg.svg2png(bytestring=svg_data)
+    base64_png = base64.b64encode(png_bytes).decode()
+    return base64_png
+
+
+def fill_svg(base64_svg, fill_color):
+    try:
+        svg_data = base64.b64decode(base64_svg).decode('utf-8')
+        modified_svg = re.sub(r'fill="[^"]+"', f'fill="{fill_color}"', svg_data)
+        return base64.b64encode(modified_svg.encode('utf-8')).decode('utf-8')
+    except Exception as e:
+        print(f"Failed colorfill of image: {e}. Skipping")
+
+def display_workspace_icons(workspaces):
+    html = "<table width='100%'>"
+    html += "<th style='text-align:left'>Workspace name</th><th style='text-align:left'>Workspace ID</th><th style='text-align:left; width:100px'>Old icon</th><th style='text-align:left; width:100px'>New icon</th>"
+    for workspace in workspaces:
+        html += f"<tr><th style='text-align:left'>{workspace.get('displayName')}</td>"
+        html += f"<td style='text-align:left'>{workspace.get('id')}</td>"
+        iconUrl = get_workspace_metadata(workspace.get('id')).get('iconUrl')
+        existing_icon = f"<img height='{icon_display_size}' src='{cluster_base_url}{iconUrl}'/>" if iconUrl is not None else default_icon
+        html += f"<td style='text-align:left'>{existing_icon}</td>"
+        new_icon = workspace.get('icon_base64img')
+        if workspace.get('icon_base64img',"") == "":
+            new_icon = default_icon
+        else:
+            new_icon = f"<img height='{icon_display_size}' src='data:image/png;base64,{new_icon}' />" if new_icon is not None else existing_icon
+        html += f"<td style='text-align:left'>{new_icon}</td></tr>"
+    
+    displayHTML(html)   
+
+def add_letter_to_base64_png(base64_png, letter, font_size=20, text_color="black", bold=False):
+    image_data = base64.b64decode(base64_png)
+    image = Image.open(io.BytesIO(image_data))
+
+    draw = ImageDraw.Draw(image)
+    
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except IOError:
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+        
+    padding = 0
+    text_bbox = draw.textbbox((0, 0), letter, font=font)  # Get bounding box
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+    
+    text_x = image.width - text_width - padding
+    text_y = padding
+
+    if bold:
+        for offset in [(0, 0), (1, 0), (0, 1), (1, 1)]:
+            draw.text((text_x + offset[0], text_y + offset[1]), letter, font=font, fill=text_color)
+    else:
+        draw.text((text_x, text_y), letter, font=font, fill=text_color)
+
+    output_buffer = io.BytesIO()
+    image.save(output_buffer, format="PNG")
+    new_base64_png = base64.b64encode(output_buffer.getvalue()).decode("utf-8")
+
+    return new_base64_png
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }
+
+# CELL ********************
+
+# -------------------------------
+# Demo data
+# -------------------------------
+
+def create_demo_data_table(code_workspace_name, data_workspace_name,
+                           lakehouse_schema_enabled, branch,
+                           repo_owner, repo_name, timeout_seconds=1200):
+    """Run NB_FMD_LOAD_DEMO_DATA so the demo entity has a table to point at.
+
+    load_demo_data registers [in].[customer] in LandingzoneEntity, BronzeLayerEntity
+    and SilverLayerEntity, but nothing creates the table itself, so a fresh deployment
+    loads nothing and reports success.
+
+    This notebook cannot do it: it is a pure Python notebook with no Spark session, and
+    it downloads only src/ and config/, not demodata/. NB_FMD_LOAD_DEMO_DATA has Spark,
+    so run it once, here, on the REST API the setup already uses.
+    """
+    start = time()
+    code_workspace_id = get_workspace_id_by_name(code_workspace_name)
+    data_workspace_id = get_workspace_id_by_name(data_workspace_name)
+    notebook_id  = get_item_id(code_workspace_name, 'NB_FMD_LOAD_DEMO_DATA.Notebook', 'id')
+    lakehouse_id = get_item_id(data_workspace_name, 'LH_DATA_LANDINGZONE.Lakehouse', 'id')
+
+    if not notebook_id or not lakehouse_id:
+        print("❌ Demo data: NB_FMD_LOAD_DEMO_DATA or LH_DATA_LANDINGZONE not found, skipping")
+        return
+
+    payload = {"executionData": {"parameters": {
+        "data_workspace_guid":        {"value": data_workspace_id, "type": "string"},
+        "landingzone_lakehouse_guid": {"value": lakehouse_id,      "type": "string"},
+        "lakehouse_schema_enabled":   {"value": bool(lakehouse_schema_enabled), "type": "bool"},
+        "repo_owner":                 {"value": repo_owner, "type": "string"},
+        "repo_name":                  {"value": repo_name,  "type": "string"},
+        "branch":                     {"value": branch,     "type": "string"},
+    }}}
+
+    print("Creating the demo table [in].[customer] in LH_DATA_LANDINGZONE")
+    response = invoke_fabric_api_request(
+        "POST",
+        f"workspaces/{code_workspace_id}/items/{notebook_id}/jobs/instances?jobType=RunNotebook",
+        payload)
+
+    location = (response.headers or {}).get("Location") if hasattr(response, "headers") else None
+    if not location:
+        print("❌ Demo data: the notebook run was not accepted")
+        return
+
+    job_url = location.split("/v1/", 1)[-1]
+    deadline = time() + timeout_seconds
+    while time() < deadline:
+        sleep(15)
+        status = invoke_fabric_api_request("GET", job_url).json().get("status")
+        if status in ("Completed", "Failed", "Cancelled", "Deduped"):
+            break
+    else:
+        status = "TimedOut"
+
+    if status == "Completed":
+        print("✅ Demo table [in].[customer] created")
+    else:
+        # Do not fail the deployment for the demo: the framework itself is fine.
+        print(f"❌ Demo data: NB_FMD_LOAD_DEMO_DATA finished as {status}. "
+              f"The framework deployed correctly; only the demo table is missing.")
+
+    tasks.append({"task_name": "Create demo data table",
+                  "task_duration": int(time() - start),
+                  "status": "success" if status == "Completed" else "failed"})
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "jupyter_python"
+# META }

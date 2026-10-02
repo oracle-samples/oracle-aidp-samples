@@ -1,0 +1,15 @@
+{
+  "name": "oracle-ai-data-platform-workbench-fabric-migrator",
+  "version": "0.1.0",
+  "description": "Migrate a Microsoft Fabric workspace (notebooks, Warehouse T-SQL, OneLake shortcuts) to Oracle AI Data Platform: inventory, plan, translate deterministically, and verify.",
+  "author": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": ["aidp", "oracle", "fabric", "migration", "onelake", "spark", "tsql"],
+  "commands": "./commands/",
+  "mcpServers": "./.mcp.json"
+}
