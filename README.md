@@ -47,6 +47,9 @@ Foundational examples to help you get up and running on AIDP Workbench.
 | [Analyse Data Using PySpark](getting-started/Analyse_Data_Using_PySpark.ipynb) | PySpark fundamentals: catalog and schema setup, table creation, data insertion, schema exploration, and matplotlib visualizations. |
 | [Analyse Data Using SQL](getting-started/Analyse_Data_Using_SQL.ipynb) | Core SQL operations on AIDP including DataFrame creation, transformations, aggregations, and simple visualizations. |
 | [ALH External Catalog MERGE](getting-started/ALH_ExternalCatalog_Merge.ipynb) | End-to-end MERGE workflow into an ALH table via an AIDP external catalog: insert/update/delete with merge keys and OOS-staging skip optimization. |
+| [Native Apache Iceberg Table](getting-started/Native_Iceberg_Table.ipynb) | Create a native Iceberg table in a Standard catalog, then explore schema and partition evolution, MERGE, snapshots, and time travel. |
+
+The native Iceberg sample uses an existing AIDP Standard catalog. The Hadoop catalog sample under Data Engineering registers a separate Spark catalog on OCI Object Storage. Delta UniForm samples create Delta tables that publish Iceberg-compatible metadata.
 
 #### Delta Lake
 
@@ -79,7 +82,7 @@ Patterns for connecting to and loading data from a wide range of sources.
 | [Execute Oracle ALH SQL](data-engineering/ingestion/Execute%20Oracle%20ALH%20SQL.ipynb) | Execute SQL statements directly against Oracle ALH using the `oracledb` Python package. |
 | [Ingest Data Using YAML](data-engineering/ingestion/Ingest_data_using_yaml/Ingest_data_using_YAML.ipynb) | Config-driven ingestion from cloud storage (CSV, JSON) and JDBC sources with schema validation and data quality checks. |
 | [Ingest from Multi-Cloud](data-engineering/ingestion/Ingest_from_Multi_Cloud.ipynb) | Ingest data from Azure Data Lake Storage (ADLS) and AWS S3 with proper JAR configuration and credential management. |
-| [Ingest into Apache Iceberg (OCI Native)](data-engineering/ingestion/Ingest_into_iceberg_hadoop_catalog_oci_native.ipynb) | End-to-end Apache Iceberg workflow: table creation, querying, schema evolution, time travel, and metadata inspection using OCI native protocol and Hadoop catalog. |
+| [Apache Iceberg with an OCI Hadoop Catalog](data-engineering/ingestion/Ingest_into_iceberg_hadoop_catalog_oci_native.ipynb) | Register a Spark Hadoop catalog on OCI Object Storage, then create, query, and evolve an Iceberg table. |
 | [Pipe-Delimited File Ingestion](data-engineering/ingestion/PipeDelimited.ipynb) | Read pipe-delimited (`\|`) files from OCI Object Storage and register them as external tables. |
 | [Read Excel Files](data-engineering/ingestion/Read_excel_data/read_excel.ipynb) | Read Excel (`.xlsx`) files using the Spark Excel connector and convert them to Spark DataFrames or CSV. |
 | [Streaming from OCI Streaming Service](data-engineering/ingestion/Streaming/StreamingFromOCIStreamingService.ipynb) | Consume messages from OCI Streaming (Kafka-compatible) using Spark Structured Streaming with SASL/OAUTHBearer authentication. |
@@ -129,9 +132,9 @@ Demonstrates Delta Lake liquid clustering for automatic query optimization and d
 | [Telecommunications](data-engineering/transformation/liquid-clustering/telecommunications_delta_liquid_clustering_demo.ipynb) | Network and customer usage data |
 | [Transportation](data-engineering/transformation/liquid-clustering/transportation_delta_liquid_clustering_demo.ipynb) | Fleet and logistics optimization |
 
-#### Apache Iceberg Uniform Liquid Clustering
+#### Delta UniForm Liquid Clustering
 
-Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cross-engine table optimization. Industry variants available:
+Combines Delta liquid clustering with UniForm-generated Iceberg metadata for cross-engine reads. These samples write Delta tables. Industry variants available:
 
 | Notebook | Industry |
 |---|---|
