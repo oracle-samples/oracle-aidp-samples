@@ -1,1 +1,9 @@
 jinja2
+
+# Below packages are not required on AIDP. They are required only when running the
+# tests in test_scd2_template.py locally.
+pytest
+pyspark==3.5.2
+# Only needed for the end-to-end test marked `delta`; skipped when absent.
+# Run `pytest -m "not delta"` to exclude it.
+delta-spark==3.2.0
