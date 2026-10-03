@@ -1,0 +1,12 @@
+{
+  "export": "m_emp_vs_dept_avg.xml",
+  "notes": [
+    "Classic self-rejoin: SQ_EMP feeds AGG_DEPT (AVG(SALARY), COUNT(EMP_ID) grouped by DEPT_ID; group-by port marked EXPRESSIONTYPE=\"GROUPBY\"; Sorted Input = NO) AND the detail side of JNR_EMP_DEPT; the Aggregator output is the Joiner MASTER (ports DEPT_ID1/AVG_SAL/DEPT_CNT marked INPUT/OUTPUT/MASTER), joined on DEPT_ID1 = DEPT_ID.",
+    "PowerCenter only allows two branches of the same pipeline to meet in a Joiner with sorted data, so SQ_EMP sorts by DEPT_ID (Number Of Sorted Ports = 1) and the Joiner has Sorted Input = YES. The expected rows are a set and do not depend on that order.",
+    "AVG ignores NULL: dept 10 = (5000 + 7000) / 2 = 6000 although it has three employees; COUNT(EMP_ID) = 3 (EMP_ID is never NULL).",
+    "NULL DEPT_ID is a group of its own in the Aggregator (Gus + Hal, AVG 4000, COUNT 2), but on the Joiner a NULL key never matches, not even the aggregate row whose key is also NULL.",
+    "Join Type = Master Outer Join keeps every DETAIL (employee) row: Gus and Hal land with NULL AVG_SAL, NULL DEPT_CNT, NULL SAL_DIFF -- NOT with their NULL group's 4000.",
+    "SAL_DIFF = SALARY - AVG_SAL is NULL when either side is NULL (Cy has a NULL SALARY).",
+    "SAL_FLAG = IIF(SALARY > AVG_SAL, 'ABOVE', IIF(SALARY = AVG_SAL, 'AT', 'BELOW')): a NULL comparison is not TRUE, so both IIFs take the else branch and NULL rows get 'BELOW'."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "TGT_TOP_REPS": {"rows": [
+    {"RANKINDEX": 1, "REGION": "EAST",  "REP_ID": 3,  "AMT": 700.00},
+    {"RANKINDEX": 2, "REGION": "EAST",  "REP_ID": 1,  "AMT": 500.00},
+    {"RANKINDEX": 1, "REGION": "WEST",  "REP_ID": 5,  "AMT": 400.00},
+    {"RANKINDEX": 1, "REGION": "WEST",  "REP_ID": 6,  "AMT": 400.00},
+    {"RANKINDEX": 1, "REGION": "NORTH", "REP_ID": 8,  "AMT": 50.00},
+    {"RANKINDEX": 1, "REGION": null,    "REP_ID": 10, "AMT": 90.00},
+    {"RANKINDEX": 1, "REGION": null,    "REP_ID": 12, "AMT": 90.00}
+  ]},
+  "TGT_REGION_AMT": {"rows": [
+    {"REGION": "EAST",  "AMT": 700.00},
+    {"REGION": "EAST",  "AMT": 500.00},
+    {"REGION": "EAST",  "AMT": 300.00},
+    {"REGION": "EAST",  "AMT": 100.00},
+    {"REGION": "NORTH", "AMT": 50.00},
+    {"REGION": "WEST",  "AMT": 400.00},
+    {"REGION": "WEST",  "AMT": 200.00},
+    {"REGION": null,    "AMT": 90.00},
+    {"REGION": null,    "AMT": 80.00}
+  ]}
+}

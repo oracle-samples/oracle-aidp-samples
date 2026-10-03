@@ -1,0 +1,69 @@
+{
+  "DIM_CUSTOMER": {
+    "rows": [
+      {
+        "CUST_SK": 1,
+        "CUST_ID": 100,
+        "CUST_NAME": "Acme",
+        "CITY": "Boston",
+        "TIER": "GOLD",
+        "EFF_START_DT": "2025-01-01T00:00:00",
+        "EFF_END_DT": "2999-12-31T00:00:00",
+        "CURRENT_FLAG": "Y"
+      },
+      {
+        "CUST_SK": 2,
+        "CUST_ID": 200,
+        "CUST_NAME": "Beta",
+        "CITY": "Austin",
+        "TIER": "SILVER",
+        "EFF_START_DT": "2024-01-01T00:00:00",
+        "EFF_END_DT": "2025-06-30T00:00:00",
+        "CURRENT_FLAG": "N"
+      },
+      {
+        "CUST_SK": 3,
+        "CUST_ID": 200,
+        "CUST_NAME": "Beta",
+        "CITY": "Dallas",
+        "TIER": "SILVER",
+        "EFF_START_DT": "2025-07-01T00:00:00",
+        "EFF_END_DT": "2026-09-29T02:00:00",
+        "CURRENT_FLAG": "N"
+      },
+      {
+        "CUST_SK": 4,
+        "CUST_ID": 400,
+        "CUST_NAME": "Delta",
+        "CITY": "Denver",
+        "TIER": "BRONZE",
+        "EFF_START_DT": "2025-03-01T00:00:00",
+        "EFF_END_DT": "2999-12-31T00:00:00",
+        "CURRENT_FLAG": "Y"
+      },
+      {
+        "CUST_SK": null,
+        "CUST_ID": 200,
+        "CUST_NAME": "Beta",
+        "CITY": "Houston",
+        "TIER": "SILVER",
+        "EFF_START_DT": "2026-09-29T02:00:00",
+        "EFF_END_DT": "2999-12-31T00:00:00",
+        "CURRENT_FLAG": "Y"
+      },
+      {
+        "CUST_SK": null,
+        "CUST_ID": 300,
+        "CUST_NAME": "Gamma",
+        "CITY": "Miami",
+        "TIER": "GOLD",
+        "EFF_START_DT": "2026-09-29T02:00:00",
+        "EFF_END_DT": "2999-12-31T00:00:00",
+        "CURRENT_FLAG": "Y"
+      }
+    ],
+    "ignore": [
+      "CUST_SK"
+    ]
+  }
+}

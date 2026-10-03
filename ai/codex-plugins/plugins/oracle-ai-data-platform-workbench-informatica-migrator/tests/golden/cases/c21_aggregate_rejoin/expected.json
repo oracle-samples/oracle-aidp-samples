@@ -1,0 +1,78 @@
+{
+  "TGT_EMP_VS_DEPT": {
+    "rows": [
+      {
+        "EMP_ID": 1,
+        "DEPT_ID": 10,
+        "SALARY": 5000.0,
+        "AVG_SAL": 6000.0,
+        "DEPT_CNT": 3,
+        "SAL_DIFF": -1000.0,
+        "SAL_FLAG": "BELOW"
+      },
+      {
+        "EMP_ID": 2,
+        "DEPT_ID": 10,
+        "SALARY": 7000.0,
+        "AVG_SAL": 6000.0,
+        "DEPT_CNT": 3,
+        "SAL_DIFF": 1000.0,
+        "SAL_FLAG": "ABOVE"
+      },
+      {
+        "EMP_ID": 3,
+        "DEPT_ID": 10,
+        "SALARY": null,
+        "AVG_SAL": 6000.0,
+        "DEPT_CNT": 3,
+        "SAL_DIFF": null,
+        "SAL_FLAG": "BELOW"
+      },
+      {
+        "EMP_ID": 4,
+        "DEPT_ID": 20,
+        "SALARY": 4000.0,
+        "AVG_SAL": 4000.0,
+        "DEPT_CNT": 2,
+        "SAL_DIFF": 0.0,
+        "SAL_FLAG": "AT"
+      },
+      {
+        "EMP_ID": 5,
+        "DEPT_ID": 20,
+        "SALARY": 4000.0,
+        "AVG_SAL": 4000.0,
+        "DEPT_CNT": 2,
+        "SAL_DIFF": 0.0,
+        "SAL_FLAG": "AT"
+      },
+      {
+        "EMP_ID": 6,
+        "DEPT_ID": 30,
+        "SALARY": 9000.0,
+        "AVG_SAL": 9000.0,
+        "DEPT_CNT": 1,
+        "SAL_DIFF": 0.0,
+        "SAL_FLAG": "AT"
+      },
+      {
+        "EMP_ID": 7,
+        "DEPT_ID": null,
+        "SALARY": 3000.0,
+        "AVG_SAL": null,
+        "DEPT_CNT": null,
+        "SAL_DIFF": null,
+        "SAL_FLAG": "BELOW"
+      },
+      {
+        "EMP_ID": 8,
+        "DEPT_ID": null,
+        "SALARY": 5000.0,
+        "AVG_SAL": null,
+        "DEPT_CNT": null,
+        "SAL_DIFF": null,
+        "SAL_FLAG": "BELOW"
+      }
+    ]
+  }
+}

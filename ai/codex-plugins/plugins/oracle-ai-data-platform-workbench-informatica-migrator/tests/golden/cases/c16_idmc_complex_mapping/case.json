@@ -1,0 +1,13 @@
+{
+  "export": "m_order_segments_idmc.json",
+  "notes": [
+    "IDMC (CDI) mapping in the repo's IDMC JSON shape (tests/fixtures/idmc/*.json). Two Sources -> Joiner -> connected Lookup -> Expression -> Router (two groups) -> Aggregator on the HIGH_VALUE branch -> two Targets.",
+    "Joiner 'Normal' join (IDMC's name for an inner join) on C_CUST_ID = CUST_ID, CUSTOMERS as master: order 1006 (customer 9) has no match and is dropped.",
+    "Connected Lookup on SEGMENTS (SEG_CODE = C_SEGMENT_CODE): customer 4's segment 'XXX' has no match, so SEG_NAME and REGION are NULL -- the row is kept (a lookup never drops rows).",
+    "BAND = IIF(AMOUNT >= 1000, 'HIGH', 'STD'): 1000.00 is HIGH (>=); a NULL AMOUNT makes the condition NULL, IIF takes the false branch -> 'STD'. NET = ROUND(AMOUNT*0.9, 2) is NULL for a NULL AMOUNT.",
+    "Router: each row goes to every group whose condition is TRUE; the two conditions are exclusive here, so every row lands in exactly one group. The implicit DEFAULT group is not connected.",
+    "Aggregator groups HIGH_VALUE rows by REGION; the NULL REGION rows form one group of their own (order 1008). SUM(NET) and COUNT(ORDER_ID).",
+    "Targets are keyed by tableName (HIGH_VALUE_BY_REGION, STD_ORDERS), the physical object the IDMC target writes.",
+    "Connections out of the Router name the output group as from.group -- IDMC links a Router's output GROUP, not just a field name, to the downstream object; a real IDMC export carries this, the fixture shape in the repo does not."
+  ]
+}
