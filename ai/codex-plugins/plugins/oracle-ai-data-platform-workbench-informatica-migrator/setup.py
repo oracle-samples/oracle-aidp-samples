@@ -12,6 +12,7 @@ setup(
     install_requires=[
         "pyyaml>=6.0",
         "requests>=2.28",
+        "tzdata",  # IANA zones for --schedule-timezone; see pyproject.toml
     ],
     extras_require={
         "llm": ["openai>=1.40", "anthropic>=0.40"],

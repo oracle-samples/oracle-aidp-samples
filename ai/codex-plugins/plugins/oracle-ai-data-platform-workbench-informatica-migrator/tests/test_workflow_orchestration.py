@@ -334,10 +334,17 @@ def test_a_declared_timezone_still_creates_the_job_paused():
     assert tr.job["schedule"]["pauseStatus"] == "PAUSED"
 
 
-def test_a_bogus_timezone_is_refused_at_construction():
+def test_a_bogus_timezone_is_refused_at_construction(monkeypatch):
     """AIDP rejects an unknown timezoneId, so a typo would otherwise produce
-    a whole migration's worth of undeployable jobs."""
+    a whole migration's worth of undeployable jobs.
+
+    Run against a tz database whatever the host has: without one (Windows
+    with no tzdata) only a name's shape can be checked, and a plausible
+    typo has the right shape -- see validate_schedule_timezone."""
     import pytest
+    from infa2aidp.generators import workflow_generator as wg
+    monkeypatch.setattr(wg, "_known_zones",
+                        lambda: frozenset({"America/New_York", "Europe/London", "UTC"}))
     with pytest.raises(ValueError, match="not an IANA timezone"):
         WorkflowGenerator(schedule_timezone="America/New_Yrok")
 

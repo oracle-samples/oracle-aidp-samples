@@ -120,11 +120,20 @@ _REFUSAL_NOTE = (
 
 
 def _refuse_lines(what: str, review: str, indent: str = "") -> list:
-    """REVIEW marker plus a raise, for a condition we could not convert."""
+    """REVIEW marker plus a raise, for a condition we could not convert.
+
+    The review quotes the export's expression, and exports carry CR/LF
+    inside expressions. Interpolated into one ``# ...`` line, everything
+    after the first line break landed in code position: the notebook failed
+    to compile, so the raise that was meant to stop it never ran either.
+    Every line of the review gets its own prefix, as ``_comment_lines``
+    does, and ``what`` goes in through repr() for the same reason.
+    """
+    body = (review or "").replace("\r\n", "\n").replace("\r", "\n")
     return [
-        f"{indent}# {review}",
+        *(f"{indent}# {ln.rstrip()}" for ln in body.split("\n")),
         f"{indent}raise NotImplementedError(",
-        f'{indent}    "REVIEW REQUIRED: {what} -- the condition could not be "',
+        f"{indent}    {'REVIEW REQUIRED: ' + what + ' -- the condition could not be '!r}",
         f'{indent}    "converted, so this branch cannot be filtered correctly. "',
         f'{indent}    "Emitting it anyway would silently drop every row. "',
         f'{indent}    "Translate the condition by hand."',
@@ -369,6 +378,45 @@ class TransformationConverter:
         re.IGNORECASE | re.DOTALL,
     )
 
+    # An Oracle string literal ('' is an escaped quote) or a double-quoted
+    # identifier, scanned in one pass so a quote of one kind inside the
+    # other cannot start a false token.
+    _SQL_QUOTED = re.compile(r"'(?:[^']|'')*'|\"[^\"]*\"")
+    _SQL_MASK = re.compile(r"\x00(\d+)\x00")
+
+    @staticmethod
+    def _mask_sql_literals(sql: str) -> tuple[str, list[str]]:
+        """``sql`` with every string literal replaced by a placeholder, and
+        the literals, for ``_unmask_sql_literals`` to put back.
+
+        Table qualification is a textual rewrite, and it reached inside
+        literals: ``WHERE c.SEGMENT = 'CUSTOMERS'`` became ``=
+        'oltp.app.customers'`` -- a query that runs and matches nothing.
+        A FROM inside a literal was likewise scanned as a table.
+
+        A double-quoted identifier that is a plain name is unquoted: Spark
+        reads ``"X"`` as a string literal, not an identifier, so
+        ``SELECT "NAME"`` would return the text NAME on every row. Any other
+        double-quoted identifier is left as written; the override gate
+        refuses it.
+        """
+        lits: list[str] = []
+
+        def _one(m: re.Match) -> str:
+            tok = m.group(0)
+            if tok.startswith('"'):
+                return tok[1:-1] if re.fullmatch(r"[A-Za-z_][\w$#]*", tok[1:-1]) else tok
+            lits.append(tok)
+            return f"\x00{len(lits) - 1}\x00"
+
+        return TransformationConverter._SQL_QUOTED.sub(_one, sql), lits
+
+    @staticmethod
+    def _unmask_sql_literals(masked: str, lits: list[str]) -> str:
+        return TransformationConverter._SQL_MASK.sub(
+            lambda m: lits[int(m.group(1))], masked
+        )
+
     @staticmethod
     def _sql_tables_referenced(sql: str) -> set[str]:
         """Bare table names the FROM/JOIN clauses name, upper-cased.
@@ -378,7 +426,19 @@ class TransformationConverter:
         caller treats "no resolvable table" as a reason to refuse, so an
         unparsed shape fails safe.
         """
-        out: set[str] = set()
+        return {
+            ref.split(".")[-1].upper()
+            for ref in TransformationConverter._sql_table_refs(sql)
+        }
+
+    @staticmethod
+    def _sql_table_refs(sql: str) -> list[str]:
+        """The table references the FROM/JOIN clauses name, as written --
+        ``APP.ORDERS`` stays dotted, because it is the dotted text that has
+        to be replaced by the catalog name. String literals are masked
+        first, so a FROM inside one is not a table."""
+        sql = TransformationConverter._mask_sql_literals(sql)[0]
+        out: list[str] = []
         for m in TransformationConverter._SQL_FROM_CLAUSE.finditer(sql):
             for item in m.group(1).split(","):
                 item = item.strip()
@@ -394,7 +454,7 @@ class TransformationConverter:
                         inner = inner.rstrip()[:-1]
                     else:
                         inner = inner.rsplit(")", 1)[0] if ")" in inner else inner
-                    out |= TransformationConverter._sql_tables_referenced(inner)
+                    out.extend(TransformationConverter._sql_table_refs(inner))
                     continue
                 # A table named inside a subquery arrives with the closing
                 # paren attached (`FROM CUSTOMERS)` in `IN (SELECT id FROM
@@ -407,18 +467,25 @@ class TransformationConverter:
                     continue
                 if first.upper() in ("SELECT", "DUAL", "TABLE", "LATERAL"):
                     continue
-                out.add(first.split(".")[-1].upper())
+                out.append(first)
         return out
 
     def _sql_refusal_reason(
         self, sql: str, source_tables: Optional[dict[str, str]]
     ) -> str:
         """Why the override was not run as Spark SQL. Goes in the review."""
-        hit = self._SQL_UNTRANSLATABLE.search(sql)
+        masked = self._mask_sql_literals(sql)[0]
+        hit = self._SQL_UNTRANSLATABLE.search(masked)
         if hit:
             return (
                 f"it uses Oracle-only SQL that Spark would reject or read "
                 f"differently: {hit.group(0).strip()!r}"
+            )
+        quoted = re.search(r'"[^"]*"', masked)
+        if quoted:
+            return (
+                f"it uses a double-quoted identifier, {quoted.group(0)}, which "
+                f"Spark would read as a string literal"
             )
         known = {k.upper() for k in (source_tables or {})}
         unknown = sorted(self._sql_tables_referenced(sql) - known)
@@ -434,43 +501,133 @@ class TransformationConverter:
     # A qualified column reference in a join condition: TABLE.COLUMN.
     _SQL_QUALIFIED_COL = re.compile(r"\b([A-Za-z_][\w$#]*)\s*\.\s*[A-Za-z_][\w$#]*")
 
-    def _user_defined_join_as_spark_sql(
-        self, udj: str, table: str, out: str,
+    # One conjunct of a join condition that equates a column across two
+    # tables: TABLE.COLUMN = TABLE.COLUMN, optionally parenthesised.
+    _SQL_EQUI_CONJUNCT = re.compile(
+        r"\s*\(*\s*([A-Za-z_][\w$#]*)\s*\.\s*([A-Za-z_][\w$#]*)\s*=\s*"
+        r"([A-Za-z_][\w$#]*)\s*\.\s*([A-Za-z_][\w$#]*)\s*\)*\s*"
+    )
+
+    def _udj_query(
+        self, udj: str,
         source_tables: Optional[dict[str, str]],
-    ) -> Optional[list[str]]:
-        """A User Defined Join, as a query over the sources it names.
+        source_columns: Optional[dict[str, list[str]]],
+    ) -> tuple[Optional[str], list[str], Optional[str]]:
+        """``(query, tables, None)`` for a User Defined Join, or
+        ``(None, [], reason)`` to refuse it.
 
         The condition names its tables through qualified column references
         (``ORDERS.CUST_ID = CUSTOMERS.CUST_ID``), so the table list is
-        derivable from the condition itself. Two or more resolvable tables
-        become ``SELECT * FROM a, b WHERE <condition>``, which then goes
-        through :meth:`_sql_override_as_spark_sql` -- so an Oracle ``(+)``
-        outer join is refused there rather than being guessed at here.
+        derivable from the condition itself.
 
-        Returns None when the condition names fewer than two tables we can
-        resolve: a join we cannot name both sides of is not one we can
-        write.
+        The select list is explicit. ``SELECT *`` over ``FROM a, b`` returns
+        the join key once per table, so the first reference to CUST_ID
+        failed AMBIGUOUS_REFERENCE and Delta refuses to write duplicate
+        column names. Each name is taken once, from the first table that has
+        it -- which is only the same value as the other tables' column when
+        the condition equates the two (an inner equi-join key). A name
+        shared any other way is refused rather than picked from one side.
         """
+        masked = self._mask_sql_literals(udj)[0]
+        if "{" in masked or re.search(r"\bJOIN\b", masked, re.IGNORECASE):
+            # PowerCenter's own outer-join syntax, `{ A LEFT OUTER JOIN B ON
+            # ... }`. Placed after WHERE it is a ParseException at run time.
+            return None, [], (
+                "it is written in Informatica's outer-join syntax "
+                "({ A LEFT OUTER JOIN B ON ... }), which is not translated"
+            )
+        if self._SQL_UNTRANSLATABLE.search(masked):
+            return None, [], self._sql_refusal_reason(udj, source_tables)
         if not source_tables:
-            return None
+            return None, [], "the mapping's source tables were not available to qualify it"
         known = {k.upper() for k in source_tables}
-        named = [
-            ref for ref in dict.fromkeys(
-                m.group(1).upper() for m in self._SQL_QUALIFIED_COL.finditer(udj)
-            ) if ref in known
-        ]
-        if len(named) < 2:
-            return None
+        all_refs = list(dict.fromkeys(
+            m.group(1).upper() for m in self._SQL_QUALIFIED_COL.finditer(masked)
+        ))
+        named = [ref for ref in all_refs if ref in known]
         # Every qualifier in the condition must be a table we know. An
         # unrecognised one may be an alias for a source not in this mapping,
         # and joining the wrong tables silently is the failure to avoid.
-        all_refs = {
-            m.group(1).upper() for m in self._SQL_QUALIFIED_COL.finditer(udj)
-        }
-        if all_refs - known:
-            return None
+        unknown = [ref for ref in all_refs if ref not in known]
+        if unknown:
+            return None, [], (
+                f"it qualifies columns with {', '.join(unknown)}, which is not "
+                f"a source in this mapping"
+            )
+        if len(named) < 2:
+            # A join we cannot name both sides of is not one we can write.
+            return None, [], "it does not name two of this mapping's sources to join"
 
-        synthetic = f"SELECT * FROM {', '.join(named)} WHERE {udj}"
+        cols = {k.upper(): list(v or []) for k, v in (source_columns or {}).items()}
+        missing = [t for t in named if not cols.get(t)]
+        if missing:
+            return None, [], (
+                f"the column list of {', '.join(missing)} was not available, and "
+                f"SELECT * over a join returns each join key once per table"
+            )
+        holders: dict[str, list[str]] = {}
+        select: list[str] = []
+        for t in named:
+            for c in cols[t]:
+                tables = holders.setdefault(c.upper(), [])
+                if t in tables:
+                    continue
+                if not tables:
+                    select.append(f"{t}.{c} AS {c}")
+                tables.append(t)
+        equated = self._udj_equated(masked)
+        for col, tables in holders.items():
+            if len(tables) > 1 and not equated(col, tables):
+                return None, [], (
+                    f"column {col} exists in {', '.join(tables)} and the join does "
+                    f"not equate it, so one table's value cannot stand for both"
+                )
+        return f"SELECT {', '.join(select)} FROM {', '.join(named)} WHERE {udj}", named, None
+
+    def _udj_equated(self, masked_udj: str):
+        """``equated(col, tables)``: whether the condition's top-level AND
+        conjuncts chain ``T1.col = T2.col = ...`` across all of ``tables``.
+
+        Only an equality that holds for every joined row counts, so any OR
+        in the condition disqualifies them all.
+        """
+        parent: dict[tuple[str, str], tuple[str, str]] = {}
+
+        def find(x):
+            while parent.get(x, x) != x:
+                x = parent[x]
+            return x
+
+        if not re.search(r"\bOR\b", masked_udj, re.IGNORECASE):
+            for conj in re.split(r"\bAND\b", masked_udj, flags=re.IGNORECASE):
+                m = self._SQL_EQUI_CONJUNCT.fullmatch(conj)
+                if m and m.group(2).upper() == m.group(4).upper():
+                    col = m.group(2).upper()
+                    a, b = (m.group(1).upper(), col), (m.group(3).upper(), col)
+                    parent[find(a)] = find(b)
+
+        def equated(col: str, tables: list[str]) -> bool:
+            return len({find((t, col)) for t in tables}) == 1
+
+        return equated
+
+    def _user_defined_join_as_spark_sql(
+        self, udj: str, table: str, out: str,
+        source_tables: Optional[dict[str, str]],
+        source_columns: Optional[dict[str, list[str]]] = None,
+    ) -> Optional[list[str]]:
+        """A User Defined Join, as a query over the sources it names.
+
+        Synthesised by :meth:`_udj_query` into ``SELECT <columns> FROM a, b
+        WHERE <condition>``, which then goes through
+        :meth:`_sql_override_as_spark_sql` -- so an Oracle ``(+)`` outer
+        join is refused there rather than being guessed at here.
+
+        Returns None to refuse; :meth:`_udj_refusal_reason` says why.
+        """
+        synthetic, named, _ = self._udj_query(udj, source_tables, source_columns)
+        if synthetic is None:
+            return None
         emitted = self._sql_override_as_spark_sql(
             synthetic, table, out, source_tables
         )
@@ -482,6 +639,15 @@ class TransformationConverter:
             "# left as a review item. REVIEW: confirm the row count matches the",
             "# Informatica session before trusting the output.",
         ] + [l for l in emitted if not l.startswith("#")]
+
+    def _udj_refusal_reason(
+        self, udj: str,
+        source_tables: Optional[dict[str, str]],
+        source_columns: Optional[dict[str, list[str]]] = None,
+    ) -> str:
+        """Why the User Defined Join was not run. Goes in the review."""
+        synthetic, _, reason = self._udj_query(udj, source_tables, source_columns)
+        return reason or self._sql_refusal_reason(synthetic or udj, source_tables)
 
     def _sql_override_as_spark_sql(
         self, sql: str, table: str, out: str,
@@ -495,7 +661,9 @@ class TransformationConverter:
            ``CONNECT BY``, ``MINUS`` and bind variables either fail on Spark
            or -- worse -- parse and mean something else. Refused, not
            rewritten: guessing the ANSI equivalent of an Oracle join is how
-           a migration produces plausible wrong numbers.
+           a migration produces plausible wrong numbers. So is a
+           double-quoted identifier that is not a plain name, which Spark
+           would read as a string literal.
         2. **Every table resolves to a source in this mapping.** Spark needs
            a catalog-qualified name and the override carries Oracle's
            unqualified one. A table we cannot map is one we cannot qualify,
@@ -509,32 +677,76 @@ class TransformationConverter:
         """
         if not source_tables:
             return None
-        if self._SQL_UNTRANSLATABLE.search(sql):
+        # Every check and rewrite below runs with string literals masked: a
+        # literal is data, and neither a table name nor ':' inside one is SQL.
+        masked, lits = self._mask_sql_literals(sql)
+        if self._SQL_UNTRANSLATABLE.search(masked) or '"' in masked:
             return None
 
         known = {k.upper(): v for k, v in source_tables.items()}
-        referenced = self._sql_tables_referenced(sql)
+        refs = self._sql_table_refs(masked)
+        referenced = {r.split(".")[-1].upper() for r in refs}
         if not referenced or (referenced - set(known)):
             return None
 
-        # Qualify each bare table name in place. Word-boundary matched and
-        # applied longest-first so a table whose name is a prefix of another
-        # cannot be half-substituted.
-        qualified = sql
-        for bare in sorted(referenced, key=len, reverse=True):
-            qualified = re.sub(
-                rf"(?<![\w.]){re.escape(bare)}\b", known[bare], qualified,
-                flags=re.IGNORECASE,
-            )
+        # Qualify each table reference in place, AS WRITTEN in FROM/JOIN:
+        # `APP.ORDERS` is replaced whole (and so is `APP.ORDERS.COL`). Only
+        # the last part used to be kept, and the lookbehind that stops
+        # `o.ORDERS` from being rewritten also skipped `APP.ORDERS`, so a
+        # schema-qualified override ran unqualified against the session's
+        # catalog. One pass over an alternation, longest first, so a
+        # replacement is never itself rewritten and a table whose name is a
+        # prefix of another cannot be half-substituted.
+        target = {
+            re.sub(r"\s+", "", r).upper(): known[r.split(".")[-1].upper()]
+            for r in refs
+        }
+        alternation = "|".join(
+            r"\s*\.\s*".join(re.escape(p) for p in ref.split("."))
+            for ref in sorted(target, key=len, reverse=True)
+        )
+        qualified = re.sub(
+            rf"(?<![\w$#.])(?:{alternation})(?![\w$#])",
+            lambda m: target[re.sub(r"\s+", "", m.group(0)).upper()],
+            masked, flags=re.IGNORECASE,
+        )
 
         # $$PARAM references resolve through the notebook's _param(); a
         # literal would bake one run's value into the query.
-        has_param = "$$" in qualified
+        has_param = "$$" in sql
         if has_param:
+            # The query becomes an f-string, so a brace the SQL itself
+            # carries (`RLIKE '^[0-9]{5}$'`) would be evaluated by Python.
+            def _braces(s: str) -> str:
+                return s.replace("{", "{{").replace("}", "}}")
+
+            def _in_literal(lit: str) -> str:
+                # '$$X' is a whole literal: the value, quoted, as
+                # _convert_where_fragment does. Written out as-is it became
+                # ''EU'' -- a ParseException.
+                whole = re.fullmatch(r"'\$\$(\w+)'", lit)
+                if whole:
+                    return "{_sql_lit(_param_text(%r))}" % whole.group(1)
+                # '%$$X%': Informatica substitutes the parameter's TEXT into
+                # the query before it runs, so it goes inside the literal.
+                # Escaped with backslashes: Spark reads 'it''s' as two
+                # adjacent literals, i.e. "its". chr() because a backslash
+                # in an f-string expression is a SyntaxError before 3.12.
+                return re.sub(
+                    r"\$\$(\w+)",
+                    lambda m: (
+                        "{str(_param_text(%r)).replace(chr(92), chr(92) * 2)"
+                        ".replace(chr(39), chr(92) + chr(39))}" % m.group(1)
+                    ),
+                    _braces(lit),
+                )
+
+            lits = [_in_literal(l) for l in lits]
             qualified = re.sub(
                 r"\$\$(\w+)", lambda m: f"{{_sql_lit(_param_text('{m.group(1)}'))}}",
-                qualified,
+                _braces(qualified),
             )
+        qualified = self._unmask_sql_literals(qualified, lits)
 
         lines = [
             f"# SQL override run as Spark SQL. The override JOINs/UNIONs or",
@@ -551,6 +763,7 @@ class TransformationConverter:
     def source_read_lines(
         self, tx: Transformation, table: str, out: str,
         source_tables: Optional[dict[str, str]] = None,
+        source_columns: Optional[dict[str, list[str]]] = None,
     ) -> list[str]:
         """The read cell for a Source Qualifier: ``spark.table(...)`` plus
         every qualifier property that changes WHICH rows are read.
@@ -558,7 +771,13 @@ class TransformationConverter:
         Shared by the converter (comparison/confidence reports) and the
         notebook generator (the actual source cell) so both agree.
 
-        Properties honoured, in the order PowerCenter applies them:
+        ``source_columns`` maps each source's bare table name (upper-cased)
+        to its column names; a User Defined Join needs them to write an
+        explicit select list, and is refused without them.
+
+        Properties honoured, in the order PowerCenter applies them. A SQL
+        Query, when set, overrides the rest and Number Of Sorted Ports --
+        they are reported as ignored, not applied:
 
         - **SQL Query** (override). A single-table ``SELECT ... FROM <table>
           [alias] WHERE ...`` becomes a table read plus a filter. An override
@@ -569,7 +788,7 @@ class TransformationConverter:
           gate failed) it falls back to.
         - **Source Filter**: a WHERE fragment, applied as a filter.
         - **User Defined Join**: joins the qualifier's several sources.
-          Synthesised into ``SELECT * FROM a, b WHERE <condition>`` and put
+          Synthesised into ``SELECT <columns> FROM a, b WHERE <condition>`` and put
           through the same translation and the same gates, rather than
           maintaining a second join translator.
         - **Select Distinct**: ``.distinct()``.
@@ -588,7 +807,8 @@ class TransformationConverter:
         where_clauses: list[tuple[str, str]] = []  # (label, raw where)
         aliases: set[str] = {table.split(".")[-1]}
 
-        if tx.sql_override and tx.sql_override.strip():
+        has_override = bool(tx.sql_override and tx.sql_override.strip())
+        if has_override:
             sql = " ".join(tx.sql_override.split())
             simple = re.match(
                 r"^\s*SELECT\s+(?P<cols>.+?)\s+FROM\s+(?P<tbl>[\w$#.\"]+)"
@@ -650,13 +870,42 @@ class TransformationConverter:
                 if simple.group("where"):
                     where_clauses.append(("SQL override WHERE", simple.group("where")))
 
-        if tx.source_filter and tx.source_filter.strip():
+        # Number Of Sorted Ports = N: PowerCenter adds ORDER BY on the
+        # qualifier's first N ports. Row order matters to whatever reads it
+        # in order -- SETMAXVARIABLE, a Sorted Input Aggregator/Joiner, a
+        # variable port carrying the previous row -- and was dropped.
+        try:
+            n_sorted = int(str(get_ci(tx.properties, "number of sorted ports", default="0") or "0"))
+        except ValueError:
+            n_sorted = 0
+
+        # A SQL Query overrides the User-Defined Join, Source Filter, Number
+        # Of Sorted Ports and Select Distinct settings: PowerCenter runs the
+        # query as written and ignores them. Applying them as well joined a
+        # second time, filtered rows the query kept -- and a translated UDJ
+        # replaced the cell outright, override and its refusal included.
+        if has_override:
+            ignored = [
+                name for name, is_set in (
+                    ("User Defined Join", bool((tx.user_defined_join or "").strip())),
+                    ("Source Filter", bool((tx.source_filter or "").strip())),
+                    ("Number Of Sorted Ports", n_sorted > 0),
+                    ("Select Distinct", bool(tx.select_distinct)),
+                ) if is_set
+            ]
+            if ignored:
+                lines.append(
+                    f"# {', '.join(ignored)} set on '{tx.name}' but NOT applied: "
+                    f"the SQL Query overrides them, as it does in PowerCenter."
+                )
+
+        if not has_override and tx.source_filter and tx.source_filter.strip():
             where_clauses.append(("Source Filter", tx.source_filter.strip()))
 
-        if tx.user_defined_join and tx.user_defined_join.strip():
+        if not has_override and tx.user_defined_join and tx.user_defined_join.strip():
             # A User Defined Join joins the qualifier's OWN sources. That is
-            # exactly what `SELECT * FROM a, b WHERE <join>` means, so it is
-            # synthesised into that query and put through the same SQL
+            # exactly what `SELECT <columns> FROM a, b WHERE <join>` means,
+            # so it is synthesised into that query and put through the same SQL
             # translation (and the same two gates) as a SQL override --
             # rather than maintaining a second, weaker join translator.
             #
@@ -664,7 +913,7 @@ class TransformationConverter:
             # read one of the sources and the join never happened.
             udj = " ".join(tx.user_defined_join.split())
             joined = self._user_defined_join_as_spark_sql(
-                udj, table, out, source_tables
+                udj, table, out, source_tables, source_columns
             )
             if joined:
                 lines = [lines[0]] + joined
@@ -672,7 +921,7 @@ class TransformationConverter:
                 lines.append(
                     f"# REVIEW REQUIRED: Source Qualifier '{tx.name}' has a User Defined Join "
                     f"({udj[:120]}) across its sources, which could not be translated "
-                    f"({self._sql_refusal_reason(udj, source_tables)}). Only "
+                    f"({self._udj_refusal_reason(udj, source_tables, source_columns)}). Only "
                     f"{table} is read here -- add the join as a DataFrame .join() before "
                     f"running this notebook."
                 )
@@ -690,18 +939,10 @@ class TransformationConverter:
                 lines.append(f"# {label}: {raw[:120]}")
                 lines.append(f"{out} = {out}.filter({converted})")
 
-        if tx.select_distinct:
+        if tx.select_distinct and not has_override:
             lines.append(f"{out} = {out}.distinct()  # Select Distinct = YES")
 
-        # Number Of Sorted Ports = N: PowerCenter adds ORDER BY on the
-        # qualifier's first N ports. Row order matters to whatever reads it
-        # in order -- SETMAXVARIABLE, a Sorted Input Aggregator/Joiner, a
-        # variable port carrying the previous row -- and was dropped.
-        try:
-            n_sorted = int(str(get_ci(tx.properties, "number of sorted ports", default="0") or "0"))
-        except ValueError:
-            n_sorted = 0
-        if n_sorted > 0:
+        if n_sorted > 0 and not has_override:
             ports = [f.name for f in tx.fields if isinstance(f, TransformationField)][:n_sorted]
             if ports:
                 lines.append(

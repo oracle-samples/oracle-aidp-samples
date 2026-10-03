@@ -35,6 +35,8 @@ understands.
 
 from __future__ import annotations
 
+import functools
+import logging
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -42,6 +44,8 @@ from datetime import datetime
 from typing import Optional
 
 from ..models import Workflow
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -107,6 +111,86 @@ _STARTTIME_FORMATS = (
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%dT%H:%M:%S",
 )
+
+
+# The areas IANA files its zones under. Used ONLY when no tz database is
+# installed -- see validate_schedule_timezone.
+_IANA_AREAS = ("Africa", "America", "Antarctica", "Arctic", "Asia", "Atlantic",
+               "Australia", "Europe", "Indian", "Pacific", "Etc")
+_IANA_SHAPE = re.compile(
+    r"^(?:%s)(?:/[A-Z][A-Za-z0-9_+\-]*){1,2}$" % "|".join(_IANA_AREAS)
+)
+_UNCHECKED_ZONES_WARNED: set[str] = set()
+
+
+@functools.lru_cache(maxsize=1)
+def _known_zones() -> frozenset:
+    """Every zone name the local tz database knows; empty when there is none.
+
+    Cached: on Linux this walks /usr/share/zoneinfo, and a migration
+    constructs a generator per input file.
+    """
+    import zoneinfo
+    try:
+        return frozenset(zoneinfo.available_timezones())
+    except Exception:  # an unreadable TZPATH entry is "no database", not a crash
+        return frozenset()
+
+
+def validate_schedule_timezone(zone: str) -> str:
+    """Return ``zone`` if AIDP will accept it as a ``timezoneId``, else raise.
+
+    Membership in ``zoneinfo.available_timezones()``, compared
+    case-sensitively. ``ZoneInfo(zone)`` is not enough on its own: it reads
+    a file, so on a case-insensitive filesystem ``america/new_york``
+    resolves, and AIDP's Java ``ZoneId`` -- which is case-sensitive -- then
+    rejects every job at deploy time.
+
+    Python on Windows ships no tz database; it comes from the ``tzdata``
+    package, which this project declares for that reason. When neither the
+    system nor ``tzdata`` provides one, the honest options are to refuse
+    every zone (calling ``America/New_York`` invalid, which is false) or to
+    check what can still be checked. This does the latter: ``UTC``/``GMT``
+    are accepted as they are, and a name shaped exactly like an IANA
+    Area/City in IANA's case is accepted with a warning that the name
+    itself was not verified -- a typo
+    such as ``America/New_Yrok`` then surfaces as a 400 at deploy, not here.
+    Anything else is refused with a message naming ``tzdata``, not one
+    claiming the zone does not exist.
+
+    Raises:
+        ValueError: as described above.
+    """
+    known = _known_zones()
+    if known:
+        if zone in known:
+            return zone
+        near = sorted(z for z in known if z.lower() == str(zone).lower())
+        raise ValueError(
+            f"schedule_timezone {zone!r} is not an IANA timezone (e.g. "
+            f"'America/New_York', 'Europe/London', 'UTC'). AIDP rejects an "
+            f"unknown timezoneId."
+            + (f" Zone names are case-sensitive: did you mean {near[0]!r}?" if near else "")
+        )
+    if zone in ("UTC", "GMT"):  # fixed IDs every ZoneId accepts; nothing to look up
+        return zone
+    if _IANA_SHAPE.match(str(zone)):
+        if zone not in _UNCHECKED_ZONES_WARNED:
+            _UNCHECKED_ZONES_WARNED.add(zone)
+            logger.warning(
+                "No IANA tz database is installed, so schedule_timezone %r was "
+                "checked for shape only, not looked up. A misspelt zone will be "
+                "rejected by AIDP at deploy. Install the 'tzdata' package "
+                "(pip install tzdata) to check it now.", zone,
+            )
+        return zone
+    raise ValueError(
+        f"schedule_timezone {zone!r} cannot be checked: no IANA tz database is "
+        f"installed (Python on Windows has none of its own -- install the "
+        f"'tzdata' package: pip install tzdata). Without it only 'UTC' or an "
+        f"Area/City name in IANA's exact case, e.g. 'America/New_York', can be "
+        f"accepted."
+    )
 
 
 def _session_keys(workflow: Workflow) -> list[str]:
@@ -279,17 +363,11 @@ class WorkflowGenerator:
             ValueError: if the zone is not a real IANA zone. A typo would
                 otherwise reach the jobs API, which rejects an unknown
                 ``timezoneId`` -- failing here names the mistake instead.
+                See :func:`validate_schedule_timezone`, which a migration
+                run also calls before it writes anything.
         """
         if schedule_timezone is not None:
-            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-            try:
-                ZoneInfo(schedule_timezone)
-            except (ZoneInfoNotFoundError, ValueError) as e:
-                raise ValueError(
-                    f"schedule_timezone {schedule_timezone!r} is not an IANA "
-                    f"timezone (e.g. 'America/New_York', 'Europe/London', "
-                    f"'UTC'). AIDP rejects an unknown timezoneId."
-                ) from e
+            validate_schedule_timezone(schedule_timezone)
         self.schedule_timezone = schedule_timezone
 
     @property
@@ -331,14 +409,23 @@ class WorkflowGenerator:
         review: list[str] = []
         assumptions: list[str] = []
 
-        dep_graph = self._build_dependency_graph(workflow)
+        edges = self._session_edges(workflow)
+        dep_graph = self._build_dependency_graph(workflow, edges)
         tasks, task_review = self._build_tasks(
             workflow, notebook_paths, dep_graph, sessions or {}, parameter_file,
+            edges=edges,
         )
+        # The review and assumption text below is written from the runIf
+        # each task actually got, never from what a link would imply on its
+        # own: one SUCCEEDED link makes the whole task ALL_SUCCESS, and a
+        # line saying its other links "run on completion" was then false.
+        run_if = {t["taskKey"]: t["runIf"] for t in tasks}
         review.extend(task_review)
         review.extend(self._review_untranslated_tasks(workflow))
-        review.extend(self._review_link_conditions(workflow))
-        assumptions.extend(self._unconditional_link_assumptions(workflow))
+        review.extend(self._review_link_conditions(workflow, run_if))
+        link_assumptions, link_review = self._unconditional_links(workflow, run_if, edges)
+        review.extend(link_review)
+        assumptions.extend(link_assumptions)
 
         schedule, schedule_review, schedule_assumptions = self._build_schedule(workflow)
         review.extend(schedule_review)
@@ -448,14 +535,22 @@ class WorkflowGenerator:
             )
         return line
 
-    @staticmethod
-    def _review_link_conditions(workflow: Workflow) -> list[str]:
+    @classmethod
+    def _review_link_conditions(cls, workflow: Workflow,
+                                run_if: Optional[dict] = None) -> list[str]:
         """Report workflow links whose CONDITION was not applied.
 
-        A conditional link becomes an unconditional ``depends_on`` in the
-        generated job, so a step that used to run only when a condition
-        held now runs every time.
+        A conditional link becomes a plain ``dependsOn`` in the generated
+        job. What that does depends on the runIf the downstream task ended
+        up with (``run_if``, from :meth:`_run_if_for`): under ALL_DONE a
+        step that used to run only when a condition held now runs every
+        time; under ALL_SUCCESS -- forced by a SUCCEEDED condition elsewhere
+        on its upstream links -- it runs only on success, so a FAILED-only
+        link never fires at all. A link into a non-session node (Command,
+        Decision, a worklet's Start) is judged by the job task(s) it gates.
         """
+        run_if = run_if or {}
+        links = cls._links(workflow)
         review: list[str] = []
         for dep in workflow.dependencies or []:
             if not isinstance(dep, dict):
@@ -465,8 +560,35 @@ class WorkflowGenerator:
                 frm = dep.get("from_task") or dep.get("from") or "?"
                 to = dep.get("to_instance") or dep.get("to_task") or dep.get("to") or "?"
                 failed_cond = "FAILED" in cond.upper()
+                to_node = dep.get("to") or dep.get("to_task") or ""
+                fed = cls._downstream_sessions(to_node, workflow, links) if to_node else []
+                via = (
+                    f" {to} is not a job task; this link gates {', '.join(fed)} "
+                    f"through it."
+                    if fed and fed != [to_node] else ""
+                )
+                strict = [t for t in fed if run_if.get(t) == "ALL_SUCCESS"]
+                if strict:
+                    one = len(strict) == 1
+                    review.append(
+                        f"Link condition not applied on {frm} -> {to}: `{cond}`.{via} "
+                        f"{', '.join(strict)} {'is' if one else 'are'} runIf "
+                        f"ALL_SUCCESS (a success-only condition on "
+                        f"{'its' if one else 'their'} upstream links requires it), "
+                        f"so {'it runs' if one else 'they run'} only when every "
+                        f"upstream task SUCCEEDS, and this condition is not checked."
+                        + (
+                            " This link only wanted to run on FAILURE, so on AIDP "
+                            "that failure path NEVER runs: rebuild it outside this "
+                            "job (e.g. the job's own failure notification)."
+                            if failed_cond else
+                            " Apply the condition inside the downstream notebook if "
+                            "it must not run on every success."
+                        )
+                    )
+                    continue
                 review.append(
-                    f"Link condition not applied on {frm} -> {to}: `{cond}`. The "
+                    f"Link condition not applied on {frm} -> {to}: `{cond}`.{via} The "
                     f"dependency was generated as unconditional (runIf ALL_DONE), "
                     f"so the downstream task runs once the upstream one COMPLETES "
                     f"-- whether it succeeded or failed."
@@ -481,9 +603,11 @@ class WorkflowGenerator:
                 )
         return review
 
-    @staticmethod
-    def _run_if_for(task_name: str, workflow: Workflow) -> str:
-        """``ALL_DONE`` or ``ALL_SUCCESS`` for one task, from its own links.
+    @classmethod
+    def _run_if_for(cls, task_name: str, workflow: Workflow,
+                    edges: Optional[dict] = None) -> str:
+        """``ALL_DONE`` or ``ALL_SUCCESS`` for one task, from the links that
+        lead to it.
 
         PowerCenter runs the downstream task of an **unconditional** link
         once the upstream one COMPLETES, whether it succeeded or failed.
@@ -500,6 +624,12 @@ class WorkflowGenerator:
         explicitly, and ``runIf`` is per task rather than per link, so one
         demanding link governs the task.
 
+        "Its links" includes the hops in front of it. A condition on
+        s_a -> cmd_archive in s_a -> cmd_archive -> s_b gates s_b exactly as
+        it would on a direct link; reading only s_b's own (unconditional)
+        link gave ALL_DONE, and s_b ran after s_a FAILED -- which the source
+        never did. See :meth:`_session_edges`.
+
         A task with no incoming link always runs; it keeps ``ALL_SUCCESS``
         so this change touches only tasks whose behaviour it is about.
         """
@@ -510,100 +640,197 @@ class WorkflowGenerator:
         ]
         if not incoming:
             return "ALL_SUCCESS"
-        for dep in incoming:
-            cond = str(dep.get("condition") or "").strip()
-            if cond and _is_succeeded_condition(dep):
-                return "ALL_SUCCESS"
-            if cond:
-                # Any other condition is reported, not applied. Without the
-                # condition the link is unconditional in effect, so the
-                # PowerCenter reading still applies.
-                continue
+        # Any other condition is reported, not applied. Without the
+        # condition the link is unconditional in effect, so the PowerCenter
+        # reading still applies.
+        if any(_is_succeeded_condition(dep) for dep in incoming):
+            return "ALL_SUCCESS"
+        if edges is None:
+            edges = cls._session_edges(workflow)
+        if any((edges.get(task_name) or {}).values()):
+            return "ALL_SUCCESS"
         return "ALL_DONE"
 
-    @staticmethod
-    def _unconditional_link_assumptions(workflow: Workflow) -> list[str]:
-        """Say so when an unconditional link leaves a session.
+    @classmethod
+    def _unconditional_links(cls, workflow: Workflow, run_if: dict,
+                             edges: dict) -> tuple[list[str], list[str]]:
+        """``(assumptions, not_translated)`` for unconditional links that
+        leave a session.
 
         PowerCenter runs the downstream task of an unconditional link once
-        the upstream one COMPLETES, whether it succeeded or failed. The job
-        now matches that with ALL_DONE (see :meth:`_run_if_for`). That is
-        faithful and it is also permissive, so it is still stated: a
-        downstream task will run on a failed upstream's output, exactly as
-        it does in PowerCenter today.
+        the upstream one COMPLETES, whether it succeeded or failed. Where
+        the downstream task got ALL_DONE (see :meth:`_run_if_for`) the job
+        matches that. That is faithful and it is also permissive, so it is
+        still stated as an assumption: a downstream task will run on a
+        failed upstream's output, exactly as it does in PowerCenter today.
+
+        Where the same task ALSO has a SUCCEEDED link, it got ALL_SUCCESS --
+        runIf is per task, not per link -- and the unconditional link is no
+        longer reproduced: PowerCenter still runs the task when that
+        upstream fails, AIDP skips it. That is a divergence, not an
+        assumption, so it goes in the review. (Saying "runIf ALL_DONE. This
+        matches PowerCenter." for it, as this used to, was false.)
         """
         session_keys = set(_session_keys(workflow))
-        hits = sorted({
-            f"{dep.get('from_task')} -> {dep.get('to_instance') or dep.get('to_task')}"
-            for dep in workflow.dependencies or []
-            if isinstance(dep, dict)
-            and not str(dep.get("condition") or "").strip()
-            and dep.get("from_task") in session_keys
-        })
-        if not hits:
-            return []
-        return [
-            "ASSUMPTION: unconditional link(s) " + ", ".join(hits) + " run the "
-            "downstream task after the upstream session COMPLETES, whether it "
-            "succeeded or failed (runIf ALL_DONE). This matches PowerCenter. "
-            "It also means the downstream task runs on a failed upstream's "
-            "output -- if you want the job to stop there instead, set runIf "
-            "to ALL_SUCCESS on the downstream task."
-        ]
+        links = cls._links(workflow)
+        hits: set[str] = set()
+        skipped: dict[str, list[str]] = defaultdict(list)
+        for dep in workflow.dependencies or []:
+            if (not isinstance(dep, dict) or str(dep.get("condition") or "").strip()
+                    or dep.get("from_task") not in session_keys):
+                continue
+            frm = dep["from_task"]
+            to_node = dep.get("to") or dep.get("to_task") or ""
+            for t in cls._downstream_sessions(to_node, workflow, links) if to_node else []:
+                if (edges.get(t) or {}).get(frm):
+                    # Another hop between frm and t demands success, so the
+                    # source stops there too: nothing diverges, nothing to say.
+                    continue
+                if run_if.get(t) == "ALL_SUCCESS":
+                    if frm not in skipped[t]:
+                        skipped[t].append(frm)
+                else:
+                    hits.add(f"{frm} -> {dep.get('to_instance') or dep.get('to_task')}")
+
+        assumptions: list[str] = []
+        if hits:
+            assumptions.append(
+                "ASSUMPTION: unconditional link(s) " + ", ".join(sorted(hits)) + " run "
+                "the downstream task after the upstream session COMPLETES, whether it "
+                "succeeded or failed (runIf ALL_DONE). This matches PowerCenter. "
+                "It also means the downstream task runs on a failed upstream's "
+                "output -- if you want the job to stop there instead, set runIf "
+                "to ALL_SUCCESS on the downstream task."
+            )
+        review: list[str] = []
+        for t in sorted(skipped):
+            ups = ", ".join(skipped[t])
+            review.append(
+                f"Mixed incoming links on {t}: the link(s) from {ups} are "
+                f"unconditional, but a SUCCEEDED condition on another of its "
+                f"upstream links makes {t} runIf ALL_SUCCESS -- AIDP sets runIf per "
+                f"task, not per link. This diverges from PowerCenter: there {t} "
+                f"still runs if {ups} fails; in AIDP it will be skipped. If it must "
+                f"run after that failure, set runIf to ALL_DONE on {t} (which then "
+                f"no longer enforces the SUCCEEDED condition) and check that "
+                f"condition inside the notebook instead."
+            )
+        return assumptions, review
 
     # ------------------------------------------------------------------
     # Dependency graph
     # ------------------------------------------------------------------
 
-    def _build_dependency_graph(self, workflow: Workflow) -> dict[str, list[str]]:
+    @staticmethod
+    def _links(workflow: Workflow) -> list[tuple[str, str, Optional[dict]]]:
+        """Every workflow link as ``(from, to, link)``. ``link`` is None for
+        a bare ``(from, to)`` pair, which carries no condition."""
+        links: list[tuple[str, str, Optional[dict]]] = []
+        for dep in workflow.dependencies or []:
+            if isinstance(dep, (list, tuple)) and len(dep) >= 2:
+                pred, succ, link = dep[0], dep[1], None
+            elif isinstance(dep, dict):
+                pred = dep.get("from") or dep.get("from_task") or dep.get("predecessor", "")
+                succ = dep.get("to") or dep.get("to_task") or dep.get("successor", "")
+                link = dep
+            else:
+                continue
+            if pred and succ:
+                links.append((pred, succ, link))
+        return links
+
+    @classmethod
+    def _session_edges(cls, workflow: Workflow) -> dict[str, dict[str, bool]]:
+        """``{session: {nearest session ancestor: needs_success}}``.
+
+        A link may pass THROUGH a task that does not become a job task
+        (Command, Email, Decision, Timer, a worklet's Start ... -- reported
+        separately as dropped): s_a -> cmd_archive -> s_b. The dependency
+        s_a -> s_b still holds, so each session's predecessors are its
+        nearest SESSION ancestors, walking back through any non-session
+        nodes. Keeping only direct session->session links (as before) made
+        s_b independent of s_a and free to run first.
+
+        The walk carries each hop's condition with it, because dropping the
+        node does not drop the condition: ``$s_a.Status = SUCCEEDED`` on
+        s_a -> cmd_archive still means s_b must not run after s_a fails.
+        ``needs_success`` is True when any hop on any path from the ancestor
+        carries that condition. Any other condition is not applied, and
+        :meth:`_review_link_conditions` reports it whether or not it is on
+        a hop.
+
+        Only sessions with at least one incoming link appear.
+        """
+        session_names = set(_session_keys(workflow))
+        incoming: dict[str, list[tuple[str, bool]]] = defaultdict(list)
+        for pred, succ, link in cls._links(workflow):
+            incoming[succ].append((pred, link is not None and _is_succeeded_condition(link)))
+
+        memo: dict[str, dict[str, bool]] = {}
+
+        def ancestors(node: str, path: frozenset) -> dict[str, bool]:
+            if node in memo:
+                return memo[node]
+            found: dict[str, bool] = {}
+            for pred, gated in incoming.get(node, []):
+                if pred in path:  # a cycle -- shouldn't happen
+                    continue
+                reach = {pred: False} if pred in session_names else ancestors(pred, path | {pred})
+                for anc, needs in reach.items():
+                    found[anc] = found.get(anc, False) or needs or gated
+            memo[node] = found
+            return found
+
+        return {
+            s: ancestors(s, frozenset({s}))
+            for s in _session_keys(workflow) if s in incoming
+        }
+
+    @classmethod
+    def _downstream_sessions(cls, node: str, workflow: Workflow,
+                             links: Optional[list] = None) -> list[str]:
+        """The job tasks a link into ``node`` gates: ``node`` itself when it
+        is a session, else the nearest sessions after it, walking forward
+        through non-session nodes -- the mirror of :meth:`_session_edges`."""
+        session_names = set(_session_keys(workflow))
+        fwd: dict[str, list[str]] = defaultdict(list)
+        for pred, succ, _ in (links if links is not None else cls._links(workflow)):
+            fwd[pred].append(succ)
+        found: list[str] = []
+        seen: set[str] = set()
+
+        def walk(n: str) -> None:
+            if n in seen:
+                return
+            seen.add(n)
+            if n in session_names:
+                found.append(n)
+                return
+            for succ in fwd.get(n, []):
+                walk(succ)
+
+        walk(node)
+        return found
+
+    def _build_dependency_graph(self, workflow: Workflow,
+                                edges: Optional[dict] = None) -> dict[str, list[str]]:
         """Return {session_name: [predecessor_session_names]}.
 
         Sources:
-        1. workflow.dependencies -- list of (from, to) tuples or dicts
+        1. workflow.dependencies -- list of (from, to) tuples or dicts,
+           resolved to session ancestors by :meth:`_session_edges`
         2. workflow.execution_order -- flat ordered list (sequential deps)
         """
         graph: dict[str, list[str]] = defaultdict(list)
         session_names = set(_session_keys(workflow))
-
-        # Explicit dependencies. A link may pass THROUGH a task that does
-        # not become a job task (Command, Email, Decision, Timer, ... --
-        # reported separately as dropped): s_a -> cmd_archive -> s_b. The
-        # dependency s_a -> s_b still holds, so each session's predecessors
-        # are its nearest SESSION ancestors, walking back through any
-        # non-session nodes. Keeping only direct session->session links
-        # (as before) made s_b independent of s_a and free to run first.
-        preds_of: dict[str, list[str]] = defaultdict(list)
-        for dep in workflow.dependencies:
-            if isinstance(dep, (list, tuple)) and len(dep) >= 2:
-                pred, succ = dep[0], dep[1]
-            elif isinstance(dep, dict):
-                pred = dep.get("from") or dep.get("from_task") or dep.get("predecessor", "")
-                succ = dep.get("to") or dep.get("to_task") or dep.get("successor", "")
-            else:
-                continue
-            if pred and succ:
-                preds_of[succ].append(pred)
-
-        def session_ancestors(node: str, seen: set) -> list[str]:
-            found: list[str] = []
-            for p in preds_of.get(node, []):
-                if p in seen:
-                    continue
-                seen.add(p)
-                if p in session_names:
-                    found.append(p)
-                else:
-                    found.extend(session_ancestors(p, seen))
-            return found
-
-        for succ in list(preds_of):
-            if succ in session_names:
-                for p in session_ancestors(succ, {succ}):
-                    if p not in graph[succ]:
-                        graph[succ].append(p)
-        for name in session_names:
-            if name in preds_of or any(name in v for v in preds_of.values()):
-                graph.setdefault(name, [])
+        if edges is None:
+            edges = self._session_edges(workflow)
+        linked = {n for pred, succ, _ in self._links(workflow) for n in (pred, succ)}
+        for name in _session_keys(workflow):
+            if name in edges:
+                graph[name] = list(edges[name])
+            elif name in linked:
+                graph[name] = []
 
         # Fall back to execution_order if no explicit deps
         if not graph and workflow.execution_order:
@@ -631,8 +858,11 @@ class WorkflowGenerator:
         dep_graph: dict[str, list[str]],
         sessions: dict,
         parameter_file=None,
+        edges: Optional[dict] = None,
     ) -> tuple[list[dict], list[str]]:
         tasks: list[dict] = []
+        if edges is None:
+            edges = self._session_edges(workflow)
         review: list[str] = []
         # A hand-built Workflow may list Session objects; a parsed one lists
         # instance keys and maps each to its SESSION in session_instances.
@@ -664,7 +894,7 @@ class WorkflowGenerator:
             task: dict = {
                 "taskKey": name,
                 "type": "NOTEBOOK_TASK",
-                "runIf": self._run_if_for(name, workflow),
+                "runIf": self._run_if_for(name, workflow, edges),
                 "notebookPath": nb_path,
                 "dependsOn": [
                     {"taskKey": d} for d in dep_graph.get(name, []) if d

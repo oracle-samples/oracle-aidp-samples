@@ -74,6 +74,10 @@ _DDL_TYPE: dict[str, str] = {
     # Informatica's own transformation-port spellings
     "STRING": "STRING", "NSTRING": "STRING", "TEXT ": "STRING",
     "INTEGER ": "INT", "DOUBLE": "DOUBLE", "SMALL INT": "SMALLINT",
+    # The spelling PowerCenter itself uses for a 16-bit port (the
+    # converters already recognise it); without it the column became
+    # STRING and escaped the write's declared-range check.
+    "SMALL INTEGER": "SMALLINT",
     "BIGINT ": "BIGINT", "DECIMAL ": "DECIMAL", "BINARY": "BINARY",
     "DATE/TIME": "TIMESTAMP",
 }

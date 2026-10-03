@@ -537,8 +537,13 @@ class NotebookGenerator:
             "    return value",
             "",
             "def _sql_lit(value):",
-            '    """A parameter value as a SQL string literal for F.expr()."""',
-            "    return \"'\" + str(value).replace(\"'\", \"''\") + \"'\"",
+            '    """A parameter value as a SQL string literal for F.expr()/spark.sql().',
+            "",
+            "    Backslash-escaped, because that is Spark's literal syntax: Oracle's",
+            "    doubled quote reads in Spark as two adjacent literals ('it''s' is",
+            "    'its'), and an unescaped backslash starts an escape sequence.",
+            '    """',
+            "    return \"'\" + str(value).replace(chr(92), chr(92) * 2).replace(\"'\", chr(92) + \"'\") + \"'\"",
         ])
         return "\n".join(lines)
 
@@ -835,12 +840,18 @@ class NotebookGenerator:
             # Spark needs qualified ones, so without this map an override
             # that JOINs cannot be run at all.
             source_tables = {}
+            # ... and its columns: a User Defined Join is written with an
+            # explicit select list, since SELECT * repeats every join key.
+            source_columns = {}
             for s in mapping.sources:
                 parts = [p for p in (s.db_name, s.owner) if p]
                 parts.append(s.table_name or s.name)
                 source_tables[(s.table_name or s.name).upper()] = ".".join(parts)
+                source_columns[(s.table_name or s.name).upper()] = [
+                    f.source_field for f in s.fields if getattr(f, "source_field", "")
+                ]
             lines.extend(TransformationConverter().source_read_lines(
-                sq_tx, table, df_name, source_tables)[1:])
+                sq_tx, table, df_name, source_tables, source_columns)[1:])
         else:
             lines.append(f'{df_name} = spark.table("{table}")')
 

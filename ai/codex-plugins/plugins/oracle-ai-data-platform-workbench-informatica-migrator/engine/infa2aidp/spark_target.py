@@ -44,10 +44,17 @@ TARGET_SPARK_STR = ".".join(str(p) for p in TARGET_SPARK)
 def parse_spark_version(raw: str | None) -> tuple[int, ...] | None:
     """``"3.5.0"`` -> ``(3, 5, 0)``; ``None`` when it cannot be read.
 
-    Returns None rather than guessing: a version string we do not
-    understand is not evidence that a cluster is too old, and refusing a
-    deploy on an unparseable string would be worse than letting it through
-    with a warning.
+    Always at least three parts: ``"3.5"`` and ``"3.5.x"`` are both
+    ``(3, 5, 0)``. Python orders a tuple after its own prefix, so an
+    unpadded ``(3, 5)`` sorted *below* ``(3, 5, 0)`` and the deployer
+    refused a 3.5 cluster as older than 3.5.0. A non-numeric part after
+    the major (``x``, ``*``) counts as 0 -- the lowest version it could
+    stand for, the only reading a floor check can safely assume.
+
+    Returns None rather than guessing when not even the major is numeric:
+    a version string we do not understand is not evidence that a cluster
+    is too old, and refusing a deploy on an unparseable string would be
+    worse than letting it through with a warning.
     """
     if not raw:
         return None
@@ -59,7 +66,9 @@ def parse_spark_version(raw: str | None) -> tuple[int, ...] | None:
                 digits += ch
             else:
                 break
-        if not digits:
-            break
-        parts.append(int(digits))
-    return tuple(parts) or None
+        if not digits and not parts:
+            return None
+        parts.append(int(digits) if digits else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts)

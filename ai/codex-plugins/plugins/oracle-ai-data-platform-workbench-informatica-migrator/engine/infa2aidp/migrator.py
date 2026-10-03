@@ -81,6 +81,9 @@ class MigrationRunResult:
     # because the export does not carry them, and which may be wrong. Kept
     # apart from workflow_reviews so "translated whole" stays meaningful.
     workflow_assumptions: dict = field(default_factory=dict)
+    # {workflow_name: [task notebookPath, ...]} -- what each generated job
+    # runs, so a NAME CLASH can say which job got which of the two notebooks.
+    workflow_notebooks: dict = field(default_factory=dict)
     batch_summary: Optional[object] = None  # infa2aidp.batch.BatchSummary
 
 
@@ -140,6 +143,17 @@ def format_run_summary(result: "MigrationRunResult") -> str:
             f"suffixed __2 -- but two exports disagree about the same mapping, "
             f"so decide which is current before deploying either."
         )
+        # Which job runs which copy. Without it the operator deciding "which
+        # is current" has to open every job definition to see what deploying
+        # one of them would actually run.
+        _jobs = getattr(result, "workflow_notebooks", None) or {}
+        for _m, _f, _alt in _c[:3]:
+            _pairs = []
+            for _nb in sorted({f"nb_{_m}.ipynb", _alt}):
+                _who = sorted(j for j, ps in _jobs.items()
+                              if any(p.endswith(f"/{_f}/{_nb}") for p in ps))
+                _pairs.append(f"{', '.join(_who) or '(no job)'} -> {_f}/{_nb}")
+            lines.append(f"  {_m}: " + "; ".join(_pairs))
     if getattr(result, "broken_notebooks", None):
         lines.append(
             f"BROKEN: {len(result.broken_notebooks)} generated notebook(s) cannot "
@@ -176,6 +190,9 @@ def _emit_workflows(parsed, notebook_paths: dict, output_dir: str, result,
         with open(os.path.join(wf_dir, f"{workflow.name}.json"), "w", encoding="utf-8") as f:
             json.dump(tr.job, f, indent=2, default=str)
         result.workflows += 1
+        result.workflow_notebooks[workflow.name] = [
+            t.get("notebookPath", "") for t in tr.job.get("tasks", [])
+        ]
         # Review items live BESIDE the job definition, never in it: the
         # definition is POSTed verbatim to the AIDP jobs API. A companion
         # .review.md is what makes an incomplete translation visible rather
@@ -626,7 +643,18 @@ def run_migration(
             parsed, some didn't -- never raises this; it stays a warning
             plus an accurate count in the returned result. See spec
             section 11.
+        ValueError: if ``schedule_timezone`` is not a zone AIDP accepts
+            (see ``workflow_generator.validate_schedule_timezone``) --
+            raised before anything is written.
     """
+    # Checked before any output exists. The generator checks it too, but it
+    # is first built when the first export's workflows are emitted -- after
+    # that export's notebooks and DDL are on disk -- so a typo used to leave
+    # a half-written output directory behind the error.
+    if schedule_timezone is not None:
+        from .generators.workflow_generator import validate_schedule_timezone
+        validate_schedule_timezone(schedule_timezone)
+
     _ddl_warnings: list = []
     _written_notebooks: set = set()
     _nb_collisions: list = []
@@ -943,9 +971,15 @@ def run_migration(
                 # the AIDP workspace (see deployer.DeployConfig.workspace_path,
                 # default /Workspace/Migrated). The deployer re-points every
                 # task at the path it actually uploaded to, so this is the
-                # default, not a contract.
+                # default, not a contract. Built from the name actually
+                # written: after a clash that is nb_X__2, and using the
+                # unsuffixed nb_name pointed the second export's job at the
+                # FIRST export's notebook -- the deployer re-points by that
+                # name, so it ran the other mapping without a word.
                 for s in sessions_of.get(mapping.name) or [session]:
-                    notebook_paths[s.name] = f"/Workspace/Migrated/{folder}/{nb_name}"
+                    notebook_paths[s.name] = (
+                        f"/Workspace/Migrated/{folder}/{os.path.basename(nb_path)}"
+                    )
                 _warn_divergent_sessions(mapping.name, sessions_of.get(mapping.name) or [])
 
                 comparison_path = _compare_and_score(

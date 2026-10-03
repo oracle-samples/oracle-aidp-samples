@@ -5,7 +5,7 @@ them as a User Defined Join. The generator used to read one source and
 report the join as a review item -- so the notebook ran, returned the rows
 of a single table, and the join simply did not happen.
 
-A UDJ is semantically ``SELECT * FROM a, b WHERE <condition>``, so it is
+A UDJ is semantically ``SELECT <columns> FROM a, b WHERE <condition>``, so it is
 synthesised into that query and put through the same translation and the
 same two gates as a SQL override. That reuse is the point: an Oracle ``(+)``
 outer join is refused by the shared gate rather than guessed at by a second,
@@ -21,13 +21,17 @@ from infa2aidp.models import Transformation, TransformationType
 from tests.conftest_spark import spark  # noqa: F401
 
 SOURCES = {"ORDERS": "oltp.app.orders", "CUSTOMERS": "oltp.app.customers"}
+# The sources' columns, as the notebook generator passes them. The join is
+# written with an explicit select list -- SELECT * would return CUST_ID
+# twice -- so without these it is refused (tests/test_sq_sql_review_fixes.py).
+COLUMNS = {"ORDERS": ["ORDER_ID", "CUST_ID"], "CUSTOMERS": ["CUST_ID", "NAME"]}
 
 
-def _read(udj: str, sources=SOURCES) -> list[str]:
+def _read(udj: str, sources=SOURCES, columns=COLUMNS) -> list[str]:
     tx = Transformation(name="SQ_ORDERS", type=TransformationType.SOURCE_QUALIFIER)
     tx.user_defined_join = udj
     return TransformationConverter().source_read_lines(
-        tx, "oltp.app.orders", "df", sources
+        tx, "oltp.app.orders", "df", sources, columns
     )
 
 

@@ -15,6 +15,10 @@ authors = [
 dependencies = [
     "pyyaml>=6.0",
     "requests>=2.28",
+    # --schedule-timezone is checked against the IANA tz database, which
+    # Python on Windows (and slim containers) do not have. Unconditional:
+    # zoneinfo prefers a system database where there is one.
+    "tzdata",
 ]
 
 [project.optional-dependencies]

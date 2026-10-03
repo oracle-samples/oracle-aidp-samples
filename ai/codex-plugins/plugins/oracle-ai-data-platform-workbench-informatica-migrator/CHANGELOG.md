@@ -53,6 +53,53 @@ packaged as a Codex plugin.
 
 ### Fixed
 
+- **Eighteen defects from a review of the SQL-override, workflow and
+  write-range changes**, each reproduced first and pinned by a test that
+  fails without the fix (`tests/test_sq_sql_review_fixes.py`,
+  `tests/test_workflow_review_fixes.py`,
+  `tests/test_write_range_review_fixes.py`).
+  - **Source Qualifier SQL.** A User Defined Join replaced the SQL override,
+    dropping its WHERE clause and its refusal; a SQL Query now overrides the
+    UDJ, Source Filter, Select Distinct and Number Of Sorted Ports, as in
+    PowerCenter, and says which it ignored. A UDJ was `SELECT *` over the
+    joined tables, so the join key came back twice (`AMBIGUOUS_REFERENCE`);
+    it now projects each source column once, and refuses a shared column
+    the join does not equate. Table qualification rewrote string literals
+    (`= 'CUSTOMERS'`) and skipped schema-qualified tables (`APP.ORDERS`),
+    which then ran against the session's catalog. `'$$X'` became `''EU''`,
+    and braces in an override were evaluated as an f-string once any
+    parameter was present. Informatica's `{ A LEFT OUTER JOIN B ON ... }`
+    UDJ syntax was emitted as invalid SQL; it is refused with a reason.
+  - **Parameter values in SQL.** `_sql_lit` doubled quotes Oracle-style,
+    which Spark reads as two adjacent literals (`'it''s'` is `its`), and
+    left backslashes unescaped; it now backslash-escapes both.
+  - **Refusals that did not compile.** A multi-line unconvertible Filter or
+    Router condition put its second line in code position, so the notebook
+    failed with SyntaxError before the intended `NotImplementedError`.
+  - **Workflow tasks.** Non-reusable task definitions were looked up by name
+    across every workflow in the file; each workflow now uses its own first.
+    Command-task lines held in `VALUEPAIR` elements are read.
+  - **Link conditions.** A `$s.Status = SUCCEEDED` condition on a link into
+    a Command, Decision or worklet Start was lost, so the downstream session
+    ran after a failure (`ALL_DONE`); conditions are now carried along the
+    path. A task with mixed incoming links got `ALL_SUCCESS` while the
+    review said `ALL_DONE`; the review now describes the runIf actually
+    emitted.
+  - **`--schedule-timezone`** rejected every zone on Windows, where Python
+    has no tz database; `tzdata` is now a dependency, the zone is checked
+    before anything is written, and case is significant as it is for
+    AIDP's Java `ZoneId`.
+  - **A notebook name clash** left the second workflow's job pointing at
+    the first mapping's notebook.
+  - **The Spark version gate** refused a cluster reporting `3.5` against a
+    required `3.5.0`.
+  - **Writes.** A Sequence Generator key was re-written on a re-run when the
+    target spelled its column in mixed case. The declared-range check
+    skipped integer targets, which then wrapped on the cast
+    (3000000000 into INT gave -1294967296); compared in double, so valid
+    18- and 38-digit values were refused; and passed values that only
+    overflow after rounding, which were then written as NULL. It now uses
+    the cast itself as the test.
 - **Two systematic false positives in the source-fidelity report.** A Source
   Qualifier's name appeared nowhere in the generated notebook, because the
   read cell dropped the line carrying it -- so every Source Qualifier was

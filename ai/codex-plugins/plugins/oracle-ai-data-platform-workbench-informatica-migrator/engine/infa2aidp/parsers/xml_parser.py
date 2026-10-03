@@ -86,6 +86,34 @@ def _int_attr(elem: ET.Element, name: str, default: int = 0) -> int:
         return default
 
 
+def _task_properties(tk_elem: ET.Element) -> dict:
+    """A <TASK>'s settings: its ATTRIBUTEs, plus its VALUEPAIRs.
+
+    A real PowerCenter Command task keeps its command lines as
+    ``<VALUEPAIR NAME="command1" VALUE="mv ..."/>``, not as an ATTRIBUTE,
+    so reading ATTRIBUTEs alone lost exactly the setting the review exists
+    to quote. Each VALUEPAIR is kept under its own name, and a Command
+    task's lines are also joined, in EXECORDER, under ``Command`` -- the
+    name the rebuild guidance quotes -- unless an ATTRIBUTE already set it.
+    """
+    props: dict = {}
+    for a in tk_elem.iter("ATTRIBUTE"):
+        a_name = _attr(a, "NAME")
+        a_val = _attr(a, "VALUE")
+        if a_name and a_val:
+            props[a_name] = a_val
+    pairs = [
+        (_int_attr(vp, "EXECORDER", i), _attr(vp, "NAME"), _attr(vp, "VALUE"))
+        for i, vp in enumerate(tk_elem.iter("VALUEPAIR"))
+    ]
+    pairs = [p for p in pairs if p[1] and p[2]]
+    for _, vp_name, vp_val in pairs:
+        props.setdefault(vp_name, vp_val)
+    if pairs and _attr(tk_elem, "TYPE").upper() == "COMMAND":
+        props.setdefault("Command", "\n".join(v for _, _, v in sorted(pairs, key=lambda p: p[0])))
+    return props
+
+
 # normalize_key/get_ci now live in infa2aidp.properties --
 # imported above and re-exported here so this module's own call sites below,
 # and anything importing them from this module (e.g. tests), keep working
@@ -304,18 +332,21 @@ class InformaticaXMLParser:
         # TASKINSTANCE only names the task, so without this the review could
         # say a Command was dropped but not WHAT it ran -- which makes the
         # report true and useless.
+        #
+        # Only folder-level (reusable) <TASK>s are indexed here. A
+        # non-reusable one lives inside the <WORKFLOW>/<WORKLET> that runs it
+        # and its name is unique only there; indexing every <TASK> in the
+        # file by name gave each workflow the FIRST workflow's command.
+        # _flatten_task_graph resolves the container's own <TASK>s first.
         task_defs: dict[str, dict] = {}
         for tk_elem in root.iter("TASK"):
             name = _attr(tk_elem, "NAME")
-            if not name:
+            parent = parent_of.get(tk_elem)
+            if not name or parent is None or parent.tag.upper() not in (
+                "FOLDER", "REPOSITORY", "POWERMART",
+            ):
                 continue
-            props = {}
-            for a in tk_elem.iter("ATTRIBUTE"):
-                a_name = _attr(a, "NAME")
-                a_val = _attr(a, "VALUE")
-                if a_name and a_val:
-                    props[a_name] = a_val
-            task_defs.setdefault(name, props)
+            task_defs.setdefault(name, _task_properties(tk_elem))
 
         for wf_elem in root.iter("WORKFLOW"):
             workflow = self._parse_workflow(wf_elem, worklet_defs, task_defs)
@@ -1204,6 +1235,11 @@ class InformaticaXMLParser:
         report.
         """
         local_defs = {_attr(w, "NAME"): w for w in container.findall("WORKLET")}
+        # Non-reusable task definitions are scoped like non-reusable
+        # worklets: the container's own first, then folder level.
+        local_tasks = {
+            _attr(t, "NAME"): _task_properties(t) for t in container.findall("TASK")
+        }
         tasks: list[dict] = []
         entries: dict[str, list[str]] = {}
         exits: dict[str, list[str]] = {}
@@ -1236,7 +1272,10 @@ class InformaticaXMLParser:
                 "instance_name": key,
                 "path": path + (inst,),
                 # Empty when the export carries no <TASK> for this instance.
-                "properties": dict((task_defs or {}).get(t_name, {})),
+                "properties": dict(
+                    local_tasks[t_name] if t_name in local_tasks
+                    else (task_defs or {}).get(t_name, {})
+                ),
             })
 
         for wl in container.findall("WORKFLOWLINK"):
