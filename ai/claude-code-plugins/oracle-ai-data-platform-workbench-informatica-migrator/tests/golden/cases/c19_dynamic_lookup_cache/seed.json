@@ -1,0 +1,63 @@
+{
+  "CUST_STG": {
+    "schema": "STG_SEQ decimal(10,0), CUST_ID decimal(10,0), CUST_NAME string, CITY string",
+    "rows": [
+      [
+        6,
+        3,
+        "Cy",
+        "Houston"
+      ],
+      [
+        1,
+        2,
+        "Bob",
+        "Denver"
+      ],
+      [
+        4,
+        4,
+        "Di",
+        "Miami"
+      ],
+      [
+        2,
+        3,
+        "Cy",
+        "Dallas"
+      ],
+      [
+        5,
+        5,
+        "Ed",
+        "Reno"
+      ],
+      [
+        3,
+        4,
+        "Di",
+        "Miami"
+      ]
+    ]
+  },
+  "DIM_CUST": {
+    "schema": "CUST_ID decimal(10,0), CUST_NAME string, CITY string",
+    "rows": [
+      [
+        1,
+        "Ann",
+        "Boston"
+      ],
+      [
+        2,
+        "Bob",
+        "Denver"
+      ],
+      [
+        3,
+        "Cy",
+        "Austin"
+      ]
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "export": "m_orders_incremental.xml",
+  "params": {"LAST_EXTRACT_DATE": "02/01/2026 00:00:00"},
+  "notes": [
+    "$$LAST_EXTRACT_DATE is a mapping PARAMETER (ISPARAM=YES, date/time, DEFAULTVALUE 01/01/2026 00:00:00). The run overrides it to 02/01/2026 00:00:00; the override wins, so the January row 101 (which the default would pass) is NOT extracted.",
+    "Source Filter UPDATED_AT > TO_DATE('$$LAST_EXTRACT_DATE', ...) is SQL with the parameter text substituted before the query runs: strict '>', so row 102 at exactly 02/01/2026 00:00:00 is excluded; a NULL UPDATED_AT (row 106) is unknown and excluded.",
+    "$$SOURCE_SYSTEM (string parameter, not overridden) takes its DEFAULTVALUE ERP_EBS, written without quotes as Designer stores string defaults.",
+    "EXTRACT_FROM = $$LAST_EXTRACT_DATE: the parameter is declared date/time, so the port value is a date/time (2026-02-01 00:00:00), not the string text.",
+    "LOAD_KEY = $$SOURCE_SYSTEM || '-' || TO_CHAR(ORDER_ID); TO_CHAR of NUMBER(10,0) 103 is '103'.",
+    "MAX_ID_SEEN = SETMAXVARIABLE($$MAX_ID, ORDER_ID). $$MAX_ID is a mapping VARIABLE (ISPARAM=NO, AGGFUNCTION MAX, initial 0). The function returns the higher of the variable's current value and ORDER_ID; 'Number Of Sorted Ports' = 1 makes the SQ read ORDER BY ORDER_ID, and the initial value 0 is below every id, so the running maximum equals each row's own ORDER_ID. Persisting $$MAX_ID to the repository at session end is session-level and not asserted here.",
+    "Uncertain, not asserted: whether the Integration Service expands a date/time parameter into SQ SQL as 'MM/DD/YYYY HH24:MI:SS' or with a .US fraction (which TO_DATE with this mask would reject on Oracle). The expected rows assume the filter evaluates as written."
+  ]
+}

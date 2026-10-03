@@ -1,0 +1,16 @@
+{
+  "export": "m_dim_customer_scd2.xml",
+  "session_start": "2026-09-29T02:00:00",
+  "notes": [
+    "Wizard-style Type 2 mapping: one static Lookup on the dimension itself (Lookup Source Filter CURRENT_FLAG = 'Y' -> only the current version), Expression computing NEW_FLAG / CHANGED_FLAG, three Filters, three Update Strategies and three instances of the same target (DIM_CUSTOMER insert-new, DIM_CUSTOMER1 insert-changed, DIM_CUSTOMER2 expire).",
+    "The lookup cache is built from the target as it was BEFORE the run (static cache); lookup ports carry the dimension's own column names and are renamed PM_PRIMARYKEY / PM_PREV_* by the connectors.",
+    "CUST 100 unchanged: NEW_FLAG and CHANGED_FLAG both FALSE -> filtered out of all three paths, row untouched.",
+    "CUST 200 changed CITY: the current row (CUST_SK 3) is UPDATEd by primary key CUST_SK -- only the connected columns EFF_END_DT = SESSSTARTTIME and CURRENT_FLAG = 'N' change; the already-expired history row (CUST_SK 2) is not touched; a new current version is inserted.",
+    "CUST 300 new: inserted current with EFF_START_DT = SESSSTARTTIME, EFF_END_DT = 12/31/2999, CURRENT_FLAG 'Y'.",
+    "CUST 400 not in staging: untouched.",
+    "Session 'Treat source rows as' = Data driven; writer Insert / Update as Update / Delete = YES. DD_UPDATE on DIM_CUSTOMER2 updates by the target's PRIMARY KEY (CUST_SK), not by CUST_ID.",
+    "SEQ_CUST_SK Current Value 5: the first NEXTVAL is 5 (Informatica uses Current Value as the first value). NEXTVAL feeds both insert paths, so which new row gets 5 vs 6 depends on row order -- CUST_SK is ignored in the comparison, but the new rows' SKs should be {5, 6}.",
+    "SESSSTARTTIME is one value for the whole session (pinned 2026-09-29T02:00:00), so the expired row's end date equals the new version's start date.",
+    "Open-ended rows use 12/31/2999, not 12/31/9999: local pyspark on Windows cannot convert timestamps past year 3000 (time.mktime overflow)."
+  ]
+}

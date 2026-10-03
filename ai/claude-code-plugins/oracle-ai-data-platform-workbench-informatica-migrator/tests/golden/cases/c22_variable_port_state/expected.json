@@ -1,0 +1,76 @@
+{
+  "TGT_TXN_RUNNING": {
+    "rows": [
+      {
+        "TXN_ID": 9,
+        "CUST_ID": 50,
+        "TXN_DATE": "2026-02-01T00:00:00",
+        "AMT": 1.5,
+        "RUNNING_TOTAL": 1.5,
+        "ROW_IN_CUST": 1,
+        "PREV_CUST": 0,
+        "IS_FIRST": "Y"
+      },
+      {
+        "TXN_ID": 1,
+        "CUST_ID": 100,
+        "TXN_DATE": "2026-01-01T00:00:00",
+        "AMT": 10.0,
+        "RUNNING_TOTAL": 10.0,
+        "ROW_IN_CUST": 1,
+        "PREV_CUST": 50,
+        "IS_FIRST": "Y"
+      },
+      {
+        "TXN_ID": 2,
+        "CUST_ID": 100,
+        "TXN_DATE": "2026-01-02T00:00:00",
+        "AMT": 20.0,
+        "RUNNING_TOTAL": 30.0,
+        "ROW_IN_CUST": 2,
+        "PREV_CUST": 100,
+        "IS_FIRST": "N"
+      },
+      {
+        "TXN_ID": 3,
+        "CUST_ID": 100,
+        "TXN_DATE": "2026-01-03T00:00:00",
+        "AMT": 5.0,
+        "RUNNING_TOTAL": 35.0,
+        "ROW_IN_CUST": 3,
+        "PREV_CUST": 100,
+        "IS_FIRST": "N"
+      },
+      {
+        "TXN_ID": 5,
+        "CUST_ID": 200,
+        "TXN_DATE": "2026-01-05T00:00:00",
+        "AMT": 7.0,
+        "RUNNING_TOTAL": 7.0,
+        "ROW_IN_CUST": 1,
+        "PREV_CUST": 100,
+        "IS_FIRST": "Y"
+      },
+      {
+        "TXN_ID": 6,
+        "CUST_ID": 300,
+        "TXN_DATE": "2026-01-01T00:00:00",
+        "AMT": 50.0,
+        "RUNNING_TOTAL": 50.0,
+        "ROW_IN_CUST": 1,
+        "PREV_CUST": 200,
+        "IS_FIRST": "Y"
+      },
+      {
+        "TXN_ID": 7,
+        "CUST_ID": 300,
+        "TXN_DATE": "2026-01-02T00:00:00",
+        "AMT": 100.0,
+        "RUNNING_TOTAL": 150.0,
+        "ROW_IN_CUST": 2,
+        "PREV_CUST": 300,
+        "IS_FIRST": "N"
+      }
+    ]
+  }
+}
