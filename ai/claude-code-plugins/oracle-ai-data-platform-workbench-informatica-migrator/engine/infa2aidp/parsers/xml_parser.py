@@ -66,7 +66,7 @@ def _attr(elem: ET.Element, name: str, default: str = "") -> str:
     ``elem.attrib.get(name)`` silently returns ``default`` on any casing
     difference, which is the same silent-drop defect class as the
     TABLEATTRIBUTE value lookups below. Mirrors the upstream Rust parser's
-    ``attr_ci`` (dfl-informatica powercentre.rs:447-452): try the exact
+    ``attr_ci`` (the Rust reference implementation, powercentre.rs:447-452): try the exact
     name first (fast path), then fall back to a case-insensitive scan.
     """
     if name in elem.attrib:
@@ -469,7 +469,7 @@ class InformaticaXMLParser:
         # tests/fixtures/powercenter/multi_stage_invoice_dw.xml) and it is what our own
         # fixtures used before converted them. FROMTRANSFORMATION/
         # TOTRANSFORMATION is read as a fallback only: it's what the
-        # upstream Rust parser reads (dfl-informatica powercentre.rs:435)
+        # upstream Rust parser reads (the Rust reference implementation, powercentre.rs:435)
         # and what its own "real_powermart" inline fixture uses -- and we
         # have no licensed PowerCenter install to rule out some version or
         # export path emitting it instead. Reading both costs nothing;
@@ -694,7 +694,7 @@ class InformaticaXMLParser:
             # transformation-level property -- PowerCenter carries it as
             # either MASTER or ISMASTER on the TRANSFORMFIELD (exports vary),
             # so both are checked (matches
-            # dfl-informatica src/ast.rs Port::is_master).
+            # the Rust reference implementation, src/ast.rs Port::is_master).
             porttype_raw = _attr(tf_elem, "PORTTYPE", "INPUT/OUTPUT")
             # Real PowerCenter exports spell the master side into PORTTYPE
             # itself ("INPUT/OUTPUT/MASTER", "INPUT/MASTER"); a Joiner with
@@ -715,7 +715,7 @@ class InformaticaXMLParser:
             # itself with "GROUP BY" (e.g. "INPUT/OUTPUT GROUP BY"). Either
             # spelling is an explicit per-port flag and is honoured
             # identically by the Aggregator group-by derivation below
-            # (matches dfl-informatica src/ast.rs Port::is_group_by
+            # (matches the Rust reference implementation, src/ast.rs Port::is_group_by
             # / src/parser/powercentre.rs::parse_transformfield).
             # A real Aggregator/Rank export marks a group-by port with
             # EXPRESSIONTYPE="GROUPBY"; with only that spelling the group-by
@@ -821,7 +821,7 @@ class InformaticaXMLParser:
                 # Priority 2: an explicit per-port group-by flag (is_group_by,
                 # set above from GROUPBY/ISGROUPBY or a "GROUP BY"-suffixed
                 # PORTTYPE) -- if ANY port carries it, honour those flagged
-                # ports exactly and stop (mirrors dfl-informatica
+                # ports exactly and stop (mirrors the Rust reference implementation,
                 # src/ast.rs::aggregator_group_keys).
                 flagged = [
                     f.name for f in tx.fields
@@ -840,7 +840,7 @@ class InformaticaXMLParser:
                     # used to fall through all three of the old priorities
                     # and silently collapse a per-group aggregation into one
                     # global row. See properties.aggregator_group_by_fallback
-                    # (ported from dfl-informatica src/ast.rs) for why a
+                    # (ported from the Rust reference implementation, src/ast.rs) for why a
                     # pass-through port must NOT be inferred as a group key.
                     tx.group_by_fields = aggregator_group_by_fallback(tx.fields)
 

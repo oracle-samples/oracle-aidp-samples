@@ -9,7 +9,7 @@ pass-through match (``f.expression.strip() == f.name``) ever fired for them,
 so the generated notebook silently collapsed a per-group aggregation into
 ONE GLOBAL ROW. It ran, it produced output, and every number was wrong.
 
-The fix, ported from dfl-informatica's ``aggregator_group_keys`` /
+The fix, ported from the Rust reference implementation's ``aggregator_group_keys`` /
 ``expr_references_port`` (src/ast.rs):
 
 1. An explicit per-port group-by flag (GROUPBY/ISGROUPBY on a PowerCenter

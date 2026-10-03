@@ -28,8 +28,7 @@ notebook *runs correctly* is unknown until someone runs the job and
 
 ### What has been verified live, and what has not
 
-Run against a live AIDP instance on 2026-09-25 (FDEAIDP, OASEFDE tenancy,
-Spark 3.5.0):
+Run against a live AIDP instance on 2026-09-25 (Spark 3.5.0):
 
 | Step | Verified |
 | --- | --- |

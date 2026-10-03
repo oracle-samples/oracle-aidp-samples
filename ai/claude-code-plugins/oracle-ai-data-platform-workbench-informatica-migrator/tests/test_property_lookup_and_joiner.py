@@ -16,7 +16,7 @@ property that may not resolve at all, and the pre-fix code then guessed
 ``master_df = "df_source_1"`` -- a literal that may not even be one of the
 Joiner's actual inputs, and which silently inverts a Master/Detail Outer
 Join whenever the detail source happens to be wired first. The fix adds a
-port-level ``is_master`` flag (mirroring dfl-informatica's
+port-level ``is_master`` flag (mirroring the Rust reference implementation's
 ``Port::is_master`` / ``joiner_detail_upstream``) and, when neither the
 property nor the flag resolves a master side, emits a review item instead
 of guessing.
@@ -336,7 +336,7 @@ class TestIicsIsMasterPortFlag(unittest.TestCase):
 def _joiner_mapping(*, mark_master: bool) -> Mapping:
     """Two Source Qualifiers feed a Joiner. SQ_ORDERS (the DETAIL side) is
     wired FIRST and SQ_CUSTOMERS (the MASTER side) SECOND -- deliberately
-    the ordering upstream's dfl-informatica docs call out as the one a
+    the ordering the Rust reference implementation's docs call out as the one a
     correct implementation must NOT use to infer master/detail (src/ast.rs
     :78-86). No "Master Source" property is set anywhere, so the only
     possible signal is the port-level is_master flag on the Joiner's own

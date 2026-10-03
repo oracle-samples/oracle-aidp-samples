@@ -171,8 +171,8 @@ packaged as a Claude Code plugin.
   now requires the variable to be one of that transformation's resolved
   predecessors.
 
-  All three were found by running the tool over a broad set of real
-  PowerCenter exports and reading back what it generated.
+  All three were found during breadth testing, by running the tool over a
+  wide set of PowerCenter exports and reading back what it generated.
 
 - **A write refuses a value that does not fit the target's declared
   precision.** `storeAssignmentPolicy` is pinned `LEGACY` so migrated

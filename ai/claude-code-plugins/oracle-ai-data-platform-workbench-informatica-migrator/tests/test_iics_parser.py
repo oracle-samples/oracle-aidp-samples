@@ -216,9 +216,9 @@ class TestSecurity:
         assert "TRUNCATED" in result
 
 
-# ── DFL Test Fixtures ──
+# ── Ported PowerCenter fixtures ──
 
-class TestDFLFixtures:
+class TestPortedFixtures:
     """Test that all 12 ported fixtures parse without errors."""
 
     @pytest.fixture

@@ -85,7 +85,7 @@ pause
 
 step "Where this has actually run"
 cat <<'CLOSE'
-   Live on AIDP (FDEAIDP / OASEFDE / Spark 3.5.0):
+   Live on AIDP (Spark 3.5.0):
      12 notebooks uploaded, job created, re-deploy updates it
      job run SUCCESS -- read 2 Delta tables, filter, join, aggregate, MERGE
      output reconciled against numbers computed by hand before the run:

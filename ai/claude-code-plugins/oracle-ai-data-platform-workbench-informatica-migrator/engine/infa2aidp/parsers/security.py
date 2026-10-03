@@ -6,7 +6,7 @@ Defenses:
 3. Path traversal validation
 4. Expression size sanitization
 
-Reference: dfl-informatica/src/security.rs
+Reference: the Rust reference implementation, src/security.rs
 """
 
 import logging
@@ -25,7 +25,7 @@ MAX_EXPR_SIZE = 50_000  # 50 KB per expression
 # levels within the 10 MB cap. Real Informatica PowerCenter mappings nest
 # only a handful of levels (POWERMART > REPOSITORY > FOLDER > MAPPING >
 # TRANSFORMATION > field), so 256 sits orders of magnitude above any
-# legitimate document. Matches dfl-informatica src/security.rs::MAX_XML_DEPTH.
+# legitimate document. Matches the Rust reference implementation, src/security.rs::MAX_XML_DEPTH.
 MAX_XML_DEPTH = 256
 
 
@@ -103,7 +103,7 @@ def validate_xml_nesting_depth(xml: str, max_depth: int = MAX_XML_DEPTH) -> None
     are skipped so a ``>`` inside an attribute is never mistaken for a tag
     terminator.
 
-    Ported from dfl-informatica src/security.rs::validate_xml_nesting_depth
+    Ported from the Rust reference implementation, src/security.rs::validate_xml_nesting_depth
     (~:92-150) -- a single linear pass with no recursion of its own, so it
     adds negligible cost to valid input and short-circuits the instant the
     bound is crossed.
