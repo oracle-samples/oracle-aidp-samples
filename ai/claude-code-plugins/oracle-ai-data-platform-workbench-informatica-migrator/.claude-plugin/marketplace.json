@@ -1,0 +1,16 @@
+{
+  "name": "aidp-informatica-migrator",
+  "owner": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "description": "Informatica → Oracle AIDP migration tooling.",
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-workbench-informatica-migrator",
+      "source": "./",
+      "displayName": "Informatica → Oracle AIDP Migrator",
+      "description": "Migrate Informatica ETL (IDMC/IICS, PowerCenter 10.x) to Oracle AIDP."
+    }
+  ]
+}

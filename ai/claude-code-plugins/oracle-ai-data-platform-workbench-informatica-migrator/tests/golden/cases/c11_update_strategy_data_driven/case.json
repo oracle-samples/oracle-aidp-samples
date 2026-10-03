@@ -1,0 +1,15 @@
+{
+  "export": "m_product_data_driven.xml",
+  "session_start": "2026-09-29T02:00:00",
+  "notes": [
+    "Session 'Treat source rows as' = Data driven: the Update Strategy expression decides per row; writer Insert / Update as Update / Delete all YES.",
+    "IIF(ISNULL(LKP_PRODUCT_ID), DD_INSERT, IIF(STATUS = 'D', DD_DELETE, IIF(CHG_FLAG = 1, DD_UPDATE, DD_REJECT))) -- the branches are evaluated in that order.",
+    "PRODUCT 1 identical -> DD_REJECT: not written, the target row keeps its old LOAD_TS (reject goes to the .bad file only).",
+    "PRODUCT 2 price changed -> DD_UPDATE by primary key PRODUCT_ID: PRODUCT_NAME, LIST_PRICE and LOAD_TS (SESSSTARTTIME) are updated.",
+    "PRODUCT 3 STATUS 'D' and present in the target -> DD_DELETE removes it.",
+    "PRODUCT 6 has STATUS 'D' but is not in the target: ISNULL(LKP_PRODUCT_ID) is tested first, so it is INSERTED, not deleted.",
+    "PRODUCTS 5 and 7 are new -> DD_INSERT.",
+    "PRODUCT 4 is not in the feed -> untouched.",
+    "The Lookup on the target is a static cache built before the run; its ports are named after the target columns and renamed LKP_* by the connectors into EXP_FLAGS."
+  ]
+}

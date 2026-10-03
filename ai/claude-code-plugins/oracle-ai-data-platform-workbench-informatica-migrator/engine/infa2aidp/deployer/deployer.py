@@ -1,0 +1,530 @@
+"""Main deployment orchestrator for AIDP.
+
+Uploads the ``.ipynb`` notebooks ``migrate`` produced and creates one AIDP
+job per generated ``workflows/<name>.json``.
+
+Everything here goes through :class:`AIDPClient`, which signs requests
+with the OCI SDK (Resource Principal -> Instance Principal -> Session
+Token -> API Key). The previous version of this module constructed the
+client with a host/token pair its constructor did not accept, called four
+methods the client did not have, and looked for ``*.py`` notebooks while
+``migrate`` writes ``*.ipynb`` -- so a non-dry-run deploy failed on its
+first line and a dry run reported zero notebooks. Nothing in this module
+has been run against a live AIDP workspace yet; the request shapes are
+those of the AIDP MCP server this plugin sits beside (``uploadFileMeta``
+three-step PAR upload, ``actions/mkdir``, ``POST .../jobs`` with
+``taskKey``/``NOTEBOOK_TASK``/``notebookPath``/``dependsOn``/``cluster``).
+"""
+
+import glob
+import json
+import logging
+import re
+import os
+
+from .aidp_client import AIDPClient
+from ..spark_target import parse_spark_version
+from .models import (
+    DeployConfig,
+    DeployedNotebook,
+    DeployedWorkflow,
+    DeployResult,
+)
+
+logger = logging.getLogger(__name__)
+
+# Notebook formats ``migrate`` can produce. ``.ipynb`` is the only one the
+# CLI emits today.
+_NOTEBOOK_SUFFIXES = (".ipynb",)
+
+
+# Sentinel: None is a real answer here (cluster not found), so it cannot
+# double as "not looked up yet".
+_UNFETCHED = object()
+
+
+def _notebook_code(path: str) -> str:
+    """Concatenated code-cell source of an .ipynb, or the file's own text.
+
+    A .py or bare-text input is returned unchanged, so a caller holding
+    either shape works.
+    """
+    import json as _json
+    raw = open(path, encoding="utf-8").read()
+    if not raw.lstrip().startswith("{"):
+        return raw
+    nb = _json.loads(raw)
+    cells = nb.get("cells", []) if isinstance(nb, dict) else []
+    out = []
+    for c in cells:
+        if c.get("cell_type") != "code":
+            continue
+        src = c.get("source", "")
+        out.append("".join(src) if isinstance(src, list) else src)
+    return "\n".join(out)
+
+
+class AIDPDeployer:
+    """Deploy generated notebooks and workflows to AIDP."""
+
+    def __init__(self, config: DeployConfig, client: AIDPClient = None):
+        self.config = config
+        if config.dry_run:
+            self.client = None
+        elif client is not None:
+            self.client = client
+        else:
+            self.client = AIDPClient.from_config(
+                profile=config.oci_profile or None,
+                region=config.region,
+                instance_id=config.instance_id,
+                workspace_key=config.workspace_key,
+            )
+        self._checked_cluster = False
+        self._checked_spark = False
+        self._cluster_cache = _UNFETCHED
+        if self.client is not None and not self.client.workspace_key:
+            raise ValueError(
+                "AIDP workspace key required for deploy -- pass --workspace-key "
+                "or set AIDP_WORKSPACE_KEY."
+            )
+
+    def _cluster_record(self):
+        """This deploy's cluster as the service describes it, fetched once.
+
+        Two guards need it -- the DEFAULT-cluster refusal and the Spark
+        floor -- and a shared lookup keeps "checked once, not per workflow"
+        true for both. Returns None when the list cannot be read or the key
+        is absent; both callers treat that as "no evidence", not as a
+        failure.
+        """
+        if self._cluster_cache is not _UNFETCHED:
+            return self._cluster_cache
+        self._cluster_cache = None
+        try:
+            clusters = self.client.list_clusters()
+        except Exception as exc:
+            logger.warning(
+                "Could not list clusters to check %s: %s",
+                self.config.cluster_key, exc,
+            )
+            return None
+        self._cluster_cache = next(
+            (c for c in clusters if c.get("key") == self.config.cluster_key), None
+        )
+        if self._cluster_cache is None:
+            logger.warning(
+                "Cluster %s is not in this workspace's cluster list; the job will "
+                "fail at run time if it does not exist.", self.config.cluster_key,
+            )
+        return self._cluster_cache
+
+    _SPARK_MIN_RE = re.compile(r'_GENERATED_FOR_SPARK_MIN\s*=\s*[\'"]([0-9.]+)[\'"]')
+
+    def _reject_old_cluster(self, notebooks: list) -> None:
+        """Refuse a cluster older than the notebooks were generated for.
+
+        Each generated notebook declares ``_GENERATED_FOR_SPARK_MIN`` -- a
+        floor, because the converter emits only constructs every supported
+        Spark accepts and pins the behavioural flags, so a notebook is valid
+        on that version and anything newer. Checking the artifact's own
+        declaration rather than a constant in this module means a notebook
+        generated by an older build is judged by what IT needs.
+
+        Deliberately not a version match, and deliberately not per-version
+        code generation: a notebook that runs on 3.5 and on 4.x can move
+        between a dev cluster and a prod cluster during a staggered upgrade,
+        which is the property that makes it a deliverable rather than a
+        build artifact.
+
+        Degrades to a warning when the cluster's version cannot be read or
+        parsed -- an unreadable string is not evidence a cluster is too old,
+        and the same reasoning as the DEFAULT-cluster check.
+        """
+        if self.client is None or self._checked_spark:
+            return
+        self._checked_spark = True
+
+        required = None
+        for nb in notebooks:
+            # Parse the notebook rather than grepping the file. In .ipynb
+            # JSON the cell source is an escaped string, so the declaration
+            # reads _GENERATED_FOR_SPARK_MIN = \"3.5.0\" on disk and a
+            # regex over the raw text silently matches nothing -- which
+            # would leave this guard unable to ever fire.
+            try:
+                text = _notebook_code(nb)
+            except Exception:
+                continue
+            m = self._SPARK_MIN_RE.search(text)
+            if not m:
+                continue
+            got = parse_spark_version(m.group(1))
+            if got and (required is None or got > required):
+                required = got
+        if required is None:
+            return
+
+        match = self._cluster_record()
+        if match is None:
+            return
+        raw = ((match.get("clusterRuntimeConfig") or {}).get("sparkVersion"))
+        actual = parse_spark_version(raw)
+        if actual is None:
+            logger.warning(
+                "Cluster %s reports Spark version %r, which could not be parsed; "
+                "not checking it against the notebooks' requirement of %s.",
+                match.get("displayName"), raw,
+                ".".join(str(p) for p in required),
+            )
+            return
+        if actual < required:
+            raise ValueError(
+                f"Cluster {match.get('displayName')!r} runs Spark {raw}, but these "
+                f"notebooks declare they need at least "
+                f"{'.'.join(str(p) for p in required)} "
+                f"(_GENERATED_FOR_SPARK_MIN). Deploying would create a job whose "
+                f"notebooks can fail on a construct this runtime does not have. "
+                f"Re-generate against the older runtime, or deploy to a newer "
+                f"cluster."
+            )
+
+    def _reject_default_cluster(self) -> None:
+        """Refuse a DEFAULT master-catalog cluster before creating the job.
+
+        AIDP will not run a non-system task on the workspace's default
+        master-catalog compute. It accepts the job definition and fails the
+        *run*:
+
+            WORKFLOW_EXECUTION_0071 - Default Cluster "Default Master Catalog
+            Compute" used for non-system task s_m_EmployeeSummary. Change the
+            cluster before workflow execution.
+
+        Found by running a deployed job against a live instance; the fake
+        client could not have caught it, because the shape is valid and only
+        the service knows the cluster's type. Checked here rather than in
+        __init__ so a deploy that creates no jobs does not need a cluster at
+        all, and it degrades to a warning if the cluster cannot be listed --
+        a read failure is not evidence the cluster is wrong.
+        """
+        if self._checked_cluster or self.client is None:
+            return
+        self._checked_cluster = True
+        match = self._cluster_record()
+        if match is None:
+            return
+        if str(match.get("type", "")).upper() == "DEFAULT":
+            raise ValueError(
+                f"Cluster {match.get('displayName')!r} ({self.config.cluster_key}) "
+                "is the workspace's DEFAULT master-catalog compute. AIDP refuses "
+                "to run non-system job tasks on it, so the job would be created "
+                "and then fail every run. Pass a USER cluster via --cluster-key."
+            )
+
+    def deploy(self, notebooks_dir: str, workflow_dir: str = None) -> DeployResult:
+        """Deploy all notebooks and workflows from the migration output directory.
+
+        Args:
+            notebooks_dir: Path to directory containing generated notebooks,
+                          one subdirectory per source folder (or "Migrated"
+                          for unfoldered mappings)
+            workflow_dir: Path to directory containing workflow JSON files
+        """
+        result = DeployResult(dry_run=self.config.dry_run)
+
+        # Step 0: refuse a cluster the jobs could never run on, before
+        # uploading anything. The per-workflow handler below turns exceptions
+        # into a failed workflow, which would bury this as one line among
+        # twelve successful uploads.
+        if self.config.create_workflow and workflow_dir and self.config.cluster_key:
+            self._reject_default_cluster()
+        if self.config.cluster_key:
+            self._reject_old_cluster(self._find_notebooks(notebooks_dir))
+
+        # Step 1: Create the base workspace directories
+        self._create_workspace_dirs()
+
+        # Step 2: Upload notebooks
+        notebooks = self._find_notebooks(notebooks_dir)
+        if not notebooks:
+            logger.warning(
+                "No notebooks (%s) found under %s -- is this the migrate output directory?",
+                "/".join(_NOTEBOOK_SUFFIXES), notebooks_dir,
+            )
+        for nb_file in notebooks:
+            deployed = self._upload_notebook(nb_file)
+            result.notebooks.append(deployed)
+            if deployed.status == "uploaded":
+                result.total_uploaded += 1
+            elif deployed.status == "failed":
+                result.total_failed += 1
+            elif deployed.status == "dry_run":
+                # A dry run used to be reported as "Skipped: N", which reads
+                # as "N notebooks were not deployed" -- the opposite of what
+                # a dry run means.
+                result.total_dry_run += 1
+            else:
+                result.total_skipped += 1
+
+        # Step 3: Create workflows
+        if workflow_dir and self.config.create_workflow:
+            for wf_file in self._find_workflows(workflow_dir):
+                deployed_wf = self._create_workflow(wf_file, result.notebooks)
+                result.workflows.append(deployed_wf)
+                if deployed_wf.status == "failed":
+                    result.total_failed += 1
+                elif deployed_wf.status == "updated":
+                    result.total_updated += 1
+                elif deployed_wf.status == "skipped":
+                    result.total_skipped += 1
+                elif deployed_wf.status == "dry_run":
+                    result.total_dry_run += 1
+
+        return result
+
+    # ── Internal helpers ───────────────────────────────────────────
+
+    def _remote_dir(self, folder: str = "") -> str:
+        base = self.config.workspace_path.rstrip("/") or "/Workspace"
+        return f"{base}/{folder}" if folder else base
+
+    def _create_workspace_dirs(self):
+        """Create the base directory in the AIDP workspace.
+
+        Per-mapping folder directories (any name is valid -- it comes from
+        the source, not a fixed taxonomy) are created on demand as
+        notebooks are uploaded; see ``_upload_notebook``.
+        """
+        if not self.config.dry_run:
+            self.client.mkdir(self._remote_dir())
+
+    def _find_notebooks(self, notebooks_dir: str) -> list:
+        """Every generated notebook under ``notebooks_dir`` (recursive),
+        excluding the ``workflows/`` and ``reports/``-style side outputs
+        ``migrate`` writes next to them."""
+        found = []
+        for suffix in _NOTEBOOK_SUFFIXES:
+            found.extend(glob.glob(os.path.join(notebooks_dir, "**", f"*{suffix}"), recursive=True))
+        skip_dirs = {"workflows", "reports", "comparisons", "lineage"}
+        return sorted(
+            p for p in found
+            if not (set(os.path.relpath(p, notebooks_dir).split(os.sep)[:-1]) & skip_dirs)
+        )
+
+    def _find_workflows(self, workflow_dir: str) -> list:
+        """Find all .json workflow files."""
+        return sorted(glob.glob(os.path.join(workflow_dir, "**", "*.json"), recursive=True))
+
+    def _upload_notebook(self, local_path: str) -> DeployedNotebook:
+        """Upload a single notebook to AIDP workspace."""
+        filename = os.path.basename(local_path)
+        stem = os.path.splitext(filename)[0]
+
+        # The folder is whatever organizational unit the source used
+        # (PowerCenter <FOLDER>, IDMC project/folder) -- any name is valid.
+        # An unfoldered mapping's notebook lands directly under notebooks_dir.
+        parent_dir = os.path.basename(os.path.dirname(local_path))
+        folder = parent_dir or "Migrated"
+
+        remote_path = f"{self._remote_dir(folder)}/{filename}"
+
+        deployed = DeployedNotebook(
+            local_path=local_path,
+            remote_path=remote_path,
+            mapping_name=stem,
+            folder=folder,
+        )
+
+        if self.config.dry_run:
+            deployed.status = "dry_run"
+            return deployed
+
+        try:
+            self.client.mkdir(self._remote_dir(folder))
+            if not self.config.overwrite and self.client.object_exists(remote_path):
+                deployed.status = "skipped"
+                deployed.error = "Already exists (use --overwrite to replace)"
+                return deployed
+
+            self.client.upload_file(
+                self.client.workspace_key, local_path, remote_path,
+                overwrite=self.config.overwrite,
+            )
+            deployed.status = "uploaded"
+
+        except Exception as e:
+            deployed.status = "failed"
+            deployed.error = str(e)
+
+        return deployed
+
+    def _create_workflow(self, wf_file: str, deployed_notebooks: list) -> DeployedWorkflow:
+        """Create an AIDP job from the generated workflow JSON.
+
+        Re-points every task at the path its notebook was actually uploaded
+        to, attaches the deployment cluster to every task (and as the job's
+        ``jobClusters``), then POSTs the body to ``/jobs``.
+        """
+        deployed = DeployedWorkflow()
+
+        try:
+            with open(wf_file, encoding="utf-8") as f:
+                wf_def = json.load(f)
+
+            deployed.name = wf_def.get("name", os.path.basename(wf_file))
+
+            # A companion .review.md means the generator could not translate
+            # part of the source workflow (an unconvertible schedule, a
+            # worklet whose sessions are absent, a dropped task type). The
+            # job is still deployable -- that is the caller's call -- but it
+            # must not deploy silently.
+            review_file = os.path.splitext(wf_file)[0] + ".review.md"
+            if os.path.exists(review_file):
+                deployed.review_file = review_file
+                logger.warning(
+                    "Workflow %s did not translate completely -- see %s. "
+                    "Deploying anyway; verify the schedule and task list in AIDP.",
+                    deployed.name, review_file,
+                )
+            if "schedule" not in wf_def:
+                logger.warning(
+                    "Workflow %s has NO schedule and will not run on a timer. "
+                    "Set one in AIDP if the source workflow was scheduled.",
+                    deployed.name,
+                )
+
+            # Build lookup: notebook stem -> remote path for notebooks present in AIDP
+            nb_path_map = {
+                nb.mapping_name: nb.remote_path
+                for nb in deployed_notebooks
+                if nb.status in ("uploaded", "skipped", "dry_run")
+            }
+
+            missing = []
+            for task in wf_def.get("tasks", []):
+                local_ref = os.path.splitext(os.path.basename(task.get("notebookPath", "")))[0]
+                if local_ref in nb_path_map:
+                    task["notebookPath"] = nb_path_map[local_ref]
+                else:
+                    missing.append(task.get("taskKey", "?"))
+                deployed.tasks.append(task.get("taskKey", ""))
+            if missing:
+                logger.warning(
+                    "Workflow %s: task(s) %s point at a notebook that was not uploaded in "
+                    "this run -- the job will fail at run time unless it exists in AIDP.",
+                    deployed.name, ", ".join(missing),
+                )
+
+            # Attach the deployment cluster: every task carries a cluster
+            # reference and the job lists it once in jobClusters.
+            if self.config.cluster_key:
+                ref = AIDPClient.cluster_ref(self.config.cluster_key)
+                for task in wf_def.get("tasks", []):
+                    task.setdefault("cluster", dict(ref))
+                wf_def.setdefault("jobClusters", [dict(ref)])
+            elif not self.config.dry_run:
+                raise ValueError(
+                    "A cluster key is required to create a job -- pass --cluster-key "
+                    "or set AIDP_CLUSTER_KEY."
+                )
+            wf_def.setdefault("path", "jobs")
+
+            if self.config.dry_run:
+                deployed.status = "dry_run"
+                return deployed
+
+            # AIDP refuses a create whose job name already exists
+            # (JOB_VALIDATE_0031), so a second deploy of the same workflow
+            # failed outright until this branch existed. Re-deploying is the
+            # normal case during a migration, not an edge case.
+            existing = None
+            try:
+                existing = self.client.find_job_by_name(
+                    wf_def.get("name", ""), self.client.workspace_key
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Could not list jobs to check whether %s already exists: %s",
+                    wf_def.get("name"), exc,
+                )
+
+            if existing is None:
+                created = self.client.create_job(self.client.workspace_key, wf_def)
+                deployed.job_id = str(created.get("key") or created.get("id") or "")
+                deployed.status = "created"
+            elif self.config.overwrite:
+                key = str(existing.get("key") or existing.get("id") or "")
+                updated = self.client.update_job(self.client.workspace_key, key, wf_def)
+                deployed.job_id = str(updated.get("key") or updated.get("id") or key)
+                deployed.status = "updated"
+            else:
+                deployed.job_id = str(existing.get("key") or existing.get("id") or "")
+                deployed.status = "skipped"
+                logger.warning(
+                    "Job %s already exists and --overwrite was not passed; left as "
+                    "it is. The existing definition may be stale.", wf_def.get("name"),
+                )
+
+        except Exception as e:
+            deployed.status = "failed"
+            deployed.error = str(e)
+
+        return deployed
+
+    # ── Reporting ──────────────────────────────────────────────────
+
+    def generate_deploy_report(self, result: DeployResult, output_path: str):
+        """Generate a Markdown deployment report."""
+        lines = ["# AIDP Deployment Report", ""]
+        lines.append(f"**Region:** {self.config.region or '(dry run)'}")
+        lines.append(f"**Workspace key:** {self.config.workspace_key or '(dry run)'}")
+        lines.append(f"**Workspace path:** {self.config.workspace_path}")
+        lines.append(f"**Cluster key:** {self.config.cluster_key or '(none)'}")
+        lines.append(f"**Dry Run:** {'Yes' if result.dry_run else 'No'}")
+        lines.append("")
+        lines.append(
+            "Generated notebooks import `infa_compat`; the cluster the jobs run on "
+            "must have the `infa_compat` wheel (built from `engine/setup.py`) installed "
+            "as a cluster library, or every notebook fails at its second cell. "
+            "(The workspace is mounted on the driver, so a wheel uploaded under "
+            "`/Workspace/...` can also be put on `sys.path` -- see README.)"
+        )
+        lines.append("")
+
+        lines.append("## Notebooks")
+        lines.append("")
+        lines.append("| Notebook | Folder | Remote Path | Status |")
+        lines.append("|----------|--------|-------------|--------|")
+        for nb in result.notebooks:
+            status_label = {
+                "uploaded": "OK",
+                "failed": f"FAILED: {nb.error}",
+                "skipped": "SKIPPED",
+                "dry_run": "DRY RUN",
+            }.get(nb.status, nb.status)
+            lines.append(
+                f"| {nb.mapping_name} | {nb.folder} | `{nb.remote_path}` | {status_label} |"
+            )
+
+        lines.append("")
+        lines.append("## Workflows")
+        lines.append("")
+        for wf in result.workflows:
+            detail = f" -- {wf.error}" if wf.error else ""
+            lines.append(f"- **{wf.name}** (Job key: {wf.job_id or 'N/A'}) - {wf.status}{detail}")
+            if wf.review_file:
+                lines.append(f"  - Review before enabling: `{wf.review_file}`")
+            for task in wf.tasks:
+                lines.append(f"  - Task: {task}")
+
+        lines.append("")
+        lines.append("## Summary")
+        lines.append(f"- Uploaded: {result.total_uploaded}")
+        lines.append(f"- Jobs updated in place: {result.total_updated}")
+        lines.append(f"- Failed: {result.total_failed}")
+        lines.append(f"- Skipped (already present, no --overwrite): {result.total_skipped}")
+        if result.dry_run:
+            lines.append(f"- Would deploy (dry run): {result.total_dry_run}")
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")

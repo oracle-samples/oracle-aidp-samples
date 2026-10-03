@@ -1,0 +1,70 @@
+{
+  "STG_CUSTOMER": {
+    "schema": "CUST_ID decimal(10,0), CUST_NAME string, CITY string, TIER string",
+    "rows": [
+      [
+        100,
+        "Acme",
+        "Boston",
+        "GOLD"
+      ],
+      [
+        200,
+        "Beta",
+        "Houston",
+        "SILVER"
+      ],
+      [
+        300,
+        "Gamma",
+        "Miami",
+        "GOLD"
+      ]
+    ]
+  },
+  "DIM_CUSTOMER": {
+    "schema": "CUST_SK decimal(10,0), CUST_ID decimal(10,0), CUST_NAME string, CITY string, TIER string, EFF_START_DT timestamp, EFF_END_DT timestamp, CURRENT_FLAG string",
+    "rows": [
+      [
+        1,
+        100,
+        "Acme",
+        "Boston",
+        "GOLD",
+        "2025-01-01T00:00:00",
+        "2999-12-31T00:00:00",
+        "Y"
+      ],
+      [
+        2,
+        200,
+        "Beta",
+        "Austin",
+        "SILVER",
+        "2024-01-01T00:00:00",
+        "2025-06-30T00:00:00",
+        "N"
+      ],
+      [
+        3,
+        200,
+        "Beta",
+        "Dallas",
+        "SILVER",
+        "2025-07-01T00:00:00",
+        "2999-12-31T00:00:00",
+        "Y"
+      ],
+      [
+        4,
+        400,
+        "Delta",
+        "Denver",
+        "BRONZE",
+        "2025-03-01T00:00:00",
+        "2999-12-31T00:00:00",
+        "Y"
+      ]
+    ]
+  }
+}

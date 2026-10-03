@@ -1,0 +1,31 @@
+{
+  "DIM_CUST": {
+    "rows": [
+      {
+        "CUST_ID": 1,
+        "CUST_NAME": "Ann",
+        "CITY": "Boston"
+      },
+      {
+        "CUST_ID": 2,
+        "CUST_NAME": "Bob",
+        "CITY": "Denver"
+      },
+      {
+        "CUST_ID": 3,
+        "CUST_NAME": "Cy",
+        "CITY": "Houston"
+      },
+      {
+        "CUST_ID": 4,
+        "CUST_NAME": "Di",
+        "CITY": "Miami"
+      },
+      {
+        "CUST_ID": 5,
+        "CUST_NAME": "Ed",
+        "CITY": "Reno"
+      }
+    ]
+  }
+}

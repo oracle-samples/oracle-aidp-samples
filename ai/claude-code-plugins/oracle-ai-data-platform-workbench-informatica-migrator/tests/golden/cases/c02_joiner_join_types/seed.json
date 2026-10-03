@@ -1,0 +1,26 @@
+{
+  "ORDERS": {
+    "schema": "ORDER_ID decimal(10,0), CUST_ID decimal(10,0), ORDER_REGION string, AMT decimal(10,2)",
+    "rows": [
+      [101, 1,    "EAST",  100.00],
+      [102, 1,    "EAST",   50.00],
+      [103, 2,    "WEST",   75.00],
+      [104, 2,    "EAST",   20.00],
+      [105, 1,    "WEST",   10.00],
+      [106, null, "EAST",    5.00],
+      [107, 5,    null,      8.00],
+      [108, 9,    "NORTH",  12.00]
+    ]
+  },
+  "CUSTOMERS": {
+    "schema": "CUST_ID decimal(10,0), REGION string, CUST_NAME string",
+    "rows": [
+      [1,    "EAST", "Acme"],
+      [2,    "WEST", "Bolt"],
+      [3,    "EAST", "Cora"],
+      [null, "EAST", "Ghost"],
+      [5,    null,   "NoRegion"],
+      [2,    "EAST", "Bolt East"]
+    ]
+  }
+}
