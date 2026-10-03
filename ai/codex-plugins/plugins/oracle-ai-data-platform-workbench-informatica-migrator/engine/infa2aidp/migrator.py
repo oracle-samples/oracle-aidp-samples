@@ -632,7 +632,6 @@ def run_migration(
     _nb_collisions: list = []
     llm = None
     if use_llm:
-        from .handlers.codellama_handler import LLMHandler
         from .handlers import make_llm_handler
         # Provider comes from LLM_PROVIDER / whichever key is set.
         llm = make_llm_handler()
@@ -643,7 +642,9 @@ def run_migration(
             _model = getattr(llm, "model", None) or getattr(llm, "claude_model", "?")
             logger.info("LLM connected -- %s (%s)", type(llm).__name__, _model)
         else:
-            logger.warning("ANTHROPIC_API_KEY not set -- falling back to rule-based")
+            from . import config as _cfg
+            logger.warning("No API key for LLM provider %r -- falling back to rule-based",
+                           _cfg.llm_provider())
             llm = None
 
     # Parallel batch path: only worth it for LLM-first generation across

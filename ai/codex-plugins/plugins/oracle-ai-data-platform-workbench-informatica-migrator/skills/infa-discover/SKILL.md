@@ -23,7 +23,7 @@ skip this and go straight to
 ```bash
 # INFA_USER / INFA_PASSWORD / INFA_REPO / INFA_DOMAIN set in the environment
 # (never on the command line, where they land in shell history and `ps`)
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli discover \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli discover \
   --host <powercenter-host> \
   --port 6005 \
   --method auto \

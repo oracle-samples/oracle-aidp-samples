@@ -30,7 +30,7 @@ no-live-cluster-execution gap).
 ## Canonical invocation
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli reconcile \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli reconcile \
   -c reconcile_config.yaml \
   -o ./reconcile_report \
   --format all

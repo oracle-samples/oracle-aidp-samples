@@ -28,8 +28,7 @@ notebook *runs correctly* is unknown until someone runs the job and
 
 ### What has been verified live, and what has not
 
-Run against a live AIDP instance on 2026-09-25 (FDEAIDP, OASEFDE tenancy,
-Spark 3.5.0):
+Run against a live AIDP instance on 2026-09-25 (Spark 3.5.0):
 
 | Step | Verified |
 | --- | --- |
@@ -95,7 +94,7 @@ defect report rather than a one-off.
    than creating a job that fails every run.
 3. **`infa_compat` installed on that cluster.** Every generated notebook
    imports it and asserts its version in its second cell. Build the wheel
-   with `pip wheel engine/ -w dist/` and install it as a cluster library
+   with `pip wheel "${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" -w dist/` and install it as a cluster library
    (AIDP console → cluster → Libraries, or the `aidp-cluster-ops` skill).
    Without it every notebook fails before its first read. On a shared
    cluster you can instead upload the wheel under the deployment folder
@@ -119,7 +118,7 @@ path -- the tool refuses any workspace path outside `/Workspace`.
 ## Try dry-run first
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli deploy \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli deploy \
   -i <migrate-output-dir> --dry-run
 ```
 
@@ -136,7 +135,7 @@ export AIDP_INSTANCE_ID=ocid1.aidataplatform.oc1.iad....
 export AIDP_WORKSPACE_KEY=<workspace-key>
 export AIDP_CLUSTER_KEY=<cluster-key>
 export OCI_PROFILE=DEFAULT
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli deploy \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli deploy \
   -i <migrate-output-dir> \
   --workspace-path /Workspace/Migrated
 ```

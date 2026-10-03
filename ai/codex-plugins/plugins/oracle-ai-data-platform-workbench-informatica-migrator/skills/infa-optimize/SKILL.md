@@ -18,7 +18,7 @@ and reports Spark performance anti-patterns, with a subset auto-fixable.
 ## Canonical invocation
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli optimize \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli optimize \
   -i <migrate-output-dir> \
   -o ./optimization_report
 ```

@@ -1,8 +1,8 @@
 """AIDP REST API client using OCI SDK authentication.
 
 Uses the same authentication and upload pattern as:
-- aidp-mcp-server (make_signer with auto-detection)
-- dfl-informatica (uploadFileMeta → PAR URL → PUT)
+- the AIDP MCP server (make_signer with auto-detection)
+- the Rust reference implementation (uploadFileMeta → PAR URL → PUT)
 
 Authentication order (auto-detected):
   1. Resource Principal (OCI_RESOURCE_PRINCIPAL_VERSION env var)
@@ -35,7 +35,7 @@ API_VERSION = "20240831"
 def make_signer(profile: str = "DEFAULT", config_file: str = "~/.oci/config"):
     """Auto-detect best OCI auth: Resource Principal → Instance Principal → Session Token → API Key.
 
-    Same pattern as aidp-mcp-server/server.py.
+    Same pattern as the AIDP MCP server.
     """
     try:
         import oci
@@ -110,7 +110,7 @@ class _OCIRequestAuth:
 class AIDPClient:
     """REST client for Oracle AI Data Platform.
 
-    Uses OCI SDK authentication (same as aidp-mcp-server and dfl-informatica).
+    Uses OCI SDK authentication (same as the AIDP MCP server and the Rust reference implementation).
     """
 
     def __init__(self, region: str, aidp_instance_id: str, signer,
@@ -232,7 +232,7 @@ class AIDPClient:
     ) -> None:
         """Upload a file to AIDP workspace.
 
-        Two-step upload pattern (same as dfl-informatica):
+        Two-step upload pattern (same as the Rust reference implementation):
         1. POST uploadFileMeta → get PAR URL
         2. PUT file content to PAR URL
         3. POST uploadFileMeta with UPDATE action to confirm

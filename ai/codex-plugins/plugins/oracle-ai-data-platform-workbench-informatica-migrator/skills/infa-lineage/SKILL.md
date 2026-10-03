@@ -19,7 +19,7 @@ its source field(s).
 ## Canonical invocation
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli lineage \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli lineage \
   -i <path-to-export> \
   -o ./lineage
 ```

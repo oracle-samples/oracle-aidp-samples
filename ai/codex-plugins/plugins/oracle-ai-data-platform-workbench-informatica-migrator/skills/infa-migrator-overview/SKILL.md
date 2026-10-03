@@ -6,7 +6,9 @@ description: Router skill. Read this first whenever the user mentions migrating 
 # `infa-migrator-overview` — router
 
 > **Engine path (Codex).** The SessionStart hook stages the bundled engine to
-> `~/.aidp-infa-migrator/engine`, so every command in these skills assumes:
+> `~/.aidp-infa-migrator/engine`. Every command in these skills reads it as
+> `${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}`, so it works in a fresh
+> shell; export `INFA_ENGINE` only to point at a different checkout:
 > ```bash
 > export INFA_ENGINE=~/.aidp-infa-migrator/engine
 > ```
@@ -34,7 +36,7 @@ is **no `engine/scripts/` directory** — unlike some other AIDP migrator
 plugins, the only entry point is a CLI:
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli <command> [flags]
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli <command> [flags]
 ```
 
 `pip install -e .` from the repo root also registers an `infa2aidp` console
@@ -42,7 +44,7 @@ script (`infa2aidp <command>`). **Verify which one resolves before trusting
 it** — `pip show infa2aidp` / `which infa2aidp` — if another `infa2aidp`
 package is installed system-wide (editable installs from an unrelated repo
 are easy to pick up by accident), the bare command can silently run the wrong
-code. `PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli` from this repo's root is
+code. `PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli` from this repo's root is
 the invocation every skill in this plugin uses, because it is unambiguous.
 
 There are **exactly 10 commands**: `discover`, `analyze`, `migrate`, `deploy`,
@@ -106,7 +108,7 @@ JSON, or the notebooks `migrate` already produced.
   migrator plugins have -- that loop, and the executor it depends on, are
   not implemented and not vendored in this repo today.
 - **Generated notebooks need the `infa_compat` wheel installed on the
-  cluster** (built with `pip wheel engine/ -w dist/`); every notebook
+  cluster** (built with `pip wheel "${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" -w dist/`); every notebook
   asserts its version in its second cell.
 - **Nothing has been validated against a real Informatica export.** Every
   fixture behind `demo.sh` and the test suite is authored for this project —
@@ -177,7 +179,7 @@ See [`infa-migrator-bootstrap`](../infa-migrator-bootstrap/SKILL.md) for the
 full check. Short version:
 
 1. Python 3.9+ and the engine's dependencies (`pip install -e .` from the
-   repo root, or `pip install -r $INFA_ENGINE/requirements.txt`).
+   repo root, or `pip install -r "${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}/requirements.txt"`).
 2. An LLM provider key — **only** for `migrate --use-llm` / `--agentic`.
    This is the Codex build, so `OPENAI_API_KEY` is the default; set
    `LLM_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` to use Claude instead.

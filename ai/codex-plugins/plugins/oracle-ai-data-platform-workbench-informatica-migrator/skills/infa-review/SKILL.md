@@ -26,7 +26,7 @@ step that actually reveals that count.
 ## Step 1: generate the review file
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli review generate \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli review generate \
   -i <path-to-export> \
   -o ./review/review_items.json
 ```
@@ -53,7 +53,7 @@ piece manually outside this tool.
 ## Step 3: import the reviewed file
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli review import \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli review import \
   -i ./review/review_items.json \
   -o ./review
 ```

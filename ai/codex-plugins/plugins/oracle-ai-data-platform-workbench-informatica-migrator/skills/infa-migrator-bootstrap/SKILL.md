@@ -51,7 +51,7 @@ repo's `engine/`, do not trust the bare `infa2aidp` command. Use the
 unambiguous form instead — every skill in this plugin uses this by default:
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli version
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli version
 ```
 
 Expected output:

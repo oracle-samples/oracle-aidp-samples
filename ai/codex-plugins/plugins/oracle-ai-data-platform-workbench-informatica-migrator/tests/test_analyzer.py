@@ -1,4 +1,4 @@
-"""Tests for InformaticaAnalyzer against a a three-stage warehouse-load export."""
+"""Tests for InformaticaAnalyzer against a three-stage warehouse-load export."""
 
 import os
 import tempfile

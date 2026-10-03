@@ -2,7 +2,7 @@
 
 Dispatches to the correct parser based on the first non-whitespace character.
 
-Reference: dfl-informatica/src/parser/mod.rs
+Reference: the Rust reference implementation, src/parser/mod.rs
 """
 
 import logging

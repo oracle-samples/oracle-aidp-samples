@@ -1775,7 +1775,7 @@ class NotebookGenerator:
         which is the detail side.
 
         Two independent signals are tried, in order (spec
-        Sec 28 item 8; mirrors dfl-informatica src/recognize.rs's
+        Sec 28 item 8; mirrors the Rust reference implementation, src/recognize.rs's
         ``joiner_detail_upstream``):
 
         1. The transformation-level "Master Source" property

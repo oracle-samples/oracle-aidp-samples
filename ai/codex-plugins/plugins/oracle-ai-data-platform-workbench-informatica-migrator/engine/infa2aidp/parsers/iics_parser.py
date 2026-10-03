@@ -16,7 +16,7 @@ IICS JSON schema:
   ]
 }
 
-Reference: dfl-informatica/src/parser/iics.rs
+Reference: the Rust reference implementation, src/parser/iics.rs
 """
 
 import json
@@ -175,7 +175,7 @@ class IICSParser:
         sources = []
         targets = []
         for tx_data in data.get("transformations", []):
-            # Primary ∥ fallback key, matching upstream (dfl-informatica
+            # Primary ∥ fallback key, matching upstream (the Rust reference implementation,
             # iics.rs:61-63) -- an export that only sets "transformationType"
             # used to fall through as "" here and never get routed to the
             # source/target special-casing below.
@@ -350,7 +350,7 @@ class IICSParser:
 
         # A Joiner's master-vs-detail split is a per-field marker in IICS
         # too: a boolean "master"/"isMaster" flag, or a "portGroup"/"group"
-        # of "master" (matches dfl-informatica
+        # of "master" (matches the Rust reference implementation,
         # src/ast.rs Port::is_master). Values may arrive as JSON booleans
         # or as string "true"/"false", so compare loosely rather than
         # relying on Python truthiness of the raw value (the string
@@ -366,7 +366,7 @@ class IICSParser:
         # "groupBy" (some exports use "isGroupBy") boolean -- same shape as
         # the "master"/"isMaster" flag above, and the same reason it must be
         # read explicitly rather than inferred from direction (
-        # matches dfl-informatica src/ast.rs Port::is_group_by /
+        # matches the Rust reference implementation, src/ast.rs Port::is_group_by /
         # src/parser/iics.rs's per-field groupBy read).
         is_group_by = _is_truthy(data.get("groupBy")) or _is_truthy(data.get("isGroupBy"))
 

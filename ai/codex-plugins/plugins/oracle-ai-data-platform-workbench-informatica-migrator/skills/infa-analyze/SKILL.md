@@ -21,7 +21,7 @@ on.
 ## Canonical invocation
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli analyze \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli analyze \
   -i <path-to-export-dir-or-file> \
   -o ./analysis_report \
   --format all

@@ -27,7 +27,7 @@ from infa_compat.decode import split_pairs_and_default as _split_decode_pairs
 # quietly fell back to day-granularity for anything it didn't recognize --
 # e.g. 'Q' (quarter) silently became +1 *day*, an ~89-day error with no
 # signal). Mirrors the upstream Rust `informatica_date_unit` table
-# (dfl-informatica src/recognize.rs ~:1410-1425): every unit maps to one of
+# (the Rust reference implementation, src/recognize.rs ~:1410-1425): every unit maps to one of
 # the eight canonical Spark ``date_trunc``-style families below, and an
 # unrecognized unit must raise -- never silently default to another
 # granularity. See ``ExpressionConverter._date_unit_family``.
@@ -291,7 +291,7 @@ class ExpressionConverter:
     # it. ``'x' || A + B`` must convert to ``concat('x', A + B)`` (the whole
     # ``A + B`` is one concat operand), not ``concat('x', A) + B`` (
     # Step 2; matches the split-top-level-``||``-first approach in the
-    # upstream Rust ``rewrite_concat``, dfl-informatica src/recognize.rs
+    # upstream Rust ``rewrite_concat``, the Rust reference implementation, src/recognize.rs
     # ~:955-1010).
 
     def _parse_or(self, t: _Tokenizer) -> str:

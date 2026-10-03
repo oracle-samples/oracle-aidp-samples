@@ -111,7 +111,7 @@ class DataFlowDirection(Enum):
     # A PowerCenter/IICS "variable" port: evaluated row-by-row in declaration
     # order, may be referenced by later ports (including outputs), and is
     # not itself part of the target schema. Ported from the Rust reference
-    # (dfl-informatica ast.rs PortDirection::Variable) -- see xml_parser's
+    # (the Rust reference implementation, ast.rs PortDirection::Variable) -- see xml_parser's
     # _resolve_direction and transformation_converter's _expression.
     VARIABLE = "VARIABLE"
 
@@ -198,14 +198,14 @@ class TransformationField:
     # -- NOT the order in which the upstream sources' connectors happen to
     # appear in the export. Inferring the outer side from connector order
     # silently inverts a Master/Detail Outer Join whenever the detail source
-    # is wired first (mirrors dfl-informatica src/ast.rs Port::is_master).
+    # is wired first (mirrors the Rust reference implementation, src/ast.rs Port::is_master).
     is_master: bool = False
     # Per-port GROUP BY marker for an Aggregator transformation. In
     # PowerCenter this is the GROUPBY/ISGROUPBY TRANSFORMFIELD attribute (or
     # a PORTTYPE that carries "GROUP BY", e.g. "INPUT/OUTPUT GROUP BY"); in
     # IICS the per-field groupBy/isGroupBy flag. An Aggregator's GROUP BY is
     # defined by these flags when present -- NOT by port direction and NOT
-    # by the absence of an expression (mirrors dfl-informatica src/ast.rs
+    # by the absence of an expression (mirrors the Rust reference implementation, src/ast.rs
     # Port::is_group_by). See properties.aggregator_group_by_fallback for
     # the heuristic used only when no port carries this flag.
     is_group_by: bool = False

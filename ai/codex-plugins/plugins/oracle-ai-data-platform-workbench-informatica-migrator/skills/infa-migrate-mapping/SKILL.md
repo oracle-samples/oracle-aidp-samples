@@ -24,7 +24,7 @@ in.
 ## Canonical invocation — rule-based (default, no LLM cost)
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli migrate \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli migrate \
   -i <path-to-export> \
   -o <output-dir> \
   --comparison
@@ -35,7 +35,7 @@ PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli migrate \
 ```bash
 export OPENAI_API_KEY=sk-proj-...          # Codex build default
 # or: export LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-...
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli migrate \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli migrate \
   -i <path-to-export> \
   -o <output-dir> \
   --use-llm \
@@ -52,7 +52,7 @@ a no-op (`migrator.py`: `if agentic and not llm_gen`). It is not a
 ## Targeting an ADW (external catalog) instead of Delta
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli migrate \
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli migrate \
   -i <path-to-export> -o <output-dir> \
   --target-catalog-type adw
 ```
@@ -73,7 +73,7 @@ trusting its write semantics, and tell the user this explicitly.
 |---|---|---|
 | `-i, --input` | required | Export file or directory (mixed PowerCenter XML / IDMC JSON OK) |
 | `-o, --output` | required | |
-| `--use-llm` | off | Claude-assisted conversion for transformations the rule-based path can't handle |
+| `--use-llm` | off | LLM-assisted conversion for transformations the rule-based path can't handle |
 | `--agentic` | off | Spec/generate/validate/fix pipeline, used only when the LLM-first path is not active (see above) |
 | `--custom-rules` | none | Path to a custom rules file |
 | `--params` | none | Path to a parameter file (Informatica `$$`-style mapping parameters *at the mapping level* — not the same thing as an IDMC parameter *set*, which has no support at all) |
@@ -142,7 +142,7 @@ Not guaranteed:
 ## Cost guidance
 
 - Rule-based (`demo.sh`'s path): free, instant, no network.
-- `--use-llm` with `--workers 1`: sequential, one Claude call per mapping
+- `--use-llm` with `--workers 1`: sequential, one LLM call per mapping
   needing LLM assistance.
 - `--use-llm --workers N>1`: batch mode, `N` concurrent LLM calls — faster,
   proportionally more expensive per unit time, same total token cost.

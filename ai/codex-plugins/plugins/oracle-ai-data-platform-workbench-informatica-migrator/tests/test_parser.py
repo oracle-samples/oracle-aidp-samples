@@ -1,4 +1,4 @@
-"""Tests for InformaticaXMLParser against a a three-stage warehouse-load export."""
+"""Tests for InformaticaXMLParser against a three-stage warehouse-load export."""
 
 import os
 import tempfile

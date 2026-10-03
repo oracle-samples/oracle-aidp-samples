@@ -1,10 +1,9 @@
 # PowerCenter fixtures
 
 ## Provenance
-The fixtures dated before 2026-09 came from the `dfl-informatica` Rust project
-(`oci-llm-dfl/dfl/crates/dfl-informatica/test-fixtures/`), ported with four parser
-modules in commit b8bad06. They were written to exercise a *different* parser with
-different structural assumptions.
+The fixtures dated before 2026-09 came from the test set of an earlier Rust
+Informatica parser, ported together with four of its parser modules. They were
+written to exercise a *different* parser with different structural assumptions.
 
 ## Known limitation, now being fixed
 They originally carried **no** `<SOURCE>`, `<TARGET>` or `<INSTANCE>` elements, so they

@@ -21,11 +21,11 @@ similar transformations.
 ## Actions
 
 ```bash
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli rag stats
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli rag list --approved-only
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli rag export -o rag_export.json
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli rag import -i rag_export.json
-PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli rag clear
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli rag stats
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli rag list --approved-only
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli rag export -o rag_export.json
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli rag import -i rag_export.json
+PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2aidp.cli rag clear
 ```
 
 | Action | Flags used | Output |

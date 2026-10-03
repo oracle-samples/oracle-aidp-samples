@@ -44,7 +44,7 @@ def normalize_key(name: str) -> str:
 
     This is the ported-from-upstream fix for a defect class where our port
     read a TABLEATTRIBUTE by one exact spelling while the upstream Rust
-    parser (dfl-informatica powercentre.rs's lowercased TABLEATTRIBUTE
+    parser (the Rust reference implementation, powercentre.rs's lowercased TABLEATTRIBUTE
     match arms, :216-239) reads a whole set of spellings -- any casing or
     spacing variance in the export silently yielded an empty string
     (a dropped filter condition, SQL override, or join condition), never
@@ -81,7 +81,7 @@ def is_truthy(value: str) -> bool:
     Accepts the usual Informatica truthy spellings -- ``YES``, ``TRUE``,
     ``1``, ``Y`` -- case-insensitively, with surrounding whitespace ignored.
     Ported from the upstream Rust parser's ``is_truthy_attr``
-    (dfl-informatica src/parser/powercentre.rs), which a PowerCenter
+    (the Rust reference implementation, src/parser/powercentre.rs), which a PowerCenter
     ``GROUPBY``/``ISGROUPBY`` or ``MASTER``/``ISMASTER`` TRANSFORMFIELD
     attribute uses.
     """
@@ -94,7 +94,7 @@ def _expr_references_port(expr_upper: str, port_name_upper: str) -> bool:
 
     Word-boundary matching avoids a substring false-positive such as a port
     named ``AMOUNT`` matching inside an expression referencing
-    ``LINE_AMOUNT``. Ported from dfl-informatica src/ast.rs::
+    ``LINE_AMOUNT``. Ported from the Rust reference implementation, src/ast.rs::
     expr_references_port.
     """
     if not port_name_upper:
@@ -107,12 +107,12 @@ def aggregator_group_by_fallback(fields: list) -> list:
     """Derive an Aggregator's GROUP BY keys when no port carries an explicit
     group-by flag (the caller's job is to check for an explicit flag FIRST
     and only fall back to this heuristic when none is found -- see
-    ``aggregator_group_keys`` in dfl-informatica src/ast.rs, which this
+    ``aggregator_group_keys`` in the Rust reference implementation, src/ast.rs, which this
     ports).
 
     Grouping is never inferred from an OUTPUT/INPUT_OUTPUT pass-through port
     that merely lacks an expression -- a pass-through port is a projected
-    column, not a grouping key (the bug dfl-informatica issue #3151 fixed).
+    column, not a grouping key (a bug the Rust reference implementation has since fixed).
     Only Input-direction ports with NO expression at all are candidates, and
     only if they are not themselves consumed by an aggregate expression (a
     value port fed into SUM/AVG/etc. is an aggregation input, not a grouping
