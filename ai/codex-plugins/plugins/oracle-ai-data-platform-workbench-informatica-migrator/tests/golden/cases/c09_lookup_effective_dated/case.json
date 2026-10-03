@@ -1,0 +1,10 @@
+{
+  "export": "m_sales_price_in_force.xml",
+  "notes": [
+    "Lookup condition with non-equi terms: PRODUCT_ID = IN_PRODUCT_ID AND EFF_FROM <= IN_SALE_DATE AND EFF_TO >= IN_SALE_DATE. A row matches only when ALL terms hold.",
+    "Both range ends are inclusive: a sale on 2026-04-01 gets the price starting that day, a sale on 2026-03-31 the price ending that day.",
+    "A sale before the first effective date (PRODUCT 30 on 2026-04-15) and an unknown product (99) match nothing: UNIT_PRICE NULL, and QTY * NULL = NULL.",
+    "'Report Error' counts matches under the WHOLE condition. PRODUCT_ID alone repeats (two price periods per product) but no sale date falls in two periods, so no multiple match occurs and no row errors.",
+    "Open-ended periods use 2999-12-31, not 9999-12-31: local pyspark on Windows cannot convert timestamps past year 3000 (time.mktime overflow)."
+  ]
+}

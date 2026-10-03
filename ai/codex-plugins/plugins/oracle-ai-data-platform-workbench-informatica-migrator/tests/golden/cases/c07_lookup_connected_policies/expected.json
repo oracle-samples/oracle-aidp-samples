@@ -1,0 +1,69 @@
+{
+  "TGT_SALES_ENRICHED": {
+    "rows": [
+      {
+        "SALE_ID": 1,
+        "CUST_ID": 1,
+        "SEG_FIRST": "GOLD",
+        "SEG_LAST": "SILVER",
+        "REGION_NAME": "WEST",
+        "ACCT_MGR": "ANNA",
+        "AMOUNT": 100.0
+      },
+      {
+        "SALE_ID": 2,
+        "CUST_ID": 2,
+        "SEG_FIRST": "BRONZE",
+        "SEG_LAST": "BRONZE",
+        "REGION_NAME": "EAST",
+        "ACCT_MGR": "BRUNO",
+        "AMOUNT": 50.0
+      },
+      {
+        "SALE_ID": 3,
+        "CUST_ID": 3,
+        "SEG_FIRST": "BRONZE",
+        "SEG_LAST": "PLATINUM",
+        "REGION_NAME": "CENTRAL",
+        "ACCT_MGR": null,
+        "AMOUNT": 75.0
+      },
+      {
+        "SALE_ID": 4,
+        "CUST_ID": 9,
+        "SEG_FIRST": null,
+        "SEG_LAST": null,
+        "REGION_NAME": null,
+        "ACCT_MGR": null,
+        "AMOUNT": 20.0
+      },
+      {
+        "SALE_ID": 5,
+        "CUST_ID": null,
+        "SEG_FIRST": null,
+        "SEG_LAST": null,
+        "REGION_NAME": "EAST_CA",
+        "ACCT_MGR": null,
+        "AMOUNT": 10.0
+      },
+      {
+        "SALE_ID": 6,
+        "CUST_ID": 1,
+        "SEG_FIRST": "GOLD",
+        "SEG_LAST": "SILVER",
+        "REGION_NAME": null,
+        "ACCT_MGR": "ANNA",
+        "AMOUNT": 30.0
+      },
+      {
+        "SALE_ID": 7,
+        "CUST_ID": 2,
+        "SEG_FIRST": "BRONZE",
+        "SEG_LAST": "BRONZE",
+        "REGION_NAME": "MX_NORTE",
+        "ACCT_MGR": "BRUNO",
+        "AMOUNT": 40.0
+      }
+    ]
+  }
+}

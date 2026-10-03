@@ -1,0 +1,10 @@
+{
+  "TGT_EMP_MGR": {"rows": [
+    {"EMP_ID": 2, "EMP_NAME": "Ben", "MGR_NAME": "Ada", "SALARY": 150000.00, "MGR_SALARY": 200000.00, "SAL_RATIO": 0.75,   "EARNS_MORE": "N"},
+    {"EMP_ID": 3, "EMP_NAME": "Cal", "MGR_NAME": "Ada", "SALARY": 120000.00, "MGR_SALARY": 200000.00, "SAL_RATIO": 0.6,    "EARNS_MORE": "N"},
+    {"EMP_ID": 4, "EMP_NAME": "Dee", "MGR_NAME": "Ben", "SALARY": 160000.00, "MGR_SALARY": 150000.00, "SAL_RATIO": 1.0667, "EARNS_MORE": "Y"},
+    {"EMP_ID": 5, "EMP_NAME": "Eve", "MGR_NAME": "Cal", "SALARY":  60000.00, "MGR_SALARY": 120000.00, "SAL_RATIO": 0.5,    "EARNS_MORE": "N"},
+    {"EMP_ID": 7, "EMP_NAME": "Gus", "MGR_NAME": "Hal", "SALARY":  70000.00, "MGR_SALARY": null,      "SAL_RATIO": null,   "EARNS_MORE": "N"},
+    {"EMP_ID": 8, "EMP_NAME": "Hal", "MGR_NAME": "Ada", "SALARY": null,      "MGR_SALARY": 200000.00, "SAL_RATIO": null,   "EARNS_MORE": "N"}
+  ]}
+}

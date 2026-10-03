@@ -1,0 +1,58 @@
+{
+  "TXN": {
+    "schema": "TXN_ID decimal(10,0), CURRENCY_CODE string, AMOUNT decimal(12,2)",
+    "rows": [
+      [
+        1,
+        "USD",
+        100.0
+      ],
+      [
+        2,
+        "EUR",
+        200.0
+      ],
+      [
+        3,
+        "GBP",
+        10.0
+      ],
+      [
+        4,
+        "JPY",
+        15000.0
+      ],
+      [
+        5,
+        "CHF",
+        50.0
+      ],
+      [
+        6,
+        null,
+        5.0
+      ]
+    ]
+  },
+  "FX_RATES": {
+    "schema": "CURRENCY_CODE string, RATE_TO_USD decimal(12,6)",
+    "rows": [
+      [
+        "USD",
+        1.0
+      ],
+      [
+        "EUR",
+        1.085
+      ],
+      [
+        "GBP",
+        1.27
+      ],
+      [
+        "JPY",
+        0.0067
+      ]
+    ]
+  }
+}

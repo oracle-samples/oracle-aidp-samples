@@ -1,0 +1,19 @@
+{
+  "SALES": {
+    "schema": "SALE_ID decimal(10,0), REGION string, CHANNEL string, AMT decimal(10,2), COST decimal(10,2), STATUS string, ORDER_DT timestamp, REGION_MGR string",
+    "rows": [
+      [1,  "EAST", "WEB",   100.00,  60.00, "PAID",      "2026-01-05T00:00:00", "Kim"],
+      [2,  "EAST", "WEB",    50.00,  30.00, "OPEN",      "2026-01-10T00:00:00", "Kim"],
+      [3,  "EAST", "WEB",    null,   10.00, "PAID",      "2026-01-02T00:00:00", "Kim"],
+      [4,  "EAST", "WEB",    25.00,  20.00, null,        null,                  "Kim"],
+      [5,  "EAST", "STORE", 200.00, 150.00, "PAID",      "2026-02-01T00:00:00", "Kim"],
+      [6,  "EAST", "STORE", 300.00, 150.00, "PAID",      "2026-02-15T00:00:00", "Kim"],
+      [7,  "WEST", "WEB",    40.00,  25.00, "OPEN",      "2026-03-01T00:00:00", "Lee"],
+      [8,  "WEST", "WEB",    60.00,  35.00, "CANCELLED", "2026-03-03T00:00:00", "Lee"],
+      [9,  null,   "WEB",    10.00,   5.00, "PAID",      "2026-04-01T00:00:00", "Unassigned"],
+      [10, null,   "WEB",    20.00,  15.00, "PAID",      "2026-04-02T00:00:00", "Unassigned"],
+      [11, "WEST", null,     null,   12.00, "PAID",      "2026-05-01T00:00:00", "Lee"],
+      [12, "WEST", null,     null,    8.00, "OPEN",      "2026-05-09T00:00:00", "Lee"]
+    ]
+  }
+}

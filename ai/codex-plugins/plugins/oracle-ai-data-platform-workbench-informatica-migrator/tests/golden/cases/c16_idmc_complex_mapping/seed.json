@@ -1,0 +1,31 @@
+{
+  "ORDERS": {
+    "schema": "ORDER_ID decimal(10,0), CUST_ID decimal(10,0), AMOUNT decimal(12,2)",
+    "rows": [
+      [1001, 1, 1500.00],
+      [1002, 2,  200.00],
+      [1003, 3, 1000.00],
+      [1004, 2, 2500.00],
+      [1005, 4,   50.00],
+      [1006, 9,  999.99],
+      [1007, 1, null],
+      [1008, 4, 3000.00]
+    ]
+  },
+  "CUSTOMERS": {
+    "schema": "C_CUST_ID decimal(10,0), C_NAME string, C_SEGMENT_CODE string",
+    "rows": [
+      [1, "acme", "ENT"],
+      [2, "bolt", "SMB"],
+      [3, "core", "ENT"],
+      [4, "dyna", "XXX"]
+    ]
+  },
+  "SEGMENTS": {
+    "schema": "SEG_CODE string, SEG_NAME string, REGION string",
+    "rows": [
+      ["ENT", "Enterprise", "EAST"],
+      ["SMB", "Small Biz",  "WEST"]
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "export": "m_accounts_fixed.xml",
+  "notes": [
+    "Source accounts_fw is a fixed-width flat file (DELIMITED=NO): ACCT_NO bytes 0-5, HOLDER 6-15, BALANCE 16-24, OPENED 25-34 (PHYSICALOFFSET/PHYSICALLENGTH), no header (SKIPROWS 0).",
+    "Numbers keep their leading zeros and sign in the file: '000123' is 123, '-00050.25' is -50.25.",
+    "STRIPTRAILINGBLANKS = YES: 'Alice     ' is 'Alice'.",
+    "An all-blank date field is NULL; OPENED is a datetime in MM/DD/YYYY.",
+    "BAL_BAND = IIF(BALANCE < 0, 'NEG', IIF(BALANCE = 0, 'ZERO', 'POS'))."
+  ]
+}

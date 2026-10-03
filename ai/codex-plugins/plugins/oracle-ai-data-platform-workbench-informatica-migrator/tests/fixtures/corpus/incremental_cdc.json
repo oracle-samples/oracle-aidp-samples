@@ -1,0 +1,57 @@
+{
+    "name": "m_incremental_cdc_iics",
+    "description": "IICS Cloud equivalent of incremental CDC mapping",
+    "transformations": [
+        {
+            "name": "SRC_ORDERS",
+            "type": "SOURCE",
+            "tableName": "ORDERS_STAGE",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "integer", "portType": "OUTPUT"},
+                {"name": "CUSTOMER_ID", "dataType": "integer", "portType": "OUTPUT"},
+                {"name": "TOTAL_AMOUNT", "dataType": "decimal", "portType": "OUTPUT"},
+                {"name": "STATUS", "dataType": "string", "portType": "OUTPUT"},
+                {"name": "UPDATED_AT", "dataType": "date", "portType": "OUTPUT"}
+            ]
+        },
+        {
+            "name": "FIL_ACTIVE",
+            "type": "FILTER",
+            "filterCondition": "STATUS = 'ACTIVE' AND TOTAL_AMOUNT > 0",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "integer", "portType": "INPUT_OUTPUT"},
+                {"name": "TOTAL_AMOUNT", "dataType": "decimal", "portType": "INPUT_OUTPUT"},
+                {"name": "STATUS", "dataType": "string", "portType": "INPUT_OUTPUT"}
+            ]
+        },
+        {
+            "name": "EXP_ENRICH",
+            "type": "EXPRESSION",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "integer", "portType": "INPUT"},
+                {"name": "TOTAL_AMOUNT", "dataType": "decimal", "portType": "INPUT"},
+                {"name": "AMOUNT_WITH_TAX", "dataType": "decimal", "portType": "OUTPUT", "expression": "TOTAL_AMOUNT * 1.1"},
+                {"name": "TIER", "dataType": "string", "portType": "OUTPUT", "expression": "IIF(TOTAL_AMOUNT > 1000, 'PREMIUM', 'STANDARD')"}
+            ]
+        },
+        {
+            "name": "TGT_ORDERS_DW",
+            "type": "TARGET",
+            "tableName": "ORDERS_DW",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "integer", "portType": "INPUT"},
+                {"name": "AMOUNT_WITH_TAX", "dataType": "decimal", "portType": "INPUT"},
+                {"name": "TIER", "dataType": "string", "portType": "INPUT"}
+            ]
+        }
+    ],
+    "connections": [
+        {"from": {"transformation": "SRC_ORDERS", "field": "ORDER_ID"}, "to": {"transformation": "FIL_ACTIVE", "field": "ORDER_ID"}},
+        {"from": {"transformation": "SRC_ORDERS", "field": "TOTAL_AMOUNT"}, "to": {"transformation": "FIL_ACTIVE", "field": "TOTAL_AMOUNT"}},
+        {"from": {"transformation": "SRC_ORDERS", "field": "STATUS"}, "to": {"transformation": "FIL_ACTIVE", "field": "STATUS"}},
+        {"from": {"transformation": "FIL_ACTIVE", "field": "ORDER_ID"}, "to": {"transformation": "EXP_ENRICH", "field": "ORDER_ID"}},
+        {"from": {"transformation": "FIL_ACTIVE", "field": "TOTAL_AMOUNT"}, "to": {"transformation": "EXP_ENRICH", "field": "TOTAL_AMOUNT"}},
+        {"from": {"transformation": "EXP_ENRICH", "field": "ORDER_ID"}, "to": {"transformation": "TGT_ORDERS_DW", "field": "ORDER_ID"}},
+        {"from": {"transformation": "EXP_ENRICH", "field": "AMOUNT_WITH_TAX"}, "to": {"transformation": "TGT_ORDERS_DW", "field": "AMOUNT_WITH_TAX"}}
+    ]
+}

@@ -1,0 +1,22 @@
+{
+  "export": "m_expr_breadth.xml",
+  "notes": [
+    "ADD_TO_DATE(d,'MM',1) keeps the time of day and clamps to the last day of a shorter month (Jan 31 -> Feb 28, 2026 is not a leap year); ADD_TO_DATE(d,'DD',-3) subtracts days.",
+    "TRUNC(d,'MM') -> first of the month at 00:00:00. MONTH_END_DAY = GET_DATE_PART(LAST_DAY(d),'DD') tests LAST_DAY without depending on whether LAST_DAY keeps the time of day (not certain; see below).",
+    "TO_DATE on an invalid string is a row error in Informatica (row rejected), so PARSED_DT guards it: IIF(IS_DATE(s,'YYYYMMDD'), TO_DATE(s,'YYYYMMDD'), NULL); '20261301' (month 13) is not a date.",
+    "IS_DATE / IS_NUMBER / IS_SPACES / REG_MATCH return integer 1/0 (Informatica TRUE/FALSE are integers) and NULL for a NULL input; the ports are declared integer.",
+    "IS_NUMBER('-3.45e+3') is TRUE (documented example); IS_NUMBER('12a') is FALSE. IS_SPACES('   ') TRUE, 'a ' and ' x ' FALSE.",
+    "DATE_DIFF(D2, D, 'MM') = D2 - D in months; the rows use the same day-of-month and time so the result is a whole number (2, -2, 6) whatever fractional-month rule applies.",
+    "REPLACECHR(0, s, '-/', NULL): NULL NewChar removes every character in the set. REPLACESTR(1, ...): CaseFlag non-zero = case-SENSITIVE, so 'street' (lower case) is not replaced.",
+    "REG_MATCH is a whole-string match (Informatica documents 'begins with 1835' as REG_MATCH(x, '1835.*')): 'ABC12-x' does not match '[A-Z]{3}[0-9]+'. REG_EXTRACT uses '([0-9]+).*' so the answer is the same under whole-string or find-first semantics.",
+    "REG_REPLACE replaces every match by default: runs of blanks collapse to one; the single trailing blank of '5  Oak   street ' stays.",
+    "INSTR returns 0 when not found; LENGTH counts leading/trailing blanks.",
+    "CONCAT ignores one NULL argument and returns NULL only when BOTH are NULL. '||' ignores NULL operands, so NULL || ' ' || NULL is ' '.",
+    "LTRIM(s,'0') strips leading zeros only. MOD(10,3)=1. TRUNC(n,1) truncates toward zero (-12.345 -> -12.3). CEIL(-12.345)=-12, FLOOR(-12.345)=-13. POWER returns a double.",
+    "TO_INTEGER(3.7) rounds -> 4; TO_INTEGER(3.7, TRUE) truncates -> 3. TO_INTEGER(0.999)=1, TO_INTEGER(0.999, TRUE)=0, TO_INTEGER(-12.345)=-12.",
+    "TO_DECIMAL('12.3456', 2) = 12.35 (rounds to the scale; value chosen so half-up vs half-even does not matter).",
+    "DECODE(value, search, result, ..., default): a NULL STATUS matches no search value and takes the default 'Unknown'. Nested IIF with a NULL condition takes the false branch at each level ('S').",
+    "Port evaluation order is input -> variable -> output regardless of display order: OUT_V_EARLY is declared ABOVE the variable ports V_BASE/V_PLUS yet reads this row's V_PLUS. Variable ports among themselves evaluate top-down, so V_PLUS sees this row's V_BASE.",
+    "Not asserted (Informatica behaviour not certain): MONTHS_DIFF_FRAC (the fractional-month rule of DATE_DIFF 'MM' -- believed Oracle MONTHS_BETWEEN-like, 31-day months); LAST_DAY's time-of-day on a non-midnight input; IS_SPACES('') and MOD with a negative dividend (kept out of the data)."
+  ]
+}
