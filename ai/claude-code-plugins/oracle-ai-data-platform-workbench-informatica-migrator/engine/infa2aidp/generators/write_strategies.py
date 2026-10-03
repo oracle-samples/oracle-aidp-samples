@@ -53,7 +53,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from .ddl_generator import _sequence_fed_columns
+from .ddl_generator import _DDL_TYPE, _sequence_fed_columns
 
 from ..models import FieldMapping, LoadStrategy, Mapping, TargetDefinition, TransformationType
 
@@ -148,8 +148,9 @@ def _declared_numeric_ranges(target: Optional[TargetDefinition]) -> list[tuple]:
     """[(column, precision, scale)] for the target's declared numerics.
 
     Read off the export, which carries DATATYPE/PRECISION/SCALE for every
-    target column. Only the decimal family has a representable range worth
-    checking; a string column cannot overflow in the same silent way.
+    target column. A string column cannot overflow in the same silent way.
+    The integer family has a range too, but it is the Spark type's, not
+    10^precision -- see :func:`_declared_integer_ranges`.
     """
     out = []
     for f in getattr(target, "fields", []) or []:
@@ -164,6 +165,37 @@ def _declared_numeric_ranges(target: Optional[TargetDefinition]) -> list[tuple]:
         if prec <= 0:
             continue
         out.append((name, prec, scale))
+    return out
+
+
+# The Spark integer types a declared base type can be created as.
+_SPARK_INTEGER_TYPES = ("TINYINT", "SMALLINT", "INT", "BIGINT")
+
+
+def _declared_integer_ranges(target: Optional[TargetDefinition]) -> list[tuple]:
+    """[(column, declared_base, spark_type)] for the target's declared integers.
+
+    These overflow exactly like the decimals do -- 3000000000 into an INT
+    is the case :func:`_range_check_lines` was written for -- but their
+    limit is the Spark type's range, not 10^precision: an Informatica
+    ``integer`` carries PRECISION 10 and still holds only 2^31.
+
+    The Spark type is looked up in the DDL generator's own table rather
+    than restated here, so the bound checked is the bound of the column
+    that DDL creates. That is why a declared TINYINT is checked against
+    SMALLINT: the DDL widens it (SQL Server's TINYINT is 0..255, which
+    Spark's signed byte cannot hold), and refusing 200 for a column that
+    stores it would be a check firing on good data.
+    """
+    out = []
+    for f in getattr(target, "fields", []) or []:
+        name = (getattr(f, "target_field", "") or getattr(f, "name", "") or "").strip()
+        if not name:
+            continue
+        base = str(getattr(f, "datatype", "") or "").upper().split("(")[0].strip()
+        spark_type = _DDL_TYPE.get(base)
+        if spark_type in _SPARK_INTEGER_TYPES:
+            out.append((name, base, spark_type))
     return out
 
 
@@ -190,11 +222,22 @@ def _range_check_lines(df_var: str, target: Optional[TargetDefinition],
     path but is not available for every write, so the honest default here is
     to stop with the column, the count and the declared precision named,
     rather than to write a value the source never contained.
+
+    The test is the cast itself, not a comparison against 10^(p-s). A
+    ``try_cast`` to the column's type is NULL exactly where the value does
+    not fit, so it agrees with the write by construction: it rounds HALF_UP
+    to the scale as the write's cast does (99999.6 fits NUMBER(5,0) before
+    rounding and not after -- the write would have stored NULL), and it is
+    exact decimal arithmetic, where a power of ten computed in double
+    refused 999999999999999999 for NUMBER(18,0) although it fits.
     """
-    ranges = _declared_numeric_ranges(target)
+    ranges = [(c, f"NUMBER({p},{s})", f"DECIMAL({p},{s})")
+              for c, p, s in _declared_numeric_ranges(target)]
+    ranges += [(c, base if base == t else f"{base} (Spark {t})", t)
+               for c, base, t in _declared_integer_ranges(target)]
     if not ranges:
         return []
-    spec = ", ".join(f'("{c}", {p}, {s})' for c, p, s in ranges)
+    spec = ", ".join(f'("{c}", "{d}", "{t}")' for c, d, t in ranges)
     return [
         "",
         f"{indent}# Values that do not fit the target's DECLARED precision.",
@@ -203,19 +246,30 @@ def _range_check_lines(df_var: str, target: Optional[TargetDefinition],
         f"{indent}# -1294967296. This makes that impossible to happen quietly.",
         f"{indent}_DECLARED_RANGES = [{spec}]",
         f"{indent}_over = []",
-        f"{indent}for _c, _p, _s in _DECLARED_RANGES:",
-        f"{indent}    if _c not in {df_var}.columns:",
+        f"{indent}# Spark resolves column names case-insensitively, so a target",
+        f"{indent}# declared Qty still checks the DataFrame's QTY.",
+        f"{indent}_cols = {{_k.upper(): _k for _k in {df_var}.columns}}",
+        f"{indent}for _c, _decl, _t in _DECLARED_RANGES:",
+        f"{indent}    _c = _cols.get(_c.upper())",
+        f"{indent}    if _c is None:",
         f"{indent}        continue",
-        f"{indent}    _limit = F.lit(10) ** F.lit(_p - _s)",
-        f"{indent}    _n = {df_var}.filter(",
-        f"{indent}        F.col(_c).isNotNull() & (F.abs(F.col(_c)) >= _limit)",
-        f"{indent}    ).count()",
+        f"{indent}    _q = '`' + _c.replace('`', '``') + '`'",
+        f"{indent}    # try_cast is NULL exactly where the value does not fit _t, after",
+        f"{indent}    # the rounding the write's own cast applies. Integers go through",
+        f"{indent}    # an exact DECIMAL first: try_cast refuses a fractional STRING",
+        f"{indent}    # ('12.5') that the write's cast simply truncates, and anything",
+        f"{indent}    # past DECIMAL(38,18) is past BIGINT too. A value that is not a",
+        f"{indent}    # number at all is not an overflow and is left alone.",
+        f"{indent}    _v = _q if _t.startswith('DECIMAL') else f'try_cast({{_q}} AS DECIMAL(38,18))'",
+        f"{indent}    _n = {df_var}.filter(F.expr(",
+        f"{indent}        f'try_cast({{_v}} AS {{_t}}) IS NULL AND try_cast({{_q}} AS DOUBLE) IS NOT NULL'",
+        f"{indent}    )).count()",
         f"{indent}    if _n:",
-        f"{indent}        _over.append((_c, _p, _s, _n))",
+        f"{indent}        _over.append((_c, _decl, _n))",
         f"{indent}if _over:",
         f"{indent}    _msg = '; '.join(",
-        f"{indent}        f\"{{c}}: {{n}} row(s) exceed the declared \"",
-        f"{indent}        f\"NUMBER({{p}},{{s}})\" for c, p, s, n in _over",
+        f"{indent}        f\"{{c}}: {{n}} row(s) exceed the declared {{d}}\"",
+        f"{indent}        for c, d, n in _over",
         f"{indent}    )",
         f"{indent}    raise ValueError(",
         f"{indent}        f\"Refusing to write: {{_msg}}. storeAssignmentPolicy is \"",
@@ -376,8 +430,12 @@ class DeltaWriteStrategy(WriteStrategy):
         # dimension, and any table holding a foreign key to it now points at
         # the wrong row. Informatica does not do this: NEXTVAL is consumed
         # by the insert path, and an update leaves the key alone.
+        #
+        # Upper-cased, and compared upper-cased in the emitted code: the
+        # DataFrame carries the target's own spelling (Surrogate_Key), and a
+        # case-sensitive test let that column through to the update.
         frozen = sorted(
-            c for c in _sequence_fed_columns(mapping, target)
+            c.upper() for c in _sequence_fed_columns(mapping, target)
             if c.upper() not in {k.upper() for k in keys}
         )
 
@@ -423,7 +481,7 @@ class DeltaWriteStrategy(WriteStrategy):
             lines.append(
                 f"        .whenMatchedUpdate(set={{"
                 f"c: f's.{{c}}' for c in {df_var}.columns"
-                f" if c not in _FROZEN_ON_UPDATE}})"
+                f" if c.upper() not in _FROZEN_ON_UPDATE}})"
             )
             lines.append("        .whenNotMatchedInsertAll()")
         else:
