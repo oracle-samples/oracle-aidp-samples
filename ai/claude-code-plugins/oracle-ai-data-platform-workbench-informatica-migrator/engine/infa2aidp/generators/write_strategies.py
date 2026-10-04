@@ -53,7 +53,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from .ddl_generator import _DDL_TYPE, _sequence_fed_columns
+from .ddl_generator import _DDL_TYPE, _ddl_type, _sequence_fed_columns
 
 from ..models import FieldMapping, LoadStrategy, Mapping, TargetDefinition, TransformationType
 
@@ -231,7 +231,10 @@ def _range_check_lines(df_var: str, target: Optional[TargetDefinition],
     exact decimal arithmetic, where a power of ten computed in double
     refused 999999999999999999 for NUMBER(18,0) although it fits.
     """
-    ranges = [(c, f"NUMBER({p},{s})", f"DECIMAL({p},{s})")
+    # Cast to the type the DDL creates, not the declaration: the DDL clamps
+    # a precision above 38 and a scale above the precision, and DECIMAL(40,2)
+    # or DECIMAL(3,5) in the check failed every write, valid data included.
+    ranges = [(c, f"NUMBER({p},{s})", _ddl_type("NUMBER", p, s)[0])
               for c, p, s in _declared_numeric_ranges(target)]
     ranges += [(c, base if base == t else f"{base} (Spark {t})", t)
                for c, base, t in _declared_integer_ranges(target)]

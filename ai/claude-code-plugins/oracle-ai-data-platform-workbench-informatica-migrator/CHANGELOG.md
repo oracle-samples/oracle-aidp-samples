@@ -100,6 +100,16 @@ packaged as a Claude Code plugin.
     18- and 38-digit values were refused; and passed values that only
     overflow after rounding, which were then written as NULL. It now uses
     the cast itself as the test.
+- **Four regressions in the fixes above**, found reviewing them and
+  pinned by six tests. An apostrophe in a `/* comment */` opened a fake
+  string literal that hid the next JOIN's table from qualification;
+  comments are now masked with literals, and a `--` line comment or an
+  unterminated literal is refused. A simple override lost its `DISTINCT`
+  and `ORDER BY` once the Select Distinct and Sorted Ports settings stopped
+  applying under a SQL Query; such an override is run as written. A UDJ
+  column named `ORDER#` was a ParseException; columns are backquoted. The
+  range check cast to the declared `DECIMAL(p,s)` rather than the clamped
+  type the DDL creates, so `NUMBER(40,2)` refused every write.
 - **Two systematic false positives in the source-fidelity report.** A Source
   Qualifier's name appeared nowhere in the generated notebook, because the
   read cell dropped the line carrying it -- so every Source Qualifier was
