@@ -47,6 +47,7 @@ Foundational examples to help you get up and running on AIDP Workbench.
 | [Analyse Data Using PySpark](getting-started/Analyse_Data_Using_PySpark.ipynb) | PySpark fundamentals: catalog and schema setup, table creation, data insertion, schema exploration, and matplotlib visualizations. |
 | [Analyse Data Using SQL](getting-started/Analyse_Data_Using_SQL.ipynb) | Core SQL operations on AIDP including DataFrame creation, transformations, aggregations, and simple visualizations. |
 | [ALH External Catalog MERGE](getting-started/ALH_ExternalCatalog_Merge.ipynb) | End-to-end MERGE workflow into an ALH table via an AIDP external catalog: insert/update/delete with merge keys and OOS-staging skip optimization. |
+| [Parameterize Notebooks with Native Widgets](getting-started/Native_Notebook_Widgets.ipynb) | Demonstrate text, dropdown, combobox, and multiselect widgets, job and `notebook.run` overrides, and a fail-fast check for job parameters that a widget silently ignores. |
 
 #### Delta Lake
 
