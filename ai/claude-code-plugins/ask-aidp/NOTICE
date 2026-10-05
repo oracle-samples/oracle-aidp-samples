@@ -1,7 +1,15 @@
 Ask AIDP
 Claude Code plugin
 
-Copyright (c) 2026 Oracle Corporation. Licensed under the MIT License; see the LICENSE file.
+Copyright (c) 2026 Oracle and/or its affiliates. Licensed under the MIT License; see the LICENSE file.
 
 This plugin includes generated command reference metadata for Oracle AI Data Platform CLI commands and REST operations.
 The packaged binary artifacts under dist/ vendor aidp-cli, aidp-typescript-client, oci-common, and their transitive dependencies; those packages remain subject to their own license and notice files.
+
+Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+Claude and Claude Code are trademarks of Anthropic, PBC. Third-party names are
+used only to identify the products this plugin works with; it is not
+affiliated with, sponsored by or endorsed by Anthropic, PBC.

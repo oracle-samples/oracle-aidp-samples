@@ -356,7 +356,7 @@ the tenant's live BICC console.
 
 ## License
 
-[MIT](LICENSE) © 2026 Ahmed Awan
+[MIT](LICENSE) © 2026 Oracle and/or its affiliates
 
 ---
 

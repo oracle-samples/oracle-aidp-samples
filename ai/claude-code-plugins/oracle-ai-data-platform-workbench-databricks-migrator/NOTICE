@@ -3,4 +3,14 @@ Claude Code plugin
 
 Made by Ahmed Awan (Forward Deployed Engineering).
 
-Copyright (c) 2026 Oracle Corporation. Licensed under the MIT License — see the LICENSE file.
+Copyright (c) 2026 Oracle and/or its affiliates. Licensed under the MIT License — see the LICENSE file.
+
+Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+Claude and Claude Code are trademarks of Anthropic, PBC. Databricks and Unity
+Catalog are trademarks of Databricks, Inc. Delta Lake is a trademark of The
+Linux Foundation. Third-party names are used only to identify the products
+this plugin works with; it is not affiliated with, sponsored by or endorsed by
+Databricks, Inc. or Anthropic, PBC.

@@ -11,18 +11,11 @@ All connectors wrap the official AIDP `aidataplatform` Spark format handler (or,
 
 ## Install
 
-From Anthropic's community plugin marketplace (recommended):
+From Anthropic's community plugin marketplace:
 
 ```
 /plugin marketplace add anthropics/claude-plugins-community
 /plugin install oracle-ai-data-platform-workbench-spark-connectors
-```
-
-Or from this development mirror (gets the latest pre-release commits):
-
-```
-/plugin marketplace add ahmedawan-oracle/claude-code-plugins
-/plugin install oracle-ai-data-platform-workbench-spark-connectors@aidp-connectors
 ```
 
 ## What's in here

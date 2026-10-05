@@ -195,4 +195,4 @@ NL request → [ROUTER] classify intent → select skill
   flagged for live verification; nothing is asserted as confirmed without a recorded live result.
 
 ## License
-[MIT](./LICENSE) © 2026 Oracle Corporation
+[MIT](./LICENSE) © 2026 Oracle and/or its affiliates

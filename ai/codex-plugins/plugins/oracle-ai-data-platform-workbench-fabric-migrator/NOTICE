@@ -5,3 +5,13 @@ See LICENSE for the full text.
 
 The test fixtures under tests/fixtures/real/ are third-party files vendored
 under their own licences; see tests/fixtures/real/THIRD_PARTY_LICENSES.md.
+
+Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+OpenAI and Codex are trademarks of OpenAI. Microsoft, Microsoft Fabric,
+OneLake, Power BI, Power Query and Azure are trademarks of the Microsoft group
+of companies. Third-party names are used only to identify the products this
+plugin works with; it is not affiliated with, sponsored by or endorsed by
+Microsoft Corporation or OpenAI.

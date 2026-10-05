@@ -3,14 +3,15 @@
   "version": "0.1.0-alpha",
   "description": "Build and operate Oracle Fusion-to-AIDP medallion pipelines, gold marts, OAC datasets, and MCP-authored workbooks.",
   "author": {
-    "name": "Ahmed Awan"
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Oracle AI Data Platform Fusion Autopilot",
     "shortDescription": "Build Fusion-to-AIDP pipelines and OAC analytics",
     "longDescription": "Build and operate curated Oracle Fusion ERP, HCM, and SCM pipelines in Oracle AI Data Platform. The plugin includes guarded bootstrap, seed, incremental, and validation workflows; bronze, silver, and gold content packs; OAC dataset guidance; and MCP-native workbook authoring.",
-    "developerName": "Ahmed Awan",
+    "developerName": "Oracle",
     "category": "Productivity",
     "capabilities": [
       "Read",

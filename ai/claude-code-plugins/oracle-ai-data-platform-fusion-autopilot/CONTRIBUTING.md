@@ -8,7 +8,7 @@
 
 ```bash
 # Clone + install in dev mode
-git clone https://github.com/ahmedawan-oracle/claude-code-plugins
+git clone https://github.com/oracle-samples/oracle-aidp-samples
 cd claude-code-plugins/claude-code-plugins/oracle-ai-data-platform-fusion-autopilot
 
 # Editable install (quoted extras — zsh treats `.[dev,test]` as a glob otherwise)

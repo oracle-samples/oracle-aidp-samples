@@ -7,3 +7,13 @@ This project follows the structure and conventions of the Oracle AI Data
 Platform Databricks Migrator (oracle-samples/oracle-aidp-samples), which is
 also MIT licensed. No source from that project is included here: the Python
 engine under engine/ is written for this project.
+
+Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+Claude and Claude Code are trademarks of Anthropic, PBC. Informatica,
+PowerCenter and Intelligent Data Management Cloud (IDMC) are trademarks of
+Informatica LLC. Third-party names are used only to identify the products this
+plugin works with; it is not affiliated with, sponsored by or endorsed by
+Informatica LLC or Anthropic, PBC.

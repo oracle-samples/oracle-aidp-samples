@@ -81,15 +81,6 @@ You're moving a Databricks workload onto AIDP and want Claude Code to drive the 
 
 > The plugin is published from this canonical Oracle-samples location. Anthropic's community-marketplace bot picks up new oracle-samples plugins on its weekly cadence, so this install command becomes effective ~1 week after merge.
 
-### From the development mirror (pre-release commits)
-
-```
-/plugin marketplace add ahmedawan-oracle/claude-code-plugins
-/plugin install oracle-ai-data-platform-workbench-databricks-migrator
-```
-
-The `ahmedawan-oracle/claude-code-plugins` umbrella marketplace tracks pre-release commits before they land in the community marketplace.
-
 ---
 
 ## Prerequisites

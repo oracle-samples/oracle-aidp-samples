@@ -1,7 +1,13 @@
 Oracle AI Data Platform — Snowflake Migrator
 Claude Code plugin
 
-Copyright (c) 2026 Oracle Corporation. Licensed under the MIT License — see the LICENSE file.
+Copyright (c) 2026 Oracle and/or its affiliates. Licensed under the MIT License — see the LICENSE file.
 
-Oracle and Snowflake are trademarks of their respective owners. This plugin is
-not affiliated with or endorsed by Snowflake Inc.
+Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+OpenAI and Codex are trademarks of OpenAI. Snowflake is a trademark of
+Snowflake Inc. Third-party names are used only to identify the products this
+plugin works with; it is not affiliated with, sponsored by or endorsed by
+Snowflake Inc. or OpenAI.

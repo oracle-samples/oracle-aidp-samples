@@ -1,0 +1,20 @@
+Oracle AI Data Platform — Workbench Spark Connectors
+Claude Code plugin
+
+Copyright (c) 2026 Oracle and/or its affiliates. Licensed under the MIT License — see the LICENSE file.
+
+Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+Claude and Claude Code are trademarks of Anthropic, PBC. Amazon Web Services
+and Amazon S3 are trademarks of Amazon.com, Inc. or its affiliates; Microsoft,
+Azure, SQL Server and Excel are trademarks of the Microsoft group of
+companies; Snowflake is a trademark of Snowflake Inc.; Salesforce is a
+trademark of Salesforce, Inc.; IBM and Db2 are trademarks of International
+Business Machines Corporation; PostgreSQL is a trademark of the PostgreSQL
+Community Association of Canada; Apache, Apache Spark, Apache Kafka, Apache
+Hive and Apache Iceberg are trademarks of The Apache Software Foundation.
+Third-party names are used only to identify the products this plugin works
+with; it is not affiliated with, sponsored by or endorsed by any of those
+companies or foundations or Anthropic, PBC.

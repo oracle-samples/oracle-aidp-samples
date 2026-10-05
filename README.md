@@ -319,3 +319,7 @@ This project welcomes contributions from the community. Before submitting a pull
 ## License
 
 See [LICENSE](./LICENSE.txt)
+
+## Trademarks
+
+Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or its affiliates. Other names may be trademarks of their respective owners. Third-party product names in this repository (for example Databricks, Snowflake, Microsoft Fabric, Amazon Web Services, Informatica, Claude Code and Codex) are used only to identify the products the samples work with. Oracle is not affiliated with, sponsored by or endorsed by their owners. Each plugin's NOTICE file names the marks it uses.
