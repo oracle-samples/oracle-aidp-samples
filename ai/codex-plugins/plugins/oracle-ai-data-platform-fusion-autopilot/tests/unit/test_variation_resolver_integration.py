@@ -44,7 +44,7 @@ PACK_ROOT = (
 # demo-pod / finance-default fixture: the column set bootstrap will
 # observe on a conventional-Fusion tenant. Mirrors what the starter pack
 # expects in `pack.yaml` columnAliases + semanticVariants.
-_SAASFADEMO_BRONZE: dict[str, list[str]] = {
+_DEMO_POD_BRONZE: dict[str, list[str]] = {
     "erp_suppliers": [
         "VENDORID",
         "SEGMENT1",
@@ -89,18 +89,18 @@ def _mock_spark(per_table_columns: dict[str, list[str]]) -> MagicMock:
     return spark
 
 
-class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
+class TestDemoPodFixtureResolvesAllStarterVariationPoints:
     """Every starter-pack variation point must resolve to the value
     `examples/profiles/finance-default.yaml` pins."""
 
     def test_all_seven_variation_points_resolved(self) -> None:
         pack = load_pack(PACK_ROOT)
-        spark = _mock_spark(_SAASFADEMO_BRONZE)
+        spark = _mock_spark(_DEMO_POD_BRONZE)
         observed = describe_bronze(
             spark,
             catalog="cat",
             bronze_schema="bronze",
-            dataset_ids=list(_SAASFADEMO_BRONZE.keys()),
+            dataset_ids=list(_DEMO_POD_BRONZE.keys()),
         )
 
         def cols_for(applies_to: str) -> set[str]:
@@ -160,7 +160,7 @@ class TestStarterPackMultiMatchCurrency:
             MultiMatch,
         )
 
-        bronze = dict(_SAASFADEMO_BRONZE)
+        bronze = dict(_DEMO_POD_BRONZE)
         bronze["ap_invoices"] = bronze["ap_invoices"] + ["ApInvoicesCurrencyCode"]
         spark = _mock_spark(bronze)
         observed = describe_bronze(
@@ -191,7 +191,7 @@ class TestStarterPackNoMatchOnMissingColumn:
             NoMatch,
         )
 
-        bronze = dict(_SAASFADEMO_BRONZE)
+        bronze = dict(_DEMO_POD_BRONZE)
         bronze["erp_suppliers"] = ["SEGMENT1"]  # VENDORID dropped
         spark = _mock_spark(bronze)
         observed = describe_bronze(
