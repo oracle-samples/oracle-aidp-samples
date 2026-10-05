@@ -1307,7 +1307,7 @@ def _executed_notebook_with_partial_progress() -> str:
                         {
                             "output_type": "display_data",
                             "data": {
-                                "text/plain": "FUSION_BICC_PASSWORD loaded (length=8)\norchestrator loaded"
+                                "text/plain": "FUSION_BICC_PASSWORD loaded\norchestrator loaded"
                             },
                         }
                     ],

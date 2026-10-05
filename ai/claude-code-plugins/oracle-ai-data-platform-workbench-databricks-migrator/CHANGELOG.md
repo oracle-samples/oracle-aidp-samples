@@ -9,6 +9,8 @@ All notable changes to this plugin are documented here. Format loosely follows [
   package of that name exists; only curated mappings are installed and the rest are
   reported for the operator to add explicitly. The generated availability check follows
   the same rule.
+- `aidp_executor` session calls carry a timeout; `run_migration.sh` logs to a private
+  temp file and asks for `kill <PID>` instead of `pkill -f`.
 
 ## [0.2.0] — 2026-06-24
 

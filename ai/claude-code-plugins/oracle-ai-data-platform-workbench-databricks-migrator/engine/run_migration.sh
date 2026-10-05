@@ -7,14 +7,14 @@
 #   ./run_migration.sh --jobs ExampleJob \
 #       --start-task <task_id>  # resume from task
 #
-# Logs to /tmp/migration.log (overwrite). Tail with: tail -f /tmp/migration.log
+# Logs to a private temp file (override with MIGRATION_LOG=<path>); the path is printed below.
 
 set -e
 
-LOG=/tmp/migration.log
+LOG="${MIGRATION_LOG:-$(mktemp "${TMPDIR:-/tmp}/migration.XXXXXX")}"
 
 echo "Starting migration — logging to $LOG"
-echo "PID will be printed below. Kill with: pkill -f job_migrate.py"
+echo "PID will be printed below. Kill with: kill <PID>"
 echo ""
 
 caffeinate -i python3 -u scripts/job_migrate.py \

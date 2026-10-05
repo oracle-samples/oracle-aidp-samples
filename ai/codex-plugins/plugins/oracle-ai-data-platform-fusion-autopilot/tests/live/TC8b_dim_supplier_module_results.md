@@ -101,7 +101,7 @@ The BACKLOG entry for P3.7 should be marked accordingly when next touched.
 A dedicated cluster `fusion_autopilot_dev` (id `<CLUSTER_KEY>`) was provisioned in workspace `<WORKSPACE_KEY>`. The tpcds workspace from TC1 is gone. Bootstrap notebook:
 1. Created `fusion_catalog` (INTERNAL) + `bronze`/`silver`/`gold` schemas
 2. Resolved BICC password via `aidputils.secrets.get(name="fusion_bicc_password", key="password")` — AIDP's documented Credential Store API ([Oracle AIDP Workbench docs — Credential Store](https://docs.oracle.com/pls/topic/lookup?ctx=en/cloud/paas/ai-data-platform/aidwn&id=AIDUG-GUID-2EB8F6D9-702E-4427-96B7-288DC4C19C3C)).
-3. Pivoted from <fusion-pod> → <fusion-pod-2> pod after <fusion-user> creds rotated; used `natalie.salesrep` instead. Required a different External Storage profile name (`fusion_bicc_external_storage_natalie`).
+3. Pivoted from <fusion-pod> → <fusion-pod-2> pod after <fusion-user> creds rotated; used `<fusion-user-2>` instead. Required a different External Storage profile name (`fusion_bicc_external_storage_natalie`).
 
 **Bootstrap results**:
 

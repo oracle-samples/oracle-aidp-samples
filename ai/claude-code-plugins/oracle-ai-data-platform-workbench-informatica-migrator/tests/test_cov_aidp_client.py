@@ -278,7 +278,7 @@ class TestUpload:
         nb.write_bytes(b'{"cells": []}')
         puts = []
 
-        def fake_put(url, data=None, headers=None):
+        def fake_put(url, data=None, headers=None, timeout=None):
             puts.append((url, data.read(), headers))
             return FakeResponse(200, headers={"etag": "E1"})
         monkeypatch.setattr(client_mod.requests, "put", fake_put)

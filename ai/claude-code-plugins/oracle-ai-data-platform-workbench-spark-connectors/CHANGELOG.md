@@ -11,6 +11,8 @@ All notable changes to this plugin are documented here. The format follows [Keep
 - Security: `http_basic_session(verify_tls=...)` documents the CA-bundle path as the
   way to trust a corporate CA; the Essbase skill no longer shows `verify_tls=False`
   as its default example.
+- Security: the `aidp-aws-s3` and `aidp-postgresql` skills verify the SHA-256 of the
+  runtime-loaded JARs.
 
 ## [0.7.0] — 2026-08-21
 

@@ -105,8 +105,7 @@ def _build_creds_cell(
         f'    f"AIDP credential store returned empty value for "\n'
         f'    f"name={bicc_secret_name!r} key={bicc_secret_key!r}"\n'
         f")\n"
-        f'_pw_len = len(os.environ["FUSION_BICC_PASSWORD"])\n'
-        f'print(f"FUSION_BICC_PASSWORD loaded (length={{_pw_len}})")\n'
+        f'print("FUSION_BICC_PASSWORD loaded")\n'
         f'BUNDLE_PATH = Path("bundle.yaml")\n'
         f"BUNDLE_PATH.write_text({bundle_yaml!r})\n"
         f"from oracle_ai_data_platform_fusion_autopilot import orchestrator\n"

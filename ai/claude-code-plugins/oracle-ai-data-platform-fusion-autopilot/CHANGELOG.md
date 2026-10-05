@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Security
+- The generated dispatch notebook no longer prints the length of the BICC password.
+- The manual-install fallback installs from the plugin checkout instead of an
+  unregistered PyPI name.
+
 ### Fixed — cluster-side runtime dependency gate (REST dispatch)
 - **REST dispatch now validates its runtime dependency closure on the cluster
   before importing the orchestrator.** The generated dispatch notebook installs

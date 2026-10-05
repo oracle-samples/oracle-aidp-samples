@@ -261,7 +261,7 @@ unconfirmable wrappers stay verify-first.
 - **`aidp-ingest-file-to-table`** — documented limits (comma-only delimiter; no multi-line-JSON external tables).
 - **`references/dq-rules.md`** (new) + **`aidp-data-quality`** — persistable `.aidp/dq-rules.md` rule-set convention.
 
-**Live-validated on a brand-new instance (`aidp_skilltest`, test tenancy/IAD).** All 36 skills exercised end-to-end
+**Live-validated on a brand-new instance (`<aidp-instance>`, test tenancy/IAD).** All 36 skills exercised end-to-end
 with synthetic data + real resource creation: **21 PASS / 5 PARTIAL / 6 NA / 4 NOT_PROVISIONED / 0 FAIL**
 (NOT_PROVISIONED = agent-flow/KB writes gated by `AiFeatureStatus=None` on a fresh instance + git/bundle Preview;
 NA = composition/local skills). `ai_generate('openai.gpt-5.4', …)`, full Delta DDL/DML, table/view CRUD,

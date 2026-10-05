@@ -2,7 +2,7 @@
 
 **Pod**: `playground` workspace (demo-pod)
 **Date**: 2026-06-03
-**Branch**: `oussama-dev-p1.5e` @ `fe41107` + cumulative dispatch fixes
+**Branch**: `<branch>` @ `fe41107` + cumulative dispatch fixes
 **Operator**: redacted
 **Cluster**: `fusion_autopilot_dev` (UUID redacted)
 
@@ -126,7 +126,7 @@ execution_info: {'total_cells': 5, 'current_cell': 4}
 cell 1 (install) — pip rc=0 ✅
   output: "pip rc=0\nplugin installed to /tmp/aidp_fusion_autopilot_<...>/site-packages"
 cell 2 (creds) — ✅
-  output: "FUSION_BICC_PASSWORD loaded (length=8)\norchestrator loaded"
+  output: "FUSION_BICC_PASSWORD loaded\norchestrator loaded"
 cell 3 (run) — IN PROGRESS (no flushed outputs, AIDP-side current_cell=4)
 cell 4 (verify) — not reached
 ```

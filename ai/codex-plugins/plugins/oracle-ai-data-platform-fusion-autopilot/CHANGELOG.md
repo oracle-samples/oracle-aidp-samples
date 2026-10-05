@@ -5,6 +5,10 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Security
+- The generated dispatch notebook no longer prints the length of the BICC password.
+- The manual-install fallback installs from the plugin checkout instead of an
+  unregistered PyPI name.
+### Security
 - Live-test notes, example configs and docstrings no longer name the demo Fusion pod,
   the test bucket and namespace, a workspace key, OAC instance hosts or a personal
   e-mail address; placeholders stand in.

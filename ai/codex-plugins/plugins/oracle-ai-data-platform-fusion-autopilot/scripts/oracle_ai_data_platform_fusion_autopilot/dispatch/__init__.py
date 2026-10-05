@@ -670,7 +670,7 @@ def _format_cell_progress(executed_notebook: dict[str, Any]) -> str:
 
     Output shape (one line per code cell):
         cell 1: pip rc=0 plugin installed to /tmp/...
-        cell 2: FUSION_BICC_PASSWORD loaded (length=8)
+        cell 2: FUSION_BICC_PASSWORD loaded
         cell 3: <in flight or no output>
     """
     lines: list[str] = []

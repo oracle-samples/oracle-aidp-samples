@@ -581,20 +581,27 @@ def _docker_login_with_retry(cfg, max_wait_seconds: int = 90, interval: int = 5)
     because Rancher Desktop's credential cache can hold a stale entry that
     makes valid tokens appear unauthorized.
 
-    Login uses `-p` instead of `--password-stdin` because Rancher Desktop's
-    Docker CLI mishandles stdin from subprocess. The token never leaves the
-    process — the CLI warning about ps/history visibility is not a concern.
+    The token goes in on stdin (`--password-stdin`) so it never shows up in
+    the process list. Rancher Desktop's Docker CLI has been seen to mishandle
+    stdin from a subprocess; set AIDP_DOCKER_LOGIN_ARGV=1 to fall back to `-p`.
     """
     deadline = time.time() + max_wait_seconds
     attempt = 1
     while True:
         subprocess.run(["docker", "logout", cfg["registry"]],
                        capture_output=True, check=False)
-        result = subprocess.run(
-            ["docker", "login", cfg["registry"],
-             "--username", cfg["username"], "-p", cfg["auth_token"]],
-            capture_output=True, text=True,
-        )
+        if os.environ.get("AIDP_DOCKER_LOGIN_ARGV") == "1":
+            result = subprocess.run(
+                ["docker", "login", cfg["registry"],
+                 "--username", cfg["username"], "-p", cfg["auth_token"]],
+                capture_output=True, text=True,
+            )
+        else:
+            result = subprocess.run(
+                ["docker", "login", cfg["registry"],
+                 "--username", cfg["username"], "--password-stdin"],
+                input=cfg["auth_token"], capture_output=True, text=True,
+            )
         if result.returncode == 0:
             if attempt > 1:
                 print(f"  Login succeeded on attempt {attempt}.")

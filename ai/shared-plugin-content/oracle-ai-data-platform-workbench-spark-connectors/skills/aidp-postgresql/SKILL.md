@@ -83,15 +83,19 @@ Use this only when the target PostgreSQL service rejects non-TLS connections and
 The cluster may not have `org.postgresql.Driver` pre-installed, so runtime-load it the same way `aidp-jdbc-custom` does.
 
 ```python
-import os, urllib.request
+import hashlib, os, urllib.request
 from py4j.java_gateway import java_import
 
 JAR_PATH = "/tmp/postgresql-42.7.4.jar"
+JAR_SHA256 = "188976721ead8e8627eb6d8389d500dccc0c9bebd885268a3047180274a6031e"  # re-pin when changing the version
 if not os.path.exists(JAR_PATH):
     urllib.request.urlretrieve(
         "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar",
         JAR_PATH,
     )
+if hashlib.sha256(open(JAR_PATH, "rb").read()).hexdigest() != JAR_SHA256:
+    os.remove(JAR_PATH)
+    raise RuntimeError("postgresql jar checksum mismatch")
 
 # Register driver on driver JVM
 gw = spark._sc._gateway

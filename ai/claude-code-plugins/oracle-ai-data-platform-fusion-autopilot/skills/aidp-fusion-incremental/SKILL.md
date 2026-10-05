@@ -63,7 +63,7 @@ gets a clear next step instead of a deep cluster error:
   2026-06-15), so the watermark predicate rendering `1=1` (seed) vs
   `col > :watermark` (incremental) no longer false-trips 4040. A 4040 now means
   a **genuine** plan-shape change. If you edited the SQL/profile **on purpose**
-  and don't want a full re-seed, pass the hidden `--repin-plan-hash` flag to
+  and don't want a full re-seed, pass the `--repin-plan-hash` flag (only once the user has confirmed the change was deliberate) to
   repin the new hash (writes a `mode='plan_hash_repin'` audit row); otherwise
   re-seed or revert.
 - **New chart of accounts added?** A profile change that ONLY adds a new

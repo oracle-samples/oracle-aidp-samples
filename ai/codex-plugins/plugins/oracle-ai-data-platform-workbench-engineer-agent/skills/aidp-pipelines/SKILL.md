@@ -47,7 +47,7 @@ task runs + output (`taskRuns` / task-run output under the run) for executed cod
 ## Authoring a job — TWO-STEP create→update (LIVE-VERIFIED 2026-06-10)
 **A job is created with a name-only body, then a second `update-job` call adds clusters + tasks.** A single
 POST that inlines `tasks`/`displayName` is **rejected** (`400 Invalid resource name` / `Invalid Task type`).
-Confirmed live on `aidp_skilltest` and via the official SDK sample `workflow_notebook_job_sample.py`.
+Confirmed live on `<aidp-instance>` and via the official SDK sample `workflow_notebook_job_sample.py`.
 
 - **Step 1 — create (name-only):** `POST …/workspaces/<ws>/jobs` with
   `{"name":"etl_daily.job","path":"/Workspace/Shared","maxConcurrentRuns":1}` → **201**, returns the job key.
