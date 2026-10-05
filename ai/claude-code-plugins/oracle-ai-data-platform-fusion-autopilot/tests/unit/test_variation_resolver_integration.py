@@ -1,13 +1,13 @@
 """Integration test for bronze probe + walker against the starter pack.
 
-Feeds a mocked Spark whose DESCRIBE returns the saasfademo1 fixture
+Feeds a mocked Spark whose DESCRIBE returns the demo-pod fixture
 columns; asserts the walker resolves all seven currently-declared
 variation points to the values in
 ``examples/profiles/finance-default.yaml``.
 
 This is the round-trip contract: bootstrap (Step 8) MUST produce the
 same `resolved.column.*` / `resolved.semantic.*` map on a clean
-saasfademo1 fixture as the hand-authored gold reference.
+demo-pod fixture as the hand-authored gold reference.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ PACK_ROOT = (
 )
 
 
-# saasfademo1 / finance-default fixture: the column set bootstrap will
+# demo-pod / finance-default fixture: the column set bootstrap will
 # observe on a conventional-Fusion tenant. Mirrors what the starter pack
 # expects in `pack.yaml` columnAliases + semanticVariants.
 _SAASFADEMO_BRONZE: dict[str, list[str]] = {
@@ -53,7 +53,7 @@ _SAASFADEMO_BRONZE: dict[str, list[str]] = {
     ],
     "ap_invoices": [
         "ApInvoicesInvoiceCurrencyCode",
-        # NB: ApInvoicesCurrencyCode is ALSO present on saasfademo1 — this
+        # NB: ApInvoicesCurrencyCode is ALSO present on demo-pod — this
         # makes invoice_currency_code a multi-match case. For the
         # AutoResolved integration test we omit it; the multi-match
         # case lives in `test_starter_pack_multi_match_currency`.
@@ -123,7 +123,7 @@ class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
                 continue
             result = walk_column_alias(spec, cols_for(spec.appliesTo))
             assert isinstance(result, AutoResolved), (
-                f"variation point {name!r} did not auto-resolve on saasfademo1 "
+                f"variation point {name!r} did not auto-resolve on demo-pod "
                 f"fixture (got {type(result).__name__})"
             )
             resolutions[name] = result.chosen
@@ -133,7 +133,7 @@ class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
             result = walk_semantic_variant(spec, cols_for(spec.appliesTo))
             assert isinstance(result, AutoResolved), (
                 f"semantic variant {name!r} did not auto-resolve on "
-                f"saasfademo1 fixture (got {type(result).__name__})"
+                f"demo-pod fixture (got {type(result).__name__})"
             )
             resolutions[name] = result.chosen
 
@@ -149,7 +149,7 @@ class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
 
 class TestStarterPackMultiMatchCurrency:
     """When BOTH currency-code candidates are present (the realistic
-    saasfademo1 case), bootstrap must surface a MultiMatch outcome so
+    demo-pod case), bootstrap must surface a MultiMatch outcome so
     the operator picks. The auto-resolve test above strips the second
     candidate to isolate the round-trip; this test re-adds it."""
 

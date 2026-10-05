@@ -174,7 +174,7 @@ class TestHappyPathWithScriptedResolutions:
         assert outcome.evidence_path.parent == bundle_dir / "evidence" / "finance-default"
 
         profile = yaml.safe_load(outcome.profile_path.read_text(encoding="utf-8"))
-        # Every variation point resolved to the saasfademo1 conventional value.
+        # Every variation point resolved to the demo-pod conventional value.
         assert profile["resolved"]["column"] == {
             "supplier_natural_key": "SEGMENT1",
             "vendor_id": "VENDORID",
@@ -353,7 +353,7 @@ from oracle_ai_data_platform_fusion_autopilot.schema.bronze_schema_snapshot impo
 
 
 def _bronze_observed_for_starter() -> dict[str, list[ColumnInfo]]:
-    """Reproduce the saasfademo1 bronze observation the variation phase
+    """Reproduce the demo-pod bronze observation the variation phase
     would see for the starter pack — used to compute the fingerprint
     that the simulated prior profile pinned."""
     return {

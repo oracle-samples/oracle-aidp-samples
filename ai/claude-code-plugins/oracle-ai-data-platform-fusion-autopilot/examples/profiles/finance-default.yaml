@@ -1,7 +1,7 @@
 # Finance-default tenant profile for the fusion-finance-starter content pack.
 #
 # Resolved at bootstrap; frozen for subsequent runs. Authored values mirror
-# the saasfademo1 demo pod's PVO shapes.
+# the demo-pod demo pod's PVO shapes.
 #
 # COA segments: dim_account.sql substitutes three role-aliased columns
 # (`balancing` / `cost_center` / `natural_account`) via {{ coa.<role> }}
@@ -35,7 +35,7 @@ resolved:
     invoice_currency_code: ApInvoicesInvoiceCurrencyCode
     # dim_account — three role-aliased COA source columns. Hand-authored
     # until feature `v2-phase-3a-bootstrap-variation-resolver` ships;
-    # bootstrap's first auto-resolve on a clean saasfademo1 run produces
+    # bootstrap's first auto-resolve on a clean demo-pod run produces
     # these byte-identical values (each role's single conventional
     # candidate exists in bronze).
     coa_balancing_segment: CodeCombinationSegment1
@@ -63,7 +63,7 @@ profile:
     fiscalStartMonth: 1
   # COA role->column mapping (canonical). {{ coa.<role> }} reads this;
   # bootstrap derives resolved.column.coa_* above from it. Conventional
-  # Segment1/2/3 layout for saasfademo1.
+  # Segment1/2/3 layout for demo-pod.
   chartOfAccounts:
     default:
       balancingSegment: CodeCombinationSegment1

@@ -145,7 +145,7 @@ AIDP_FUSION_AUTOPILOT_INTEGRATION=1 pytest -m live -v
 
 ### Plugin-portability evidence
 
-Per [`AGENTS.md`](CODEX.md): any "portable" claim needs a live run on at least one non-`saasfademo1` tenant. The tracked-blocker entries in [`BACKLOG.md`](BACKLOG.md) (P3.7, P3.9) gate this — until a customer / dedicated CI pod is provisioned, the portability claim is provisional and so noted.
+Per [`AGENTS.md`](CODEX.md): any "portable" claim needs a live run on at least one non-`demo-pod` tenant. The tracked-blocker entries in [`BACKLOG.md`](BACKLOG.md) (P3.7, P3.9) gate this — until a customer / dedicated CI pod is provisioned, the portability claim is provisional and so noted.
 
 ---
 
@@ -204,7 +204,7 @@ Atomic commits preferred — one P-id / TC-id per commit so backlog cross-refs a
 
 ## Plugin-portability claims
 - [ ] Hardcoded values reviewed against AGENTS.md §"What varies per tenant"
-- [ ] Live evidence on non-saasfademo1 tenant (or noted as deferred)
+- [ ] Live evidence on non-demo-pod tenant (or noted as deferred)
 
 ## Backlog
 - Closes: BACKLOG.md P<N> → mark [x] with this commit SHA
@@ -216,7 +216,7 @@ Atomic commits preferred — one P-id / TC-id per commit so backlog cross-refs a
 ## Live-test conventions
 
 - **Evidence file**: `tests/live/TC<N>_<feature>_results.md`. Markdown, narrative-first. Capture: tenant identity (pod URL, OAC instance, date), exact commands run, row counts, sample outputs, any anomalies. Pin every claim to a query you actually ran.
-- **Tenant identification**: name the pod (e.g. `saasfademo1` / `etap-dev5` / `fusion_autopilot_dev`) at the top of every TC file. The portability story depends on knowing what was tested where.
+- **Tenant identification**: name the pod (e.g. `demo-pod` / `etap-dev5` / `fusion_autopilot_dev`) at the top of every TC file. The portability story depends on knowing what was tested where.
 - **Anomaly handling**: when a live run surfaces something unexpected (NULL-propagation bug, schema variant, performance cliff), file the finding in the TC file AND open a backlog entry. Don't patch silently.
 - **Re-verification after refactors**: any code change to a module with an existing TC needs a TC<N>b suffix run before merge. The "I didn't change the SQL" hand-wave isn't sufficient — Catalyst plans shift on adjacent changes.
 

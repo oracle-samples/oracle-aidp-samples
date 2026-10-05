@@ -174,7 +174,7 @@ These are real Vision-style multi-segment CoA balances across multiple ledgers (
 
 1. **L2 (BICC encoder bug) did not fire** on `BalanceExtractPVO`. Five Fin/SCM PVOs are now characterized: `SupplierExtractPVO`, `InvoiceHeaderExtractPVO`, `CodeCombinationExtractPVO`, `BalanceExtractPVO` all extract clean; only `ItemExtractPVO` triggers L2. The trigger isn't "Decimal columns exist" — all of these have decimal(N,0) integer-shaped columns. Speculation: it's specific to certain SCM-side row encoders. Doesn't change the L2 mitigation plan.
 2. **NULL propagation in arithmetic was real** — the COALESCE fix is load-bearing, not defensive. ~20% of sample rows had at least one NULL component on first pass.
-3. **Multi-fiscal-calendar pod confirmed** — 12-period and 13/14/15-period (adjustment) ledgers coexist on `saasfademo1` eseb-test. The `(period_year, period_num)` join key handles this; `period_name` does not (data-quality drift surfaced raw).
+3. **Multi-fiscal-calendar pod confirmed** — 12-period and 13/14/15-period (adjustment) ledgers coexist on `demo-pod` eseb-test. The `(period_year, period_num)` join key handles this; `period_name` does not (data-quality drift surfaced raw).
 4. **`translated_flag` is NULL on this pod** for all 10.18M rows. Surfaced as a column for production pods that use it; consumers should default to `WHERE translated_flag IS NULL OR translated_flag = 'N'` if they need entered-currency only.
 
 ## Cross-references

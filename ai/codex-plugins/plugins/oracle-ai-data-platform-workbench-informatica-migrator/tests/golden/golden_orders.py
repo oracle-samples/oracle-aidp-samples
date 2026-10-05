@@ -1,6 +1,6 @@
 """Golden expected output for m_ORDER_CONSOLIDATION mapping.
 
-Source: /Users/veerao/Downloads/infa-test-2.xml
+Source: a hand-authored PowerCenter export (infa-test-2.xml)
 Mapping: m_ORDER_CONSOLIDATION
 Flow: 3 parallel source branches (WEB, STORE, PARTNER) -> UNION -> LKP -> FIL
       -> SQL_TAX -> EXP_ENRICH -> SEQ -> RTR -> FACT_ORDERS / ORDER_ERRORS

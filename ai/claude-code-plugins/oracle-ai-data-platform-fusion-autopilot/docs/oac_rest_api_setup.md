@@ -206,7 +206,7 @@ Pass `--auth-flow device` for OAuth Device Code Grant. Bundle prints a verificat
 
 ## Audience auto-discovery
 
-The bundle's IDCS audience prefix usually differs from the user-facing OAC URL (e.g. `https://akd5x4...analytics.ocp.oraclecloud.com` vs. `https://oac.example.com`). The bundle auto-discovers it by probing `<oac-url>/ui/` for the IDCS authorize redirect's `idcs_app_name` query parameter.
+The bundle's IDCS audience prefix usually differs from the user-facing OAC URL (e.g. `https://exampleoacprefix0123456789abcdef.analytics.ocp.oraclecloud.com` vs. `https://oac.example.com`). The bundle auto-discovers it by probing `<oac-url>/ui/` for the IDCS authorize redirect's `idcs_app_name` query parameter.
 
 If the probe fails (non-standard load balancer, CDN, etc.), pass `--oauth-scope` explicitly:
 

@@ -36,7 +36,7 @@ from oracle_ai_data_platform_fusion_autopilot.schema.cluster_probe_marker import
 def _marker(walker_results) -> ClusterProbeMarker:
     return ClusterProbeMarker(
         markerVersion=1,
-        tenant="saasfademo1",
+        tenant="demo-pod",
         bronzeFingerprint="sha256:cluster-source",
         observedSchema={
             "erp_suppliers": [

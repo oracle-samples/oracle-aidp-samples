@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Security
+- Live-test notes, example configs and docstrings no longer name the demo Fusion pod,
+  the test bucket and namespace, a workspace key, OAC instance hosts or a personal
+  e-mail address; placeholders stand in.
+
 ### Added — COA semantic-role resolution (feature `coa-role-segment-resolution`)
 - **COA role segments now resolve from explicit config, not column existence.**
   `coa_balancing_segment` / `coa_cost_center_segment` / `coa_natural_account_segment`
@@ -119,7 +124,7 @@ Phase 1 deliverable per [PLAN](../../../.codex/plans/oracle-ai-data-platform-fus
 - GL trio (Journal Lines, Period Balances, Chart of Accounts)
 - `dim_account` + `dim_calendar` + `dim_supplier`
 - Bootstrap probe (BICC role, External Storage profile, IAM policy)
-- Live-test TC1-TC8 against demo Fusion pod (`saasfademo1`)
+- Live-test TC1-TC8 against demo Fusion pod (`demo-pod`)
 
 ## [0.1.0] — TBD (after live tests pass)
 

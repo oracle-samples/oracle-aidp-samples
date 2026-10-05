@@ -58,6 +58,9 @@ class InfaConnectionConfig:
     pmcmd_path: str = "pmcmd"
     # Integration service name (for pmcmd workflow execution)
     integration_service: str = ""
+    # TLS verification for the Web Services Hub: True, False, or the path
+    # of a CA bundle (PEM) for a corporate CA. Default on.
+    verify_tls: "bool | str" = True
 
 
 @dataclass
@@ -99,7 +102,11 @@ class InformaticaCrawler:
         self._access_method: Optional[str] = None
         self._pmrep_connected: bool = False
         self._http = requests.Session()
-        self._http.verify = False  # Many on-prem installs use self-signed certs
+        # Verification used to be hard-coded off "because many on-prem installs
+        # use self-signed certs" -- which sent the repository password over an
+        # unverified channel to every host. On by default; a corporate CA is a
+        # bundle path, and False is an explicit opt-out for a lab host.
+        self._http.verify = config.verify_tls
 
     # ------------------------------------------------------------------
     # Connection & auto-detect

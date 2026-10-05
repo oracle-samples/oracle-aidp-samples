@@ -72,7 +72,7 @@ df = spark.read.option("header", "true").csv(
 df.show()
 ```
 
-**Live-validated 2026-04-27**: 2 rows from `s3a://test-data-sep3-2025/csv/sample.csv` via this pattern.
+**Live-validated 2026-04-27**: 2 rows from `s3a://<bucket>/csv/sample.csv` via this pattern.
 
 ## boto3 fallback (management ops, not data plane)
 

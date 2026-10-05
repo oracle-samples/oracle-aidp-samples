@@ -3,7 +3,7 @@
 Walker pinned against the anonymized fixture in
 ``docs/features/p1-5a-fix19-bicc-schema-auto-discovery/plan.md`` Step 3 —
 which is the canonical shape ``/biacm/rest/meta/datastores`` returns on
-saasfademo1 and similar tenants.
+demo-pod and similar tenants.
 """
 from __future__ import annotations
 

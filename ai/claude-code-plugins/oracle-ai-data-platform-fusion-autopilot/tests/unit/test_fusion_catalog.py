@@ -16,7 +16,7 @@ from oracle_ai_data_platform_fusion_autopilot.schema.fusion_catalog import (
 class TestCatalog:
     def test_supplier_extract_confirmed(self) -> None:
         e = get("erp_suppliers")
-        # Full AM-hierarchy verified live 2026-04-30 against saasfademo1
+        # Full AM-hierarchy verified live 2026-04-30 against demo-pod
         # (pdf1's "FscmTopModelAM.SupplierExtractPVO" was abbreviated).
         assert e.datastore == "FscmTopModelAM.PrcExtractAM.PozBiccExtractAM.SupplierExtractPVO"
         assert e.confirmed is True
@@ -56,7 +56,7 @@ class TestCatalog:
 
     def test_list_verify_live_is_empty(self) -> None:
         # As of 2026-04-30 all PVOs in the catalog are confirmed against the live BICC catalog
-        # (saasfademo1). list_verify_live() returns nothing until new placeholders are added.
+        # (demo-pod). list_verify_live() returns nothing until new placeholders are added.
         assert list_verify_live() == []
 
     def test_gl_trio_confirmed(self) -> None:

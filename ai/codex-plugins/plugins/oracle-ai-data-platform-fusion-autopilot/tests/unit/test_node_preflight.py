@@ -149,7 +149,7 @@ class TestRequiredColumnMissing:
 
     def test_required_column_pascalcase_live_uppercase_pack_passes(self) -> None:
         # Pack declares SEGMENT1 / VENDORID (UPPERCASE); live tenant
-        # (saasfademo1 D1 evidence) emits PascalCase. Spark resolves the
+        # (demo-pod D1 evidence) emits PascalCase. Spark resolves the
         # SQL case-insensitively at query time, so preflight must not
         # over-reject what the engine would accept. Regression for
         # docs/v2-phase-4-live-defects.md D1 Layer A.
@@ -369,7 +369,7 @@ class TestRequiredColumnRefResolution:
 
     def test_column_ref_resolves_through_profile(self) -> None:
         # Pack declares the alias; profile pins it to "Segment1" (PascalCase
-        # — same saasfademo1 evidence). Live bronze has Segment1. Should pass.
+        # — same demo-pod evidence). Live bronze has Segment1. Should pass.
         spark = _fake_describe_spark(["Segment1", "PARTYID", "_extract_ts"])
         node = _load_node(NODE_YAML_WITH_REFS)
         pack = _pack(alias_keys=("supplier_natural_key",))

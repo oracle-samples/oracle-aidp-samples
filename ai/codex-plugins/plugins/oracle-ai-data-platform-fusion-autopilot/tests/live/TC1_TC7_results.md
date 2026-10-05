@@ -1,4 +1,4 @@
-# TC1 + TC7 — Live test results, saasfademo1, 2026-04-30
+# TC1 + TC7 — Live test results, demo-pod, 2026-04-30
 
 End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fusion pod.
 
@@ -6,12 +6,12 @@ End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fus
 
 | | |
 |---|---|
-| Fusion pod | `https://fa-etap-dev5-saasfademo1.ds-fa.oraclepdemos.com` |
+| Fusion pod | `https://<fusion-host>` |
 | Fusion user | `Casey.Brown` (BIAdmin role) |
 | BICC External Storage profile | `fusion_bicc_external_storage` (configured 2026-04-30 via UI) |
-| OCI bucket | `fusion-bicc-saasfademo1` (namespace `idseylbmv0mm`) |
+| OCI bucket | `<bucket>` (namespace `<namespace>`) |
 | API key fingerprint | `71:78:61:77:ee:71:fb:13:e4:77:1d:62:23:49:63:20` |
-| AIDP workspace | `54368733-3a17-47a1-b231-869d8ae2a048` |
+| AIDP workspace | `<uuid>` |
 | AIDP cluster | `tpcds` |
 
 ## TC1 — BICC bulk extract

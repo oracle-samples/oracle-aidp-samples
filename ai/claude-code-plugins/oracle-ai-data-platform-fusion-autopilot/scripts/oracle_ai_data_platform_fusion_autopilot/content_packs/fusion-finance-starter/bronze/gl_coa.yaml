@@ -6,7 +6,7 @@ implementation:
   pvo_id: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.CodeCombinationExtractPVO
   biccSchema: Financial
   schemaOverride: null
-  # Live-verified 2026-06-16 (saasfademo1): BICC honors the
+  # Live-verified 2026-06-16 (demo-pod): BICC honors the
   # fusion.initial.extract-date lineage delta for CodeCombinationExtractPVO, so
   # gl_coa extracts incrementally on CodeCombinationLastUpdateDate (declared
   # below). It is a master-data chart-of-accounts entity, NOT a bucket-config

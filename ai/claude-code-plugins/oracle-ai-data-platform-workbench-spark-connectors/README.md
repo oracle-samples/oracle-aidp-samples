@@ -115,7 +115,7 @@ from oracle_ai_data_platform_connectors.rest.epm import (
 )
 
 # EPM_USERNAME MUST be in identity-domain form: tenancy.user@domain
-# (e.g. epmloaner622.first.last@oracle.com — the bare email returns 401)
+# (e.g. mytenancy.first.last@example.com — the bare email returns 401)
 session = http_basic_session(
     username=os.environ["EPM_USERNAME"],
     password=os.environ["EPM_PASSWORD"],

@@ -51,7 +51,8 @@ python "$HOME/.aidp/aidp_sql.py" \
 ```
 > **SSL note (LIVE-VERIFIED 2026-06-10):** the cluster's Spark UI is HTTPS with a self-signed cert, so a bare
 > `urlopen` raises `SSLCertVerificationError`. Pass an unverified context (`ssl._create_unverified_context()`,
-> as above) — this is kernel-internal traffic to the same cluster, not an external call.
+> as above) — this is kernel-internal traffic to the same cluster, not an external call. Do not reuse that
+> context for any other host; from outside the kernel use the signed gateway path below instead.
 >
 > **Control-plane alternative (LIVE-VERIFIED 2026-06-12) — no kernel cell needed:** the same Spark UI REST is
 > proxied through the AIDP gateway at

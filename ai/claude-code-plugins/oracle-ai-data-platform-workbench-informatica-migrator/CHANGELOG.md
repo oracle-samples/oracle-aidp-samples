@@ -53,6 +53,11 @@ packaged as a Claude Code plugin.
 
 ### Fixed
 
+- **The repository crawler verified no TLS certificate.** `requests.Session.verify`
+  was hard-coded to `False`, so repository credentials travelled over an
+  unverified channel to every Web Services Hub. Verification is on by default;
+  `INFA_CA_BUNDLE` names a corporate CA bundle and `INFA_TLS_VERIFY=0` is an
+  explicit opt-out for a self-signed lab host.
 - **Eighteen defects from a review of the SQL-override, workflow and
   write-range changes**, each reproduced first and pinned by a test that
   fails without the fix (`tests/test_sq_sql_review_fixes.py`,

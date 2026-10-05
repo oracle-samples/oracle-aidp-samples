@@ -1,7 +1,7 @@
 """Phase 4 Step 8 — promoted v2 live dispatcher (parametrized).
 
 Promoted from ``dev/dispatch_v2_seed.py`` (gitignored, hardcoded
-saasfademo1 identifiers) to a permanent test artefact with sensitive
+demo-pod identifiers) to a permanent test artefact with sensitive
 identifiers accepted via CLI flags + env / OCI config. Operator-runnable;
 captures the live A/B evidence the ship-ready report cites.
 

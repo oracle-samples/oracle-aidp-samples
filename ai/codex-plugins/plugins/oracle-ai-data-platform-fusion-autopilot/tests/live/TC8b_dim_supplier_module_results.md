@@ -13,7 +13,7 @@ The TC8 supplier-extract `csv.gz` files are still present in the original OCI Ob
 3. Decompressed and parsed the CSV directly with stdlib `gzip` + `csv`
 4. Verified row/column counts, sampled values, and computed populated-percentage per ID column
 
-Bucket: `oci://fusion-bicc-saasfademo1@idseylbmv0mm/`
+Bucket: `oci://<bucket>@<namespace>/`
 
 ## Confirmations of TC1 / TC8 (still true)
 
@@ -23,7 +23,7 @@ Bucket: `oci://fusion-bicc-saasfademo1@idseylbmv0mm/`
 | 143 columns | ✅ exact match |
 | Segment1 values `1252, 1254, 1256, 1265, 1266` present | ✅ all 5 found |
 | Segment1 (supplier_number) is 100% populated | ✅ confirmed |
-| BICC pipeline wrote to `oci://fusion-bicc-saasfademo1` correctly | ✅ artifacts intact since 2026-04-30 |
+| BICC pipeline wrote to `oci://<bucket>` correctly | ✅ artifacts intact since 2026-04-30 |
 
 ## 🚨 Corrections to TC8 — column case + populated-ID claims
 

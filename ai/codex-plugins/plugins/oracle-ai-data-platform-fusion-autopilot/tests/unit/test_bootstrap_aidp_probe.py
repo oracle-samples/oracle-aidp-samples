@@ -37,7 +37,7 @@ class TestProbeAidpReusesCanonicalClient:
         client = MagicMock()
         client.list_workspaces.return_value = [
             _ws("ws-other"),
-            _ws("ws-key-123", "saasfademo1"),
+            _ws("ws-key-123", "demo-pod"),
         ]
         with patch.object(
             bs, "_probe_aidp", wraps=bs._probe_aidp

@@ -5,7 +5,7 @@
 --   fusion_catalog.bronze.gl_period_balances  (BalanceExtractPVO)
 --   fusion_catalog.bronze.gl_coa              (CodeCombinationExtractPVO)
 --
--- Column names below are the ACTUAL ones returned by saasfademo1 BICC
+-- Column names below are the ACTUAL ones returned by demo-pod BICC
 -- (eseb-test pod, 2026-05-05) — the AM-prefix scheme: RaCustomerTrx*,
 -- ArCashReceipt*, Balance*, CodeCombination*. Confirmed live.
 

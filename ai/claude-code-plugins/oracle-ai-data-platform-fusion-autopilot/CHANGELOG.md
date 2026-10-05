@@ -133,7 +133,7 @@ Phase 1 deliverable per [PLAN](../../../.claude/plans/oracle-ai-data-platform-fu
 - GL trio (Journal Lines, Period Balances, Chart of Accounts)
 - `dim_account` + `dim_calendar` + `dim_supplier`
 - Bootstrap probe (BICC role, External Storage profile, IAM policy)
-- Live-test TC1-TC8 against demo Fusion pod (`saasfademo1`)
+- Live-test TC1-TC8 against demo Fusion pod (`demo-pod`)
 
 ## [0.1.0] — TBD (after live tests pass)
 

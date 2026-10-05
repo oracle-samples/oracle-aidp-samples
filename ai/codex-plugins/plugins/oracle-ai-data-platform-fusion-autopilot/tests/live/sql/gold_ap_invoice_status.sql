@@ -1,5 +1,5 @@
 -- TC10h-5 (2026-05-03): gold mart for AP invoice approval status
--- Source: fusion_catalog.silver.fact_ap_invoice (49,985 rows from saasfademo1 BICC extract)
+-- Source: fusion_catalog.silver.fact_ap_invoice (49,985 rows from demo-pod BICC extract)
 -- Output: 8 status buckets aggregated; APPROVED $3.19B, NEVER APPROVED $16.7M, etc.
 
 CREATE OR REPLACE TABLE fusion_catalog.gold.ap_invoice_status

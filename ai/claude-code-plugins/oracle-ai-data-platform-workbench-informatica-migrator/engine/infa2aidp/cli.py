@@ -73,6 +73,7 @@ def _cmd_discover(args: argparse.Namespace) -> int:
         password=args.password or os.environ.get("INFA_PASSWORD", ""),
         repository=args.repo or os.environ.get("INFA_REPO", ""),
         domain=args.domain or os.environ.get("INFA_DOMAIN", ""),
+        verify_tls=os.environ.get("INFA_CA_BUNDLE") or os.environ.get("INFA_TLS_VERIFY", "1") != "0",
     )
     crawler = InformaticaCrawler(cfg)
     method = crawler.connect(method=args.method)
