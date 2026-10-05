@@ -8,10 +8,16 @@ under their own licences; see tests/fixtures/real/THIRD_PARTY_LICENSES.md.
 
 Trademarks
 
-Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
 its affiliates. Other names may be trademarks of their respective owners.
-OpenAI and Codex are trademarks of OpenAI. Microsoft, Microsoft Fabric,
-OneLake, Power BI, Power Query and Azure are trademarks of the Microsoft group
-of companies. Third-party names are used only to identify the products this
-plugin works with; it is not affiliated with, sponsored by or endorsed by
-Microsoft Corporation or OpenAI.
+OpenAI and Codex are trademarks of OpenAI. Microsoft, Azure, Excel, Microsoft
+Fabric, OneLake, Power BI, Power Query, and SQL Server are trademarks of the
+Microsoft group of companies. Apache, Apache Spark, and Spark are either
+registered trademarks or trademarks of The Apache Software Foundation in the
+United States and/or other countries. No endorsement by The Apache Software
+Foundation is implied. Amazon Web Services, AWS, and Amazon S3 are trademarks
+of Amazon.com, Inc. or its affiliates. Snowflake is a trademark of Snowflake
+Inc. Databricks and Unity Catalog are trademarks of Databricks, Inc.
+Third-party names are used only to identify the products this plugin works
+with; it is not affiliated with, sponsored by or endorsed by Microsoft
+Corporation or OpenAI.

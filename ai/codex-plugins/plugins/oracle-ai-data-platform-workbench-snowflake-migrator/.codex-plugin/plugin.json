@@ -88,7 +88,7 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "AIDP Snowflake Migrator",
+    "displayName": "Oracle AIDP Migrator for Snowflake",
     "shortDescription": "Migrate a Snowflake database to Oracle AIDP with a fixed, auditable runbook.",
     "longDescription": "Migrate a Snowflake database to Oracle AI Data Platform through a fixed twelve-step runbook: a migration workspace and cluster, the Snowflake database registered as an EXTERNAL catalog and an INTERNAL target catalog, in-AIDP discovery through the Snowflake connector, a reviewed type-and-name translation plan, target schemas and empty Delta tables created on AIDP compute, and one verified copy job per schema (INSERT-SELECT, row counts, optional decimal sums). Read-only against Snowflake and dry-run by default against AIDP; teardown releases the compute or removes everything the migration created.",
     "developerName": "Oracle",

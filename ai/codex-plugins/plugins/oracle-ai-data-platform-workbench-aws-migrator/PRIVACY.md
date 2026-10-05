@@ -1,6 +1,6 @@
 # Privacy
 
-The **AWS → Oracle AIDP Migrator** runs locally and is designed to keep your data
+The **Oracle AIDP Migrator for AWS** runs locally and is designed to keep your data
 in your own environment.
 
 ## What it does with data

@@ -9,7 +9,7 @@
 
 Operate the entire Oracle AI Data Platform (AIDP) Workbench in natural language — a **37-skill** agent
 (not a single-engine orchestrator). It discovers your catalog into a grounding cache (FK/join hints +
-per-column value dictionaries), turns plain English into accurate Spark SQL, runs the full lakehouse SQL
+per-column value dictionaries), turns plain English into accurate Apache Spark SQL, runs the full lakehouse SQL
 lifecycle (CREATE/INSERT/UPDATE/DELETE/MERGE/OPTIMIZE/VACUUM/DESCRIBE HISTORY/time-travel), ingests files,
 profiles data and sets quality rules, authors and repairs cron pipelines, provisions clusters
 (Compute/AI Compute), and debugs jobs through the Spark UI — then keeps going where orchestrators

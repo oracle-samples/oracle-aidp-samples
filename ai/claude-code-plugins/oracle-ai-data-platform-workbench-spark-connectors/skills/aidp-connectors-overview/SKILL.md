@@ -1,6 +1,6 @@
 ---
 name: aidp-connectors-overview
-description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 26 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, DB2, SQL Server, Azure SQL, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
+description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 26 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, Db2, SQL Server, Azure SQL, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
 allowed-tools: Read
 ---
 

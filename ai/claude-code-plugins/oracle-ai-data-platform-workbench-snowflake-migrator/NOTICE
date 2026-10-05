@@ -1,13 +1,20 @@
-Oracle AI Data Platform — Snowflake Migrator
+Oracle AI Data Platform — Migrator for Snowflake
 Claude Code plugin
 
 Copyright (c) 2026 Oracle and/or its affiliates. Licensed under the MIT License — see the LICENSE file.
 
 Trademarks
 
-Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
 its affiliates. Other names may be trademarks of their respective owners.
 Claude and Claude Code are trademarks of Anthropic, PBC. Snowflake is a
-trademark of Snowflake Inc. Third-party names are used only to identify the
+trademark of Snowflake Inc. Apache, Apache Spark, Spark, Apache Iceberg,
+Iceberg, Apache Kafka, and Kafka are either registered trademarks or
+trademarks of The Apache Software Foundation in the United States and/or other
+countries. No endorsement by The Apache Software Foundation is implied. Delta
+Lake is a trademark of LF Projects, LLC. Microsoft, and Azure are trademarks
+of the Microsoft group of companies. Amazon Web Services, AWS, and Amazon S3
+are trademarks of Amazon.com, Inc. or its affiliates. Google Cloud is a
+trademark of Google LLC. Third-party names are used only to identify the
 products this plugin works with; it is not affiliated with, sponsored by or
 endorsed by Snowflake Inc. or Anthropic, PBC.

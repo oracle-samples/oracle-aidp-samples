@@ -337,7 +337,7 @@ the tenant's live BICC console.
 ### Adjacent patterns
 
 1. **Fusion-side of the SAP-modernization pattern** — Fusion data lands through this bundle; SAP data lands through a parallel pipeline; both unify in the AIDP gold layer.
-2. **Cross-source data products** — combine Fusion gold marts with Salesforce, Workday, S3, Postgres, or other AIDP-connected sources in downstream AIDP notebooks and marts.
+2. **Cross-source data products** — combine Fusion gold marts with Salesforce, Workday, Amazon S3, Postgres, or other AIDP-connected sources in downstream AIDP notebooks and marts.
 3. **Pod migration** — change `fusion.serviceUrl` in `bundle.yaml`, run bootstrap validation against the new pod, then reseed with a fresh run identity.
 
 ---

@@ -1,4 +1,4 @@
-Oracle AI Data Platform - Informatica Migrator (Codex plugin)
+Oracle AI Data Platform - Migrator for Informatica (Codex plugin)
 Copyright (c) 2026 Oracle and/or its affiliates.
 
 Licensed under the MIT License. See LICENSE.
@@ -10,10 +10,15 @@ engine under engine/ is written for this project.
 
 Trademarks
 
-Oracle, Java, MySQL and NetSuite are registered trademarks of Oracle and/or
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
 its affiliates. Other names may be trademarks of their respective owners.
-OpenAI and Codex are trademarks of OpenAI. Informatica, PowerCenter and
-Intelligent Data Management Cloud (IDMC) are trademarks of Informatica LLC.
-Third-party names are used only to identify the products this plugin works
-with; it is not affiliated with, sponsored by or endorsed by Informatica LLC
-or OpenAI.
+OpenAI and Codex are trademarks of OpenAI. Informatica, PowerCenter,
+PowerExchange, and Intelligent Data Management Cloud are trademarks or
+registered trademarks of Informatica LLC in the United States and other
+countries. Apache, Apache Spark, and Spark are either registered trademarks or
+trademarks of The Apache Software Foundation in the United States and/or other
+countries. No endorsement by The Apache Software Foundation is implied. Delta
+Lake is a trademark of LF Projects, LLC. SAP and SAP HANA are trademarks or
+registered trademarks of SAP SE in Germany and other countries. Third-party
+names are used only to identify the products this plugin works with; it is not
+affiliated with, sponsored by or endorsed by Informatica LLC or OpenAI.

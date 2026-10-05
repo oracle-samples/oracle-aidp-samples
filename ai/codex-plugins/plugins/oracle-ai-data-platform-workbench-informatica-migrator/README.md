@@ -1,4 +1,4 @@
-# infa2aidp — Informatica to Oracle AI Data Platform Migrator
+# infa2aidp — Oracle AI Data Platform Migrator for Informatica
 
 A Codex plugin that migrates Informatica ETL metadata into PySpark
 notebooks and AIDP job definitions for Oracle AI Data Platform (AIDP).
@@ -94,7 +94,7 @@ same engine underneath — none of this is a second implementation.
 | `infa-migrate-mapping` | Convert mappings to PySpark notebooks — the main run |
 | `infa-review` | Human approval gate over LOW/MEDIUM/MANUAL-confidence conversions |
 | `infa-reconcile` | Compare source-DB rows against a migrated AIDP target |
-| `infa-optimize` | Spark performance suggestions over already-generated notebooks |
+| `infa-optimize` | Apache Spark performance suggestions over already-generated notebooks |
 | `infa-deploy` | Upload notebooks and create AIDP jobs (no cluster execution) |
 | `infa-lineage` | Field-level data lineage report per mapping |
 | `infa-rag` | Manage the learned conversion-pattern store |

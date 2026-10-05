@@ -3,9 +3,9 @@
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors).
 > This Codex plugin is adapted from the sibling Claude Code plugin under [`ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors`](../../../claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors/).
 
-A Codex plugin that ships **26 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST to Spark DataFrame) that runs in the notebook without any additional runtime.
+A Codex plugin that ships **26 model-invokable skills** for connecting Oracle AI Data Platform Workbench Apache Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST to Spark DataFrame) that runs in the notebook without any additional runtime.
 
-**v0.7.0** adds DB2 guidance for the AIDP 4.1 connector release. Snowflake and NetSuite remain read-only.
+**v0.7.0** adds Db2 guidance for the AIDP 4.1 connector release. Snowflake and NetSuite remain read-only.
 
 All connectors wrap the official AIDP `aidataplatform` Spark format handler (or, where applicable, Spark JDBC / structured streaming / `oci://`/`s3a://`/`abfss://`) — same patterns shown in the upstream [`oracle-samples/oracle-aidp-samples`](https://github.com/oracle-samples/oracle-aidp-samples) connector notebooks.
 
@@ -46,7 +46,7 @@ ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors/.cod
 | `aidp-mysql` | MySQL / OCI MySQL HeatWave | `aidataplatform` (`type=MYSQL` or `MYSQL_HEATWAVE`) | Plain user/password |
 | `aidp-sqlserver` | Microsoft SQL Server | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
 | `aidp-azuresql` | Azure SQL Database | `aidataplatform` (`type=AZURE_SQLSERVER`) | Plain user/password |
-| `aidp-db2` ⭐ NEW | IBM DB2 | `aidataplatform` (`type=DB2`) | Plain user/password |
+| `aidp-db2` ⭐ NEW | IBM Db2 | `aidataplatform` (`type=DB2`) | Plain user/password |
 | `aidp-hive` | Apache Hive (HiveServer2, non-Kerberos) | `aidataplatform` (`type=HIVE`) | Plain user/password |
 
 ### SaaS
@@ -60,7 +60,7 @@ ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors/.cod
 |---|---|---|---|
 | `aidp-snowflake` | Snowflake (read-only) | `aidataplatform` (`type=SNOWFLAKE`) | Basic or KeyPair |
 | `aidp-azure-adls` | Azure ADLS Gen2 | Spark `abfss://` | OAuth client-credentials (Service Principal) |
-| `aidp-aws-s3` | AWS S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
+| `aidp-aws-s3` | Amazon S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
 | `aidp-rest-generic` | Any REST API with a manifest URL or Volume `manifest.path` | `aidataplatform` (`type=GENERIC_REST`) | HTTP Basic |
 | `aidp-jdbc-custom` | Any DB with a JDBC driver | Spark `format("jdbc")` (runtime-loaded driver) | Driver-specific |
 | `aidp-excel` | `.xlsx` files in Volumes / Object Storage | stdlib `zipfile` + XML parser (no extra deps) | None (file-based) |

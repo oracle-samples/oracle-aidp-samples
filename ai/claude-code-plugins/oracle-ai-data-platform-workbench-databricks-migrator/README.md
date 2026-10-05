@@ -1,4 +1,4 @@
-# Oracle AI Data Platform — Databricks Migrator (Claude Code plugin)
+# Oracle AI Data Platform — Migrator for Databricks (Claude Code plugin)
 
 > **Migrate Databricks notebooks, jobs, and catalogs onto Oracle AIDP — in natural language.**
 > Drives the *AIDP Databricks Migration Toolkit* (a Claude-with-tool-use migrator that runs cells live on the AIDP cluster, verifies, and self-fixes) end-to-end from Claude Code.
@@ -145,7 +145,7 @@ Once those are in place, the plugin's skills know how to invoke each entrypoint 
 | Agent | What it does |
 |---|---|
 | `databricks-notebook-analyzer` | Reads a Databricks notebook + reports what it does, dependencies, risks (drives the migrator's Pass-1 planning). |
-| `migration-reviewer` | Reviews a migrated `.ipynb` for correctness post-Pass-2 (Spark API drift, %run trailing-slash, builtins.sum shadow, etc.). |
+| `migration-reviewer` | Reviews a migrated `.ipynb` for correctness post-Pass-2 (Apache Spark API drift, %run trailing-slash, builtins.sum shadow, etc.). |
 
 ### References (loaded on demand)
 | Reference | Use |

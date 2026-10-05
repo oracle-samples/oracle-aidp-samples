@@ -1,4 +1,4 @@
-# Oracle AI Data Platform — Snowflake Migrator (Codex plugin)
+# Oracle AI Data Platform — Migrator for Snowflake (Codex plugin)
 
 Migrate a Snowflake database onto Oracle AI Data Platform (AIDP): structure
 first, then data, schema by schema. The plugin:
@@ -552,7 +552,7 @@ masking or row-access policy. `CENSUS.md` and `SECURITY.md` list them.
 | Schema | Schema in the INTERNAL catalog |
 | Table | Managed Delta table, created empty at S10; rows arrive when its schema's copy job runs |
 | View | View, created after the tables at S10 — when every Snowflake-only construct in its SQL has an exact rewrite (see [Why a view might not migrate](#why-a-view-might-not-migrate)) |
-| Warehouse | Spark compute cluster (see the compute proposal) |
+| Warehouse | Apache Spark compute cluster (see the compute proposal) |
 
 The stand-alone `/snowflake-catalog` and `/snowflake-soft-clone` commands
 register the EXTERNAL catalog by default, and create a Standard (INTERNAL)
@@ -732,7 +732,7 @@ A table that `SHOW TABLES` flags as event or hybrid is not a plain table
 either: `plan` blocks it with the reason named (`unsupported_object`), under
 "Object kinds with no AIDP equivalent" in `PLANNED_OBJECTS.md`.
 
-An **external or Iceberg** table is registered in place (`register_in_place`):
+An **external or Apache Iceberg** table is registered in place (`register_in_place`):
 its files already sit in object storage, so nothing is copied.
 `bin/snowmig external-registration` (read-only against Snowflake) writes
 `EXTERNAL_REGISTRATION.md`: per table, the S3/Azure/GCS path its files come

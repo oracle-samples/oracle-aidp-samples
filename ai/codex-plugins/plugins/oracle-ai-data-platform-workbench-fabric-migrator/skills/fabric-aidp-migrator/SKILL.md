@@ -3,7 +3,7 @@ name: fabric-aidp-migrator
 description: "Migrate a Microsoft Fabric workspace (notebooks, Warehouse T-SQL, Dataflow Gen2 / Power Query M, Data Pipelines, Lakehouse shortcuts, OneLake paths) to Oracle AI Data Platform. Use when the user wants to inventory a Fabric estate, plan a migration to AIDP, translate Fabric notebooks, Warehouse T-SQL or Power Query to Spark, verify a migration's output, or publish it into an AIDP workspace. Wraps the `fabric-aidp` CLI, with the verbs inventory, plan, migrate, verify and publish."
 ---
 
-# Microsoft Fabric → Oracle AIDP migrator
+# Oracle AIDP migrator for Microsoft Fabric
 
 Drives the `fabric-aidp` CLI, which migrates a Fabric workspace to Oracle AIDP in five
 verbs. The translators are **deterministic**: every rewrite is a named rule with a
