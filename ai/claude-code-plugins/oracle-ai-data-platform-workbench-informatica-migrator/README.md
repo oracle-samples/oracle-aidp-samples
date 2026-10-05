@@ -53,7 +53,7 @@ you do want the console-script form, run `pip install -e .` from this repo root 
 and confirm with `pip show infa2aidp` that `Location`/`Editable project location` point
 here — not somewhere else — before trusting `infa2aidp <command>`.
 
-Verify the install: `python3 -m pytest tests/ -q` should print `1731 passed`, and
+Verify the install: `python3 -m pytest tests/ -q` should print `1744 passed`, and
 `./demo.sh` — an offline smoke run needing no cloud account, no AIDP cluster, and no
 `ANTHROPIC_API_KEY` — should end with `notebooks=11 error=0`.  `./demo_local.sh` is the same
 run paced into narrated sections for showing to an audience.

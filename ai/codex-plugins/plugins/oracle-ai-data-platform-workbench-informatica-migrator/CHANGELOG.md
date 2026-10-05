@@ -57,7 +57,11 @@ packaged as a Codex plugin.
   was hard-coded to `False`, so repository credentials travelled over an
   unverified channel to every Web Services Hub. Verification is on by default;
   `INFA_CA_BUNDLE` names a corporate CA bundle and `INFA_TLS_VERIFY=0` is an
-  explicit opt-out for a self-signed lab host.
+  explicit opt-out for a self-signed lab host. The `pmrep connect` password
+  moved from `-x <password>` on the command line to `-X INFA_PMREP_PASSWORD`
+  in the child's environment. Both defaults, the CA-bundle pass-through and
+  the env-var handoff are pinned by `tests/test_crawler_security.py` (13
+  tests, contributed in review).
 - **Eighteen defects from a review of the SQL-override, workflow and
   write-range changes**, each reproduced first and pinned by a test that
   fails without the fix (`tests/test_sq_sql_review_fixes.py`,
