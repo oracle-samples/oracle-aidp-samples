@@ -350,3 +350,19 @@ def test_a_udj_column_with_a_hash_in_its_name_runs(spark):  # noqa: F811
     df = _run(spark, lines)
     assert df.columns == ["ORDER#", "CUST_ID", "NAME"]
     assert [tuple(r) for r in df.collect()] == [(1, 10, "Acme")]
+
+
+def test_a_udj_joining_on_a_hash_column_runs(spark):  # noqa: F811
+    """The select list was backquoted but the condition was not, so a UDJ
+    that JOINS on ORDER# -- the usual shape, an order number is the key --
+    was still a ParseException. Found in review of the fix above."""
+    spark.createDataFrame([(1, "A"), (2, "B")], "`ORDER#` int, STATUS string") \
+        .createOrReplaceTempView("sqk_orders")
+    spark.createDataFrame([(1, 10), (1, 11), (3, 12)], "`ORDER#` int, LINE_AMT int") \
+        .createOrReplaceTempView("sqk_lines")
+    lines = _sq(udj="ORDERS.ORDER# = LINES.ORDER# AND LINES.LINE_AMT > 10",
+                sources={"ORDERS": "sqk_orders", "LINES": "sqk_lines"},
+                columns={"ORDERS": ["ORDER#", "STATUS"], "LINES": ["ORDER#", "LINE_AMT"]})
+    df = _run(spark, lines)
+    assert df.columns == ["ORDER#", "STATUS", "LINE_AMT"]
+    assert [tuple(r) for r in df.collect()] == [(1, "A", 11)]

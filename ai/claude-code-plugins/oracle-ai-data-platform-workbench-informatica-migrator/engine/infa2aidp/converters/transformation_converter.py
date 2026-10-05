@@ -525,6 +525,8 @@ class TransformationConverter:
 
     # A qualified column reference in a join condition: TABLE.COLUMN.
     _SQL_QUALIFIED_COL = re.compile(r"\b([A-Za-z_][\w$#]*)\s*\.\s*[A-Za-z_][\w$#]*")
+    # The same reference with the column captured, for backquoting it.
+    _SQL_QUALIFIED_COL_PARTS = re.compile(r"\b([A-Za-z_][\w$#]*)\s*\.\s*([A-Za-z_][\w$#]*)")
 
     # One conjunct of a join condition that equates a column across two
     # tables: TABLE.COLUMN = TABLE.COLUMN, optionally parenthesised.
@@ -609,7 +611,14 @@ class TransformationConverter:
                     f"column {col} exists in {', '.join(tables)} and the join does "
                     f"not equate it, so one table's value cannot stand for both"
                 )
-        return f"SELECT {', '.join(select)} FROM {', '.join(named)} WHERE {udj}", named, None
+        # The condition's column references are backquoted too, for the
+        # same reason as the select list: an order number is usually the
+        # join key, and `ORDERS.ORDER# = LINES.ORDER#` unquoted is a
+        # ParseException. Done on the masked text so literals are untouched.
+        cond_masked, cond_lits = self._mask_sql_literals(udj)
+        cond = self._unmask_sql_literals(self._SQL_QUALIFIED_COL_PARTS.sub(
+            lambda m: f"{m.group(1)}.`{m.group(2)}`", cond_masked), cond_lits)
+        return f"SELECT {', '.join(select)} FROM {', '.join(named)} WHERE {cond}", named, None
 
     def _udj_equated(self, masked_udj: str):
         """``equated(col, tables)``: whether the condition's top-level AND

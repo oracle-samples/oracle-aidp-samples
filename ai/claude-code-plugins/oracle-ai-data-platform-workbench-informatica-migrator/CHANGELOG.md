@@ -107,7 +107,8 @@ packaged as a Claude Code plugin.
   unterminated literal is refused. A simple override lost its `DISTINCT`
   and `ORDER BY` once the Select Distinct and Sorted Ports settings stopped
   applying under a SQL Query; such an override is run as written. A UDJ
-  column named `ORDER#` was a ParseException; columns are backquoted. The
+  column named `ORDER#` was a ParseException; columns are backquoted in the
+  select list and the join condition. The
   range check cast to the declared `DECIMAL(p,s)` rather than the clamped
   type the DDL creates, so `NUMBER(40,2)` refused every write.
 - **Two systematic false positives in the source-fidelity report.** A Source
