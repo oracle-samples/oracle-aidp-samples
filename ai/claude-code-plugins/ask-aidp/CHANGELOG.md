@@ -2,6 +2,14 @@
 
 All notable changes to this plugin are documented here.
 
+## [Unreleased]
+
+### Security
+- The MCP server resolves `oci-common` and `aidp-typescript-client` only from the plugin's
+  own `vendor/node_modules` / `node_modules` (or `AIDP_VENDOR_NODE_MODULES`), no longer from
+  the process working directory or sibling sample trees, so a planted module cannot be
+  loaded in the process that holds the user's OCI credentials.
+
 ## [0.10.0] - 2026-09-21
 
 ### Fixed

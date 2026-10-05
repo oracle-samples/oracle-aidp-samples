@@ -28,13 +28,13 @@ ruff format --check .
 
 ## Claiming a backlog item (coordination norm)
 
-Before you start coding a backlog item, **commit the claim directly to `main`** — not to your feature branch. This is a small commit that flips `[ ]` → `[~]` and names you as the owner. The point is coordination: other contributors checking `BACKLOG.md` on `main` see what's in flight without having to scan open PRs or feature branches.
+Before you start coding a backlog item, **record the claim on the item's issue or your draft PR** — never commit directly to `main`. This is a small commit that flips `[ ]` → `[~]` and names you as the owner. The point is coordination: other contributors checking `BACKLOG.md` on `main` see what's in flight without having to scan open PRs or feature branches.
 
 ### When you pick an item up
 
-1. On `main` (after pulling latest), edit the item's heading in `BACKLOG.md`:
+1. On your feature branch, edit the item's heading in `BACKLOG.md`:
    - `### [ ] P1.X — <title>` → `### [~] P1.X — <title> (in progress — <your-handle>, <YYYY-MM-DD>)`
-2. Commit on `main` directly:
+2. Commit on your branch:
    ```
    git commit -m "fusion-autopilot: BACKLOG — claim P1.X (<your-handle>)"
    ```
@@ -216,7 +216,7 @@ Atomic commits preferred — one P-id / TC-id per commit so backlog cross-refs a
 ## Live-test conventions
 
 - **Evidence file**: `tests/live/TC<N>_<feature>_results.md`. Markdown, narrative-first. Capture: tenant identity (pod URL, OAC instance, date), exact commands run, row counts, sample outputs, any anomalies. Pin every claim to a query you actually ran.
-- **Tenant identification**: name the pod (e.g. `demo-pod` / `etap-dev5` / `fusion_autopilot_dev`) at the top of every TC file. The portability story depends on knowing what was tested where.
+- **Tenant identification**: name the pod (e.g. `<pod-name>` / `fusion_autopilot_dev`) at the top of every TC file. The portability story depends on knowing what was tested where.
 - **Anomaly handling**: when a live run surfaces something unexpected (NULL-propagation bug, schema variant, performance cliff), file the finding in the TC file AND open a backlog entry. Don't patch silently.
 - **Re-verification after refactors**: any code change to a module with an existing TC needs a TC<N>b suffix run before merge. The "I didn't change the SQL" hand-wave isn't sufficient — Catalyst plans shift on adjacent changes.
 

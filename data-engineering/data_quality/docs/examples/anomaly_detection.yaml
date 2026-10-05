@@ -1,6 +1,6 @@
 # Example: Isolation Forest anomaly detection
 # Detects unknown unknowns across all columns
-# Requires: pip install 'qualifire[anomaly]'
+# Requires: pip install -e '.[anomaly]'
 
 owner: "data-engineering"
 bu: "payments"

@@ -18,7 +18,7 @@ All notable changes to this plugin are documented here. Format loosely follows
   oci-CLI versions that write minimal session profiles without tenancy/user/fingerprint; on full session profiles
   the old code instead built a wrong api_key signer and 401'd — the fix is correct either way). LIVE-VERIFIED
   end-to-end: `SELECT 1` + a Spark-UI metric capture both `ok` under api_key (DEFAULT) AND session token
-  (OASECEAL), and 9 control-plane APIs return identical results under both. `references/oci-raw-request.md`
+  (the test tenancy), and 9 control-plane APIs return identical results under both. `references/oci-raw-request.md`
   documents the full session-token path as first-class; `aidp-engineer-bootstrap` notes DEFAULT may be either.
 - **Listing reliability** — fixed a false "0 jobs" on a 100+-job workspace (zsh unquoted-flag + a parser that
   rendered an error as an empty list). Hardened `aidp-pipelines` + `oci-raw-request.md`: paginate (100+/page),
@@ -96,7 +96,7 @@ Docs only; no skill/behavior change.
 ## [0.4.4] — 2026-06-12 (tester-feedback triage: doc + caveat hardening, live-reverified) — #1, @craxelfn
 
 Folded in findings from a fresh-instance test pass (`taha-test-agent`, us-ashburn-1), then re-verified the
-behaviors live against an established instance (`amitV2`): control-plane lake-scoped reads confirmed the
+behaviors live against an established instance (`<aidp-instance>`): control-plane lake-scoped reads confirmed the
 **5 default guardrails** (exact type/scope/action) and the empty `/models` catalog; the SQL engine confirmed
 `SELECT 1`, `ai_generate('openai.gpt-5.4')` working while `/models` is empty, the `SHOW TABLES` qualification,
 and that bare `CREATE TABLE` is **not** reproducible on an established instance. Docs/caveats only; no skill

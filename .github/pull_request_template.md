@@ -21,10 +21,9 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] Test B
 
 **Test Configuration**:
-* Firmware version:
-* Hardware:
-* Toolchain:
-* SDK:
+* AIDP region / Spark version:
+* Python version:
+* Plugin(s) affected:
 
 # Checklist:
 
@@ -36,3 +35,8 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
 - [ ] Any dependent changes have been merged and published in downstream modules
+- [ ] No tenancy, customer or personal identifiers: no OCIDs, namespaces, bucket names, hostnames, IPs, account locators, e-mail addresses or API-key fingerprints (use placeholders)
+- [ ] No credentials, tokens or live-test evidence files
+- [ ] Notebook outputs cleared (or contain no identifiers)
+- [ ] LICENSE and NOTICE present for a new plugin; third-party marks acknowledged
+- [ ] Commits carry `Signed-off-by` (OCA)

@@ -188,7 +188,7 @@ First public-marketplace-ready release.
 
 ### Live-test progress
 - **Row 6 (`aidp-exacs` plain user/pwd + NNE)** — PASS via `exacs_intransit_encryption_demo.ipynb` in workspace `exacs-private-test`. End-to-end Spark JDBC connect + AES256 NNE verified.
-- **Row 10 (`aidp-fusion-bicc` HTTP Basic)** — PASS for connector-path validation. Casey.Brown granted BIAdmin role via Fusion Security Console; the IDCS 302 wall is gone. `BiccUtil.getLatestExternalStorage` deep-stack proves the connector authenticates and executes BICC server-side code. Returning rows additionally requires a Fusion BIACM `EXTERNAL STORAGE` profile (customer-side admin config, not a plugin concern).
+- **Row 10 (`aidp-fusion-bicc` HTTP Basic)** — PASS for connector-path validation. <fusion-user> granted BIAdmin role via Fusion Security Console; the IDCS 302 wall is gone. `BiccUtil.getLatestExternalStorage` deep-stack proves the connector authenticates and executes BICC server-side code. Returning rows additionally requires a Fusion BIACM `EXTERNAL STORAGE` profile (customer-side admin config, not a plugin concern).
 
 ## [0.1.0] — TBD
 

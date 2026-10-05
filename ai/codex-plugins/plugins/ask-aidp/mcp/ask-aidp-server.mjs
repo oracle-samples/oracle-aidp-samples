@@ -1198,11 +1198,13 @@ function commonFlags(config = {}) {
 
 function sdkResolvePaths() {
   return [
+    // Only the plugin's own trees: a path outside PLUGIN_ROOT (and the
+    // process cwd in particular) would let a planted node_modules supply
+    // the module that handles the user's OCI credentials.
     path.join(PLUGIN_ROOT, 'vendor', 'node_modules'),
     path.join(PLUGIN_ROOT, 'node_modules'),
-    path.join(PLUGIN_ROOT, '..', '..', 'samples', 'npm-cli', 'node_modules'),
-    path.join(PLUGIN_ROOT, '..', '..', 'samples', 'node-sdk', 'node_modules'),
-    process.cwd()
+    // ...plus a directory the operator names explicitly (documented in the README).
+    ...(process.env.AIDP_VENDOR_NODE_MODULES ? [process.env.AIDP_VENDOR_NODE_MODULES] : [])
   ];
 }
 

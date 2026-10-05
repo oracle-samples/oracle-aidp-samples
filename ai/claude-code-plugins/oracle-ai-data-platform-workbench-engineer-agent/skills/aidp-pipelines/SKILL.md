@@ -140,7 +140,7 @@ inside a task, see `oidlUtils.notebook.run/exit` in `aidp-notebooks`.
 2. Build the task DAG (deps, schedule); show the user the JSON job spec **before** creating.
 3. `POST` to create, trigger a test run, poll the run to terminal, read task output.
 4. On failure, route to `aidp-spark-debugging` (logs + Spark UI) with the failing task run.
-5. Clean up test jobs (`DELETE …/jobs/{key}`) when validating.
+5. Offer to clean up test jobs (`DELETE …/jobs/{key}`) when validating — only jobs created in this session, listed first and deleted after explicit confirmation.
 
 ## Interactive SQL (only if a task needs a quick check)
 For ad-hoc Spark-SQL outside a job, use the bundled helper — no MCP required:

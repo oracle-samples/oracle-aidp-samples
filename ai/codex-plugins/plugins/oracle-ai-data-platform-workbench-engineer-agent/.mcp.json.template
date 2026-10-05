@@ -1,10 +1,9 @@
 {
-  "_comment": "OPTIONAL — the plugin does NOT require an MCP. It is fully self-contained (oci raw-request + the bundled aidp/aidp_sql.py helper, staged to ~/.aidp on SessionStart). This template is only for users who want to wire an AIDP MCP as an optional accelerator: fill the placeholders from ~/.oci/config + your DataLake/workspace, set AIDP_AGENT_REPO_PATH to your local checkout of the aidp_agent source, and save as .mcp.json (NEVER commit it — .gitignored). Codex uses the snake_case `mcp_servers` key. The aidp MCP package, if used, comes from amitranjan-oracle/ai-data-engineer-agent and is NOT bundled here.",
+  "_comment": "OPTIONAL — the plugin does NOT require an MCP. It is fully self-contained (oci raw-request + the bundled aidp/aidp_sql.py helper, staged to ~/.aidp on SessionStart). This template is only for users who want to wire an AIDP MCP as an optional accelerator: fill the placeholders from ~/.oci/config + your DataLake/workspace, set AIDP_AGENT_REPO_PATH to your local checkout of the aidp_agent source, and save as .mcp.json (NEVER commit it — .gitignored). Codex uses the snake_case `mcp_servers` key. The aidp MCP package, if used, must come from a repository you control and have reviewed and is NOT bundled here.",
   "mcp_servers": {
     "aidp": {
       "command": "python",
       "args": ["-m", "aidp_agent.mcp_server"],
-      "_command_alt_when_published_to_pypi": ["uvx", "aidp-mcp"],
       "cwd": "${AIDP_AGENT_REPO_PATH}",
       "env": {
         "AIDP_REGION": "${AIDP_REGION}",

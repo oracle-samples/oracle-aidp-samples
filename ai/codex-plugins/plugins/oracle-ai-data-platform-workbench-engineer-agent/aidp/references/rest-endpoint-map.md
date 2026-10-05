@@ -230,7 +230,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   api_key DEFAULT:  spark.sql('SELECT 1') → status ok, real spark_job  (REGRESSION PASS — api_key path byte-for-byte unchanged).
   session AIDP_SESSION:  helper takes the session branch (builds a SecurityTokenSigner, NO KeyError); create_session 401'd only
       because the local session token was EXPIRED + non-refreshable headlessly — construction is correct, expiry is the only failure.
-      End-to-end session-token success was verified by the PR author on their instance (OASECEAL); not re-verifiable in this env.
+      End-to-end session-token success was verified by the PR author on their instance (the test tenancy); not re-verifiable in this env.
   jobs:  GET …/workspaces/<WS>/jobs → 200 (tpcds holds 5 jobs; the "100+/page pagination" lesson is playground-specific but sound).
 ```
 

@@ -268,8 +268,9 @@ def discover_config():
                 # tokens are full credentials.
                 token_path = Path.home() / f".oci-ocir-token-{int(time.time())}.txt"
                 try:
-                    token_path.write_text(auth_token + "\n")
-                    os.chmod(token_path, 0o600)
+                    fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                    with os.fdopen(fd, "w") as fh:
+                        fh.write(auth_token + "\n")
                     print(f"  Auth token created. Saved (mode 0600) to: {token_path}")
                     print(f"  This is the only time we can show it — back it up before deleting.")
                 except OSError as e:
@@ -695,7 +696,7 @@ def setup_networking(cfg):
             compartment_id=cid, vcn_id=vcn.id, display_name=f"{name}-sl",
             ingress_security_rules=[
                 oci.core.models.IngressSecurityRule(
-                    source="0.0.0.0/0", source_type="CIDR_BLOCK", protocol="6",
+                    source=_ALLOW_CIDR, source_type="CIDR_BLOCK", protocol="6",
                     tcp_options=oci.core.models.TcpOptions(
                         destination_port_range=oci.core.models.PortRange(min=5001, max=5001)),
                 ),
@@ -803,6 +804,10 @@ def deploy_container(cfg, subnet_id):
 def main():
     print("=" * 60)
     print("  AIDP Agent Chat UI  |  Deploy to OCI Container Instances")
+    if _ALLOW_CIDR == "0.0.0.0/0":
+        print("  WARNING: AIDP_ALLOW_CIDR is 0.0.0.0/0 -- the unauthenticated chat proxy will be")
+        print("  reachable from the whole internet on port 5001. Set AIDP_ALLOW_CIDR to your /32")
+        print("  or front it with an OAuth2 proxy / API Gateway before sharing the URL.")
     print("=" * 60)
 
     cfg = discover_config()

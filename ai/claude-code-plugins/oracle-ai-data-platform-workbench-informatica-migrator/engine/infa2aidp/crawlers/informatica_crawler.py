@@ -306,12 +306,14 @@ class InformaticaCrawler:
             "-r", self.config.repository,
             "-d", self.config.domain,
             "-n", self.config.username,
-            "-x", self.config.password,
+            # -X names an environment variable; -x put the password on the
+            # command line, where every user on the host can read it in ps.
+            "-X", "INFA_PMREP_PASSWORD",
         ]
         if self.config.security_domain:
             cmd.extend(["-s", self.config.security_domain])
 
-        result = self._pmrep_run_raw(cmd)
+        result = self._pmrep_run_raw(cmd, env={"INFA_PMREP_PASSWORD": self.config.password})
         if "connect completed successfully" not in result.lower():
             raise ConnectionError(f"PMREP connect failed: {result}")
         self._pmrep_connected = True
@@ -326,10 +328,11 @@ class InformaticaCrawler:
         return self._pmrep_run_raw(cmd)
 
     @staticmethod
-    def _pmrep_run_raw(cmd: list) -> str:
+    def _pmrep_run_raw(cmd: list, env: Optional[dict] = None) -> str:
         try:
+            run_env = {**os.environ, **env} if env else None
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=300
+                cmd, capture_output=True, text=True, timeout=300, env=run_env
             )
             return result.stdout + result.stderr
         except FileNotFoundError:

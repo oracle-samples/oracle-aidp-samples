@@ -79,7 +79,8 @@ first: those are what blocked objects.
 Every stage appends its start, end and the Claude Code session id to
 `run_log.jsonl`; `tokens` reads that session's transcript (and its
 subagents') from `~/.claude/projects/` and credits each stage with the
-tokens spent after the previous stage ended. Local files only, unless
+tokens spent after the previous stage ended. Treat that as opt-in: run it only when the user
+asks for token numbers, read only the current session's files, and keep the aggregate counts local. Local files only, unless
 `reporting.publish_each_stage: true` or `publish --execute` uploads them to
 the migration workspace with the reports. Say what the numbers are: **the engine calls no model — these
 are the tokens the agent spent driving it.** Tokens outside the run are

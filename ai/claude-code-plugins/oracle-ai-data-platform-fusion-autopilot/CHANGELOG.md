@@ -126,7 +126,7 @@ All notable changes to this project are documented here.
 
 ## [0.1.0-alpha] — 2026-05-05
 
-Phase 1 deliverable per [PLAN](../../../.claude/plans/oracle-ai-data-platform-fusion-autopilot.md): core BICC path + Supplier Extract.
+Phase 1 deliverable per the implementation plan: core BICC path + Supplier Extract.
 
 ### Achieved
 - BICC extractor for `FscmTopModelAM.SupplierExtractPVO` mirroring [`oracle-aidp-samples/data-engineering/ingestion/Read_Only_Ingestion_Connectors.ipynb`](../../../data-engineering/ingestion/Read_Only_Ingestion_Connectors.ipynb)

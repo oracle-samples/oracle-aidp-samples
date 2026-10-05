@@ -27,7 +27,7 @@ def _import_sklearn():
     except ImportError:
         raise ImportError(
             "scikit-learn is required for anomaly detection. "
-            "Install it with: pip install 'qualifire[anomaly]'"
+            "Install it with: pip install -e '.[anomaly]'"
         )
 
 
@@ -39,7 +39,7 @@ def _import_shap():
     except ImportError:
         raise ImportError(
             "SHAP is required for anomaly explainability. "
-            "Install it with: pip install 'qualifire[anomaly]'"
+            "Install it with: pip install -e '.[anomaly]'"
         )
 
 

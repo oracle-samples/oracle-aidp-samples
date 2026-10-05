@@ -170,7 +170,7 @@ python3 ai/shared-plugin-content/oracle-ai-data-platform-workbench-spark-connect
 
 ```bash
 # Validate plugin shape
-python /Users/srangabh-new-mac/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
+python <path-to>/validate_plugin.py .   # the plugin-creator validator from your Codex install
 
 # Run unit tests (no live OCI calls)
 python -m pytest tests/ -v

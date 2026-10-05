@@ -12,7 +12,7 @@ format handler with `fusion-bicc` connector.
 
 Requires the bundle's BICC env vars set in the AIDP secrets (or pass inline):
   - FUSION_BICC_BASE_URL  — e.g. https://demo-pod-fa-ext.oracledemos.com
-  - FUSION_BICC_USER      — Casey.Brown
+  - FUSION_BICC_USER      — <fusion-user>
   - FUSION_BICC_PASSWORD  — vault-managed
   - FUSION_BICC_EXTERNAL_STORAGE — name of BICC External Storage profile
 """

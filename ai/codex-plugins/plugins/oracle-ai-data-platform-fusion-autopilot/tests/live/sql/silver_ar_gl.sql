@@ -6,7 +6,7 @@
 --   fusion_catalog.bronze.gl_coa              (CodeCombinationExtractPVO)
 --
 -- Column names below are the ACTUAL ones returned by demo-pod BICC
--- (eseb-test pod, 2026-05-05) — the AM-prefix scheme: RaCustomerTrx*,
+-- (<fusion-pod-2> pod, 2026-05-05) — the AM-prefix scheme: RaCustomerTrx*,
 -- ArCashReceipt*, Balance*, CodeCombination*. Confirmed live.
 
 ------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ SELECT
 FROM fusion_catalog.bronze.ar_invoices
 WHERE RaCustomerTrxCustomerTrxId IS NOT NULL;
 
--- Note on data quality (eseb-test pod, 2026-05-05): of 187,970 AR transaction
+-- Note on data quality (<fusion-pod-2> pod, 2026-05-05): of 187,970 AR transaction
 -- headers, only 923 carry due_date and 270 carry billing_date — the bulk of
 -- aging-driving timestamps live on `ReceivablesPaymentScheduleExtractPVO`
 -- (per-installment), not the header. The bundle's gold.ar_aging therefore

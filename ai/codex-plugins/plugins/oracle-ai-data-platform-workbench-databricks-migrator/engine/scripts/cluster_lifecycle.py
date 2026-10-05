@@ -13,6 +13,7 @@ Uses the private AIDP data plane APIs:
   PATCH /workspaces/{ws}/clusters/{key}/libraries    — install libraries
 """
 
+from typing import Optional
 import asyncio
 import os
 import sys
@@ -337,7 +338,7 @@ def _pypi_exists(name: str) -> bool:
         return False
 
 
-def _resolve_pip_name(import_name: str) -> str:
+def _resolve_pip_name(import_name: str) -> Optional[str]:
     """Resolve an import name to a pip package name.
 
     Strategy:
@@ -373,17 +374,22 @@ def _resolve_pip_name(import_name: str) -> str:
         _pypi_cache[lowered] = mapped
         return mapped
 
-    # 3. No mapping — validate import name directly on PyPI
+    # 3. No mapping. An import name that merely EXISTS on PyPI is not evidence
+    #    that it is the right package: anyone can register a name that matches
+    #    a customer's private module. Unmapped names are not installed.
     if _pypi_exists(lowered):
-        _pypi_cache[lowered] = lowered
-        return lowered
+        print(f"[cluster-lifecycle] WARNING: import '{import_name}' has no curated pip mapping; "
+              f"a PyPI package of that name exists but will NOT be installed automatically -- "
+              f"add it to _IMPORT_TO_PIP or install it via the cluster libraries API", flush=True)
+        _pypi_cache[lowered] = None
+        return None
 
     # 4. Not on PyPI either — pass through with warning (let pip fail explicitly
     #    rather than silently skipping, which could mask a mapping we need to add)
     print(f"[cluster-lifecycle] WARNING: no PyPI package found for import "
-          f"'{import_name}' — passing through as-is", flush=True)
-    _pypi_cache[lowered] = lowered
-    return lowered
+          f"'{import_name}' — not installed", flush=True)
+    _pypi_cache[lowered] = None
+    return None
 
 # Standard library modules — never install these
 _STDLIB = {
@@ -764,6 +770,8 @@ async def ensure_requirements_installed(
     _seen_pkgs = set()
     for imp in missing_imports:
         pip_name = _resolve_pip_name(imp)
+        if pip_name is None:
+            continue
         if pip_name not in _seen_pkgs:
             _seen_pkgs.add(pip_name)
             pip_packages.append(pip_name)
@@ -865,6 +873,8 @@ async def install_missing_package(
             return False
 
     pip_name = _resolve_pip_name(module_name)
+    if pip_name is None:
+        return False
     req_workspace_path = f"{job_output_path}/requirements.txt"
 
     # Read existing requirements from cluster

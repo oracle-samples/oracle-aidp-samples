@@ -59,8 +59,8 @@ see [references/aidp-cli-map.md](./references/aidp-cli-map.md)):
 >    WebSocket; a session-token profile reuses its token directly (no mint). `aidp_sql.py --session-profile`
 >    can still override the WebSocket token explicitly.
 > 2. **Python 3.x** — the helper deps (`oci`, `requests`, `websocket-client`, `cryptography`; no `aidp_agent`)
->    **auto-install on your first session** via the bundled SessionStart hook. No manual `pip` step needed; if
->    the readiness banner reports a dep still missing, install it from the plugin dir (`claude plugin list` →
+>    are **checked on your first session** by the bundled SessionStart hook, which prints the `pip install`
+>    command if any is missing (set `AIDP_PLUGIN_AUTOINSTALL=1` to let the hook run it). Install from the plugin dir (`claude plugin list` →
 >    `python -m pip install -r scripts/requirements.txt`, path relative to the plugin root, not your cwd).
 > 3. That's it. There is **no AIDP MCP to install or register.** An MCP is an optional accelerator only.
 
@@ -70,7 +70,8 @@ From Anthropic's community plugin marketplace (recommended — sources from the 
 claude plugin marketplace add anthropics/claude-plugins-community
 claude plugin install  oracle-ai-data-platform-workbench-engineer-agent
 ```
-> Helper deps auto-install on first session (SessionStart hook) — no manual `pip` needed.
+> The SessionStart hook checks the helper deps and prints the `pip install` command if any is missing
+> (`AIDP_PLUGIN_AUTOINSTALL=1` lets it install them for you).
 
 Then run the one-time bootstrap and catalog discovery:
 
@@ -150,7 +151,7 @@ PLUGIN: oracle-ai-data-platform-workbench-engineer-agent (37 skills)
 claude plugin marketplace add anthropics/claude-plugins-community
 claude plugin install  oracle-ai-data-platform-workbench-engineer-agent
    │
-   ▼ first session: SessionStart hook auto-installs helper deps (oci/requests/websocket-client/cryptography)
+   ▼ first session: SessionStart hook checks helper deps (oci/requests/websocket-client/cryptography) and prints the install command
    ▼ /aidp-engineer-bootstrap  → reads ~/.oci/config (DEFAULT), lists DataLakes/workspaces;
    │                             verifies oci ✓ aidp_sql.py ✓ cluster ✓
    ▼ /aidp-catalog-init        → writes .aidp/catalog.md (one-time grounding)

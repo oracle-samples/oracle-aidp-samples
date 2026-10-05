@@ -15,8 +15,8 @@ from oracle_ai_data_platform_fusion_autopilot.schema.refs import (
 
 class TestRenderVars:
     def test_renders_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("FUSION_BICC_USER", "Casey.Brown")
-        assert render_vars("user=${FUSION_BICC_USER}") == "user=Casey.Brown"
+        monkeypatch.setenv("FUSION_BICC_USER", "<fusion-user>")
+        assert render_vars("user=${FUSION_BICC_USER}") == "user=<fusion-user>"
 
     def test_extra_overrides_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("env", "prod")
@@ -70,9 +70,9 @@ class TestReplaceVaultRefs:
             replace_vault_refs("${vault:ocid1.vaultsecret.oc1.iad.aaa}", {})
 
     def test_preserves_other_text(self) -> None:
-        s = "user=Casey.Brown pwd=${vault:ocid1.vaultsecret.oc1.iad.aaa} other=stuff"
+        s = "user=<fusion-user> pwd=${vault:ocid1.vaultsecret.oc1.iad.aaa} other=stuff"
         out = replace_vault_refs(s, {"ocid1.vaultsecret.oc1.iad.aaa": "S3cret!"})
-        assert out == "user=Casey.Brown pwd=S3cret! other=stuff"
+        assert out == "user=<fusion-user> pwd=S3cret! other=stuff"
 
 
 class TestRenderTree:

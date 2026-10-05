@@ -22,3 +22,8 @@ Lake is a trademark of LF Projects, LLC. SAP and SAP HANA are trademarks or
 registered trademarks of SAP SE in Germany and other countries. Third-party
 names are used only to identify the products this plugin works with; it is not
 affiliated with, sponsored by or endorsed by Informatica LLC or OpenAI.
+
+Optional dependencies
+
+The `reconcile` and `all` extras pull in JayDeBeApi (LGPL-3.0) and JPype1 (Apache-2.0)
+for JDBC reconciliation. They are not installed by default and are not bundled here.

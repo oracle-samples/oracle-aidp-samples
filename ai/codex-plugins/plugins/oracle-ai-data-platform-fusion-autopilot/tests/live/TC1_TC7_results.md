@@ -7,10 +7,10 @@ End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fus
 | | |
 |---|---|
 | Fusion pod | `https://<fusion-host>` |
-| Fusion user | `Casey.Brown` (BIAdmin role) |
+| Fusion user | `<fusion-user>` (BIAdmin role) |
 | BICC External Storage profile | `fusion_bicc_external_storage` (configured 2026-04-30 via UI) |
 | OCI bucket | `<bucket>` (namespace `<namespace>`) |
-| API key fingerprint | `71:78:61:77:ee:71:fb:13:e4:77:1d:62:23:49:63:20` |
+| API key fingerprint | `<fingerprint>` |
 | AIDP workspace | `<uuid>` |
 | AIDP cluster | `tpcds` |
 
@@ -22,7 +22,7 @@ End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fus
 | Datastore | `FscmTopModelAM.PrcExtractAM.PozBiccExtractAM.SupplierExtractPVO` (full AM-hierarchy, NOT pdf1's `FscmTopModelAM.SupplierExtractPVO`) |
 | Schema option | `Financial` |
 | Row count | **229 rows** |
-| Sample rows | Real users (CALVIN.ROTH, anu.rathi, Monico.Procurementmanager); Segment1=`1252,1254,1256,1265,1266`; Org=CORPORATION |
+| Sample rows | Sample users (<fusion-user>, <fusion-user>, <fusion-user>); Segment1=`1252,1254,1256,1265,1266`; Org=CORPORATION |
 
 **Status: PASS** — verified 2026-04-30T15:23 UTC.
 

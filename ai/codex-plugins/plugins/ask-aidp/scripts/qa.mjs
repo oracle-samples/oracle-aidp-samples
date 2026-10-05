@@ -672,7 +672,7 @@ async function main() {
       name: 'aidp_generate_csv_table_sql',
       arguments: {
         fullTableName: 'bronze_layer.erp.customers',
-        path: 'oci://revenue-leakage-demo@idlhizlfs5zd/erp/customers/',
+        path: 'oci://revenue-leakage-demo@namespace/erp/customers/',
         columns: [
           { name: 'customer_id', type: 'STRING' },
           { name: 'customer_name', type: 'STRING' }

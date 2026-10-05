@@ -47,7 +47,7 @@ Returns JSON `{status, execution_count, outputs, spark_job_ids, error}`. No MCP 
 | **Upsert (MERGE)** | `MERGE INTO c.s.t t USING src s ON t.id=s.id WHEN MATCHED THEN UPDATE SET * WHEN NOT MATCHED THEN INSERT *` |
 | Schema evolution | `ALTER TABLE c.s.t ADD COLUMNS (x INT)` · `… RENAME COLUMN` · `… DROP COLUMN`; or write with `mergeSchema` |
 | Compact | `OPTIMIZE c.s.t [ZORDER BY (col)]` |
-| Reclaim files | `VACUUM c.s.t RETAIN 168 HOURS` *(destructive — confirm; <168h needs `spark.databricks.delta.retentionDurationCheck.enabled=false`)* |
+| Reclaim files | `VACUUM c.s.t RETAIN 168 HOURS` *(destructive — confirm, and state why; <168h needs `spark.databricks.delta.retentionDurationCheck.enabled=false`, which must be reverted afterwards)* |
 | History | `DESCRIBE HISTORY c.s.t` |
 | Time travel | `SELECT * FROM c.s.t VERSION AS OF 3` · `… TIMESTAMP AS OF '2026-06-01'` |
 | Restore | `RESTORE TABLE c.s.t TO VERSION AS OF 3` |

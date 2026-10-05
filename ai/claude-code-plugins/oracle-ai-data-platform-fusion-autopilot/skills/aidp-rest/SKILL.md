@@ -76,7 +76,7 @@ marker = client.parse_marker(json.loads(executed_nb_json),
 https://datalake.<region>.oci.oraclecloud.com/<apiVersion>/aiDataPlatforms/<aiDataPlatformId>/workspaces/<workspaceKey>/...
 ```
 
-`apiVersion` = `20260430`. Live-validated 2026-05-17 / 2026-05-21 against the `amitV2` AIDP instance + `playground` workspace.
+`apiVersion` = `20260430`. Live-validated 2026-05-17 / 2026-05-21 against the `<aidp-instance>` AIDP instance + `playground` workspace.
 
 | Operation | HTTP + path | Notes |
 |---|---|---|
@@ -136,4 +136,4 @@ https://datalake.<region>.oci.oraclecloud.com/<apiVersion>/aiDataPlatforms/<aiDa
 
 ## Source of truth
 
-The full empirical research log lives at `dev/RESEARCH_aidp_rest_api_probe_results.md` (Phases 1-4 confirmed against `amitV2` / `playground` / `fusion_autopilot_dev`, 2026-05-17). When this skill's behavior diverges from that doc, the doc updates. When the doc diverges from Oracle's swagger, the doc wins because it was verified against live infrastructure.
+The full empirical research log lives at `dev/RESEARCH_aidp_rest_api_probe_results.md` (Phases 1-4 confirmed against `<aidp-instance>` / `playground` / `fusion_autopilot_dev`, 2026-05-17). When this skill's behavior diverges from that doc, the doc updates. When the doc diverges from Oracle's swagger, the doc wins because it was verified against live infrastructure.

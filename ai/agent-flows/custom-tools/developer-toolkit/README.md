@@ -2,6 +2,10 @@
 
 Three tools in a single package that together give an agent the building blocks of a developer assistant: run shell commands, read/write/list files in a workspace directory, and execute arbitrary Python in an isolated subprocess.
 
+> **Warning.** `BashTool` and `PythonTool` execute whatever the agent sends them. Ship them disabled
+> (`allow_unrestricted_exec: false`, the default in `tool_config.json`), run the flow with a
+> human-in-the-loop guardrail, and enable them only in a sandboxed environment with no credentials.
+
 ## Tools
 
 | Class | Purpose |

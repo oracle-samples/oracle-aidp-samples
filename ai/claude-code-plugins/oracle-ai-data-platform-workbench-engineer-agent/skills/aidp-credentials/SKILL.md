@@ -50,7 +50,7 @@ envelope (SDK `create_data_lake_credential_details.py:51-63`):
 | `VAULT_REFERENCE` | `secretId` (OCID of an external Vault secret) | `vault_reference_credential_details.py:38-41` |
 | `SERVICE_ACCOUNT` | `userId`, `fingerprint`, `tenancy`, `region`, `isReadOnly`, `privateKey` | `service_account_credential_details.py:63-71` |
 
-Example (`SECRET_TOKEN`) — **persist to `.aidp/payloads/create-<name>-credential.json` and confirm first;
+Example (`SECRET_TOKEN`) — **persist a REDACTED copy (`"secretValue": "<redacted>"`) to `.aidp/payloads/create-<name>-credential.json` and confirm first; inject the real value at call time from an environment variable, never from the persisted file;
 the `secretValue` is the only secret material — pass it in the body, never echo it back:**
 ```json
 {

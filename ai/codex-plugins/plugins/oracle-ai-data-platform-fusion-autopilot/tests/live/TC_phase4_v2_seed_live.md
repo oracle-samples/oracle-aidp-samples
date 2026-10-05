@@ -17,7 +17,7 @@
 | Field | Value |
 |---|---|
 | Region | `us-ashburn-1` |
-| AIDP id | `<REDACTED-AIDP-OCID>` (display name: amitV2) |
+| AIDP id | `<REDACTED-AIDP-OCID>` (display name: <aidp-instance>) |
 | Workspace | `<REDACTED-WORKSPACE-UUID>` (display name: playground) |
 | Cluster name | `fusion_autopilot_dev` |
 | Fusion pod | `<REDACTED-POD-URL>` |

@@ -75,10 +75,12 @@ If the user wants either of those, point them at API Key + inline OCI config (`o
 ## Cross-cutting AIDP gotchas (every connector inherits these)
 1. **Credentials live under `/tmp/`** — never `/Workspace/`. The latter is FUSE-mounted; intermittent disconnects + `os.chmod` no-op.
 2. **Files written for the JDBC driver process** must be world-readable up-front via `os.open(..., O_WRONLY|O_CREAT, 0o666)`.
+   Treat that as a last resort: the files hold a private key or wallet, so prefer the built-in
+   `aidataplatform` connector or the AIDP credential store, and set `AIDP_CRED_FILE_MODE=600`
+   wherever the driver runs as the notebook's own user.
 3. **Spark streaming checkpoints** must live under `/Volumes/<catalog>/<schema>/<volume>/...`, never `/Workspace/`, never `oci://`.
 4. **Refresh the AIDP session token** before live testing: `oci session authenticate --profile AIDP_SESSION --region us-ashburn-1`.
 
 ## References
 - Plugin README: [../../README.md](../../README.md)
 - Live-test matrix + results: [../../tests/live-results/RESULTS.md](../../tests/live-results/RESULTS.md)
-- AIDP notebook auth investigation: `Claude context/AIDP/AIDP Context/AIDP/aidp-notebook-authentication.md`

@@ -1,6 +1,6 @@
 # Example: Prophet forecast validation
 # Dynamic thresholds that adapt to trends and seasonality
-# Requires: pip install 'qualifire[forecast]'
+# Requires: pip install -e '.[forecast]'
 
 owner: "data-engineering"
 bu: "ecommerce"
