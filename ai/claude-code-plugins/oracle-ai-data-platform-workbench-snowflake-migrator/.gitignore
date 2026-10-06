@@ -1,0 +1,79 @@
+# Secrets & live credentials — NEVER commit
+.env
+.env.*
+*.pem
+*.key
+# The key-pair recipe in snowmig-config.example.yaml and the bootstrap skill
+# writes an UNENCRYPTED PKCS#8 key into the working directory, which is often
+# this checkout. Every spelling those recipes produce, by extension and by name.
+*.p8
+*.pk8
+rsa_key*
+*_rsa_key*
+sf_key*
+oci_api_key*.pem
+**/.oci/
+
+# THE migration config: ONE file, both ends, live credentials inline.
+# Never committed -- see snowmig-config.example.yaml. The live tests read
+# this same file; there is no second config.
+snowmig-config.yaml
+snowmig-config.yml
+snowmig-config.json
+
+# Dead names from the old multi-file design, kept ONLY so an old copy left on
+# someone's disk cannot be committed by accident. Nothing reads them.
+local-test-account.yaml
+snowflake-catalog-connection.yaml
+snowflake-catalog-connection.json
+
+# ---------------------------------------------------------------------------
+# GENERATED MIGRATOR OUTPUT — NEVER COMMIT. Do not remove these rules.
+# ---------------------------------------------------------------------------
+# `migration-artifacts/` is where every stage writes, in the working
+# directory the commands run from. It holds a real Snowflake estate's
+# database, schema, table and column names, which is customer data and must
+# never reach a public samples repository. It carries its own README and its
+# own `.gitignore`, so it stays ignored wherever it lives; these rules cover a
+# run started from inside this folder. `bin/snowmig clean` removes it.
+migration-artifacts/
+snowmig_demo/
+snowmig_demo_enterprise/
+
+# Former name of the artifact directory. Kept so an older working tree, or a
+# branch predating the rename, cannot commit one by accident.
+snowmig_out/
+reports/
+**/JOB_REPORT.md.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Python (if any local tooling under tests)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+.pytest_cache/
+
+# The repo-root .gitignore has a `target/` rule for Rust/Maven build artifacts.
+# engine/target/ is SOURCE (the AIDP-target side of the pipeline), so re-include it.
+# The directory itself must be un-excluded before its contents can be.
+!engine/target/
+!engine/target/**
+
+# ...but not its bytecode: the `!engine/target/**` re-include above would
+# otherwise override the __pycache__/*.pyc rules for this one subtree, which
+# is how ten .pyc files ended up tracked and shipped inside the plugin.
+engine/target/__pycache__/
+engine/target/**/*.pyc
+
+# Notes scoped to a particular deployment never belong in a public sample.
+# Keep anything of that kind in a private directory outside this repo.
+*-CONTEXT.md
+*-TIMETABLE.md

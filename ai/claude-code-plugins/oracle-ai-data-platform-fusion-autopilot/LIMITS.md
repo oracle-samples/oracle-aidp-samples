@@ -144,7 +144,7 @@ between Fusion releases proactively.
 **Severity**: medium (caps how proactive we can be on L1 patches)
 **Affects**: maintenance discipline for L1.
 
-**Why we can't fix this in the bundle**: the demo pod (`saasfademo1`) is shared,
+**Why we can't fix this in the bundle**: the demo pod (`demo-pod`) is shared,
 rate-limited, and unreliable for scheduled CI (the TC34 attempt hit a transient
 `CONNECTOR_0255` outage — exactly the flakiness that disqualifies it); customer
 pods must never be used from CI. The real fix is AIDP-side infrastructure.
@@ -227,7 +227,7 @@ done for `gl_coa`).
 attribute (`approval_status`), and a partial-MERGE would leave both old
 (`PENDING`) and new (`APPROVED`) rows on a status flip. So it `CREATE OR REPLACE`s
 every cycle regardless of `--mode`. Cost ≈ seed-mode cost each run (~13s on
-saasfademo1 — trivial in absolute terms).
+demo-pod — trivial in absolute terms).
 
 **Severity**: low (cost, not correctness)
 **Affects**: incremental-mode operators expecting per-cycle cost savings on this
@@ -380,7 +380,7 @@ downstream silver/gold), so the live finance medallion is not blocked.
 
 **Status (partially fixed + live-verified 2026-06-11)**: 5 of 7 had names/types
 corrected to the live PVO; 4 of those are live-verified materialized on
-saasfademo1 (`ap_payments` 3.48M rows, `ar_invoices` 187,970, `ar_receipts`
+demo-pod (`ap_payments` 3.48M rows, `ar_invoices` 187,970, `ar_receipts`
 64,007, `po_orders` 16,769). Residual:
 - `scm_items` — name fix is correct (passes AIDPF-4071) but the node **fails to
   materialize**; this is the **L2** BICC encoder bug, not a name issue.

@@ -1,0 +1,12 @@
+{
+  "export": "m_account_segments.xml",
+  "notes": [
+    "A Router tests EVERY user group for every row and passes the row to each group whose condition is TRUE; groups are not exclusive (unlike a DECODE/CASE). The DEFAULT group gets a row only when no user group took it.",
+    "Account 1 satisfies all three user groups and appears in TGT_HIGH_BAL, TGT_HIGH_RISK and TGT_EMEA; account 8 appears in TGT_HIGH_BAL and TGT_EMEA.",
+    "A group condition that evaluates to NULL is FALSE for routing: account 6 (NULL BALANCE) is not HIGH_BAL; account 9 (NULL RISK_SCORE) is not HIGH_RISK.",
+    "Three-valued OR: RISK_SCORE > 70 OR REGION = 'SANCTIONED' is TRUE for account 11 (NULL OR TRUE = TRUE) and NULL -> FALSE for account 7 (NULL OR NULL).",
+    "Account 7 has every condition column NULL: no group is TRUE, so it goes to DEFAULT (TGT_OTHER) -- it is not dropped.",
+    "Boundaries: account 10 BALANCE = 10000.00 satisfies >= 10000; RISK_SCORE = 70 does not satisfy > 70; REGION 'emea' is not 'EMEA' (Informatica string comparison is case-sensitive).",
+    "Each group's output ports carry the suffix of the group's position (ACCT_ID1..ACCT_ID4) with REF_FIELD back to the input port, as the Designer writes them."
+  ]
+}

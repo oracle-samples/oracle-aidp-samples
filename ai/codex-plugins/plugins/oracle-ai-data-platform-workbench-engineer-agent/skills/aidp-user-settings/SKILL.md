@@ -36,7 +36,7 @@ Envelope (SDK `create_user_setting_details.py:34-44`):
 | `GIT_ACCOUNT` | `entityType` (`PERSONAL_ACCESS_TOKEN`), `providerName` (`GITHUB`\|`BITBUCKET`\|`GITLAB`\|`OCI_DEVOPS`), `username`, `personalAccessToken` | `git_account_user_setting.py:77-83`, enums `…:18-34` |
 | `IAM_USER_CREDENTIAL` | `userId`, `tenancy`, `region`, `fingerprint`, `privateApiKey` | `iam_user_credential_user_setting.py:57-64` |
 
-Example (`GIT_ACCOUNT`) — **persist to `.aidp/payloads/create-<name>-user-setting.json` and confirm first;
+Example (`GIT_ACCOUNT`) — **persist a REDACTED copy (token fields as `<redacted>`) to `.aidp/payloads/create-<name>-user-setting.json` and confirm first; supply the real token at call time from an environment variable;
 `personalAccessToken`/`privateApiKey` are secret material — pass in the body, never echo back:**
 ```json
 {

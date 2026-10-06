@@ -1,7 +1,7 @@
 ---
 name: ask-aidp
 description: Use when the user asks Claude Code to connect to Oracle AI Data Platform Workbench, run aidp-cli commands, manage AIDP agents/notebooks/workflows/clusters/catalogs/schemas/volumes/MLOps/bundles/audit/roles/credentials, execute notebook workflows, export task outputs, collect AIDP logs, call documented AIDP REST operations, or operate workspace repositories through AIDP SDK tools.
-version: 0.9.1
+version: 0.10.0
 ---
 
 # Ask AIDP
@@ -68,6 +68,7 @@ Documented command groups covered by the plugin:
 - `catalog`
 - `cluster`
 - `credentials`
+- `data-lineage`
 - `delta-share`
 - `mlops`
 - `notebook`
@@ -125,10 +126,19 @@ Use Spark reads such as `spark.read.csv(path, header=True, inferSchema=True, sep
 
 For medallion architecture, use `aidp_create_medallion_architecture` to create bronze, silver, and gold schemas, then use `aidp_create_delta_table` to add empty Delta tables or `aidp_create_table_with_data` to seed managed tables with initial data in each layer.
 
-For bundle workflows, use `aidp_create_bundle`, `aidp_deploy_bundle`, and `aidp_cli` or `aidp_command_help` for advanced bundle sync/purge operations.
+For new bundle publishing workflows, look up `bundle publish-bundle-action` and `bundle fetch-publish-status-action` with `aidp_cli_reference`, then invoke them through `aidp_cli`. Both REST equivalents use POST under the workspace path: `actions/publishBundle` and `actions/getBundlePublishStatus`. Prefer the operation reference over the inconsistent GET entry in the What's New page. The legacy `aidp_deploy_bundle` helper retains deprecated deployment commands for compatibility; use it only when that older flow is requested. Use `aidp_create_bundle` to create bundles and inspect the current CLI reference for sync/purge operations.
 
-The plugin supports every documented `aidp-cli` command through `aidp_cli` and every documented REST endpoint through `aidp_rest`. For a REST operation, first call `aidp_rest_api_reference` to find the canonical method/path, then run `aidp_rest` with `dryRun: true`. The tool expands configured AIDP/workspace/cluster identifiers, signs live calls with the configured OCI identity, and rejects endpoint/method pairs not present in its generated catalog. The current REST API version is `/20260430`; the catalog contains 18 categories and 257 operations. Report the endpoint, method, request body path, response status, and evidence.
+The September 21, 2026 reference snapshot covers 256 CLI commands in 18 groups and 271 REST operations in 19 categories. The REST API version is `/20260430`. Use `aidp_cli_reference` for CLI discovery and `aidp_rest_api_reference` for the canonical REST method/path, then run `aidp_rest` with `dryRun: true`. The tool expands configured AIDP/workspace/cluster identifiers, signs live calls with the configured OCI identity, and rejects endpoint/method pairs absent from its catalog. Report the endpoint, method, request body path, response status, and evidence.
+
+New reference coverage includes Data Lineage, bundle publishing, Compute cloning/configuration import/export, Maven search, volume/workspace ZIP operations, and task-run retry inspection. These are accessed through the generic CLI and REST tools. A catalog refresh does not upgrade the external CLI runtime: check `aidp_command_help` before using a newly added command, and update the CLI or use its documented REST equivalent if the installed version does not support it. Read each operation's request schema and preview restrictions before execution; a successful dry run validates routing, not the request payload or service behavior.
 
 ## Safety
+
+For Compute configuration export, use the `ExportComputeConfigurationDetails`
+root payload, not the nested `ComputeConfigurationLibraryEntry` model.
+`aidp_rest` defaults this POST to `Accept: application/x-yaml`; preview effective
+headers with `dryRun: true`. On an enabled instance, verify export success and
+read back the created YAML. Report feature-disabled 403 responses as blocked
+validation, not a passed export or evidence that the payload is valid.
 
 `aidp_cli` accepts an argument array, not a shell string. Do not embed shell operators. Use the `body` argument for JSON request bodies instead of writing one-off shell heredocs.

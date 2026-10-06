@@ -1,0 +1,10 @@
+{
+  "PRODUCT_SALES": {
+    "schema": "PRODUCT_ID decimal(10,0), PRODUCT_NAME string, SALES_Q1 decimal(12,2), SALES_Q2 decimal(12,2), SALES_Q3 decimal(12,2), SALES_Q4 decimal(12,2)",
+    "rows": [
+      [1, "Widget", 100.00, 200.00, 300.00, 400.00],
+      [2, "Gadget",  50.00, null,     0.00,  75.50],
+      [3, "Gizmo",   null,  null,     null,  null]
+    ]
+  }
+}

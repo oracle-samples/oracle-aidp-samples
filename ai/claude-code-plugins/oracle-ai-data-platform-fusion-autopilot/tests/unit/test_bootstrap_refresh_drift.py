@@ -43,7 +43,7 @@ PACK_ROOT = (
 )
 
 
-SAASFADEMO_BRONZE_BASELINE: dict[str, list[str]] = {
+DEMO_POD_BRONZE_BASELINE: dict[str, list[str]] = {
     "erp_suppliers": ["VENDORID", "SEGMENT1"],
     "ap_invoices": ["ApInvoicesInvoiceCurrencyCode", "ApInvoicesCancelledDate"],
     "gl_coa": [
@@ -143,14 +143,14 @@ def _do_initial_bootstrap(bundle_dir: Path, bronze: dict[str, list[str]]) -> dic
 
 class TestNoDriftNoOp:
     def test_identical_fingerprint_no_op(self, bundle_dir: Path) -> None:
-        _do_initial_bootstrap(bundle_dir, SAASFADEMO_BRONZE_BASELINE)
+        _do_initial_bootstrap(bundle_dir, DEMO_POD_BRONZE_BASELINE)
         bundle = _load_bundle(bundle_dir / "bundle.yaml")
         # Run --refresh with the same bronze.
         outcome = run_variation_phase(
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE_BASELINE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE_BASELINE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -171,11 +171,11 @@ class TestCosmeticDriftReWritesEvidence:
     def test_added_unrelated_column_writes_new_evidence(
         self, bundle_dir: Path
     ) -> None:
-        _do_initial_bootstrap(bundle_dir, SAASFADEMO_BRONZE_BASELINE)
+        _do_initial_bootstrap(bundle_dir, DEMO_POD_BRONZE_BASELINE)
         # Drifted: add a cosmetic column nobody references.
         drifted = {
-            **SAASFADEMO_BRONZE_BASELINE,
-            "erp_suppliers": [*SAASFADEMO_BRONZE_BASELINE["erp_suppliers"], "NewCosmeticCol"],
+            **DEMO_POD_BRONZE_BASELINE,
+            "erp_suppliers": [*DEMO_POD_BRONZE_BASELINE["erp_suppliers"], "NewCosmeticCol"],
         }
         bundle = _load_bundle(bundle_dir / "bundle.yaml")
         outcome = run_variation_phase(
@@ -204,10 +204,10 @@ class TestPinnedRemovedNoFallback:
     def test_drops_to_aidpf_2010_when_required_vp_missing(
         self, bundle_dir: Path
     ) -> None:
-        _do_initial_bootstrap(bundle_dir, SAASFADEMO_BRONZE_BASELINE)
+        _do_initial_bootstrap(bundle_dir, DEMO_POD_BRONZE_BASELINE)
         # Drifted: drop VENDORID. Single-candidate columnAlias → NoMatch.
         drifted = {
-            **SAASFADEMO_BRONZE_BASELINE,
+            **DEMO_POD_BRONZE_BASELINE,
             "erp_suppliers": ["SEGMENT1"],
         }
         bundle = _load_bundle(bundle_dir / "bundle.yaml")
@@ -239,7 +239,7 @@ class TestRefreshChangePinnedValueRefusedInNonInteractive:
         # Initial bootstrap on a bronze that pins ApInvoicesCurrencyCode
         # (only the second-priority candidate exists).
         initial = {
-            **SAASFADEMO_BRONZE_BASELINE,
+            **DEMO_POD_BRONZE_BASELINE,
             "ap_invoices": ["ApInvoicesCurrencyCode", "ApInvoicesCancelledDate"],
         }
         _do_initial_bootstrap(bundle_dir, initial)
@@ -254,7 +254,7 @@ class TestRefreshChangePinnedValueRefusedInNonInteractive:
 
         # Now refresh with the higher-priority candidate present.
         drifted = {
-            **SAASFADEMO_BRONZE_BASELINE,
+            **DEMO_POD_BRONZE_BASELINE,
             "ap_invoices": [
                 "ApInvoicesInvoiceCurrencyCode",
                 "ApInvoicesCurrencyCode",
@@ -283,14 +283,14 @@ class TestRefreshWithScriptedResolution:
     def test_scripted_resolution_resolves_promotion(self, bundle_dir: Path) -> None:
         # Initial: only ApInvoicesCurrencyCode present.
         initial = {
-            **SAASFADEMO_BRONZE_BASELINE,
+            **DEMO_POD_BRONZE_BASELINE,
             "ap_invoices": ["ApInvoicesCurrencyCode", "ApInvoicesCancelledDate"],
         }
         _do_initial_bootstrap(bundle_dir, initial)
 
         # Refresh: both candidates present + scripted resolution picks the promotion.
         drifted = {
-            **SAASFADEMO_BRONZE_BASELINE,
+            **DEMO_POD_BRONZE_BASELINE,
             "ap_invoices": [
                 "ApInvoicesInvoiceCurrencyCode",
                 "ApInvoicesCurrencyCode",
@@ -341,10 +341,10 @@ class TestBootstrapNeverEmits2012:
     artifact. Runtime preflight (feature #4) owns 2012."""
 
     def test_refresh_against_drifted_bronze_no_2012(self, bundle_dir: Path) -> None:
-        _do_initial_bootstrap(bundle_dir, SAASFADEMO_BRONZE_BASELINE)
+        _do_initial_bootstrap(bundle_dir, DEMO_POD_BRONZE_BASELINE)
         drifted = {
-            **SAASFADEMO_BRONZE_BASELINE,
-            "erp_suppliers": [*SAASFADEMO_BRONZE_BASELINE["erp_suppliers"], "X"],
+            **DEMO_POD_BRONZE_BASELINE,
+            "erp_suppliers": [*DEMO_POD_BRONZE_BASELINE["erp_suppliers"], "X"],
         }
         bundle = _load_bundle(bundle_dir / "bundle.yaml")
         outcome = run_variation_phase(
@@ -364,9 +364,9 @@ class TestBootstrapNeverEmits2012:
     def test_refresh_with_nomatch_emits_2010_not_2012(
         self, bundle_dir: Path
     ) -> None:
-        _do_initial_bootstrap(bundle_dir, SAASFADEMO_BRONZE_BASELINE)
+        _do_initial_bootstrap(bundle_dir, DEMO_POD_BRONZE_BASELINE)
         drifted = {
-            **SAASFADEMO_BRONZE_BASELINE,
+            **DEMO_POD_BRONZE_BASELINE,
             "erp_suppliers": ["SEGMENT1"],  # drop VENDORID
         }
         bundle = _load_bundle(bundle_dir / "bundle.yaml")

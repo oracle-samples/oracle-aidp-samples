@@ -1,0 +1,49 @@
+# What the *source* distribution carries. The wheel is decided by
+# [tool.setuptools.package-data] in pyproject.toml; this file decides the
+# sdist, and the two were not the same thing.
+#
+# Measured before this file existed: the sdist carried README.md, LICENSE,
+# pyproject.toml, the package, and every tests/test_*.py -- and none of
+# tests/fixtures/. So it shipped a test suite that cannot run, and dropped
+# NOTICE, the file recording that the third-party corpora are redistributed
+# under their own licences. An sdist is what a distro packager and
+# `pip install --no-binary` get; it has to stand on its own.
+
+include NOTICE
+include CHANGELOG.md
+include PRIVACY.md
+include Makefile
+include demo.sh
+include MANIFEST.in
+
+recursive-include docs *.md
+# The agent implementation plans and specs under docs/superpowers are working
+# notes for whoever builds this tool, not documentation for whoever runs it:
+# 12 files, ~18k lines, with agent process text ("REQUIRED SUB-SKILL: ...")
+# and Co-Authored-By trailers. They stay in the repository -- naming.py and
+# catalog.py cite the table-naming spec -- and stay out of what is published.
+prune docs/superpowers
+recursive-include scripts *.py
+recursive-include commands *.md
+recursive-include skills *.md
+include .mcp.json
+include .claude-plugin/*.json
+include .codex-plugin/*.json
+
+# The fixtures the shipped tests need. Without these, `python -m unittest` in
+# an unpacked sdist fails at import time on half the suite. They are third
+# party and permissively licensed; NOTICE and THIRD_PARTY_LICENSES.md above
+# and inside the tree record which licence covers which file.
+recursive-include tests *.py
+recursive-include tests/fixtures *
+include tests/fixtures/real/NOTICE
+include tests/fixtures/real/corpora/NOTICE
+
+# Derived, not source.
+prune demo-input
+prune demo-output
+prune build
+prune dist
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store

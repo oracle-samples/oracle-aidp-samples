@@ -1,0 +1,247 @@
+{
+ "description": "Real Fabric pipelines exports collected from public GitHub repositories. Only files whose source repository carries a permissive licence are vendored here; see licence per file.",
+ "count": 30,
+ "files": [
+  {
+   "file": "000.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/Load FCA E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/Load FCA E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "001.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/Load Reservations.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/Load Reservations.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "002.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-spark-monitoring/src/SparkLensPipeline.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-spark-monitoring/src/SparkLensPipeline.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "003.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Maintenance_for_FUAM.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Maintenance_for_FUAM.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "004.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/Run Hello World.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/Run Hello World.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "005.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Capacity_Metrics_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Capacity_Metrics_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "006.json",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/PL_FMD_TOOLING_LOAD_TO_PURVIEW.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/PL_FMD_TOOLING_LOAD_TO_PURVIEW.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "007.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Capacity/Capacity Events Update Eventstream.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Capacity/Capacity Events Update Eventstream.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "008.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Inventory/Refresh Inventory.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Inventory/Refresh Inventory.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "009.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Inventory_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Inventory_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "010.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Domains_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Domains_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "011.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Inventory/Refresh Scanner API.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Inventory/Refresh Scanner API.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "012.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Inventory/Refresh Refreshables.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Inventory/Refresh Refreshables.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "013.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Capacities_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Capacities_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "014.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/Load Quota.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/Load Quota.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "015.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Tags_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Tags_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "016.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Items_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Items_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "017.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Tenant_Settings_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Tenant_Settings_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "018.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Optimization_Module_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Optimization_Module_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "019.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/ActivityEvents/Refresh Activity Events.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/ActivityEvents/Refresh Activity Events.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "020.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Activities_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Activities_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "021.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_Git_Connections_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_Git_Connections_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "022.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_FUAM_Data_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_FUAM_Data_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "023.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_WidelyShared_PublishedToWeb_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_WidelyShared_PublishedToWeb_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "024.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_WidelyShared_OrganizationLinks_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_WidelyShared_OrganizationLinks_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "025.json",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/PL_FMD_LOAD_BRONZE.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/PL_FMD_LOAD_BRONZE.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "026.json",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/PL_FMD_LOAD_SILVER.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/PL_FMD_LOAD_SILVER.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "027.json",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Load_PBI_Workspaces_E2E.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Load_PBI_Workspaces_E2E.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "028.json",
+   "repo": "djouallah/aemo_fabric",
+   "path": "scheduler.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/djouallah/aemo_fabric/blob/1c712bdf10233442a128afbaea70efeafc7395b8/scheduler.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "1c712bdf10233442a128afbaea70efeafc7395b8"
+  },
+  {
+   "file": "029.json",
+   "repo": "ecotte/Fabric-Monitoring-RTI",
+   "path": "src/Inventory/Refresh Inventory.DataPipeline/pipeline-content.json",
+   "url": "https://github.com/ecotte/Fabric-Monitoring-RTI/blob/2cd63743c45b11b15ef697f29ad5034cfcb1d18a/src/Inventory/Refresh Inventory.DataPipeline/pipeline-content.json",
+   "licence": "MIT",
+   "sha": "2cd63743c45b11b15ef697f29ad5034cfcb1d18a"
+  }
+ ],
+ "verified_against": "each repository's HEAD at the time of the run"
+}

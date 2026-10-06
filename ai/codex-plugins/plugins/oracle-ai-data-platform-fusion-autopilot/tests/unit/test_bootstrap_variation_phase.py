@@ -44,7 +44,7 @@ PACK_ROOT = (
 )
 
 
-SAASFADEMO_BRONZE: dict[str, list[str]] = {
+DEMO_POD_BRONZE: dict[str, list[str]] = {
     "erp_suppliers": ["VENDORID", "SEGMENT1"],
     "ap_invoices": [
         "ApInvoicesInvoiceCurrencyCode",
@@ -163,7 +163,7 @@ class TestHappyPathWithScriptedResolutions:
             bundle,
             bundle_path,
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 resolutions_path=resolutions_file,
             ),
         )
@@ -174,7 +174,7 @@ class TestHappyPathWithScriptedResolutions:
         assert outcome.evidence_path.parent == bundle_dir / "evidence" / "finance-default"
 
         profile = yaml.safe_load(outcome.profile_path.read_text(encoding="utf-8"))
-        # Every variation point resolved to the saasfademo1 conventional value.
+        # Every variation point resolved to the demo-pod conventional value.
         assert profile["resolved"]["column"] == {
             "supplier_natural_key": "SEGMENT1",
             "vendor_id": "VENDORID",
@@ -210,7 +210,7 @@ class TestAidpf1020IdentityGate:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -283,7 +283,7 @@ class TestNonInteractiveMultiMatch:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -319,7 +319,7 @@ class TestWorkdirAnchor:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -353,12 +353,12 @@ from oracle_ai_data_platform_fusion_autopilot.schema.bronze_schema_snapshot impo
 
 
 def _bronze_observed_for_starter() -> dict[str, list[ColumnInfo]]:
-    """Reproduce the saasfademo1 bronze observation the variation phase
+    """Reproduce the demo-pod bronze observation the variation phase
     would see for the starter pack — used to compute the fingerprint
     that the simulated prior profile pinned."""
     return {
         dataset: [ColumnInfo(name=c, type="string") for c in cols]
-        for dataset, cols in SAASFADEMO_BRONZE.items()
+        for dataset, cols in DEMO_POD_BRONZE.items()
     }
 
 
@@ -375,7 +375,7 @@ class TestPhase3dInitialPinWritesSnapshot:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -410,13 +410,13 @@ class TestPhase3dInitialPinWritesSnapshot:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
         # Refresh against a DIFFERENT bronze shape → full re-pin path.
         drifted_bronze: dict[str, list[str]] = {
-            **SAASFADEMO_BRONZE,
+            **DEMO_POD_BRONZE,
             "ap_invoices": [
                 "ApInvoicesInvoiceCurrencyCode",
                 "ApInvoicesCurrencyCode",
@@ -461,7 +461,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -489,7 +489,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -521,7 +521,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -539,7 +539,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -573,7 +573,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -594,7 +594,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -621,7 +621,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -634,7 +634,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -671,7 +671,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -696,7 +696,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -725,12 +725,12 @@ class TestPhase3dRefreshBackfill:
 
         # Build a mock pack + spark with the same dataset shape as the
         # backfill, but drift one column to trigger the gate.
-        drifted = {**SAASFADEMO_BRONZE, "ap_invoices": ["RenamedCurrencyCol"]}
+        drifted = {**DEMO_POD_BRONZE, "ap_invoices": ["RenamedCurrencyCol"]}
         spark = _mock_spark(drifted)
 
         pack_mock = MagicMock(name="pack")
         pack_mock.bronze_yaml = {
-            "datasets": [{"id": k} for k in SAASFADEMO_BRONZE.keys()]
+            "datasets": [{"id": k} for k in DEMO_POD_BRONZE.keys()]
         }
         pack_mock.pack.semantic_variants = {}
 
@@ -769,7 +769,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -782,7 +782,7 @@ class TestPhase3dRefreshBackfill:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -833,9 +833,9 @@ class TestFreshTenantSourceProbe:
         # so the variation walkers resolve identically to the landed path.
         def _fake_source(spark, *, pack, bundle, resolved_password, dataset_ids=None):
             return {
-                ds: [ColumnInfo(name=c, type="string") for c in SAASFADEMO_BRONZE[ds]]
+                ds: [ColumnInfo(name=c, type="string") for c in DEMO_POD_BRONZE[ds]]
                 for ds in (dataset_ids or [])
-                if ds in SAASFADEMO_BRONZE
+                if ds in DEMO_POD_BRONZE
             }
 
         monkeypatch.setattr(bronze_probe, "describe_bronze_from_source", _fake_source)
@@ -964,7 +964,7 @@ class TestCoaAdvisoryWiring:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
         )
@@ -1012,7 +1012,7 @@ class TestCoaAdvisoryWiring:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -1064,7 +1064,7 @@ class TestCoaAdvisoryWiring:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
             console=console,
@@ -1102,7 +1102,7 @@ class TestCoaAdvisoryWiring:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
                 refresh=True,
             ),
@@ -1129,7 +1129,7 @@ class TestCoaAdvisoryWiring:
             bundle,
             bundle_dir / "bundle.yaml",
             options=VariationPhaseOptions(
-                spark_session=_mock_spark(SAASFADEMO_BRONZE),
+                spark_session=_mock_spark(DEMO_POD_BRONZE),
                 non_interactive=True, accept_coa_convention=True,
             ),
             console=console,

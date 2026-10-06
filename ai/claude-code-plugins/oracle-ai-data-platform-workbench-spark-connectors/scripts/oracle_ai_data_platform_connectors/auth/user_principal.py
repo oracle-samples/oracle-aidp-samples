@@ -19,15 +19,15 @@ def http_basic_session(
     timeout: int = 60,
     retries: int = 3,
     backoff_factor: float = 1.5,
-    verify_tls: bool = True,
+    verify_tls: "bool | str" = True,
 ):
     """Return a ``requests.Session`` with HTTP Basic auth + retry/backoff.
 
     Args:
         username: For EPM Cloud, this must include the identity-domain prefix:
-            ``tenancy.user@domain`` (e.g. ``epmloaner622.first.last@oracle.com``).
+            ``tenancy.user@domain`` (e.g. ``mytenancy.first.last@example.com``).
             For Fusion REST, it's the standard Fusion user name. For Essbase 21c
-            on a customer-hosted realm (e.g. ``ess21c.cealinfra.com``), it's the
+            on a customer-hosted realm (e.g. ``essbase.example.com``), it's the
             Essbase service-admin username.
         password: Plain password.
         base_url: Optional base URL captured on the session for joining
@@ -36,12 +36,11 @@ def http_basic_session(
         retries: How many times to retry on transient errors (5xx, connection
             drops). 401/403/404 are NOT retried.
         backoff_factor: passed to urllib3 ``Retry`` (delay = backoff * 2^attempt).
-        verify_tls: Whether to verify the server's TLS cert. Default ``True``.
-            Set ``False`` for Essbase 21c hosts using internal CA chains the
-            AIDP cluster doesn't trust (e.g. ``cealinfra.com``). When you set
-            this to False, you may also want to call
-            ``urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)``
-            to silence the noisy warning.
+        verify_tls: TLS verification. Default ``True``. For a host behind a
+            corporate CA the cluster does not trust, pass the path of the CA
+            bundle (PEM) -- ``requests`` accepts a path here. ``False`` turns
+            verification off and exposes the Basic credentials to interception;
+            limit it to a self-signed lab host.
 
     Returns:
         A configured ``requests.Session``. ``auth`` and ``verify`` are

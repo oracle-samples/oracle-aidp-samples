@@ -1,0 +1,12 @@
+{
+  "export": "m_orders_route.xml",
+  "notes": [
+    "Source Filter is SQL: STATUS <> 'X' drops the 'X' row AND the NULL-status row (NULL <> 'X' is unknown).",
+    "NET_AMT = ROUND(QTY*PRICE*(1-IIF(ISNULL(DISC),0,DISC)),2); a NULL discount is zero.",
+    "DECODE(TRUE, c1, v1, c2, v2, default) returns the value of the first true condition.",
+    "Router: a row goes to EVERY group whose condition is true (order 4 goes to HIGH_VALUE and INTL); DEFAULT only when none is true.",
+    "COUNTRY <> 'US' is NULL for a NULL country, so that row is not INTL and falls to DEFAULT.",
+    "LPAD(TO_CHAR(CUST_ID),8,'0') is NULL when CUST_ID is NULL; TO_CHAR of NUMBER(10,0) 42 is '42'.",
+    "DATE_DIFF(SHIP_DT, ORDER_DT, 'DD') on midnight dates is a whole number of days."
+  ]
+}

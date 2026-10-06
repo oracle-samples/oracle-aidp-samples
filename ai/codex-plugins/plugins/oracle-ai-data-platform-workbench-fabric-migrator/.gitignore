@@ -1,0 +1,29 @@
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+# No trailing slash: `node_modules/` matches a directory only, and
+# `fabric_aidp/mparse/node_modules` is a symlink when two worktrees
+# share one install. It was therefore not ignored, and one
+# `git add fabric_aidp` committed a symlink to an absolute path on
+# one machine.
+node_modules
+*.egg-info/
+build/
+dist/
+demo-output/
+out/
+demo-input/
+
+# Every verb loads a .env from the working directory, and the runbook tells
+# you to put AIDP_WORKSPACE_KEY / AIDP_CLUSTER_KEY / AIDP_INSTANCE_ID in one.
+# It was not ignored, so the documented way to hold a credential was one
+# `git add -A` away from being committed.
+.env
+.env.*
+!.env.example
+
+# Subagent-driven-development scratch: ledgers, briefs, review packages.
+# Ignored only by an untracked local file until now, so a fresh clone could
+# commit a session's working notes by accident.
+.superpowers/

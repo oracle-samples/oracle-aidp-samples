@@ -268,8 +268,9 @@ def discover_config():
                 # tokens are full credentials.
                 token_path = Path.home() / f".oci-ocir-token-{int(time.time())}.txt"
                 try:
-                    token_path.write_text(auth_token + "\n")
-                    os.chmod(token_path, 0o600)
+                    fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                    with os.fdopen(fd, "w") as fh:
+                        fh.write(auth_token + "\n")
                     print(f"  Auth token created. Saved (mode 0600) to: {token_path}")
                     print(f"  This is the only time we can show it — back it up before deleting.")
                 except OSError as e:
@@ -580,20 +581,27 @@ def _docker_login_with_retry(cfg, max_wait_seconds: int = 90, interval: int = 5)
     because Rancher Desktop's credential cache can hold a stale entry that
     makes valid tokens appear unauthorized.
 
-    Login uses `-p` instead of `--password-stdin` because Rancher Desktop's
-    Docker CLI mishandles stdin from subprocess. The token never leaves the
-    process — the CLI warning about ps/history visibility is not a concern.
+    The token goes in on stdin (`--password-stdin`) so it never shows up in
+    the process list. Rancher Desktop's Docker CLI has been seen to mishandle
+    stdin from a subprocess; set AIDP_DOCKER_LOGIN_ARGV=1 to fall back to `-p`.
     """
     deadline = time.time() + max_wait_seconds
     attempt = 1
     while True:
         subprocess.run(["docker", "logout", cfg["registry"]],
                        capture_output=True, check=False)
-        result = subprocess.run(
-            ["docker", "login", cfg["registry"],
-             "--username", cfg["username"], "-p", cfg["auth_token"]],
-            capture_output=True, text=True,
-        )
+        if os.environ.get("AIDP_DOCKER_LOGIN_ARGV") == "1":
+            result = subprocess.run(
+                ["docker", "login", cfg["registry"],
+                 "--username", cfg["username"], "-p", cfg["auth_token"]],
+                capture_output=True, text=True,
+            )
+        else:
+            result = subprocess.run(
+                ["docker", "login", cfg["registry"],
+                 "--username", cfg["username"], "--password-stdin"],
+                input=cfg["auth_token"], capture_output=True, text=True,
+            )
         if result.returncode == 0:
             if attempt > 1:
                 print(f"  Login succeeded on attempt {attempt}.")
@@ -695,7 +703,7 @@ def setup_networking(cfg):
             compartment_id=cid, vcn_id=vcn.id, display_name=f"{name}-sl",
             ingress_security_rules=[
                 oci.core.models.IngressSecurityRule(
-                    source="0.0.0.0/0", source_type="CIDR_BLOCK", protocol="6",
+                    source=_ALLOW_CIDR, source_type="CIDR_BLOCK", protocol="6",
                     tcp_options=oci.core.models.TcpOptions(
                         destination_port_range=oci.core.models.PortRange(min=5001, max=5001)),
                 ),
@@ -803,6 +811,10 @@ def deploy_container(cfg, subnet_id):
 def main():
     print("=" * 60)
     print("  AIDP Agent Chat UI  |  Deploy to OCI Container Instances")
+    if _ALLOW_CIDR == "0.0.0.0/0":
+        print("  WARNING: AIDP_ALLOW_CIDR is 0.0.0.0/0 -- the unauthenticated chat proxy will be")
+        print("  reachable from the whole internet on port 5001. Set AIDP_ALLOW_CIDR to your /32")
+        print("  or front it with an OAuth2 proxy / API Gateway before sharing the URL.")
     print("=" * 60)
 
     cfg = discover_config()

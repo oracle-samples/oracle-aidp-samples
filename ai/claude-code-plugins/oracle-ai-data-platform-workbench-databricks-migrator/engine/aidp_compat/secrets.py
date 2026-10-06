@@ -37,7 +37,8 @@ class AIDPSecretsUtils:
         except Exception:
             pass
 
-        # Check for a secrets file
+        # Plaintext JSON file: a development fallback only. Prefer OCI Vault or the
+        # AIDP credential store, and keep the file mode 0600 if you must use it.
         secrets_file = os.environ.get("AIDP_SECRETS_FILE", "/opt/aidp/config/secrets.json")
         if os.path.exists(secrets_file):
             with open(secrets_file) as f:

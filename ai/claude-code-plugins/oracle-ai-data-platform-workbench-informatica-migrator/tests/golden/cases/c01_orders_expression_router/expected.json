@@ -1,0 +1,15 @@
+{
+  "TGT_HIGH_VALUE": {"rows": [
+    {"ORDER_ID": 1, "NET_AMT": 1350.00, "PRIORITY": "HIGH", "ORDER_MONTH": "2026-01"},
+    {"ORDER_ID": 4, "NET_AMT": 1132.50, "PRIORITY": "HIGH", "ORDER_MONTH": "2026-02"}
+  ]},
+  "TGT_INTL": {"rows": [
+    {"ORDER_ID": 3, "COUNTRY": "CA", "NET_AMT": 99.99},
+    {"ORDER_ID": 4, "COUNTRY": "GB", "NET_AMT": 1132.50}
+  ]},
+  "TGT_STANDARD": {"rows": [
+    {"ORDER_ID": 2, "CUST_KEY": "00000042", "CUST_NAME": "Bob Ray", "DAYS_TO_SHIP": 1, "REGION_CODE": "100"},
+    {"ORDER_ID": 5, "CUST_KEY": "00000012", "CUST_NAME": "Ed",      "DAYS_TO_SHIP": 4, "REGION_CODE": "021"},
+    {"ORDER_ID": 7, "CUST_KEY": null,       "CUST_NAME": "No Cust", "DAYS_TO_SHIP": 0, "REGION_CODE": "945"}
+  ]}
+}

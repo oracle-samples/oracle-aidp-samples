@@ -1,0 +1,65 @@
+{
+  "name": "oracle-ai-data-platform-workbench-informatica-migrator",
+  "version": "0.1.0",
+  "description": "Migrate Informatica ETL onto Oracle AI Data Platform from Codex: mappings become PySpark notebooks, workflows become AIDP jobs carrying the session dependency graph, Quartz schedules and a declarable timezone, with worklets expanded. Reads IDMC/IICS cloud mapping JSON and PowerCenter 10.x repository XML; 8.x and 9.x are refused by a version gate rather than mis-migrated. The transformation compiler is deterministic and needs no model -- an OpenAI key only widens what the rules cannot reach, behind a validator and a hallucination check. Reads and writes are catalog-addressed, so no JDBC URLs or credentials appear in a generated notebook. Anything that cannot be converted faithfully becomes an explicit review item with a named reason and a rebuild path, never a silent approximation.",
+  "author": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-informatica-migrator",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "adw",
+    "agentic",
+    "aidp",
+    "catalog",
+    "codex",
+    "dag",
+    "delta",
+    "deterministic-compiler",
+    "etl",
+    "idmc",
+    "iics",
+    "informatica",
+    "jobs",
+    "lakehouse",
+    "migration",
+    "notebooks",
+    "oci",
+    "openai",
+    "oracle",
+    "powercenter",
+    "pyspark",
+    "reconciliation",
+    "review-items",
+    "source-fidelity",
+    "spark",
+    "spark-sql",
+    "workflow",
+    "write-strategies"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Oracle AIDP Migrator for Informatica",
+    "shortDescription": "Self-contained Informatica to Oracle AIDP migrations from Codex.",
+    "longDescription": "Migrate Informatica ETL onto Oracle AI Data Platform from Codex: mappings become PySpark notebooks, workflows become AIDP job definitions. The plugin bundles its Python engine and stages it to ~/.aidp-infa-migrator/engine on SessionStart, so no separate clone is required. Reads IDMC/IICS cloud mapping JSON and PowerCenter 10.x repository XML; 8.x and 9.x are refused by a version gate rather than mis-migrated. The compiler is deterministic and needs no model: 36 transformation types convert, 14 more are reported with a named reason and a rebuild path, and 72 Informatica expression functions are supported. An OpenAI key only widens what the rules cannot reach. Workflows carry the session dependency graph, Quartz schedules and a declarable timezone, with worklets expanded; tasks that have no AIDP equivalent are reported with their configured values rather than dropped. Reads and writes are catalog-addressed, so no JDBC URLs or credentials appear in a generated notebook. A construct the tool cannot convert faithfully becomes an explicit review item, never a silent approximation.",
+    "developerName": "Oracle",
+    "category": "Engineering",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.oracle.com/data-platform/",
+    "privacyPolicyURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-informatica-migrator/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/LICENSE.txt",
+    "defaultPrompt": [
+      "Use infa-migrator-overview to pick the right skill for analyzing an Informatica export, migrating mappings to notebooks, reconciling a migrated target, or deploying to AIDP.",
+      "Use infa-migrator-bootstrap on first-time setup to confirm ~/.aidp-infa-migrator/engine, Python deps, and -- only if deploying -- ~/.oci/config and an ACTIVE AIDP cluster. No API key is needed for the migration itself.",
+      "Use infa-migrate-mapping for the main run: point it at an export directory and it writes notebooks, job definitions, target DDL and a review report."
+    ],
+    "brandColor": "#C74634",
+    "screenshots": []
+  }
+}

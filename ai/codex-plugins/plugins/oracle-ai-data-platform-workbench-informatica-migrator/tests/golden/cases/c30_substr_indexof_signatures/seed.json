@@ -1,0 +1,12 @@
+{
+  "contacts": {
+    "schema": "CONTACT_ID decimal(10,0), EMAIL string, COLOUR string, ZIP string",
+    "rows": [
+      [1, "ann@example.com",        "red",    "94105"],
+      [2, "bob.ray@sub.corp.co.uk", "blue",   "10001"],
+      [3, "no-at-sign",             "green",  "60601"],
+      [4, null,                     null,     "SW1A"],
+      [5, "x@y.z",                  "purple", "0213"]
+    ]
+  }
+}

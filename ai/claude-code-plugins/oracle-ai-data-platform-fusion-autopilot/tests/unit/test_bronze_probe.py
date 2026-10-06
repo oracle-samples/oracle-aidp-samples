@@ -3,7 +3,7 @@
 Tests use ``unittest.mock.MagicMock`` to simulate a Spark session whose
 ``sql("DESCRIBE TABLE ...")`` returns fixture rows. The integration
 piece — walking every starter-pack variation point against the
-saasfademo1 fixture — lives in ``test_variation_resolver_integration.py``.
+demo-pod fixture — lives in ``test_variation_resolver_integration.py``.
 """
 
 from __future__ import annotations

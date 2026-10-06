@@ -1,0 +1,227 @@
+# ============================================================================
+# THE MIGRATION CONFIG — one file, both ends. Copy it, fill it in, keep it out
+# of git. Everything the migrator needs lives here and nowhere else.
+# ============================================================================
+#
+#   cp snowmig-config.example.yaml ./snowmig-config.yaml
+#   $EDITOR ./snowmig-config.yaml
+#   python3 engine/snowmig.py preflight --out-dir ./snowmig_out \
+#       --config ./snowmig-config.yaml --test-source
+#
+# `preflight` reads every field back to you with the secrets masked, then
+# actually connects. Do that before anything else.
+#
+# ----------------------------------------------------------------------------
+# FOR THE AGENT DRIVING THIS PLUGIN
+# ----------------------------------------------------------------------------
+# This file contains live credentials in plain text.
+#
+#   * ASK THE USER before reading it, and say why you need it.
+#   * NEVER print, echo, quote or summarise a secret value from it — not in
+#     chat, not in a report, not in a commit message. Render it only through
+#     `migration_config.redact()`, which is what `preflight` uses.
+#   * NEVER ask the user to paste a password or a key into the conversation.
+#     They put it HERE, in this file, on their own machine.
+#   * If a secret does end up in the conversation or in a committed file, say
+#     so plainly and tell them to rotate it.
+#
+# ----------------------------------------------------------------------------
+# WHAT IS *NOT* HERE
+# ----------------------------------------------------------------------------
+# AIDP authentication. The plugin drives the `oci` and `aidp` CLIs, which use
+# your normal OCI setup (`~/.oci/config`, created by `oci setup config`). This
+# file only names WHICH AIDP resources to use, never how to authenticate.
+#
+# ----------------------------------------------------------------------------
+
+snowflake:
+  # --- who to connect to ---------------------------------------------------
+  account: MYORG-MYACCOUNT      # the account identifier
+  # The "Account/Server URL" from the Snowflake console. Omit it and it is
+  # derived as <account>.snowflakecomputing.com, which is right for an
+  # org-account identifier. Set it for the account-locator form
+  # (<locator>.<region>.<cloud>.snowflakecomputing.com) or PrivateLink.
+  # host: MYORG-MYACCOUNT.snowflakecomputing.com
+
+  user: MIGRATION_READER        # the user the migration reads as
+  warehouse: MIGRATE_WH         # must be resumable
+  database: SALES_DB            # the database being migrated
+
+  # The role whose GRANTS decide what the migration can see at all. Omitting
+  # it means the user's default role, which is rarely what anyone intended.
+  role: MIGRATION_READER_ROLE
+
+  # Any REAL, NON-EMPTY schema. It only scopes the connector's pushdown
+  # session inside AIDP — that option rejects INFORMATION_SCHEMA, and
+  # discovery reads INFORMATION_SCHEMA through a session scoped to a real
+  # schema instead.
+  #
+  # THIS IS NOT A FILTER. Discovery still reads every schema and every table
+  # in the database; INFORMATION_SCHEMA is database-scoped and the queries
+  # carry no schema predicate.
+  #
+  # It must HOLD TABLES. The connector resolves this option by fetching the
+  # schema's relations, so an empty schema comes back as
+  # `DATA_ACCESS_LAYER_0031 - Schema: <name> not found` — which reads as a
+  # missing schema rather than an empty one, minutes into a job run. PUBLIC
+  # is the usual default and the usual casualty, which is why it is not the
+  # value here. `snowmig preflight --test-source` checks this before
+  # anything runs.
+  schema: A_SCHEMA_THAT_HAS_TABLES
+
+  # --- how to authenticate: password OR key pair ---------------------------
+  # Everything goes IN THIS FILE. There is no second file to create.
+  # A read-only role is enough: the Snowflake transport refuses every
+  # non-read verb whatever the credential permits.
+
+  auth: password
+  password: PUT-THE-PASSWORD-HERE
+
+  # Key pair instead (what AIDP's own Snowflake connector uses) — paste the
+  # PEM inline, indented under `private_key: |`:
+  #
+  #   auth: keypair
+  #   private_key: |
+  #     -----BEGIN PRIVATE KEY-----
+  #     ...
+  #     -----END PRIVATE KEY-----
+  #   key_passphrase: only-if-the-key-is-encrypted
+  #
+  # To create one:
+  #   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -nocrypt \
+  #     -out ./migrator_rsa_key.p8
+  #   openssl rsa -in ./migrator_rsa_key.p8 -pubout \
+  #     | grep -v '^-----' | tr -d '\n'
+  #   # then in Snowsight:
+  #   #   ALTER USER MIGRATION_READER SET RSA_PUBLIC_KEY='<that string>';
+  #
+  # If you would rather keep the key OUT of this file, every secret also
+  # accepts a path instead — `key_path:`, `password_path:`. Set one or the
+  # other, never both.
+  #
+  # The EXTERNAL catalog registration takes password or keypair
+  # authentication; use one of those two for a migration.
+
+aidp:
+  # WHICH resources to use. Every one of these can also be passed as a flag,
+  # and a flag always wins. When a value comes from this file, the CLI prints
+  # it before acting, so the destination is never silently assumed — and
+  # writing still needs `--execute`.
+
+  datalake_ocid: ocid1.aidataplatform.oc1.<region>.<unique-id>
+
+  # The workspace and cluster the migration jobs run in. `provision` creates
+  # them if absent; leave them out until you know their keys.
+  # workspace: <workspace-key>
+  # cluster_id: <cluster-key>
+
+  # The INTERNAL catalog the migrated tables land in. `snowmig catalog
+  # --catalog <name> --catalog-type standard --execute` creates it as an empty
+  # CONTAINER (runbook S4); its schemas and tables are created later, on AIDP
+  # compute, by the structure workflow at S10.
+  # catalog: my_target_catalog
+
+  # The name to register the Snowflake source under, as an EXTERNAL catalog.
+  # external_catalog: my_snowflake_source
+
+  # Non-default OCI CLI profile, if you use one (passed as --profile to every
+  # oci and aidp call). Without it, OCI_CLI_PROFILE from the shell, else DEFAULT.
+  # oci_profile: DEFAULT
+
+  # The OCI auth mode, api_key or security_token. Without it, OCI_CLI_AUTH
+  # from the shell, else the mode the profile implies (security_token when it
+  # names a security_token_file).
+  # oci_auth: api_key
+
+mapping:
+  # How Snowflake types with no exact Delta twin are carried. These are the
+  # defaults; a flag on `assess` / `ingest` overrides either one.
+  #
+  # enabled: the master switch for this whole block. false restores the strict
+  #   modes (VARIANT blocks its table, TIMESTAMP_NTZ is preserved and `ddl`
+  #   halts on it) and ignores the two fields below. `--mapping-defaults
+  #   on|off` overrides it for one run; an explicit --semi-structured /
+  #   --timestamp-ntz flag always wins.
+  enabled: true
+  #
+  # semi_structured: VARIANT / OBJECT / ARRAY
+  #   string (default) -- carried as JSON text, with a warning on every column.
+  #                       Nothing is lost; querying it needs from_json /
+  #                       get_json_object.
+  #   block            -- the table is refused until a typed struct/map/array
+  #                       design exists.
+  semi_structured: string
+  #
+  # timestamp_ntz: Snowflake TIMESTAMP_NTZ (wall-clock, no zone)
+  #   timestamp (default) -- Spark TIMESTAMP. REQUIRED today: the AIDP
+  #                          metastore refuses timestamp_ntz at CREATE TABLE.
+  #                          A semantic downgrade: values are read through the
+  #                          session timezone, so keep sessions on UTC.
+  #   preserve            -- keep TIMESTAMP_NTZ; `ddl` halts on every table
+  #                          that has one until the metastore accepts it.
+  timestamp_ntz: timestamp
+  #
+  # geospatial: GEOGRAPHY / GEOMETRY
+  #   block (default) -- the table is refused until a spatial design exists.
+  #   string          -- carried as GeoJSON text, with a warning.
+  #   wkt             -- carried as WKT text (ST_ASWKT), with a warning; a
+  #                      GEOMETRY's SRID is not in WKT.
+  geospatial: block
+  #
+  # source_type_drift: a source column whose type changed after the plan was
+  #   approved. Recorded in ddl_plan.json by `ddl`; the copy job applies it.
+  #   refuse (default) -- the table is not copied and is recorded `type_drift`;
+  #                       re-run assess and plan to pick up the new type.
+  #   convert          -- the column is copied using the mapping rules for its
+  #                       NEW type, with a warning on the column. The table is
+  #                       recorded `verified_with_conversion`, never plain
+  #                       `verified`.
+  source_type_drift: refuse
+
+compute:
+  # Warehouse-equivalent compute (runbook S12; always proposed, created only
+  # on explicit confirmation with `provision --warehouse-clusters`).
+  #   new (default) -- one new cluster per Snowflake warehouse, named from the
+  #                    warehouse's base name (COMPUTE_WH -> compute).
+  #   existing      -- every warehouse maps to ONE cluster that already exists;
+  #                    nothing is created or resized. Needs cluster_id (or
+  #                    falls back to aidp.cluster_id).
+  warehouse_clusters: new
+  # cluster_id: <existing-cluster-key>
+
+decisions:
+  # Decisions the operator approved, recorded here so the engine holds them
+  # rather than a conversation. Dry runs are never refused.
+  #   allow_new_objects: false  -> provision / catalog refuse to create
+  allow_new_objects: true
+  #   warehouse_clusters: proposal_only -> S12 proposes, never creates
+  warehouse_clusters: create_on_confirmation
+
+retry:
+  # Backoff for every network call: the AIDP catalog/workspace/cluster/job
+  # transports, the SQL transport and the Snowflake connection. The wait
+  # before retry N is base_delay * multiplier ** (N - 1), capped at max_delay;
+  # max_attempts counts the first try. Reads retry on any transient failure;
+  # writes only on a response proving nothing was applied (429, 409 "not in
+  # an active state").
+  base_delay: 2
+  multiplier: 2
+  max_attempts: 4
+  max_delay: 60
+
+reporting:
+  # After EVERY stage, write the accumulated report (token usage per stage and
+  # phase, the phase report, the run log) plus one snapshot for the stage that
+  # just ended -- named by its runbook step, e.g. 016_S06_discover-workflow.json
+  # -- into this folder of the migration workspace `provision` created. Off by
+  # default because it writes to AIDP. An upload failure never fails a stage.
+  publish_each_stage: false
+  workspace_dir: report/output
+
+teardown:
+  # What `snowmig teardown --execute` does to the clusters THIS migration
+  # allocated (only those recorded by provision; never one found by name).
+  #   stop (default) -- reversible; costs nothing stopped; copy jobs still work
+  #   delete         -- final; the registered copy jobs must be re-bound
+  # The workspace, the catalogs and the jobs are always kept.
+  action: stop

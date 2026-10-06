@@ -1,7 +1,7 @@
 # TC24 — `gold.ap_aging` live verification on `fusion_autopilot_dev`
 
 > Date: 2026-05-10
-> Cluster: `fusion_autopilot_dev` (workspace `aidp` saasfademo1 demo pod)
+> Cluster: `fusion_autopilot_dev` (workspace `aidp` demo-pod demo pod)
 > Probe runner: `TC24_ap_aging_probe_runner.py` (local, gitignored)
 > Live runner: `TC24_ap_aging_live_runner.py` (local, gitignored)
 > Bronze source: `fusion_catalog.bronze.ap_invoices` (49,552 rows; BICC `InvoiceHeaderExtractPVO`)
@@ -41,7 +41,7 @@ Build is idempotent (`CREATE OR REPLACE`); reruns produce the same shape.
 
 ### Why no `current` bucket on this pod
 
-`bronze.ap_invoices` carries data from 2012 onward (oldest sample row: `2012-01-21`). With `as_of_date = CURRENT_DATE() = 2026-05-10`, even the most recent open invoice is comfortably >30 days past due, so every open row falls in `1-30` / `31-60` / `61-90` / `91+`. Only USD has rows in `1-30` (1 vendor, 2 invoices), `31-60` (1 vendor, 2 invoices), and `61-90` (1 vendor, 2 invoices). Everything else is `91+`. This is a saasfademo1 data-age artifact; production pods with current AP activity will populate `current` heavily.
+`bronze.ap_invoices` carries data from 2012 onward (oldest sample row: `2012-01-21`). With `as_of_date = CURRENT_DATE() = 2026-05-10`, even the most recent open invoice is comfortably >30 days past due, so every open row falls in `1-30` / `31-60` / `61-90` / `91+`. Only USD has rows in `1-30` (1 vendor, 2 invoices), `31-60` (1 vendor, 2 invoices), and `61-90` (1 vendor, 2 invoices). Everything else is `91+`. This is a demo-pod data-age artifact; production pods with current AP activity will populate `current` heavily.
 
 ## Per-currency × per-bucket totals (stage 3)
 
@@ -128,9 +128,9 @@ Matches the probe (`negative_open_count = 20`, `sum_credit_open = -126,269.47`) 
 | AED | 300,000,278,628,804 | 1 | 12,600.00 | 824 |
 | PLN | 300,000,047,414,503 | 2 | 996.00 | 2,781 |
 
-USD vendor `300,000,047,414,635` is the same vendor that dominated TC8 (`supplier_spend`) live — consistent across marts. Days-past-due in the thousands is expected on saasfademo1 because the bronze data is historical (oldest invoice 2012).
+USD vendor `300,000,047,414,635` is the same vendor that dominated TC8 (`supplier_spend`) live — consistent across marts. Days-past-due in the thousands is expected on demo-pod because the bronze data is historical (oldest invoice 2012).
 
-## `silver.dim_supplier` coverage (stage 8) — saasfademo1 finding, not a bug
+## `silver.dim_supplier` coverage (stage 8) — demo-pod finding, not a bug
 
 | metric | value |
 |---|---:|
@@ -138,7 +138,7 @@ USD vendor `300,000,047,414,635` is the same vendor that dominated TC8 (`supplie
 | rows with NULL supplier_number (LEFT-JOIN miss) | 132 |
 | missing-dim fraction | **100.00%** |
 
-Every AP invoice's `vendor_id` is missing from `silver.dim_supplier` on this pod. This is the same saasfademo1 quirk previously observed in TC8c (`supplier_spend`): the demo pod's `bronze.erp_suppliers` (SupplierExtractPVO, ~229 rows) carries supplier-master records whose IDs don't intersect with the `ApInvoicesVendorId` values used on AP invoices (different Fusion ID concepts on this pod's seed data — likely SUPPLIER_ID vs PARTY_ID/VENDOR_ID).
+Every AP invoice's `vendor_id` is missing from `silver.dim_supplier` on this pod. This is the same demo-pod quirk previously observed in TC8c (`supplier_spend`): the demo pod's `bronze.erp_suppliers` (SupplierExtractPVO, ~229 rows) carries supplier-master records whose IDs don't intersect with the `ApInvoicesVendorId` values used on AP invoices (different Fusion ID concepts on this pod's seed data — likely SUPPLIER_ID vs PARTY_ID/VENDOR_ID).
 
 **This is upstream data, not a mart-correctness issue.** The LEFT JOIN preserves all 132 fact rows with NULL supplier attributes, exactly as the financial-correctness invariant requires. Production pods with proper supplier-master linkage will see normal coverage. Consumers slicing by `supplier_name` will see "(NULL)" on this pod; slicing by `vendor_id` works.
 
@@ -218,6 +218,6 @@ semantic confusion the mart-name gate (PLAN §3.2) exists to prevent.
 
 ## Followups / non-blockers for v0.2.0
 
-1. **`dim_supplier` coverage on saasfademo1** — 0% match. Tracked separately; production pods will have higher coverage. Same finding as TC8c.
-2. **`current` bucket empty** — saasfademo1 data-age artifact; production pods with active AP will populate it.
+1. **`dim_supplier` coverage on demo-pod** — 0% match. Tracked separately; production pods will have higher coverage. Same finding as TC8c.
+2. **`current` bucket empty** — demo-pod data-age artifact; production pods with active AP will populate it.
 3. **AP installment schedule PVO** (`InvoiceInstallmentExtractPVO`) — out of scope for v0.2.0 per PLAN §7. Would be needed only if a tenant required per-installment aging and real header due-date coverage fell below 80% (which would otherwise route to proxy mode). Not needed here.

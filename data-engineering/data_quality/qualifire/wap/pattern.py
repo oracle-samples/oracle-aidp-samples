@@ -145,7 +145,7 @@ class WAPExecutor:
         except ImportError as e:
             raise RuntimeError(
                 "PySpark is required for cache=True on a Spark-capable "
-                "WAP path; install with: pip install 'qualifire[spark]'"
+                "WAP path; install with: pip install -e '.[spark]'"
             ) from e
 
         level = getattr(StorageLevel, self.cache_storage_level, StorageLevel.MEMORY_AND_DISK)

@@ -3,7 +3,8 @@
   "version": "0.7.0",
   "description": "Oracle AI Data Platform Workbench Spark connectors for Codex. Includes 26 connector skills for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including DB2 guidance.",
   "author": {
-    "name": "Ahmed Awan"
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
   },
   "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors",
   "repository": "https://github.com/oracle-samples/oracle-aidp-samples",

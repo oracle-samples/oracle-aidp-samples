@@ -39,6 +39,7 @@ class MyAgent:
             endpoint="https://inference.generativeai.us-ashburn-1.oci.oraclecloud.com",
             model_args=ModelArgs(temperature=0.7, max_tokens=4096),
             guardrails_config={"policies": []}, auth_type="SECURITY_TOKEN", auth_profile="DEFAULT"))
+        # an empty policy list means no guardrails; add policies before production use
         tool = create_langgraph_tool(AIDPToolConf(
             name="summarizer", description="Summarize text",
             tool_class="PromptTool",            # or "SQLTool" / "RAGTool"

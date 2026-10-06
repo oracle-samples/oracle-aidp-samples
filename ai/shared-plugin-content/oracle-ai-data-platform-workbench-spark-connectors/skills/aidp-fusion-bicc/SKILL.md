@@ -94,7 +94,7 @@ print("rows:", df.count())
 ```
 
 ## Gotchas
-- **BICC privileges** — Fusion user must hold a BICC-admin role. Without it, `/biacm/api/v[12]/*` endpoints 302-redirect to IDCS OAuth (HTTP Basic isn't honored). This is the #1 reason live tests fail. (Live-confirmed against the demo pod with `Casey.Brown` finance-mgr persona — every BICC endpoint redirected.)
+- **BICC privileges** — Fusion user must hold a BICC-admin role. Without it, `/biacm/api/v[12]/*` endpoints 302-redirect to IDCS OAuth (HTTP Basic isn't honored). This is the #1 reason live tests fail. (Live-confirmed against the demo pod with `<fusion-user>` finance-mgr persona — every BICC endpoint redirected.)
 - **`fusion.external.storage` is a catalog-managed name**, not a URL. Set it up once via AIDP Catalog UI (or `oci aidataplatform` CLI), then reference by name. The user never types OCI namespace/bucket in the notebook for Option A.
 - **`schema` and `datastore`** — these are BICC concepts: `schema` = offering schema (`ERP`, `HCM`, etc.); `datastore` = PVO name (e.g. `FscmTopModelAM.AnalyticsServiceAM`). Get them from the BICC console under "Configure Cloud Extract".
 - **First extract is slow** — BICC builds a full snapshot. Subsequent runs are incremental. Plan for >5 min on the first call.

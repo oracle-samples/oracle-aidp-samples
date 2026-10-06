@@ -1,0 +1,48 @@
+{
+  "TGT_TXN_USD": {
+    "rows": [
+      {
+        "TXN_ID": 1,
+        "CURRENCY_CODE": "USD",
+        "AMOUNT": 100.0,
+        "FX_RATE": 1.0,
+        "AMOUNT_USD": 100.0
+      },
+      {
+        "TXN_ID": 2,
+        "CURRENCY_CODE": "EUR",
+        "AMOUNT": 200.0,
+        "FX_RATE": 1.085,
+        "AMOUNT_USD": 217.0
+      },
+      {
+        "TXN_ID": 3,
+        "CURRENCY_CODE": "GBP",
+        "AMOUNT": 10.0,
+        "FX_RATE": 1.27,
+        "AMOUNT_USD": 12.7
+      },
+      {
+        "TXN_ID": 4,
+        "CURRENCY_CODE": "JPY",
+        "AMOUNT": 15000.0,
+        "FX_RATE": 0.0067,
+        "AMOUNT_USD": 100.5
+      },
+      {
+        "TXN_ID": 5,
+        "CURRENCY_CODE": "CHF",
+        "AMOUNT": 50.0,
+        "FX_RATE": null,
+        "AMOUNT_USD": 50.0
+      },
+      {
+        "TXN_ID": 6,
+        "CURRENCY_CODE": null,
+        "AMOUNT": 5.0,
+        "FX_RATE": null,
+        "AMOUNT_USD": 5.0
+      }
+    ]
+  }
+}

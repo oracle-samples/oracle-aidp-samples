@@ -1,7 +1,7 @@
 -- TC10h-6 (2026-05-03): gold mart bucketing UNPAID AP invoices by gl_date age
 -- Source: fusion_catalog.silver.fact_ap_invoice
 -- Output: 6 age buckets (0-30, 31-60, 61-90, 91-180, 181-365, 365+ days)
--- Real aging on real saasfademo1 data: $304M outstanding in 365+ bucket (9,556 invoices, 75 suppliers).
+-- Real aging on real demo-pod data: $304M outstanding in 365+ bucket (9,556 invoices, 75 suppliers).
 
 CREATE OR REPLACE TABLE fusion_catalog.gold.ap_outstanding_by_age
 USING DELTA
@@ -36,5 +36,5 @@ SELECT
 FROM outstanding
 GROUP BY 1;
 
--- Note: ages are based on gl_date because saasfademo1's fact_ap_invoice does
+-- Note: ages are based on gl_date because demo-pod's fact_ap_invoice does
 -- not expose due_date. A true production aging would use due_date when available.

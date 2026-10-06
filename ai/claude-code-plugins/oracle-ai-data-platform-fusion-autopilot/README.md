@@ -4,7 +4,7 @@
 >
 > Same pattern shown in the official Oracle blog [Bring Fusion Data into AIDP Workbench Using BICC](https://blogs.oracle.com/ai-data-platform/bring-fusion-data-into-oracle-ai-data-platform-workbench-using-bicc), productized.
 
-**Status**: alpha (`0.1.0a0`) — Tier-1 features complete and live-validated end-to-end against the saasfademo1 Fusion demo pod + multiple OAC instances. The bundle now uses a single content-pack execution path. **1360 unit + 12 architectural + 5 integration tests pass, plus the conversational skill family's own unit suites.** **Live-validated 2026-06-15** on the `fusion_autopilot_dev` cluster: a `mart-author` overlay seeded `gold.ar_invoice_summary` (49 rows) end-to-end, and OAC workbooks were created via the OAC MCP `save_catalog_content` write tool.
+**Status**: alpha (`0.1.0a0`) — Tier-1 features complete and live-validated end-to-end against the demo-pod Fusion demo pod + multiple OAC instances. The bundle now uses a single content-pack execution path. **1360 unit + 12 architectural + 5 integration tests pass, plus the conversational skill family's own unit suites.** **Live-validated 2026-06-15** on the `fusion_autopilot_dev` cluster: a `mart-author` overlay seeded `gold.ar_invoice_summary` (49 rows) end-to-end, and OAC workbooks were created via the OAC MCP `save_catalog_content` write tool.
 
 Primary CLI commands wired: `init`, `init-config`, `use-pack`, `validate`,
 `bootstrap`, `catalog list/probe/probe-pvo`, `run`, `status`, `migrate-bundle`,
@@ -337,7 +337,7 @@ the tenant's live BICC console.
 ### Adjacent patterns
 
 1. **Fusion-side of the SAP-modernization pattern** — Fusion data lands through this bundle; SAP data lands through a parallel pipeline; both unify in the AIDP gold layer.
-2. **Cross-source data products** — combine Fusion gold marts with Salesforce, Workday, S3, Postgres, or other AIDP-connected sources in downstream AIDP notebooks and marts.
+2. **Cross-source data products** — combine Fusion gold marts with Salesforce, Workday, Amazon S3, Postgres, or other AIDP-connected sources in downstream AIDP notebooks and marts.
 3. **Pod migration** — change `fusion.serviceUrl` in `bundle.yaml`, run bootstrap validation against the new pod, then reseed with a fresh run identity.
 
 ---
@@ -356,7 +356,7 @@ the tenant's live BICC console.
 
 ## License
 
-[MIT](LICENSE) © 2026 Ahmed Awan
+[MIT](LICENSE) © 2026 Oracle and/or its affiliates
 
 ---
 

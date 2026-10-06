@@ -34,14 +34,14 @@ dimension or mart had to:
 3. Fork or vendor the plugin.
 
 This violated the plugin's mission (per CLAUDE.md): the fusion-autopilot
-"must run on any Fusion ERP/HCM/SCM tenant, not just the saasfademo1
+"must run on any Fusion ERP/HCM/SCM tenant, not just the demo-pod
 demo pod. Hardcoded tenant-specific assumptions are bugs."
 
 The pack-driven execution path shipped in Phase 2 (`--execution-backend
 content-pack`) but the default flag was `legacy-python`, so default
 invocations still walked `SILVER_DIMS` / `GOLD_MARTS`.
 
-Phase 4's dual-runner parity gate (live evidence on saasfademo1,
+Phase 4's dual-runner parity gate (live evidence on demo-pod,
 2026-06-07; 6/6 GREEN) closed the gate on flipping the default; Phase 5
 makes the flip + wires the `python_legacy` runtime adapter so customer
 v1 modules referenced from a pack node continue to dispatch through
@@ -142,7 +142,7 @@ two-step remediation runbook (`bootstrap --refresh` then the
 * `tests/parity/test_dual_runner_e2e.py` — Phase 4's parity-gate
   harness that gated the default flip.
 * `tests/live/TC_phase4_v2_seed_live.md` — Phase 4's live evidence
-  trail (saasfademo1; 2026-06-07; 6/6 GREEN).
+  trail (demo-pod; 2026-06-07; 6/6 GREEN).
 * ADR-0011 — `dim_calendar` builtin adapter (the Phase 3 pattern
   the python_legacy adapter mirrors).
 * ADR-0014 — Variation-resolution-at-bootstrap (reinforces "pack is

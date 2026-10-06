@@ -1,18 +1,18 @@
 # TC8c — `gold.supplier_spend` mart live verification (2026-05-07)
 
-> **Status**: ✅ **PASS (live, spend-only fallback path)** — `gold.supplier_spend` materialized end-to-end on `fusion_autopilot_dev` cluster against `bronze.ap_invoices` (49,552 rows) and `silver.dim_supplier` (209 rows). Reproduces TC8's $3.2B aggregate within 2% on the eseb-test pod. Picker correctly chose the spend-only fallback path (eseb-test has all-NULL `vendor_id`).
+> **Status**: ✅ **PASS (live, spend-only fallback path)** — `gold.supplier_spend` materialized end-to-end on `fusion_autopilot_dev` cluster against `bronze.ap_invoices` (49,552 rows) and `silver.dim_supplier` (209 rows). Reproduces TC8's $3.2B aggregate within 2% on the <fusion-pod-2> pod. Picker correctly chose the spend-only fallback path (<fusion-pod-2> has all-NULL `vendor_id`).
 
 ## Test lineage
 
-* **TC8** (2026-04-30, etap-dev5) — original prototype: hand-written SQL in a notebook produced gold.supplier_spend with $3.21B / 236 records / 116 vendors. Used spend-only path because TC8 misdiagnosed the demo pod's `VendorId` column (column-case bug; verified via direct CSV read in TC8b).
-* **TC8b** (2026-05-07, eseb-test) — productized `silver.dim_supplier` as `dimensions/dim_supplier.py`. 209 rows, dedupe + NULLIF + COALESCE name chain all live-validated.
-* **TC8c** (2026-05-07, eseb-test) — productized `gold.supplier_spend` as `transforms/gold/supplier_spend.py`. **This file.**
+* **TC8** (2026-04-30, <fusion-pod>) — original prototype: hand-written SQL in a notebook produced gold.supplier_spend with $3.21B / 236 records / 116 vendors. Used spend-only path because TC8 misdiagnosed the demo pod's `VendorId` column (column-case bug; verified via direct CSV read in TC8b).
+* **TC8b** (2026-05-07, <fusion-pod-2>) — productized `silver.dim_supplier` as `dimensions/dim_supplier.py`. 209 rows, dedupe + NULLIF + COALESCE name chain all live-validated.
+* **TC8c** (2026-05-07, <fusion-pod-2>) — productized `gold.supplier_spend` as `transforms/gold/supplier_spend.py`. **This file.**
 
 ## Live run shape (verified)
 
 The live verification ran the inlined CTAS that was the picker's "spend-only" form at the time. **Pre-PR review surfaced a financial-correctness issue with the picker design** (an INNER JOIN form would silently drop invoices for vendors missing from the dim, understating spend), and the module was refactored to a single LEFT-JOIN form post-TC8c.
 
-The numbers below are still accurate for eseb-test under the new LEFT-JOIN design — when every `dim_supplier.vendor_id` is NULL (eseb-test), no rows match the LEFT JOIN, so all dim attributes come out NULL. Mathematically identical to the pre-refactor "spend-only" output. The semantics changed; the live result didn't.
+The numbers below are still accurate for <fusion-pod-2> under the new LEFT-JOIN design — when every `dim_supplier.vendor_id` is NULL (<fusion-pod-2>), no rows match the LEFT JOIN, so all dim attributes come out NULL. Mathematically identical to the pre-refactor "spend-only" output. The semantics changed; the live result didn't.
 
 For background on the design change, see CHANGELOG `Changed (Phase 2 in progress)` — *"P1.2 follow-up — gold.supplier_spend switched from a two-form picker to a single LEFT-JOIN form for financial correctness"*.
 
@@ -20,14 +20,14 @@ A re-run on the cluster post-refactor would surface the same row count, same gra
 
 ## Counts vs TC8 reference
 
-| Metric | TC8 (etap-dev5) | TC8c (eseb-test) | Δ |
+| Metric | TC8 (<fusion-pod>) | TC8c (<fusion-pod-2>) | Δ |
 |---|---:|---:|---:|
 | Spend records | 236 | **230** | -2.5% |
 | Distinct vendors | 116 | **113** | -2.6% |
 | Approved records | 109 | **108** | -0.9% |
 | Grand total | $3,208,423,850.91 | **$3,145,528,157.43** | -2.0% |
 
-Differences explained: eseb-test is a different demo pod with slightly different data (209 vs 229 suppliers, 49,552 vs 49,985 invoices). The relative shape — same top-5 vendor IDs, same approval-status split, same aggregation grain — is preserved.
+Differences explained: <fusion-pod-2> is a different demo pod with slightly different data (209 vs 229 suppliers, 49,552 vs 49,985 invoices). The relative shape — same top-5 vendor IDs, same approval-status split, same aggregation grain — is preserved.
 
 ## Top-5 vendors by total invoice amount
 
@@ -82,7 +82,7 @@ gold_built_at          timestamp
 
 ## What's still pending
 
-* **Live verification on a pod with populated `vendor_id` in `silver.dim_supplier`** (etap-dev5 or a customer pod, where the dim's vendor_id is populated and the LEFT JOIN therefore matches and pulls dim attributes through). Currently blocked by Casey.Brown credential rotation (P3.7 in BACKLOG). On eseb-test the LEFT JOIN runs, every invoice is preserved as required, and dim attributes come out as NULL — same numerical aggregate as TC8's reference. The same module / same SQL would simply produce populated dim attributes on a pod where `vendor_id` is non-NULL.
+* **Live verification on a pod with populated `vendor_id` in `silver.dim_supplier`** (<fusion-pod> or a customer pod, where the dim's vendor_id is populated and the LEFT JOIN therefore matches and pulls dim attributes through). Currently blocked by <fusion-user> credential rotation (P3.7 in BACKLOG). On <fusion-pod-2> the LEFT JOIN runs, every invoice is preserved as required, and dim attributes come out as NULL — same numerical aggregate as TC8's reference. The same module / same SQL would simply produce populated dim attributes on a pod where `vendor_id` is non-NULL.
 
 ## References
 

@@ -1,7 +1,8 @@
 {
   "name": "aidp-connectors",
   "owner": {
-    "name": "Ahmed Awan"
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
   },
   "metadata": {
     "version": "0.7.0",

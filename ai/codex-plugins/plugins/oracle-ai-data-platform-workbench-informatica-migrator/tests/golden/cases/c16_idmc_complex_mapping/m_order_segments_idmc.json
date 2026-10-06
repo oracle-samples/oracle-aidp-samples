@@ -1,0 +1,158 @@
+{
+    "name": "m_order_segments",
+    "description": "IDMC mapping: orders joined to customers, segment lookup, banding, router, regional rollup",
+    "project": "SALES_DM",
+    "transformations": [
+        {
+            "name": "SRC_ORDERS",
+            "type": "SOURCE",
+            "tableName": "ORDERS",
+            "connectionName": "ORA_SALES_SRC",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "OUTPUT"},
+                {"name": "CUST_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "OUTPUT"},
+                {"name": "AMOUNT", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "OUTPUT"}
+            ]
+        },
+        {
+            "name": "SRC_CUSTOMERS",
+            "type": "SOURCE",
+            "tableName": "CUSTOMERS",
+            "connectionName": "ORA_SALES_SRC",
+            "fields": [
+                {"name": "C_CUST_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "OUTPUT"},
+                {"name": "C_NAME", "dataType": "string", "precision": 40, "portType": "OUTPUT"},
+                {"name": "C_SEGMENT_CODE", "dataType": "string", "precision": 3, "portType": "OUTPUT"}
+            ]
+        },
+        {
+            "name": "JNR_ORD_CUST",
+            "type": "Joiner",
+            "joinType": "Normal",
+            "joinCondition": "C_CUST_ID = CUST_ID",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT_OUTPUT"},
+                {"name": "CUST_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT_OUTPUT"},
+                {"name": "AMOUNT", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "INPUT_OUTPUT"},
+                {"name": "C_CUST_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT_OUTPUT", "master": true},
+                {"name": "C_NAME", "dataType": "string", "precision": 40, "portType": "INPUT_OUTPUT", "master": true},
+                {"name": "C_SEGMENT_CODE", "dataType": "string", "precision": 3, "portType": "INPUT_OUTPUT", "master": true}
+            ]
+        },
+        {
+            "name": "LKP_SEGMENT",
+            "type": "Lookup",
+            "tableName": "SEGMENTS",
+            "connectionName": "ORA_SALES_SRC",
+            "lookupCondition": "SEG_CODE = C_SEGMENT_CODE",
+            "lookupPolicyOnMultipleMatch": "Return Any",
+            "fields": [
+                {"name": "C_SEGMENT_CODE", "dataType": "string", "precision": 3, "portType": "INPUT"},
+                {"name": "SEG_CODE", "dataType": "string", "precision": 3, "portType": "INPUT_OUTPUT"},
+                {"name": "SEG_NAME", "dataType": "string", "precision": 30, "portType": "OUTPUT"},
+                {"name": "REGION", "dataType": "string", "precision": 10, "portType": "OUTPUT"}
+            ]
+        },
+        {
+            "name": "EXP_DERIVE",
+            "type": "Expression",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT_OUTPUT"},
+                {"name": "AMOUNT", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "INPUT"},
+                {"name": "C_NAME", "dataType": "string", "precision": 40, "portType": "INPUT"},
+                {"name": "SEG_NAME", "dataType": "string", "precision": 30, "portType": "INPUT_OUTPUT"},
+                {"name": "REGION", "dataType": "string", "precision": 10, "portType": "INPUT_OUTPUT"},
+                {"name": "NET", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "OUTPUT", "expression": "ROUND(AMOUNT * 0.9, 2)"},
+                {"name": "BAND", "dataType": "string", "precision": 4, "portType": "OUTPUT", "expression": "IIF(AMOUNT >= 1000, 'HIGH', 'STD')"},
+                {"name": "CUST_LABEL", "dataType": "string", "precision": 40, "portType": "OUTPUT", "expression": "UPPER(C_NAME)"}
+            ]
+        },
+        {
+            "name": "RTR_BAND",
+            "type": "Router",
+            "routerGroups": [
+                {"name": "HIGH_VALUE", "condition": "BAND = 'HIGH'"},
+                {"name": "STANDARD", "condition": "BAND = 'STD'"}
+            ],
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT_OUTPUT"},
+                {"name": "NET", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "INPUT_OUTPUT"},
+                {"name": "BAND", "dataType": "string", "precision": 4, "portType": "INPUT_OUTPUT"},
+                {"name": "CUST_LABEL", "dataType": "string", "precision": 40, "portType": "INPUT_OUTPUT"},
+                {"name": "SEG_NAME", "dataType": "string", "precision": 30, "portType": "INPUT_OUTPUT"},
+                {"name": "REGION", "dataType": "string", "precision": 10, "portType": "INPUT_OUTPUT"}
+            ]
+        },
+        {
+            "name": "AGG_HIGH_BY_REGION",
+            "type": "Aggregator",
+            "groupByFields": ["REGION"],
+            "fields": [
+                {"name": "REGION", "dataType": "string", "precision": 10, "portType": "INPUT_OUTPUT", "groupBy": true},
+                {"name": "ORDER_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT"},
+                {"name": "NET", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "INPUT"},
+                {"name": "TOTAL_NET", "dataType": "decimal", "precision": 15, "scale": 2, "portType": "OUTPUT", "expression": "SUM(NET)"},
+                {"name": "ORDER_CNT", "dataType": "integer", "precision": 10, "portType": "OUTPUT", "expression": "COUNT(ORDER_ID)"}
+            ]
+        },
+        {
+            "name": "TGT_HIGH_REGION",
+            "type": "TARGET",
+            "tableName": "HIGH_VALUE_BY_REGION",
+            "connectionName": "ADW_DW",
+            "fields": [
+                {"name": "REGION", "dataType": "string", "precision": 10, "portType": "INPUT"},
+                {"name": "TOTAL_NET", "dataType": "decimal", "precision": 15, "scale": 2, "portType": "INPUT"},
+                {"name": "ORDER_CNT", "dataType": "integer", "precision": 10, "portType": "INPUT"}
+            ]
+        },
+        {
+            "name": "TGT_STD_ORDERS",
+            "type": "TARGET",
+            "tableName": "STD_ORDERS",
+            "connectionName": "ADW_DW",
+            "fields": [
+                {"name": "ORDER_ID", "dataType": "decimal", "precision": 10, "scale": 0, "portType": "INPUT"},
+                {"name": "CUST_LABEL", "dataType": "string", "precision": 40, "portType": "INPUT"},
+                {"name": "SEG_NAME", "dataType": "string", "precision": 30, "portType": "INPUT"},
+                {"name": "NET", "dataType": "decimal", "precision": 12, "scale": 2, "portType": "INPUT"}
+            ]
+        }
+    ],
+    "connections": [
+        {"from": {"transformation": "SRC_ORDERS", "field": "ORDER_ID"}, "to": {"transformation": "JNR_ORD_CUST", "field": "ORDER_ID"}},
+        {"from": {"transformation": "SRC_ORDERS", "field": "CUST_ID"}, "to": {"transformation": "JNR_ORD_CUST", "field": "CUST_ID"}},
+        {"from": {"transformation": "SRC_ORDERS", "field": "AMOUNT"}, "to": {"transformation": "JNR_ORD_CUST", "field": "AMOUNT"}},
+        {"from": {"transformation": "SRC_CUSTOMERS", "field": "C_CUST_ID"}, "to": {"transformation": "JNR_ORD_CUST", "field": "C_CUST_ID"}},
+        {"from": {"transformation": "SRC_CUSTOMERS", "field": "C_NAME"}, "to": {"transformation": "JNR_ORD_CUST", "field": "C_NAME"}},
+        {"from": {"transformation": "SRC_CUSTOMERS", "field": "C_SEGMENT_CODE"}, "to": {"transformation": "JNR_ORD_CUST", "field": "C_SEGMENT_CODE"}},
+
+        {"from": {"transformation": "JNR_ORD_CUST", "field": "C_SEGMENT_CODE"}, "to": {"transformation": "LKP_SEGMENT", "field": "C_SEGMENT_CODE"}},
+
+        {"from": {"transformation": "JNR_ORD_CUST", "field": "ORDER_ID"}, "to": {"transformation": "EXP_DERIVE", "field": "ORDER_ID"}},
+        {"from": {"transformation": "JNR_ORD_CUST", "field": "AMOUNT"}, "to": {"transformation": "EXP_DERIVE", "field": "AMOUNT"}},
+        {"from": {"transformation": "JNR_ORD_CUST", "field": "C_NAME"}, "to": {"transformation": "EXP_DERIVE", "field": "C_NAME"}},
+        {"from": {"transformation": "LKP_SEGMENT", "field": "SEG_NAME"}, "to": {"transformation": "EXP_DERIVE", "field": "SEG_NAME"}},
+        {"from": {"transformation": "LKP_SEGMENT", "field": "REGION"}, "to": {"transformation": "EXP_DERIVE", "field": "REGION"}},
+
+        {"from": {"transformation": "EXP_DERIVE", "field": "ORDER_ID"}, "to": {"transformation": "RTR_BAND", "field": "ORDER_ID"}},
+        {"from": {"transformation": "EXP_DERIVE", "field": "NET"}, "to": {"transformation": "RTR_BAND", "field": "NET"}},
+        {"from": {"transformation": "EXP_DERIVE", "field": "BAND"}, "to": {"transformation": "RTR_BAND", "field": "BAND"}},
+        {"from": {"transformation": "EXP_DERIVE", "field": "CUST_LABEL"}, "to": {"transformation": "RTR_BAND", "field": "CUST_LABEL"}},
+        {"from": {"transformation": "EXP_DERIVE", "field": "SEG_NAME"}, "to": {"transformation": "RTR_BAND", "field": "SEG_NAME"}},
+        {"from": {"transformation": "EXP_DERIVE", "field": "REGION"}, "to": {"transformation": "RTR_BAND", "field": "REGION"}},
+
+        {"from": {"transformation": "RTR_BAND", "group": "HIGH_VALUE", "field": "REGION"}, "to": {"transformation": "AGG_HIGH_BY_REGION", "field": "REGION"}},
+        {"from": {"transformation": "RTR_BAND", "group": "HIGH_VALUE", "field": "ORDER_ID"}, "to": {"transformation": "AGG_HIGH_BY_REGION", "field": "ORDER_ID"}},
+        {"from": {"transformation": "RTR_BAND", "group": "HIGH_VALUE", "field": "NET"}, "to": {"transformation": "AGG_HIGH_BY_REGION", "field": "NET"}},
+
+        {"from": {"transformation": "AGG_HIGH_BY_REGION", "field": "REGION"}, "to": {"transformation": "TGT_HIGH_REGION", "field": "REGION"}},
+        {"from": {"transformation": "AGG_HIGH_BY_REGION", "field": "TOTAL_NET"}, "to": {"transformation": "TGT_HIGH_REGION", "field": "TOTAL_NET"}},
+        {"from": {"transformation": "AGG_HIGH_BY_REGION", "field": "ORDER_CNT"}, "to": {"transformation": "TGT_HIGH_REGION", "field": "ORDER_CNT"}},
+
+        {"from": {"transformation": "RTR_BAND", "group": "STANDARD", "field": "ORDER_ID"}, "to": {"transformation": "TGT_STD_ORDERS", "field": "ORDER_ID"}},
+        {"from": {"transformation": "RTR_BAND", "group": "STANDARD", "field": "CUST_LABEL"}, "to": {"transformation": "TGT_STD_ORDERS", "field": "CUST_LABEL"}},
+        {"from": {"transformation": "RTR_BAND", "group": "STANDARD", "field": "SEG_NAME"}, "to": {"transformation": "TGT_STD_ORDERS", "field": "SEG_NAME"}},
+        {"from": {"transformation": "RTR_BAND", "group": "STANDARD", "field": "NET"}, "to": {"transformation": "TGT_STD_ORDERS", "field": "NET"}}
+    ]
+}

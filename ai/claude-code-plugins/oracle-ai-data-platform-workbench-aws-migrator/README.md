@@ -1,14 +1,14 @@
 # aws-aidp-migrator
 
 Migration assistant for AWS → Oracle AIDP (AI Data Platform). It inventories an
-AWS data stack and translates Athena SQL and Glue ETL to Spark on AIDP, emitting
+AWS data stack and translates Amazon Athena SQL and AWS Glue ETL to Apache Spark on AIDP, emitting
 reviewable artifacts and flagging anything it cannot convert safely. **Applying
 that output to AIDP is manual today** — the tool writes files locally and does
 not write to your AIDP workspace.
 
 > **Why:** the official Databricks → AIDP plugin handles the other half of customers.
-> Many AIDP migrations originate on the AWS stack — S3, Glue, Athena, EMR,
-> SageMaker. `aws-aidp` covers that path.
+> Many AIDP migrations originate on the AWS stack — Amazon S3, Glue, Athena, Amazon EMR,
+> Amazon SageMaker. `aws-aidp` covers that path.
 
 ## What it does
 

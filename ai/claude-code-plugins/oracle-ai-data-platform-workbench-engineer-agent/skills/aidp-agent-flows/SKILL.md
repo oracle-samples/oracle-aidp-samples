@@ -15,7 +15,7 @@ Discover, author, deploy, and run agent flows through the AIDP REST `AgentFlows`
 
 > **LA + verify-first (no-fabrication):** AgentFlows is **Limited Availability** on `20240831` (not in the
 > GA `aiwap/` docs but still active). **Path is workspace-scoped:** `…/dataLakes/<ocid>/workspaces/<ws>/agentFlows`
-> returned **200** live (2026-06-10, `oaseceal`); the *lake-level* `…/dataLakes/<ocid>/agentFlows` (no
+> returned **200** live (2026-06-10, the test tenancy); the *lake-level* `…/dataLakes/<ocid>/agentFlows` (no
 > workspace) **404s** — that earlier 404 was the wrong path, not necessarily missing provisioning. Still
 > confirm the route with a live read before any write (provisioning can vary by tenancy), and record results
 > in `references/rest-endpoint-map.md`. Frame the whole lifecycle as LA, not GA.
@@ -32,7 +32,7 @@ Use the auth ladder and base URL in [references/oci-raw-request.md](../../refere
 (api_key); on 401/403/"Security Token" refresh `AIDP_SESSION` and retry with `--auth security_token`.
 
 ## Read / discover (REST — primary)
-- `GET …/workspaces/<ws>/agentFlows` — enumerate flows (**workspace-scoped**; live **200** on `oaseceal`
+- `GET …/workspaces/<ws>/agentFlows` — enumerate flows (**workspace-scoped**; live **200** on the test tenancy
   2026-06-10). `GET …/workspaces/<ws>/agentFlows/<key>` — flow detail for authoring.
 - A **404** usually means you dropped the `…/workspaces/<ws>/` segment (the lake-level `…/agentFlows`
   doesn't exist) — re-check the path first; if the workspace-scoped path also 404s, AgentFlows isn't
@@ -57,7 +57,7 @@ AIDP is the **client** here — it does **not** host an MCP server (all standalo
 This is distinct from the optional **local-stdio `aidp` MCP** that can back this plugin's skills
 (see [references/mcp-tool-map.md](../../references/mcp-tool-map.md)) — different thing, different direction.
 
-> **Verified live 2026-06-10:** `GET …/workspaces/<ws>/agentFlows` → **200** on the `oaseceal` tenancy
+> **Verified live 2026-06-10:** `GET …/workspaces/<ws>/agentFlows` → **200** on the the test tenancy tenancy
 > (IAD). That `agentFlows` collection is the surface that holds `MCP_TOOL` nodes; there is no separate
 > `/mcp` path. Provisioning still varies by tenancy (a prior env returned 404 — see the LA note above), so
 > read first.

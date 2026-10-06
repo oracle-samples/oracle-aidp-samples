@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-122597976420"
+  },
+  "metadata": {
+    "type": "Dataflow",
+    "displayName": "Agents_Dim",
+    "description": "Acme demo dataflow"
+  }
+}

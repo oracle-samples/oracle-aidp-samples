@@ -2,14 +2,14 @@
 """SessionStart readiness check for the oracle-ai-data-platform-workbench-engineer-agent plugin.
 
 Runs automatically at the start of each Claude Code session (via hooks/hooks.json). It:
-  1. Ensures the bundled Python deps (scripts/requirements.txt) are installed -auto `pip install`
-     ONLY if an import check fails, then writes a one-time sentinel so later sessions are instant.
+  1. Checks the bundled Python deps (scripts/requirements.txt) and prints the `pip install` command if any
+     is missing; installs them only when AIDP_PLUGIN_AUTOINSTALL=1 (then writes a one-time sentinel).
   2. Reports local OCI readiness (the `oci` CLI + a ~/.oci/config profile) -the one thing the plugin
      CANNOT bundle (per-user secrets). It does NOT do a network/auth call here (kept fast); the
      `aidp-engineer-bootstrap` skill does the live AIDP reachability check.
 
 NEVER blocks the session: always exits 0. Prints a concise one-line banner to stdout so the result
-shows in the session context. Set AIDP_PLUGIN_NO_AUTOINSTALL=1 to make it check-only (no pip).
+shows in the session context. It is check-only unless AIDP_PLUGIN_AUTOINSTALL=1 is set (then it runs pip).
 """
 import os, sys, subprocess, shutil
 
@@ -18,7 +18,9 @@ DATA = os.environ.get("CLAUDE_PLUGIN_DATA") or ROOT
 REQ = os.path.join(ROOT, "scripts", "requirements.txt")
 SENTINEL = os.path.join(DATA, ".aidp_deps_ok")
 MODS = ("oci", "requests", "websocket", "cryptography")  # websocket-client imports as `websocket`
-NO_AUTO = os.environ.get("AIDP_PLUGIN_NO_AUTOINSTALL") == "1"
+# Installing into the user's interpreter at session start is opt-in: set
+# AIDP_PLUGIN_AUTOINSTALL=1 to allow it. Otherwise the check prints the command.
+NO_AUTO = os.environ.get("AIDP_PLUGIN_AUTOINSTALL") != "1"
 
 out = []
 

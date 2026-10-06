@@ -1,7 +1,7 @@
 # TC23b — `silver.dim_account` + `gold.gl_balance` refactor verify on `fusion_autopilot_dev`
 
 > Date: 2026-05-11
-> Cluster: `fusion_autopilot_dev` (saasfademo1 demo pod)
+> Cluster: `fusion_autopilot_dev` (demo-pod demo pod)
 > Companion to: [`TC23_gl_balance_results.md`](TC23_gl_balance_results.md) (original P1.8 evidence)
 > Commits verified: `7d79c2f` (P1.11a — dim_account segment portability) + `50d450a` (gl_balance reads positional segment_NN)
 > Runner: `TC23b_dim_account_gl_balance_refactor_verify_runner.py` (local, gitignored)
@@ -14,7 +14,7 @@ P1.11a refactored `silver.dim_account` to emit 30 positional `segment_01..segmen
 
 ✅ **The refactor is value-identical to the pre-refactor mart on the conventional 6 COA segments.**
 
-✅ **The refactor preserves segment_07+ data that the pre-refactor `dim_account` was silently truncating** (35,303 rows on saasfademo1 have a non-NULL `segment_07` — the old 6-segment hardcode was dropping those values).
+✅ **The refactor preserves segment_07+ data that the pre-refactor `dim_account` was silently truncating** (35,303 rows on demo-pod have a non-NULL `segment_07` — the old 6-segment hardcode was dropping those values).
 
 ## Stage results
 
@@ -29,7 +29,7 @@ P1.11a refactored `silver.dim_account` to emit 30 positional `segment_01..segmen
 | `distinct account_ids` | 63,464 | dedupe correct (one row per CCID) |
 | `segment_01` non-NULL | 63,464 | 100% populated |
 | `segment_06` non-NULL | 63,298 | ~99.7% populated |
-| `segment_07` non-NULL | **35,303** | **surprise — saasfademo1 uses 7+ segments on >55% of accounts** |
+| `segment_07` non-NULL | **35,303** | **surprise — demo-pod uses 7+ segments on >55% of accounts** |
 | `segment_30` non-NULL | 0 | expected |
 
 The `segment_07 = 35,303` finding is the **strongest empirical justification for P1.11a**. The pre-refactor code emitted only segments 1-6; those 35,303 segment_07 values were lost. After P1.11a they're preserved in the dim and available to downstream consumers.
@@ -112,7 +112,7 @@ Output shape matches what `TC23_gl_balance_results.md` documented before the ref
 | Positional `segment_NN` columns are emitted | ✅ all 30 |
 | Default `semantic_segment_map` preserves backwards-compat names | ✅ all 6 aliases present |
 | `segment_NN` values equal corresponding semantic-alias values | ✅ 0 mismatches over 63,464 rows |
-| `code_combination` built from all 30 segments (CONCAT_WS skips NULLs) | ✅ clean 6-part dotted strings on saasfademo1; would extend on a tenant with more segments |
+| `code_combination` built from all 30 segments (CONCAT_WS skips NULLs) | ✅ clean 6-part dotted strings on demo-pod; would extend on a tenant with more segments |
 | **Refactor preserves data the old code was dropping** | ✅ **segment_07 retains 35,303 previously-truncated values** |
 | gl_balance reads positional `da.segment_NN` cleanly | ✅ built without analysis errors |
 | gl_balance coverage unchanged | ✅ `no_code_combination = no_company = 0` |
@@ -121,7 +121,7 @@ Output shape matches what `TC23_gl_balance_results.md` documented before the ref
 
 ## Verdict
 
-Commits `7d79c2f` (P1.11a — dim_account segment portability) and `50d450a` (gl_balance reads positional segment_NN) are **value-identical to the pre-refactor mart on saasfademo1 for all observable consumer-facing columns**, while **preserving previously-truncated segment_07+ data** that the pre-refactor hardcoded six-segment projection was silently dropping.
+Commits `7d79c2f` (P1.11a — dim_account segment portability) and `50d450a` (gl_balance reads positional segment_NN) are **value-identical to the pre-refactor mart on demo-pod for all observable consumer-facing columns**, while **preserving previously-truncated segment_07+ data** that the pre-refactor hardcoded six-segment projection was silently dropping.
 
 Both commits are safe to ship.
 

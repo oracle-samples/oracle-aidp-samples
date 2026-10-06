@@ -25,22 +25,32 @@ Beyond the standard runtime-load + DriverManager pattern, S3A also requires tell
 ## Spark read (S3A, runtime-loaded driver)
 
 ```python
-import os, urllib.request
+import hashlib, os, urllib.request
 from py4j.java_gateway import java_import
 
 # 1. Confirm cluster's Hadoop version + match hadoop-aws jar
 HADOOP_VER = spark._jvm.org.apache.hadoop.util.VersionInfo.getVersion()
 print("hadoop:", HADOOP_VER)  # e.g. 3.3.4
 
+# (url, expected sha256). Pin the digest of every jar you load; for a Hadoop version
+# not listed, the first run prints the digest so you can add it.
 JARS = {
-    f"/tmp/hadoop-aws-{HADOOP_VER}.jar":
+    f"/tmp/hadoop-aws-{HADOOP_VER}.jar": (
         f"https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/{HADOOP_VER}/hadoop-aws-{HADOOP_VER}.jar",
-    "/tmp/aws-java-sdk-bundle-1.12.262.jar":
+        {"3.3.4": "53f9ae03c681a30a50aa17524bd9790ab596b28481858e54efd989a826ed3a4a"}.get(HADOOP_VER)),
+    "/tmp/aws-java-sdk-bundle-1.12.262.jar": (
         "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar",
+        "873fe7cf495126619997bec21c44de5d992544aea7e632fdc77adb1a0915bae5"),
 }
-for path, url in JARS.items():
+for path, (url, sha256) in JARS.items():
     if not os.path.exists(path):
         urllib.request.urlretrieve(url, path)
+    digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+    if sha256 is None:
+        print(f"{path}: sha256 {digest} (pin this before reusing the snippet)")
+    elif digest != sha256:
+        os.remove(path)
+        raise RuntimeError(f"checksum mismatch for {url}")
 
 # 2. Build URLClassLoader covering BOTH jars + set on Hadoop Configuration
 gw = spark._sc._gateway
@@ -72,7 +82,7 @@ df = spark.read.option("header", "true").csv(
 df.show()
 ```
 
-**Live-validated 2026-04-27**: 2 rows from `s3a://test-data-sep3-2025/csv/sample.csv` via this pattern.
+**Live-validated 2026-04-27**: 2 rows from `s3a://<bucket>/csv/sample.csv` via this pattern.
 
 ## boto3 fallback (management ops, not data plane)
 

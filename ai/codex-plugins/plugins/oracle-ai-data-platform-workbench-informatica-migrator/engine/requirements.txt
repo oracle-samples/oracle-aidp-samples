@@ -1,0 +1,36 @@
+# Informatica -> AIDP Migrator - engine dependencies
+# Install: pip install -r engine/requirements.txt
+
+# Core
+pyyaml>=6.0
+requests>=2.28
+# IANA tz database, for checking --schedule-timezone. Python on Windows has
+# none of its own (zoneinfo then knows no zone at all), and neither do slim
+# or distroless container images; zoneinfo prefers the system database
+# wherever one exists, so this changes nothing on a normal Linux host.
+tzdata
+
+# LLM providers (LLM-assisted notebook generation) -- BOTH OPTIONAL. The
+# deterministic path needs no model at all: 36 transformation types and 72
+# expression functions convert without one, and that is a supported
+# configuration rather than a degraded one. A provider is only needed if you
+# pass --use-llm.
+#
+# This is the Codex build, so OpenAI is the default provider; the Anthropic
+# path is kept because the engine is shared with the Claude Code build.
+# Matches pyproject.toml's [llm] extra -- install with
+# `pip install -e '.[llm]'` rather than uncommenting these so the two stay
+# in sync.
+# openai>=1.40
+# anthropic>=0.40
+
+# OCI SDK (request signing, Object Storage, AIDP control plane)
+oci>=2.130.0
+
+# Oracle DB driver (PowerCenter repository crawl, reconciliation)
+oracledb>=2.0
+
+# Notebook authoring
+nbformat>=5.9.0
+
+# NOTE: websocket-client lands in M3 with the vendored executor.

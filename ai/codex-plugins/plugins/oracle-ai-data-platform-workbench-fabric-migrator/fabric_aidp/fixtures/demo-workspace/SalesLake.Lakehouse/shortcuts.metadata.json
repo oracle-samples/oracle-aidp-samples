@@ -1,0 +1,36 @@
+[
+  {
+    "path": "Tables",
+    "name": "claims_raw_s3",
+    "target": {
+      "type": "AmazonS3",
+      "amazonS3": {
+        "location": "https://acme-raw.s3.us-east-1.amazonaws.com",
+        "subpath": "/claims"
+      }
+    }
+  },
+  {
+    "path": "Files",
+    "name": "adls_landing",
+    "target": {
+      "type": "AdlsGen2",
+      "adlsGen2": {
+        "location": "https://acmestore.dfs.core.windows.net",
+        "subpath": "/landing"
+      }
+    }
+  },
+  {
+    "path": "Tables",
+    "name": "shared_dim_date",
+    "target": {
+      "type": "OneLake",
+      "oneLake": {
+        "workspaceId": "ws-shared",
+        "itemId": "item-dims",
+        "path": "Tables/dim_date"
+      }
+    }
+  }
+]

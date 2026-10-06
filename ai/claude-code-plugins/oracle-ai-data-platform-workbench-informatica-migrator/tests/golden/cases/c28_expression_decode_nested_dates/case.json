@@ -1,0 +1,18 @@
+{
+  "export": "m_evt_decode_dates.xml",
+  "notes": [
+    "DECODE(TRUE, c1, v1, ...): the first condition that is TRUE wins; a NULL condition (AMT >= 1000 with NULL AMT) is not TRUE, so row 3 reaches ISNULL(AMT) -> 'NONE'. AMT = 100.00 is 'MID' (>=).",
+    "DECODE(N, 1, 'one', 2, 'two', 3, 'three') with no default returns NULL when nothing matches (N = 7, -42) and for a NULL N.",
+    "Nested IIF: a NULL comparison takes the FALSE branch at every level -- row 6 (AMT 600, CODE NULL): AMT > 500 TRUE, CODE = 'A' NULL -> 'HX'; row 3 (both NULL) -> 'NN'.",
+    "IIF(cond, 1) with the false value omitted returns 0 for a numeric value1 (documented), also when cond is NULL (row 3) or exactly on the boundary (row 5, 100 > 100).",
+    "ADD_TO_DATE 'MM' / 'YYYY': when the resulting day does not exist the last day of that month is returned and the time of day is kept -- Jan 31 2024 + 1 month = Feb 29 2024 (leap), Mar 31 2024 - 1 month = Feb 29 2024, Mar 31 + 1 = Apr 30, Aug 31 + 1 = Sep 30, Feb 29 2024 + 1 year = Feb 28 2025. Days that exist are kept as-is (Feb 29 + 1 month = Mar 29, NOT the Oracle ADD_MONTHS end-of-month snap to Mar 31).",
+    "DATE_DIFF(D2, D1, 'DD') = D2 - D1 in days INCLUDING the fraction: 3 d 12 h = 3.5; D2 earlier than D1 gives a negative value (-1.5); 17 h 30 m = 0.7291666...",
+    "DATE_DIFF(D3, D1, 'MM'): the D3/D1 pairs share day-of-month and time of day, so the result is a whole number (2, -3, 12, 3) whatever fractional-month rule applies.",
+    "TRUNC(date, 'DD'|'YY'|'HH') zeroes everything below the unit. ROUND(date, 'DD'): 12:00:00 or later -> next day 00:00 (row 3 at exactly 12:00:00 rounds up). ROUND(date, 'MM'): day 1-15 -> first of this month, day 16 or later -> first of next month (Dec 16 -> Jan 1 of next year). ROUND(date, 'YY'): Jan-Jun -> Jan 1 this year, Jul-Dec -> Jan 1 next year.",
+    "LPAD/RPAD pad to the length with the pad string repeated and cut ('xy' -> 'xyx'); when the string is LONGER than the length it is truncated to its first `length` characters ('Informatica' -> 'Informatic', LPAD(s, 4) -> 'Info'). LPAD without a pad string pads with blanks (never needed here: every non-NULL S is >= 4 chars).",
+    "SUBSTR with a negative start counts from the end (-3 = the last three characters; -5, 2 = the 5th- and 4th-from-last); a start of 0 is treated as 1. Every non-NULL S is >= 5 characters, so no start falls before the beginning (behaviour there not asserted).",
+    "INSTR(s, '-', 1, 2) = position of the 2nd occurrence (0 if there is none); INSTR(s, '-', -1, 1) searches backwards from the last character and returns the position counted from the START of the string.",
+    "TO_CHAR(N) of an integer NUMBER(10,0) is its plain digits ('7', '-42'); LPAD of '-42' to 5 with '0' is '00-42' (LPAD knows nothing about signs).",
+    "Not asserted (Informatica behaviour not certain): TO_CHAR of a number with scale (whether trailing zeros of 250.50 are kept) -- TO_CHAR(number) has no format-mask argument in PowerCenter, so number formatting is only asserted for integers; DECODE with a NULL search value (whether NULL matches NULL); DATE_DIFF 'MM' fractional months; SUBSTR with a negative start beyond the string's length; IIF with an omitted string value2 (documented as '' -- Oracle would store NULL, so the target value depends on the database)."
+  ]
+}

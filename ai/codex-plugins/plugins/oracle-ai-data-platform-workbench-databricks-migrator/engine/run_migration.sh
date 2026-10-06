@@ -5,16 +5,16 @@
 #   ./run_migration.sh                                          # run all jobs
 #   ./run_migration.sh --jobs ExampleJob        # specific job
 #   ./run_migration.sh --jobs ExampleJob \
-#       --start-task Campaign_Ratio_Estimation_scratched_V2_Early  # resume from task
+#       --start-task <task_id>  # resume from task
 #
-# Logs to /tmp/migration.log (overwrite). Tail with: tail -f /tmp/migration.log
+# Logs to a private temp file (override with MIGRATION_LOG=<path>); the path is printed below.
 
 set -e
 
-LOG=/tmp/migration.log
+LOG="${MIGRATION_LOG:-$(mktemp "${TMPDIR:-/tmp}/migration.XXXXXX")}"
 
 echo "Starting migration â€” logging to $LOG"
-echo "PID will be printed below. Kill with: pkill -f job_migrate.py"
+echo "PID will be printed below. Kill with: kill <PID>"
 echo ""
 
 caffeinate -i python3 -u $HOME/.aidp-migrator/engine/scripts/job_migrate.py \

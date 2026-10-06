@@ -1,0 +1,10 @@
+# Runtime dependencies. Kept minimal on purpose: the AIDP side goes through the
+# `aidp` / `oci` CLI, so no OCI SDK is needed, and there is no HTTP client and
+# no WebSocket in this plugin.
+snowflake-connector-python>=4.7.0
+cryptography>=42.0.0
+
+# Reads the migration config (YAML is the documented format of
+# snowmig-config.example.yaml), so it is a runtime dependency of the default
+# path.
+pyyaml>=6.0

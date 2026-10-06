@@ -1,0 +1,29 @@
+Oracle AI Data Platform - Migrator for Informatica (Codex plugin)
+Copyright (c) 2026 Oracle and/or its affiliates.
+
+Licensed under the MIT License. See LICENSE.
+
+This project follows the structure and conventions of the Oracle AI Data
+Platform Databricks Migrator (oracle-samples/oracle-aidp-samples), which is
+also MIT licensed. No source from that project is included here: the Python
+engine under engine/ is written for this project.
+
+Trademarks
+
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+OpenAI and Codex are trademarks of OpenAI. Informatica, PowerCenter,
+PowerExchange, and Intelligent Data Management Cloud are trademarks or
+registered trademarks of Informatica LLC in the United States and other
+countries. Apache, Apache Spark, and Spark are either registered trademarks or
+trademarks of The Apache Software Foundation in the United States and/or other
+countries. No endorsement by The Apache Software Foundation is implied. Delta
+Lake is a trademark of LF Projects, LLC. SAP and SAP HANA are trademarks or
+registered trademarks of SAP SE in Germany and other countries. Third-party
+names are used only to identify the products this plugin works with; it is not
+affiliated with, sponsored by or endorsed by Informatica LLC or OpenAI.
+
+Optional dependencies
+
+The `reconcile` and `all` extras pull in JayDeBeApi (LGPL-3.0) and JPype1 (Apache-2.0)
+for JDBC reconciliation. They are not installed by default and are not bundled here.

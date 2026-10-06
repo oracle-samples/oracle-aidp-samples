@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fabric-aidp-migrator"
+dynamic = ["version"]
+# Every source this tool actually reads. The old description named three of
+# six, so someone looking for Dataflow or pipeline migration could not tell
+# from a package index that this does it.
+description = "Microsoft Fabric → Oracle AIDP migrator: notebooks, Warehouse T-SQL, Dataflow Gen2 (Power Query M), Data Pipelines, Lakehouse shortcuts and OneLake paths"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+# NOTICE ships alongside LICENSE: the third-party corpora under
+# tests/fixtures/real are redistributed under their own licences, and NOTICE
+# is where that is recorded.
+license-files = ["LICENSE", "NOTICE"]
+keywords = ["fabric", "onelake", "oracle", "aidp", "spark", "tsql",
+            "power-query", "migration"]
+authors = [{ name = "Oracle AI Data Platform" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Database",
+    "Topic :: Software Development :: Code Generators",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/oracle-samples/oracle-aidp-samples"
+Repository = "https://github.com/oracle-samples/oracle-aidp-samples"
+Changelog = "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+oci = ["oci>=2.140"]
+mcp = ["mcp>=1.2,<2; python_version >= '3.10'"]
+
+[project.scripts]
+fabric-aidp = "fabric_aidp.cli:main"
+fabric-aidp-mcp = "fabric_aidp.mcp_server:main"
+
+[tool.setuptools.packages.find]
+include = ["fabric_aidp*"]
+
+[tool.setuptools.package-data]
+# `**/*` does not match a leading dot, so every `.platform` was dropped and an
+# installed `--fixture demo` failed with "no Fabric items". Fabric identifies
+# an item *by* that file, so the fixture is worthless without them.
+"fabric_aidp.fixtures" = ["*.json", "demo-workspace/**/*", "demo-workspace/**/.platform"]
+# The Power Query parser. node_modules is deliberately absent: it is 400 files
+# the user installs with `npm install`, not something to carry in a wheel.
+"fabric_aidp" = ["mparse/parse.js", "mparse/package.json", "mparse/package-lock.json"]
+
+[tool.setuptools.dynamic]
+version = { attr = "fabric_aidp.__version__" }

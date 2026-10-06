@@ -132,7 +132,7 @@ class TestDiscoverOacAudience:
 
         redirect_loc = (
             "https://idcs-abc.identity.oraclecloud.com/oauth2/v1/authorize?"
-            "idcs_app_name=tqa3fnvu5u6mjswcuphhqeorojsrl5wq_APPID&"
+            "idcs_app_name=exampleoacprefix0123456789abcdef_APPID&"
             "X-HOST-IDENTIFIER-NAME=oac-host"
         )
         fake_response = MagicMock()
@@ -146,7 +146,7 @@ class TestDiscoverOacAudience:
         monkeypatch.setattr(oauth_mod.requests, "get", fake_get)
 
         audience = discover_oac_audience("https://oac.example.com/")
-        assert audience == "https://tqa3fnvu5u6mjswcuphhqeorojsrl5wq.analytics.ocp.oraclecloud.com"
+        assert audience == "https://exampleoacprefix0123456789abcdef.analytics.ocp.oraclecloud.com"
         assert captured["url"].endswith("/ui/")
 
     def test_raises_when_no_idcs_app_name(self, monkeypatch: pytest.MonkeyPatch) -> None:

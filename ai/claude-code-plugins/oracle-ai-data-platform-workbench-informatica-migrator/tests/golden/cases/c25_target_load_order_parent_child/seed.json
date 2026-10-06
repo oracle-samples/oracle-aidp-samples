@@ -1,0 +1,65 @@
+{
+  "STG_DEPT": {
+    "schema": "DEPT_ID decimal(10,0), DEPT_NAME string",
+    "rows": [
+      [
+        30,
+        " finance "
+      ],
+      [
+        40,
+        "Ops"
+      ]
+    ]
+  },
+  "STG_EMP": {
+    "schema": "EMP_ID decimal(10,0), EMP_NAME string, DEPT_ID decimal(10,0)",
+    "rows": [
+      [
+        1,
+        "Ann",
+        10
+      ],
+      [
+        2,
+        "Bob",
+        30
+      ],
+      [
+        3,
+        "Cy",
+        50
+      ],
+      [
+        4,
+        "Di",
+        null
+      ],
+      [
+        5,
+        "Ed",
+        40
+      ],
+      [
+        6,
+        "Fay",
+        20
+      ]
+    ]
+  },
+  "DIM_DEPT": {
+    "schema": "DEPT_SK decimal(10,0), DEPT_ID decimal(10,0), DEPT_NAME string",
+    "rows": [
+      [
+        1010,
+        10,
+        "SALES"
+      ],
+      [
+        1020,
+        20,
+        "HR"
+      ]
+    ]
+  }
+}

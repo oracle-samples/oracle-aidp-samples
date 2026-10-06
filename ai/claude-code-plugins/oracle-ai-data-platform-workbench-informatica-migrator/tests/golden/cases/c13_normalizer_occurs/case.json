@@ -1,0 +1,10 @@
+{
+  "export": "m_product_sales_normalize.xml",
+  "notes": [
+    "Relational Normalizer with one multiple-occurring column SALES (OCCURS 4). The Designer generates input ports SALES_in1..SALES_in4, one output port SALES, a generated key GK_SALES and a generated column id GCID_SALES; single-occurring PRODUCT_ID / PRODUCT_NAME pass through as INPUT/OUTPUT ports.",
+    "Each source row yields exactly OCCURS (4) output rows; the non-repeating columns repeat on every one; GCID_SALES is the occurrence index 1..4 (SALES_in1 -> 1 ... SALES_in4 -> 4).",
+    "A NULL occurrence still produces its output row with SALES NULL: product 2's Q2 row and all four of product 3's rows are written. Informatica does not drop NULL occurrences; filtering them out needs an explicit Filter transformation.",
+    "GK_SALES (-> SALES_KEY) is ignored: its start value comes from the repository sequence (Reset/Restart = NO) and it is one value per SOURCE row shared by that row's 4 outputs -- not one per output row.",
+    "Uncertain spelling: where a real export records the Normalizer tab's OCCURS/LEVEL. This case carries OCCURS/LEVEL on the TRANSFORMFIELDs (as a COBOL SOURCEFIELD does) plus the Designer's _inN port naming; there is no transformation-level 'Occurs' TABLEATTRIBUTE in a real export."
+  ]
+}

@@ -1,0 +1,207 @@
+{
+ "description": "Real Fabric notebooks exports collected from public GitHub repositories. Only files whose source repository carries a permissive licence are vendored here; see licence per file.",
+ "count": 25,
+ "files": [
+  {
+   "file": "000.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_PROCESSING_PARALLEL_MAIN.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_PROCESSING_PARALLEL_MAIN.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "001.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_CUSTOM_NOTEBOOK_TEMPLATE.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_CUSTOM_NOTEBOOK_TEMPLATE.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "002.py",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Inventory/Monitoring Extraction Refreshables.Notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Inventory/Monitoring Extraction Refreshables.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "003.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_PROCESSING_LANDINGZONE_MAIN.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_PROCESSING_LANDINGZONE_MAIN.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "004.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/business_domain/NB_CREATE_SHORTCUTS.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/business_domain/NB_CREATE_SHORTCUTS.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "005.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_LOAD_LANDING_BRONZE.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_LOAD_LANDING_BRONZE.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "006.py",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/ActivityEvents/Monitoring Activity Events.Notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/ActivityEvents/Monitoring Activity Events.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "007.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_LOAD_BRONZE_SILVER.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_LOAD_BRONZE_SILVER.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "008.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_UTILITY_FUNCTIONS.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_UTILITY_FUNCTIONS.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "009.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_UTILITIES_SETUP_FMD.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_UTILITIES_SETUP_FMD.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "010.py",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Inventory/Monitoring Extraction Inventory.Notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Inventory/Monitoring Extraction Inventory.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "011.py",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-platform-monitoring/src/Inventory/Monitoring Extraction Scanner.Notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-platform-monitoring/src/Inventory/Monitoring Extraction Scanner.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "012.py",
+   "repo": "ecotte/Fabric-Monitoring-RTI",
+   "path": "src/Inventory/Monitoring Extraction Refreshables.Notebook/notebook-content.py",
+   "url": "https://github.com/ecotte/Fabric-Monitoring-RTI/blob/2cd63743c45b11b15ef697f29ad5034cfcb1d18a/src/Inventory/Monitoring Extraction Refreshables.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "2cd63743c45b11b15ef697f29ad5034cfcb1d18a"
+  },
+  {
+   "file": "013.py",
+   "repo": "djouallah/aemo_fabric",
+   "path": "00_Initial_setup.Notebook/notebook-content.py",
+   "url": "https://github.com/djouallah/aemo_fabric/blob/1c712bdf10233442a128afbaea70efeafc7395b8/00_Initial_setup.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1c712bdf10233442a128afbaea70efeafc7395b8"
+  },
+  {
+   "file": "014.py",
+   "repo": "ecotte/Fabric-Monitoring-RTI",
+   "path": "src/ActivityEvents/Monitoring Audit Logs.Notebook/notebook-content.py",
+   "url": "https://github.com/ecotte/Fabric-Monitoring-RTI/blob/2cd63743c45b11b15ef697f29ad5034cfcb1d18a/src/ActivityEvents/Monitoring Audit Logs.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "2cd63743c45b11b15ef697f29ad5034cfcb1d18a"
+  },
+  {
+   "file": "015.py",
+   "repo": "edkreuk/FMD_FRAMEWORK",
+   "path": "src/NB_FMD_FABRIC_PURVIEW_LINEAGE_TABLE_COLUMN_EXTRACTOR.Notebook/notebook-content.py",
+   "url": "https://github.com/edkreuk/FMD_FRAMEWORK/blob/1ff1684f001af54a8722d331078a52a0196abeb8/src/NB_FMD_FABRIC_PURVIEW_LINEAGE_TABLE_COLUMN_EXTRACTOR.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "1ff1684f001af54a8722d331078a52a0196abeb8"
+  },
+  {
+   "file": "016.py",
+   "repo": "corneliascode/Automating-synthetic-data-creation-reporting-using-Microsoft-Fabric-",
+   "path": "gpt_prompting1.Notebook/notebook-content.py",
+   "url": "https://github.com/corneliascode/Automating-synthetic-data-creation-reporting-using-Microsoft-Fabric-/blob/57e011e7dcb567fcd5b418572219ab214c06af98/gpt_prompting1.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "57e011e7dcb567fcd5b418572219ab214c06af98"
+  },
+  {
+   "file": "017.py",
+   "repo": "microsoft/FabConRTIWorkshop",
+   "path": "setup/NB_FabricAPI.Notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/FabConRTIWorkshop/blob/4fb4c086f632f808ce38036c3be79e0b26f4e15b/setup/NB_FabricAPI.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "4fb4c086f632f808ce38036c3be79e0b26f4e15b"
+  },
+  {
+   "file": "019.py",
+   "repo": "microsoft/awesome-rayfin",
+   "path": "templates/helsinki-public-transport/fabric/notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/awesome-rayfin/blob/7c421c787943aac4bd53b9938cb974a80a981b7c/templates/helsinki-public-transport/fabric/notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "7c421c787943aac4bd53b9938cb974a80a981b7c"
+  },
+  {
+   "file": "020.py",
+   "repo": "gbrueckl/Fabric.Toolbox",
+   "path": "Fabric/LibraryManager/regular notebook.Notebook/notebook-content.py",
+   "url": "https://github.com/gbrueckl/Fabric.Toolbox/blob/80233c232e128c9f8ed2cb1fc50c9c21260aeb51/Fabric/LibraryManager/regular notebook.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "80233c232e128c9f8ed2cb1fc50c9c21260aeb51"
+  },
+  {
+   "file": "022.py",
+   "repo": "gbrueckl/Fabric.Toolbox",
+   "path": "Fabric/LibraryManager/MyFabricSparkLibrary.Notebook/notebook-content.py",
+   "url": "https://github.com/gbrueckl/Fabric.Toolbox/blob/80233c232e128c9f8ed2cb1fc50c9c21260aeb51/Fabric/LibraryManager/MyFabricSparkLibrary.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "80233c232e128c9f8ed2cb1fc50c9c21260aeb51"
+  },
+  {
+   "file": "026.py",
+   "repo": "microsoft/FabConRTIWorkshop",
+   "path": "setup/NB_FabricCLITest.Notebook/notebook-content.py",
+   "url": "https://github.com/microsoft/FabConRTIWorkshop/blob/4fb4c086f632f808ce38036c3be79e0b26f4e15b/setup/NB_FabricCLITest.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "4fb4c086f632f808ce38036c3be79e0b26f4e15b"
+  },
+  {
+   "file": "027.py",
+   "repo": "naveenjujaray/microsoft-fabric-schema-drift-detection",
+   "path": "fabric/DriftDetection.Notebook/notebook-content.py",
+   "url": "https://github.com/naveenjujaray/microsoft-fabric-schema-drift-detection/blob/344b04d0f601ee298716241950c95a017c604373/fabric/DriftDetection.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "344b04d0f601ee298716241950c95a017c604373"
+  },
+  {
+   "file": "028.py",
+   "repo": "gbrueckl/Fabric.Toolbox",
+   "path": "Fabric/LibraryManager/LibraryManager.Notebook/notebook-content.py",
+   "url": "https://github.com/gbrueckl/Fabric.Toolbox/blob/80233c232e128c9f8ed2cb1fc50c9c21260aeb51/Fabric/LibraryManager/LibraryManager.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "80233c232e128c9f8ed2cb1fc50c9c21260aeb51"
+  },
+  {
+   "file": "030.py",
+   "repo": "ecotte/Fabric-Monitoring-RTI",
+   "path": "src/Inventory/Monitoring Extraction Inventory.Notebook/notebook-content.py",
+   "url": "https://github.com/ecotte/Fabric-Monitoring-RTI/blob/2cd63743c45b11b15ef697f29ad5034cfcb1d18a/src/Inventory/Monitoring Extraction Inventory.Notebook/notebook-content.py",
+   "licence": "MIT",
+   "sha": "2cd63743c45b11b15ef697f29ad5034cfcb1d18a"
+  }
+ ],
+ "verified_against": "each repository's HEAD at the time of the run"
+}

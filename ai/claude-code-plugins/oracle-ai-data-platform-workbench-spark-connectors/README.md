@@ -3,26 +3,19 @@
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors).
 > This repository is now a personal development mirror. End users should install via Anthropic's community marketplace (see below), which sources from the canonical Oracle-org location.
 
-A Claude Code plugin that ships **26 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
+A Claude Code plugin that ships **26 model-invokable skills** for connecting Oracle AI Data Platform Workbench Apache Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
 
-**v0.7.0** adds DB2 guidance for the AIDP 4.1 connector release. Snowflake and NetSuite remain read-only.
+**v0.7.0** adds Db2 guidance for the AIDP 4.1 connector release. Snowflake and NetSuite remain read-only.
 
 All connectors wrap the official AIDP `aidataplatform` Spark format handler (or, where applicable, Spark JDBC / structured streaming / `oci://`/`s3a://`/`abfss://`) — same patterns shown in the upstream [`oracle-samples/oracle-aidp-samples`](https://github.com/oracle-samples/oracle-aidp-samples) connector notebooks.
 
 ## Install
 
-From Anthropic's community plugin marketplace (recommended):
+From Anthropic's community plugin marketplace:
 
 ```
 /plugin marketplace add anthropics/claude-plugins-community
 /plugin install oracle-ai-data-platform-workbench-spark-connectors
-```
-
-Or from this development mirror (gets the latest pre-release commits):
-
-```
-/plugin marketplace add ahmedawan-oracle/claude-code-plugins
-/plugin install oracle-ai-data-platform-workbench-spark-connectors@aidp-connectors
 ```
 
 ## What's in here
@@ -54,7 +47,7 @@ Or from this development mirror (gets the latest pre-release commits):
 | `aidp-mysql` | MySQL / OCI MySQL HeatWave | `aidataplatform` (`type=MYSQL` or `MYSQL_HEATWAVE`) | Plain user/password |
 | `aidp-sqlserver` | Microsoft SQL Server | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
 | `aidp-azuresql` | Azure SQL Database | `aidataplatform` (`type=AZURE_SQLSERVER`) | Plain user/password |
-| `aidp-db2` ⭐ NEW | IBM DB2 | `aidataplatform` (`type=DB2`) | Plain user/password |
+| `aidp-db2` ⭐ NEW | IBM Db2 | `aidataplatform` (`type=DB2`) | Plain user/password |
 | `aidp-hive` | Apache Hive (HiveServer2, non-Kerberos) | `aidataplatform` (`type=HIVE`) | Plain user/password |
 
 ### SaaS
@@ -68,7 +61,7 @@ Or from this development mirror (gets the latest pre-release commits):
 |---|---|---|---|
 | `aidp-snowflake` | Snowflake (read-only) | `aidataplatform` (`type=SNOWFLAKE`) | Basic or KeyPair |
 | `aidp-azure-adls` | Azure ADLS Gen2 | Spark `abfss://` | OAuth client-credentials (Service Principal) |
-| `aidp-aws-s3` | AWS S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
+| `aidp-aws-s3` | Amazon S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
 | `aidp-rest-generic` | Any REST API with a manifest URL or Volume `manifest.path` | `aidataplatform` (`type=GENERIC_REST`) | HTTP Basic |
 | `aidp-jdbc-custom` | Any DB with a JDBC driver | Spark `format("jdbc")` (runtime-loaded driver) | Driver-specific |
 | `aidp-excel` | `.xlsx` files in Volumes / Object Storage | stdlib `zipfile` + XML parser (no extra deps) | None (file-based) |
@@ -122,7 +115,7 @@ from oracle_ai_data_platform_connectors.rest.epm import (
 )
 
 # EPM_USERNAME MUST be in identity-domain form: tenancy.user@domain
-# (e.g. epmloaner622.first.last@oracle.com — the bare email returns 401)
+# (e.g. mytenancy.first.last@example.com — the bare email returns 401)
 session = http_basic_session(
     username=os.environ["EPM_USERNAME"],
     password=os.environ["EPM_PASSWORD"],

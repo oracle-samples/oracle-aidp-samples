@@ -1,7 +1,7 @@
 # TC35 — BICC lineage-delta honor probe + `gl_coa` incremental flip
 
 **Status**: ✅ **PROBES EXECUTED 2026-06-16** on the `fusion_autopilot_dev` cluster /
-`playground` workspace (saasfademo1 Fusion source) via OCI-signed REST dispatch.
+`playground` workspace (demo-pod Fusion source) via OCI-signed REST dispatch.
 Coordinates redacted per the TC26/TC30 convention; full identifiers held by the
 dispatching operator. Probe results AND the `gl_coa` seed→incremental E2E are
 both complete — the flag flip is **probe-backed and E2E-proven** (see the E2E

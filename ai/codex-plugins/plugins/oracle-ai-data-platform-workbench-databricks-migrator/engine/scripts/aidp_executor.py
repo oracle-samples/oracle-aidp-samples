@@ -413,7 +413,7 @@ class AIDPSession:
         print(f"[AIDP] GET {list_url}")
         try:
             list_resp = requests.get(list_url, auth=self.signer,
-                                     headers={"Accept": "application/json"})
+                                     headers={"Accept": "application/json"}, timeout=60)
             if list_resp.status_code >= 500:
                 raise RuntimeError(
                     f"[AIDP] Cluster appears to be down (HTTP {list_resp.status_code}: "
@@ -455,7 +455,7 @@ class AIDPSession:
             for _create_attempt in range(max_create_retries):
                 resp = requests.post(session_url, data=body, auth=self.signer,
                                      headers={"Content-Type": "application/json",
-                                              "Accept": "application/json"})
+                                              "Accept": "application/json"}, timeout=60)
                 if resp.ok:
                     break
                 err_text = resp.text[:1000]
@@ -488,7 +488,7 @@ class AIDPSession:
             for _attempt in range(36):  # 36 × 5s = 3 min
                 await asyncio.sleep(5)
                 _r = requests.get(get_url, auth=self.signer,
-                                  headers={"Accept": "application/json"})
+                                  headers={"Accept": "application/json"}, timeout=60)
                 if _r.ok:
                     session_data = _r.json()
                     if session_data.get("kernel") is not None:
@@ -974,7 +974,7 @@ class AIDPSession:
                     f"{self.aidp_endpoint}/20240831/dataLakes/{self.lake_ocid}"
                     f"/workspaces/{self.workspace_id}/notebook/api/sessions/{self.session_id}"
                 )
-                requests.delete(delete_url, auth=self.signer)
+                requests.delete(delete_url, auth=self.signer, timeout=60)
                 print(f"[AIDP] Session {self.session_id} deleted", flush=True)
             except Exception as e:
                 print(f"[AIDP] Error deleting session: {e}", flush=True)

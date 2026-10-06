@@ -1,4 +1,4 @@
-Oracle AI Data Platform — AWS → AIDP Migrator
+Oracle AI Data Platform — Migrator for AWS
 Copyright (c) 2026 Oracle and/or its affiliates.
 
 This project is licensed under the MIT License. See LICENSE for the full text.
@@ -6,3 +6,16 @@ This project is licensed under the MIT License. See LICENSE for the full text.
 Third-party components:
 - boto3 (Apache-2.0) — AWS SDK, used for read-only inventory.
 - mcp (MIT) — optional; only when the MCP server extra is installed.
+
+Trademarks
+
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+Claude and Claude Code are trademarks of Anthropic, PBC. Amazon Web Services,
+AWS, Amazon Athena, Amazon EMR, Amazon S3, Amazon SageMaker, and AWS Glue are
+trademarks of Amazon.com, Inc. or its affiliates. Apache, Apache Spark, and
+Spark are either registered trademarks or trademarks of The Apache Software
+Foundation in the United States and/or other countries. No endorsement by The
+Apache Software Foundation is implied. Third-party names are used only to
+identify the products this plugin works with; it is not affiliated with,
+sponsored by or endorsed by Amazon Web Services, Inc. or Anthropic, PBC.

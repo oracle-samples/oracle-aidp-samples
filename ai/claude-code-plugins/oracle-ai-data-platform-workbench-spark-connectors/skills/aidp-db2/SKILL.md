@@ -1,22 +1,22 @@
 ---
 name: aidp-db2
-description: Read or write IBM DB2 from an AIDP notebook through the AIDP `aidataplatform` Spark format handler. Use when the user mentions DB2, IBM Db2, LUW, or `type=DB2`. Auth is host/port + database name + user/password.
+description: Read or write IBM Db2 from an AIDP notebook through the AIDP `aidataplatform` Spark format handler. Use when the user mentions DB2, IBM Db2, LUW, or `type=DB2`. Auth is host/port + database name + user/password.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
-# `aidp-db2` — IBM DB2 via AIDP `aidataplatform`
+# `aidp-db2` — IBM Db2 via AIDP `aidataplatform`
 
-Use the built-in AIDP DB2 connector (`type=DB2`) for ingestion reads, writes, and SQL pushdown. External-catalog support is not included in the 4.1 release.
+Use the built-in AIDP Db2 connector (`type=DB2`) for ingestion reads, writes, and SQL pushdown. External-catalog support is not included in the 4.1 release.
 
 ## When to use
 
-- Read from or write to an IBM DB2 database from an AIDP notebook.
+- Read from or write to an IBM Db2 database from an AIDP notebook.
 - Mentioned: "DB2", "Db2", "IBM Db2", or `type=DB2`.
 
 ## When NOT to use
 
 - For a database without a dedicated AIDP connector → [`aidp-jdbc-custom`](../aidp-jdbc-custom/SKILL.md).
-- For a DB2 external-catalog request; that capability is not available in 4.1.
+- For a Db2 external-catalog request; that capability is not available in 4.1.
 
 ## Ingestion read
 
@@ -72,9 +72,9 @@ pushdown_df.show(5)
 ## Gotchas
 
 - Use `DB2`, not the generic JDBC connector type.
-- `database.name` is required for DB2.
-- DB2 external-catalog access is not included in the 4.1 release.
+- `database.name` is required for Db2.
+- Db2 external-catalog access is not included in the 4.1 release.
 
 ## References
 
-- Official sample: [DB2 notebook](https://github.com/oracle-samples/oracle-aidp-samples/blob/main/data-engineering/ingestion/Read_Write_External_Ecosystem_Connectors/DB2.ipynb)
+- Official sample: [Db2 notebook](https://github.com/oracle-samples/oracle-aidp-samples/blob/main/data-engineering/ingestion/Read_Write_External_Ecosystem_Connectors/DB2.ipynb)

@@ -24,7 +24,7 @@ All three layers required; none replaces the other.
 
 | Layer | Node | Why included |
 |---|---|---|
-| bronze | `erp_suppliers` | Smallest BICC PVO (~209 rows on saasfademo1) — schema-evolution proof needs to fire ALTER + MERGE; the row count is irrelevant beyond "non-zero". |
+| bronze | `erp_suppliers` | Smallest BICC PVO (~209 rows on demo-pod) — schema-evolution proof needs to fire ALTER + MERGE; the row count is irrelevant beyond "non-zero". |
 | silver | `dim_supplier` | `depends_on_bronze=("erp_suppliers",)` per `registry.py` — exercises the silver-builder integration site (`_ensure_target_schema_for_merge` called from `build()`). |
 
 Including only 2 nodes minimizes wall time (~3-5 min per phase). `dim_account` + `gl_balance` builders share the exact same integration shape as `dim_supplier`; one silver builder under live conditions is sufficient evidence that the shape works.
@@ -53,7 +53,7 @@ Including only 2 nodes minimizes wall time (~3-5 min per phase). `dim_account` +
 
 **Setup**:
 
-- `run_id`: `618e595a-2453-4bbd-9384-d21d2d9be39d`
+- `run_id`: `<uuid>`
 - Mode: `seed`
 - Wall time: **165.1s (~2.7 min)** wall / 119.9s reported
 - Dispatched via `dev/_run_tc30c.py` (sequential 3-phase runner)
@@ -63,14 +63,14 @@ Including only 2 nodes minimizes wall time (~3-5 min per phase). `dim_account` +
 ### Per-step table (Phase A)
 
 ```
-run_id=618e595a-2453-4bbd-9384-d21d2d9be39d
+run_id=<uuid>
 steps: 2 ok, 0 failed, 0 skipped, 0 deferred (119.9s reported / 165.1s wall)
 
   bronze  erp_suppliers             success                        rows=  209  dur=66.51s
   silver  dim_supplier              success                        rows=  209  dur=53.41s
 ```
 
-Both nodes green. Row counts match TC26 / prior `erp_suppliers` evidence (209 = saasfademo1's supplier count).
+Both nodes green. Row counts match TC26 / prior `erp_suppliers` evidence (209 = demo-pod's supplier count).
 
 ### Baseline schemas (post-Phase-A)
 
@@ -82,7 +82,7 @@ Both nodes green. Row counts match TC26 / prior `erp_suppliers` evidence (209 = 
 
 **Setup**:
 
-- `run_id`: `e370f80d-63fa-41f3-9a92-425275af71ea`
+- `run_id`: `<uuid>`
 - Mode: `incremental`
 - Wall time: **118.7s (~2 min)** wall / 76.2s reported
 
@@ -93,7 +93,7 @@ Pre-orchestrator-run log captured: `extract_pvo monkey-patched: appends _TC30C_T
 ### Per-step table (Phase B)
 
 ```
-run_id=e370f80d-63fa-41f3-9a92-425275af71ea
+run_id=<uuid>
 steps: 2 ok, 0 failed, 0 skipped, 0 deferred (76.2s reported / 118.7s wall)
 
   bronze  erp_suppliers             success                        rows=  209  dur=61.71s
@@ -121,7 +121,7 @@ Both nodes green. **The incremental bronze MERGE succeeded on a source-wider Dat
 
 **Setup**:
 
-- `run_id`: `d1bbd8e1-53c2-499e-bd04-f01121071b4f`
+- `run_id`: `<uuid>`
 - Mode: `incremental`
 - Wall time: **107.9s (~1.8 min)** wall / 73.6s reported
 
@@ -138,7 +138,7 @@ Both nodes green. **The incremental bronze MERGE succeeded on a source-wider Dat
 ### Per-step table (Phase C)
 
 ```
-run_id=d1bbd8e1-53c2-499e-bd04-f01121071b4f
+run_id=<uuid>
 steps: 2 ok, 0 failed, 0 skipped, 0 deferred (73.6s reported / 107.9s wall)
 
   bronze  erp_suppliers             success                        rows=  209  dur=45.85s
@@ -161,11 +161,11 @@ Both nodes green. **The incremental bronze MERGE survived target-wider schema dr
 
 ### Phase C strict rerun — sentinel-value preservation PROVEN (2026-06-02)
 
-The original Phase C run had a dispatcher bug: `WHERE SEGMENT1 IN ('1','2','3')` matched ZERO rows on `saasfademo1` (real `Segment1` values are `'1051'`/`'1252'`/etc.). So no row ever held the sentinel value and the "post-MERGE preservation" assertion wasn't actually exercised. **Re-run dispatched 2026-06-02** via `dev/_run_tc30c_phaseC_rerun.py` with real existing `Segment1` values dynamically selected from the target.
+The original Phase C run had a dispatcher bug: `WHERE SEGMENT1 IN ('1','2','3')` matched ZERO rows on `demo-pod` (real `Segment1` values are `'1051'`/`'1252'`/etc.). So no row ever held the sentinel value and the "post-MERGE preservation" assertion wasn't actually exercised. **Re-run dispatched 2026-06-02** via `dev/_run_tc30c_phaseC_rerun.py` with real existing `Segment1` values dynamically selected from the target.
 
 **Setup**:
 
-- `run_id`: `5edcacac-b858-41e3-b042-eadff56e5bcb`
+- `run_id`: `<uuid>`
 - Mode: `incremental`
 - Wall time: **142.7s (~2.4 min)**
 - Target-only column under test: `_TC30C_RERUN_SENTINEL_COL` (fresh name; idempotent ALTER TABLE ADD COLUMNS handled the "column may already exist from prior run" case)
@@ -229,7 +229,7 @@ SELECT COUNT(*) FROM ... WHERE _TC30C_RERUN_SENTINEL_COL = 'pre-MERGE-rerun-sent
 
 - **Type-conflict path** — covered by `TestSchemaReconcileHelper::test_type_conflict_raises_before_any_alter` at unit level; the dispatcher would need to manually introduce a type mismatch (e.g., ALTER target's column type post-seed) to exercise it live. Out of scope for TC30c v1.
 - **gl_balance gold builder** — same integration shape as `dim_supplier`; covered by unit tests + the import-graph smoke test. Live evidence on `gl_balance` could be added in a future TC30d if a real tenant exercises the path.
-- **Non-`saasfademo1` tenant** — same blocker as P3.7 / P3.9 across all live evidence.
+- **Non-`demo-pod` tenant** — same blocker as P3.7 / P3.9 across all live evidence.
 
 ## Dispatcher metadata (redacted)
 

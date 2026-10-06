@@ -1,0 +1,14 @@
+{
+  "export": "m_joiner_join_types.xml",
+  "notes": [
+    "ORDERS is the DETAIL pipeline, CUSTOMERS the MASTER pipeline; master ports are marked PORTTYPE=\"INPUT/OUTPUT/MASTER\" (real PowerCenter spelling). SQ_CUSTOMERS.CUST_ID is connected to the Joiner master port CUST_ID1.",
+    "Join Condition (master = detail, as the Designer writes it): CUST_ID1 = CUST_ID AND REGION = ORDER_REGION -- both keys must match. Join Type uses the real attribute values 'Normal Join', 'Master Outer Join', 'Detail Outer Join', 'Full Outer Join'.",
+    "Normal Join keeps only matched pairs (4 rows). Duplicate detail keys (orders 101 and 102 for customer 1/EAST) each pair with the master row.",
+    "Master Outer Join keeps ALL DETAIL rows plus matching master rows; unmatched detail rows carry NULL master ports (8 rows).",
+    "Detail Outer Join keeps ALL MASTER rows plus matching detail rows; unmatched master rows carry NULL detail ports (7 rows).",
+    "Full Outer Join keeps all rows from both sides (11 rows).",
+    "The multi-key condition discriminates: order 104 (cust 2, EAST) matches master 'Bolt East' (2, EAST), not 'Bolt' (2, WEST); order 105 (cust 1, WEST) matches nothing.",
+    "A NULL join key never matches, not even another NULL: order 106 (NULL cust) does not pair with master 'Ghost' (NULL cust, EAST); order 107 (cust 5, NULL region) does not pair with master 'NoRegion' (5, NULL region).",
+    "Target columns M_CUST_ID and M_REGION are fed from the master ports CUST_ID1 and REGION (connector renames)."
+  ]
+}

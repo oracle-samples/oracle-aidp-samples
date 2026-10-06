@@ -1,0 +1,119 @@
+{
+ "description": "Real Fabric corpus exports collected from public GitHub repositories. Only files whose source repository carries a permissive licence are vendored here; see licence per file.",
+ "count": 14,
+ "files": [
+  {
+   "file": "000.pq",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/Hello Dataflow.Dataflow/mashup.pq",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/Hello Dataflow.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "001.pq",
+   "repo": "microsoft/terraform-provider-fabric",
+   "path": "internal/testhelp/fixtures/dataflow/mashup.pq.tmpl",
+   "url": "https://github.com/microsoft/terraform-provider-fabric/blob/86c83beedf75c9a894c36a5bd516e0ccde7037cb/internal/testhelp/fixtures/dataflow/mashup.pq.tmpl",
+   "licence": "MPL-2.0",
+   "sha": "86c83beedf75c9a894c36a5bd516e0ccde7037cb"
+  },
+  {
+   "file": "002.pq",
+   "repo": "microsoft/fabric-task-flows",
+   "path": "_shared/templates/Dataflow/mashup.pq",
+   "url": "https://github.com/microsoft/fabric-task-flows/blob/3764df9d5931e15ecf2a6b06ec8b75687109804f/_shared/templates/Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "3764df9d5931e15ecf2a6b06ec8b75687109804f"
+  },
+  {
+   "file": "003.pq",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "samples/enrich_powerbi_report_with_machine_learning/Bank Customer Churn Analysis/Bank Customer Churn Analysis/New users ingestion.Dataflow/mashup.pq",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/samples/enrich_powerbi_report_with_machine_learning/Bank Customer Churn Analysis/Bank Customer Churn Analysis/New users ingestion.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "005.pq",
+   "repo": "microsoft/fabric-samples",
+   "path": "docs-samples/data-science/enrich-powerbi-report-with-machine-learning/Bank Customer Churn Analysis/Bank Customer Churn Analysis/New users ingestion.Dataflow/mashup.pq",
+   "url": "https://github.com/microsoft/fabric-samples/blob/618b765245eee371003d0aa011a3d921f45b6d24/docs-samples/data-science/enrich-powerbi-report-with-machine-learning/Bank Customer Churn Analysis/Bank Customer Churn Analysis/New users ingestion.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "618b765245eee371003d0aa011a3d921f45b6d24"
+  },
+  {
+   "file": "006.pq",
+   "repo": "alisonpezzott/pyfabricops-examples",
+   "path": "src/fabric/Orchestration/UpdateCalendar.Dataflow/mashup.pq",
+   "url": "https://github.com/alisonpezzott/pyfabricops-examples/blob/15c33093d94ccb57e101c1f9d9f51decce6aad24/src/fabric/Orchestration/UpdateCalendar.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "15c33093d94ccb57e101c1f9d9f51decce6aad24"
+  },
+  {
+   "file": "009.pq",
+   "repo": "misantibanez/fabric_cicd",
+   "path": "df_fabric_cicd.Dataflow/mashup.pq",
+   "url": "https://github.com/misantibanez/fabric_cicd/blob/09ec7cb0b06478f2f48175b8dda7fedb1fc6596c/df_fabric_cicd.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "09ec7cb0b06478f2f48175b8dda7fedb1fc6596c"
+  },
+  {
+   "file": "012.pq",
+   "repo": "wajahatzeeshan/fabric-repo",
+   "path": "df_People_SharePoint.Dataflow/mashup.pq",
+   "url": "https://github.com/wajahatzeeshan/fabric-repo/blob/a58854e4ab1f4ae725cf32735d8733cadd22cb43/df_People_SharePoint.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "a58854e4ab1f4ae725cf32735d8733cadd22cb43"
+  },
+  {
+   "file": "019.pq",
+   "repo": "alisonpezzott/pyfabricops-examples",
+   "path": "src/_pyfabricops/workspace/Orchestration/UpdateCalendar.Dataflow/mashup.pq",
+   "url": "https://github.com/alisonpezzott/pyfabricops-examples/blob/15c33093d94ccb57e101c1f9d9f51decce6aad24/src/_pyfabricops/workspace/Orchestration/UpdateCalendar.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "15c33093d94ccb57e101c1f9d9f51decce6aad24"
+  },
+  {
+   "file": "020.pq",
+   "repo": "wajahatzeeshan/fabric-repo",
+   "path": "df_Supplier_Snowflake.Dataflow/mashup.pq",
+   "url": "https://github.com/wajahatzeeshan/fabric-repo/blob/a58854e4ab1f4ae725cf32735d8733cadd22cb43/df_Supplier_Snowflake.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "a58854e4ab1f4ae725cf32735d8733cadd22cb43"
+  },
+  {
+   "file": "024.pq",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/Dataflow 1.Dataflow/mashup.pq",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/Dataflow 1.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "026.pq",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/wwi_df_gen2.Dataflow/mashup.pq",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/wwi_df_gen2.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "032.pq",
+   "repo": "alisonpezzott/pyfabricops-examples",
+   "path": "src/_pyfabricops_synced/workspace/Orchestration/UpdateCalendar.Dataflow/mashup.pq",
+   "url": "https://github.com/alisonpezzott/pyfabricops-examples/blob/15c33093d94ccb57e101c1f9d9f51decce6aad24/src/_pyfabricops_synced/workspace/Orchestration/UpdateCalendar.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "15c33093d94ccb57e101c1f9d9f51decce6aad24"
+  },
+  {
+   "file": "038.pq",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/Dataflow 2 Lab 04.Dataflow/mashup.pq",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/Dataflow 2 Lab 04.Dataflow/mashup.pq",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  }
+ ],
+ "verified_against": "each repository's HEAD at the time of the run"
+}

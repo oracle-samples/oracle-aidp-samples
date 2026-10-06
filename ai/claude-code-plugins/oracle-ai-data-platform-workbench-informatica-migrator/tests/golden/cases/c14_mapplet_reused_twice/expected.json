@@ -1,0 +1,11 @@
+{
+  "TGT_CUSTOMER_CONTACT": {"rows": [
+    {"CUST_ID": 1, "PHONE": "5551234567", "EMAIL": "john@x.com", "PHONE_FLAG": "Y"},
+    {"CUST_ID": 2, "PHONE": null,         "EMAIL": "a@b.com",    "PHONE_FLAG": "N"},
+    {"CUST_ID": 3, "PHONE": "5559876543", "EMAIL": null,         "PHONE_FLAG": "Y"}
+  ]},
+  "TGT_SUPPLIER_CONTACT": {"rows": [
+    {"SUPP_ID": 10, "PHONE": "+18005550199", "EMAIL": "sales@supplier.com", "PHONE_FLAG": "Y"},
+    {"SUPP_ID": 11, "PHONE": "8005550100",   "EMAIL": "info@s2.org",        "PHONE_FLAG": "Y"}
+  ]}
+}

@@ -1,0 +1,24 @@
+# Cluster libraries for the migration cluster ("migration-assets").
+#
+# THE DEFAULT PATH NEEDS NOTHING FROM THIS FILE. The four scripts read the
+# Snowflake source through the registered EXTERNAL catalog, which AIDP's own
+# Spark serves natively — no extra package required.
+#
+# This file exists for the FALLBACK paths, and is installed by the plugin's
+# provisioning step through the documented cluster-libraries API
+# (PATCH .../clusters/{clusterKey}/libraries, item types PYPI /
+# WORKSPACE_FILE / MAVEN). The cluster must be RESTARTED after installing —
+# documented AIDP behaviour.
+#
+# Uncomment only what a fallback actually needs, and pin the version you
+# validated:
+#
+# Fallback A — direct Snowflake reads from Python on the driver (metadata
+# sweeps the external catalog cannot answer, e.g. GET_DDL for view SQL):
+# snowflake-connector-python>=4.7.0
+#
+# Fallback B — the Spark-native Snowflake connector (bulk reads bypassing the
+# external catalog) is a pair of MAVEN artifacts, not pip packages; the
+# provisioning step installs them as MAVEN library items instead:
+#   net.snowflake:spark-snowflake_2.12:<validate against Spark 3.5>
+#   net.snowflake:snowflake-jdbc:<latest validated>

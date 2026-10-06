@@ -1,0 +1,14 @@
+{
+  "export": "m_sales_summary.xml",
+  "notes": [
+    "Group-by ports REGION and CHANNEL are PORTTYPE=\"INPUT/OUTPUT\" and carry BOTH EXPRESSIONTYPE=\"GROUPBY\" (the spelling real PowerCenter exports use for an Aggregator group-by port) AND GROUPBY=\"YES\" (the per-port attribute this parser reads). The parser does not read EXPRESSIONTYPE=\"GROUPBY\"; GROUPBY=\"YES\" is present only so this case tests aggregation semantics rather than that spelling gap.",
+    "NULL group keys group together: the two NULL-REGION/WEB rows form ONE group; WEST/NULL-CHANNEL is one group.",
+    "SUM(AMT, STATUS = 'PAID') is a conditional aggregate: only rows whose condition is TRUE contribute (a NULL STATUS is not TRUE); NULL AMT values are ignored. EAST/WEB = 100 (row 3 is PAID but its AMT is NULL).",
+    "When no row passes the condition (WEST/WEB has no PAID row) or every passing value is NULL (WEST/NULL: row 11 is PAID with NULL AMT), SUM returns NULL, not 0 (Integration Service default: nulls in aggregates are not treated as zero).",
+    "COUNT(*) counts every row of the group including NULLs; COUNT(AMT) skips NULL AMT and returns 0 (not NULL) for WEST/NULL.",
+    "AVG(AMT) ignores NULLs: EAST/WEB = (100+50+25)/3 = 58.333333 (port and target scale 6); all-NULL group gives NULL.",
+    "MIN/MAX on a date ignore NULL dates (row 4 has a NULL ORDER_DT).",
+    "MARGIN_RATIO = ROUND(SUM(AMT) / SUM(COST), 4): EAST/WEB 175/120 = 1.4583; SUM(COST) counts COST of rows whose AMT is NULL (the two SUMs are independent).",
+    "REGION_MGR is a non-aggregated, non-group-by passthrough port: Informatica returns the value from the LAST row of each group. The data holds REGION_MGR constant within each group so the expected value does not depend on row order."
+  ]
+}
