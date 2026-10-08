@@ -12,7 +12,9 @@ Demonstrates two Delta capabilities on AIDP, with explicit expected counts at ea
 
 Attach to an AIDP cluster with Delta and run top to bottom. Set `CATALOG` in the configuration cell
 to a catalog you can create schemas in; the notebook creates the scratch schema
-`clone_metadata_demo` and drops it in the final cell.
+`clone_metadata_demo` if it does not exist, and the final cell drops the four tables it created and
+the schema only if the notebook created it (no `CASCADE`), so pointing `DB` at an existing schema is
+safe.
 
 Statements are executed directly rather than through a try/except wrapper, so anything unsupported on
 your build fails at that cell instead of being silently recorded. Each step also `assert`s its expected
@@ -29,14 +31,20 @@ this reason, but a committed run of any cell can still carry tenancy identifiers
   the source may delete files the clone still needs, and Delta does not track that dependency. Avoid
   vacuuming a cloned source, or raise its retention window. To repair a clone this has already broken,
   re-clone it — but `CREATE OR REPLACE TABLE ... SHALLOW CLONE` over a clone holding its own data
-  raises `DELTA_UNSUPPORTED_NON_EMPTY_CLONE`, so `DELETE FROM` the clone first.
-- **`DEEP CLONE` availability varies by build.** The open-source Delta 3.2 grammar rejects it (the OSS
-  docs cover shallow clone only); Oracle's `3.2.0-oci` build may accept it. The notebook explains it
-  but does not run it, so a build without it does not halt the run.
+  raises `DELTA_UNSUPPORTED_NON_EMPTY_CLONE`, so `DELETE FROM` the clone first -- or `DROP` it, as the
+  notebook's clone cell does, so that a Run All is repeatable after an interrupted run.
+- **`DEEP CLONE` availability varies by build.** The open-source Delta 3.2 grammar rejects it with a
+  parse error (the OSS docs cover shallow clone only); whether Oracle's `3.2.0-oci` build accepts it
+  has not been verified by this sample. The notebook explains it but does not run it, so a build
+  without it does not halt the run.
 - **`DESCRIBE DETAIL` alone does not prove zero-copy.** `format` / `numFiles` / `sizeInBytes` read the
   same for a deep copy, and `DESCRIBE HISTORY` reports `operation = CLONE` for either kind. The
   distinguishing evidence is `operationMetrics.numCopiedFiles = 0` on the `CLONE` commit, and the
   clone's `inputFiles()` matching the source's. The notebook asserts both.
+- **The clone's history differs by build.** Open-source Delta records the `SHALLOW CLONE` as version 0;
+  AIDP's Delta build records an empty `CREATE TABLE` at version 0 and the `CLONE` at version 1. The
+  notebook therefore selects the `CLONE` commit by `operation`, not by version -- asserting on the
+  first commit halts a Run All on AIDP.
 - **Some `DESCRIBE` forms are not subqueryable.** Spark 3.5 does not parse
   `SELECT ... FROM (DESCRIBE DETAIL t)` — that is a parser error, not a missing feature. Run
   `DESCRIBE DETAIL` / `DESCRIBE HISTORY` / `DESCRIBE` as top-level statements and project the result

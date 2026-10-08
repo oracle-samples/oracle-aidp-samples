@@ -292,7 +292,7 @@ Before running any sample, ensure you have:
 
 - An active **Oracle AI Data Platform Workbench** environment with a compute cluster.
 - The required **IAM policies** configured for the services used (Object Storage, ALH, AI Services, etc.).
-- Cluster libraries installed from the `requirements.txt` file included in the relevant sample folder, where applicable.
+- Cluster libraries installed from the `requirements.txt` file included in the relevant sample folder, where applicable. A `requirements-test.txt`, where present, is for running that sample's tests locally and is not for the cluster.
 
 ### General Steps
 

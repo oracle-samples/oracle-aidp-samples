@@ -1,5 +1,5 @@
 """
-Conformance tests for the AIDP Semantic Catalog **lineage** API.
+Conformance tests for the AIDP **DataLineage** API (`SemanticCatalog` before SDK v4.1.1).
 
 Purpose: prove, from live responses, that the lineage feature is actually released and
 reachable — and separately, report whether the lineage *graph* is populated for the
@@ -50,11 +50,16 @@ REGION = os.environ.get("AIDP_REGION", "us-ashburn-1")
 # resource and fail with an ambiguous 404.
 DATALAKE = os.environ.get("AIDP_DATALAKE")
 if not DATALAKE:
-    raise RuntimeError(
+    # A module-level skip, not a raise: a raise is a collection error that also aborts every
+    # other suite collected in the same pytest run (e.g. `pytest data-engineering/` from the
+    # repository root), while a session fixture calling pytest.fail would be absorbed by
+    # Part B's xfail markers. The skip is reported once, as SKIPPED, and nothing here runs.
+    pytest.skip(
         "AIDP_DATALAKE is not set. Export the OCID of your own AI Data Platform "
-        "instance before running this suite, e.g.\n"
-        "    export AIDP_DATALAKE=ocid1.aidataplatform.oc1.<region>.<unique-id>\n"
-        "See README.md for the full list of required environment variables."
+        "instance before running this suite, e.g. "
+        "export AIDP_DATALAKE=ocid1.aidataplatform.oc1.<region>.<unique-id> "
+        "-- see README.md for the full list of environment variables.",
+        allow_module_level=True,
     )
 
 SCHEMA_KEY = os.environ.get("AIDP_SCHEMA", "default.lin_demo")
@@ -323,13 +328,16 @@ def test_B0_report_all_anchor_candidates(signer):
         msg = body.get("message") if isinstance(body, dict) else str(body)[:80]
         results[cand] = (code, msg)
 
+    # This output is meant to be pasteable, so the DataLake OCID is redacted wherever it
+    # can appear: the candidate label, a server message that echoes the anchor back, and
+    # the accepted list.
+    redact = lambda t: str(t).replace(DATALAKE, "<the DataLake OCID>")
+
     print("\n  anchorNode candidate probe:")
     for cand, (code, msg) in results.items():
-        # The OCID candidate is redacted: this output is meant to be pasteable.
-        shown = "<the DataLake OCID>" if cand == DATALAKE else cand[:52]
-        print("    %-52s -> %s %s" % (shown, code, msg))
+        print("    %-52s -> %s %s" % (redact(cand)[:52], code, redact(msg)))
 
-    accepted = [c for c, (code, _) in results.items() if code == 200]
+    accepted = [redact(c) for c, (code, _) in results.items() if code == 200]
     if accepted:
         print("\n  *** an anchorNode form is NOW ACCEPTED: %s ***" % accepted)
     # Always passes: this test reports, it does not gate.

@@ -8,8 +8,8 @@ infers `double` for every Python float and `bigint` for every int, and a Delta
 double are not implicitly reconciled. The notebook cannot complete a Run All.
 
 Six demos still carry it. They are `xfail(strict=False)` rather than skipped, so each
-flips to XPASS the moment it is fixed and this suite reports that the gap closed. See the
-tracking issue referenced in AFFECTED below.
+flips to XPASS the moment it is fixed and this suite reports that the gap closed. They are
+listed in AFFECTED below.
 
 Everything here is parsed from the notebook JSON -- no Spark, no cluster, no network.
 
@@ -41,6 +41,24 @@ NARROW_TYPE = re.compile(r"(\w+)\s+(DECIMAL\s*\(\s*\d+\s*,\s*\d+\s*\)|\bINT\b)",
 BRONZE_DDL = re.compile(
     r"CREATE\s+TABLE[^(]*?bronze\.(\w+)\s*\((.*?)\)\s*\n?USING\s+DELTA", re.S | re.I
 )
+# col("x").cast(<type>) in either style the demos use: .cast("decimal(10,3)") / .cast("int")
+# and .cast(DecimalType(15, 2)) / .cast(IntegerType()).
+COLUMN_CAST = re.compile(
+    r"""col\(\s*["'](\w+)["']\s*\)\s*\.cast\(\s*"""
+    r"""(["'][^"']+["']|DecimalType\(\s*\d+\s*,\s*\d+\s*\)|IntegerType\(\s*\))""",
+    re.I,
+)
+
+
+def _normalise_type(arg):
+    """'decimal(10, 3)' / DecimalType(10,3) -> DECIMAL(10,3);  'int' / IntegerType() -> INT."""
+    arg = arg.strip("'\"").replace(" ", "").upper()
+    m = re.match(r"(?:DECIMAL|DECIMALTYPE)\((\d+),(\d+)\)$", arg)
+    if m:
+        return "DECIMAL(%s,%s)" % m.groups()
+    if arg in ("INT", "INTEGER", "INTEGERTYPE()"):
+        return "INT"
+    return arg
 
 
 def _demo_names():
@@ -92,7 +110,8 @@ def test_bronze_frame_is_cast_to_declared_types(demo, request):
     if demo in AFFECTED:
         request.node.add_marker(
             pytest.mark.xfail(
-                reason="%s: generated frame is not cast to the bronze DDL (tracked)" % demo,
+                reason="%s: generated frame is not cast to the bronze DDL" % demo,
+                raises=AssertionError,
                 strict=False,
             )
         )
@@ -103,10 +122,14 @@ def test_bronze_frame_is_cast_to_declared_types(demo, request):
 
     cell = _generating_cell(cells)
     assert cell is not None, "%s has no createDataFrame cell" % demo
-    assert re.search(r"\.cast\(|CAST\s*\(", cell), (
-        "%s declares %s in bronze but its generating cell casts nothing, so "
-        "createDataFrame's inferred double/bigint frame will fail the Delta schema check"
-        % (demo, sorted(declared))
+    # Every declared narrow column must be cast to exactly that type; any `.cast(` in the
+    # cell is not enough (dropping one cast would still fail the Delta schema check).
+    casts = {c: _normalise_type(t) for c, t in COLUMN_CAST.findall(cell)}
+    wrong = {c: (t, casts.get(c)) for c, t in declared.items() if casts.get(c) != t}
+    assert not wrong, (
+        "%s: bronze columns not cast to their declared type {column: (declared, cast)}: %s "
+        "-- createDataFrame's inferred double/bigint frame will fail the Delta schema check"
+        % (demo, wrong)
     )
 
 

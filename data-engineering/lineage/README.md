@@ -30,7 +30,7 @@ write to the SDK version you checked.
 | Fetch entity lineage | `POST /20260430/aiDataPlatforms/{aiDataPlatformId}/actions/fetchLineage` |
 | Export lineage (CSV) | `POST /20260430/aiDataPlatforms/{aiDataPlatformId}/actions/exportLineage` |
 
-- **Host:** `https://datalake.{region}.oci.oraclecloud.com` (service endpoint prefix `datahub-dp`)
+- **Host:** `https://datalake.{region}.oci.oraclecloud.com`
 - **API version:** `20260430`
 - **Request:** `anchorNode` (required), `direction` (`UPSTREAM|DOWNSTREAM|BOTH`), `level`
   (`ENTITY|COLUMN`), `maxDepth`, `nodeFilters`, `pathFilters`, `shouldIncludeEdges`
@@ -38,15 +38,13 @@ write to the SDK version you checked.
   `id / qualifiedName / displayName / parentId / type / depth / properties` and links carry
   `fromNodeId / toNodeId / type / providerType / properties`
 - **Maturity:** both operations are marked **(Preview)** in the official CLI reference
-- **Backing store:** Oracle Data Catalog — table properties carry `com.oracle.dcat.*` keys and
-  `request-mode: DATAHUB_EXECUTE`
 
 Column-level lineage (`level: COLUMN`) is part of the released contract, not just table-level.
 
 ### Reading a 404
 
 A 404 means different things depending on which host you sent it to, and the response body cannot
-tell you which — it is **byte-identical** (111 bytes, same `code`/`message`) for an absent route and
+tell you which — it is **identical** (same `code`/`message`) for an absent route and
 for a resource you are not authorised to see.
 
 | Host | A 404 here means |
@@ -84,7 +82,7 @@ Two candidate explanations, not yet separated:
 
 1. the lineage graph is not populated for this DataLake (no harvest configured, and interactive
    notebook writes may not register a process node — lineage may require Job/Workflow execution); or
-2. `anchorNode` expects an internal Data Catalog node id whose format is undocumented — the CLI
+2. `anchorNode` expects an internal node id whose format is undocumented — the CLI
    reference lists the field with an **empty description**.
 
 `test_B0` probes the full candidate matrix on every run. It always passes, so pytest **captures** its
@@ -98,13 +96,15 @@ pytest test_aidp_lineage_api.py -rP -k B0      # or -s
 ## Running the tests
 
 **Prerequisites.** An OCI config profile with access to your own AI Data Platform instance, and
-`AIDP_DATALAKE` exported. There is deliberately no default: without it the suite exits with a message
-rather than signing requests against someone else's resource.
+`AIDP_DATALAKE` exported. There is deliberately no default: without it the whole module is **skipped**
+with a message naming the variable, rather than signing requests against someone else's resource.
 
-That stop is a **collection error (exit 2)** raised at import, not a skip — deliberately. A session
-fixture calling `pytest.fail` would be absorbed by Part B's `xfail` markers, turning a missing
-variable into the same `xfail` the known gap produces, which is exactly the confusion the note below
-warns about.
+That stop is a module-level `pytest.skip(..., allow_module_level=True)` — not a session fixture and
+not a raise, deliberately. A session fixture calling `pytest.fail` would be absorbed by Part B's
+`xfail` markers, turning a missing variable into the same `xfail` the known gap produces (the
+confusion the note below warns about); a raise at import is a collection error that also aborts every
+other suite collected in the same run. The skip is reported once, as `SKIPPED`, and the SCD and
+medallion suites still run when pytest is invoked from the repository root.
 
 ```bash
 pip install -r requirements.txt
@@ -122,7 +122,7 @@ pytest test_aidp_lineage_api.py -m "existence and not legacy"   # skip the legac
 
 | Variable | Required | Default |
 |---|---|---|
-| `AIDP_DATALAKE` | **yes** | none -- the suite stops if unset |
+| `AIDP_DATALAKE` | **yes** | none -- the module is skipped if unset |
 | `AIDP_PROFILE` | no | `DEFAULT` |
 | `AIDP_REGION` | no | `us-ashburn-1` |
 | `AIDP_SCHEMA` | no | `default.lin_demo` |
@@ -225,14 +225,15 @@ SELECT * FROM (SELECT cust_id, amount * 2 AS amt FROM raw_orders) s   -- amt <- 
 ```
 
 The same happens for `df.withColumn("x", ...).withColumn("y", col("x") + 1)` and for an aggregate over
-a subquery. Cell 14 renders those as `(literal)`, which is indistinguishable from a genuine constant.
+a subquery. Cell 14 renders those as `(no source columns resolved)`, which is indistinguishable from
+a genuine constant.
 
 It is **not** a general-purpose lineage extractor. Outside those shapes it can return an incomplete or
 empty column map, in some cases without warning:
 
 | Shape | Behaviour |
 |---|---|
-| Alias computed in a `FROM`-subquery, or by an earlier `.withColumn()` / `.select()` — i.e. `Project` over `Project`, `Aggregate` over `Project` | that column's lineage is empty, printed as `(literal)` |
+| Alias computed in a `FROM`-subquery, or by an earlier `.withColumn()` / `.select()` — i.e. `Project` over `Project`, `Aggregate` over `Project` | that column's lineage is empty, printed as `(no source columns resolved)` |
 | Window function, `Project` over `Aggregate`, `LATERAL VIEW explode`, second branch of a `UNION` | column lineage may be wrong or empty |
 | Top node is `Sort` / `GlobalLimit` / `Distinct` / `Filter` (HAVING) / `WithCTE` / `Union` / `Except` | column map empty |
 | CTE | adds a spurious `<CTERelationRef>` leaf |

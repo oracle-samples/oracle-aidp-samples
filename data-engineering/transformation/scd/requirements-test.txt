@@ -1,0 +1,9 @@
+# Local test dependencies for test_scd2_template.py. Not for the AIDP cluster: install
+# requirements.txt there, never this file, so the cluster's own Spark and Delta runtime
+# are not shadowed.
+-r requirements.txt
+pytest
+pyspark==3.5.2
+# Only needed for the end-to-end test marked `delta`; skipped when absent.
+# Run `pytest -m "not delta"` to exclude it.
+delta-spark==3.2.0

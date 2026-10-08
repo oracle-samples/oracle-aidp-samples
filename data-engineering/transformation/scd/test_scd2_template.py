@@ -11,12 +11,13 @@ What each group covers:
                        This is the actual bug: `NULL != 'x'` is NULL, which is falsy in
                        both `WHEN MATCHED AND` and `WHERE`, so a NULL -> value change is
                        expired by neither statement and vanishes with no error.
-  3. Guard          -- staging uniqueness is enforced before either statement runs.
+  3. Guard          -- NULL keys and staging uniqueness are rejected before either
+                       statement runs.
   4. End-to-end     -- the full expire-then-insert pair against Delta. Marked `delta`
                        because it needs delta-spark and its jars.
 
 Run:
-    pip install -r requirements.txt
+    pip install -r requirements-test.txt    # local only; the cluster gets requirements.txt
     pytest test_scd2_template.py -v
     pytest test_scd2_template.py -v -m "not delta"    # skip the Delta end-to-end
 """
@@ -127,13 +128,14 @@ def _delta_available():
 
 
 @pytest.fixture(scope="session")
-def spark(tmp_path_factory):
+def spark(request, tmp_path_factory):
     """One session for the whole module.
 
     Spark allows a single active SparkSession per JVM, so `getOrCreate()` in a later test
     returns this one. Delta's extensions are therefore configured here, up front, when
-    delta-spark is installed -- otherwise the Delta end-to-end test would silently
-    inherit a session without them and fail with a Py4JJavaError depending on test order.
+    delta-spark is installed and a `delta`-marked test was collected -- otherwise the Delta
+    end-to-end test would silently inherit a session without them and fail with a
+    Py4JJavaError depending on test order.
     """
     pytest.importorskip("pyspark", reason="pyspark not installed")
     from pyspark.sql import SparkSession
@@ -149,7 +151,11 @@ def spark(tmp_path_factory):
             str(tmp_path_factory.mktemp("warehouse")),
         )
     )
-    if _delta_available():
+    # Delta is configured only when a `delta`-marked test was actually collected: its
+    # extensions need the Delta jars, which configure_spark_with_delta_pip resolves from
+    # Maven, so `pytest -m "not delta"` should pay neither that cost nor need the network.
+    delta_selected = any(i.get_closest_marker("delta") for i in request.session.items)
+    if _delta_available() and delta_selected:
         import delta
 
         builder = (
@@ -233,13 +239,16 @@ class _FakeDF:
 
 
 class _FakeSpark:
-    """Answers only the duplicate probe; records everything else as executed."""
+    """Answers only the NULL-key and duplicate probes; records everything else as executed."""
 
-    def __init__(self, duplicate_keys):
+    def __init__(self, duplicate_keys, null_keys=0):
         self._dupes = [(k,) for k in duplicate_keys]
+        self._null_keys = null_keys
         self.executed = []
 
     def sql(self, query):
+        if query.lstrip().startswith("SELECT count(*)") and "IS NULL" in query:
+            return _FakeDF([(self._null_keys,)])
         if "HAVING count(*) > 1" in query:
             return _FakeDF(self._dupes)
         self.executed.append(query)
@@ -266,6 +275,16 @@ def test_guard_blocks_duplicate_staging_before_executing_anything(notebook_ns):
     assert "3" in str(excinfo.value) and "7" in str(excinfo.value), (
         "the error should name the offending keys: %s" % excinfo.value
     )
+
+
+def test_guard_blocks_null_keys_before_executing_anything(notebook_ns):
+    """A NULL key never matches `target.k = source.k`, so step 2 would insert it as new on
+    every run and each rerun would add another current row. The duplicate probe does not
+    see it (one NULL is not a duplicate), so the guard has to reject it explicitly."""
+    notebook_ns["spark"] = _FakeSpark(duplicate_keys=[], null_keys=1)
+    with pytest.raises(ValueError, match="NULL"):
+        notebook_ns["run_scd2_merge"](**BASE_KW)
+    assert notebook_ns["spark"].executed == [], "statements ran despite a NULL key"
 
 
 # ----------------------------------------------------------------------------------
