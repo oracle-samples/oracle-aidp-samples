@@ -169,6 +169,7 @@ Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cr
 |---|---|
 | [DataFrame PII Masking with AI](data-engineering/transformation/masking/README.md) | PySpark utility that detects and masks PII columns using a pluggable `PIIChecker` abstraction — supports Anthropic Claude (Haiku/Sonnet/Opus) and OCI native models via Spark `query_model()`. |
 | [Partition-Aware Merge Generator](data-engineering/transformation/merge/README.md) | Helper utility for partition-aware merge operations on Spark DataFrames: PK-based updates, configurable update policies, deletes, and schema evolution — Delta-MERGE-like behaviour without requiring Delta. |
+| [Streaming Metrics to OCI Monitoring](data-engineering/streaming-metrics-to-oci-monitoring/README.md) | Publish Spark Structured Streaming metrics (input/processing rate, trigger latency, watermark lag, state size) from AIDP to a custom OCI Monitoring namespace with a `StreamingQueryListener`, for Metrics Explorer charts and alarms. |
 
 #### Miscellaneous
 
