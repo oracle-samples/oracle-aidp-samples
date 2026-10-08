@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "oracle-ai-data-platform-workbench-fabric-migrator",
+  "version": "0.1.0",
+  "description": "Migrate a Microsoft Fabric workspace (notebooks, Warehouse T-SQL, Dataflow Gen2 / Power Query M, Data Pipelines, Lakehouse shortcuts, OneLake paths) to Oracle AI Data Platform: inventory, plan, translate deterministically, verify, and publish.",
+  "author": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": ["aidp", "oracle", "fabric", "migration", "onelake", "spark",
+               "tsql", "power-query", "dataflow"]
+}

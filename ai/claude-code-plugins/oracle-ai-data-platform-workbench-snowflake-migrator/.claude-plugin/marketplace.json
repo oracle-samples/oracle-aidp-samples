@@ -1,0 +1,39 @@
+{
+  "name": "oracle-aidp-snowflake-migrator",
+  "owner": {
+    "name": "Oracle Corporation"
+  },
+  "metadata": {
+    "version": "0.28.0",
+    "description": "Single-plugin marketplace for the Oracle AI Data Platform Workbench Snowflake Migrator Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-workbench-snowflake-migrator",
+      "description": "Snowflake to Oracle AI Data Platform migration driven from one config file: in-AIDP discovery, a reviewed translation plan, target structure created on AIDP compute, and one verified copy job per schema. Read-only against Snowflake, dry-run by default against AIDP.",
+      "version": "0.28.0",
+      "source": "./",
+      "category": "data",
+      "keywords": [
+        "oracle",
+        "aidp",
+        "snowflake",
+        "migration",
+        "schema-migration",
+        "external-catalog",
+        "catalog-registration",
+        "type-mapping",
+        "information-schema",
+        "compute-proposal",
+        "warehouse-sizing",
+        "delta",
+        "lakehouse",
+        "spark",
+        "dry-run",
+        "read-only-enforced",
+        "oci",
+        "aidp-cli"
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
 oracledb
 oci
 pyyaml
+cryptography

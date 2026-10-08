@@ -45,7 +45,7 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "AIDP Databricks Migrator",
+    "displayName": "Oracle AIDP Migrator for Databricks",
     "shortDescription": "Self-contained Databricks to Oracle AIDP migrations from Codex.",
     "longDescription": "Plan and execute automated Databricks to Oracle AIDP migrations from Codex. The plugin bundles the OpenAI-based Python engine and stages it to ~/.aidp-migrator/engine on SessionStart, so no separate migrator clone is required. Pass-1 rewrites Databricks APIs in dependency notebooks; Pass-2 executes each task cell-by-cell on a live AIDP cluster with 4-way verify (exception / stderr / Spark logs / model eval) and up to 10 fix attempts per cell. Handles Unity Catalog / HMS DDL via deterministic rewrite rules, workflow DAG manifest building, write-redirect sandbox schema for data safety, resume-from-cache, and acceptance contracts for streaming or batch convergence.",
     "developerName": "Oracle",

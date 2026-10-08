@@ -1,6 +1,6 @@
 # TC8 — Bronze → Silver → Gold supplier-spend mart, live results 2026-04-30
 
-End-to-end medallion proven: BICC extract → bronze → silver → gold against the saasfademo1 demo pod.
+End-to-end medallion proven: BICC extract → bronze → silver → gold against the demo-pod demo pod.
 
 ## Pipeline summary
 

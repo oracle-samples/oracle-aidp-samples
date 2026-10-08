@@ -49,7 +49,7 @@ def _make_snapshot(
         bronzeSchemaFingerprint="sha256:" + "a" * 64,
         provenance=SnapshotProvenance(
             approvedBy=ApprovedBy(
-                operator="oussama@oracle.com",
+                operator="operator@example.com",
                 timestamp=generated_at,
                 mechanism=mechanism,  # type: ignore[arg-type]
             ),

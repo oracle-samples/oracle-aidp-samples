@@ -1,6 +1,6 @@
 # TC31_v2_cli_content_pack_seed_live — Live evidence trail
 
-**Status:** PASS — captured 2026-06-10/11 on `saasfademo1` via a dedicated
+**Status:** PASS — captured 2026-06-10/11 on `demo-pod` via a dedicated
 dev cluster. Operator-driven REST dispatch through the production CLI
 (`aidp-fusion-autopilot run`, content-pack backend — the only backend
 post-Phase-9).
@@ -156,5 +156,5 @@ the PVO). Re-seed then succeeded.
   (`gl_journal_lines`, `po_receipts`) + the `scm_items` extract issue
   remain in Option B (`LIMITS.md` P3-L3, `dev/PLAN…md` §27). The
   `AIDPF-4071` gate diagnoses any remaining mismatch automatically.
-- Non-`saasfademo1` tenant evidence (P3.7 / P3.9) is still outstanding for
+- Non-`demo-pod` tenant evidence (P3.7 / P3.9) is still outstanding for
   any "plugin-portable" claim — this run proves the demo pod only.

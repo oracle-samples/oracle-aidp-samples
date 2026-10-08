@@ -1,12 +1,12 @@
 # TC30a — P1.17 incremental MERGE silver/gold proof (+ TC28b clock-skew) on `fusion_autopilot_dev`
 
-**Test case ID**: TC30a (silver/gold MERGE path proof via synthetic Delta DML on the `saasfademo1` demo pod).
+**Test case ID**: TC30a (silver/gold MERGE path proof via synthetic Delta DML on the `demo-pod` demo pod).
 **Stage E plan items**: E1a + E2 (`docs/features/p1.17-incremental-merge/plan.md`).
 **Status**: ✅ **EXECUTED 2026-06-02** on `fusion_autopilot_dev` cluster / `playground` workspace. All 11 per-layer state-table assertions passed.
 
 ## What this verifies
 
-TC30a is the **gating live-evidence test for P1.17 merge**. It exercises the full silver/gold MERGE write path against real Delta tables on a real AIDP cluster, using a synthetic Delta DML edit on bronze to simulate a Fusion-side delta that BICC's demo-pod path cannot manufacture (Fusion data is frozen on `saasfademo1`).
+TC30a is the **gating live-evidence test for P1.17 merge**. It exercises the full silver/gold MERGE write path against real Delta tables on a real AIDP cluster, using a synthetic Delta DML edit on bronze to simulate a Fusion-side delta that BICC's demo-pod path cannot manufacture (Fusion data is frozen on `demo-pod`).
 
 The proof covers four contracts from the plan's Stage B:
 
@@ -108,7 +108,7 @@ After Run B, the gap invariant deliberately breaks (silver/gold cursors are pull
     - TC30a's BICC-call assertion: `extract_pvo` received the windowed prior watermark on Run B (assertable from the bronze closure trace; the synthetic-DML short-circuit then preserves the cursor).
     - TC30b (deferred to BACKLOG P3.7 / P3.9) closes the gap with real Fusion-side churn.
 
-- **gl_balance row-level MERGE** — the narrow scope used here doesn't include `gl_period_balances` bronze (~11M rows; too costly on the demo pod). The MERGE template is structurally identical to the silver `dim_supplier` MERGE (both use B2's row-level template with NULL-safe `<=>` on the natural key), so silver MERGE evidence covers the contract transitively. The composite-key NULL-safety (`translated_flag` NULL on saasfademo1) is pinned by unit test `TestGLBalanceIncrementalSQL::test_incremental_emits_merge_with_composite_null_safe_on_clause`.
+- **gl_balance row-level MERGE** — the narrow scope used here doesn't include `gl_period_balances` bronze (~11M rows; too costly on the demo pod). The MERGE template is structurally identical to the silver `dim_supplier` MERGE (both use B2's row-level template with NULL-safe `<=>` on the natural key), so silver MERGE evidence covers the contract transitively. The composite-key NULL-safety (`translated_flag` NULL on demo-pod) is pinned by unit test `TestGLBalanceIncrementalSQL::test_incremental_emits_merge_with_composite_null_safe_on_clause`.
 
 - **`incremental_capable=False` PVO behavior under MERGE** (`gl_period_balances`, `gl_coa`, `ap_aging_periods`) — same scope-exclusion reason; pinned by unit test `TestExtractPvoWatermarkThreading::test_incremental_capable_false_pvo_threads_none`.
 

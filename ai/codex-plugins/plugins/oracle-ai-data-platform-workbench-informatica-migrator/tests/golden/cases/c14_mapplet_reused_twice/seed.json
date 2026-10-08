@@ -1,0 +1,17 @@
+{
+  "CUSTOMERS": {
+    "schema": "CUST_ID decimal(10,0), CUST_PHONE string, CUST_EMAIL string",
+    "rows": [
+      [1, "(555) 123-4567", "  John@X.COM "],
+      [2, null,             "a@b.com"],
+      [3, "555.987.6543",   null]
+    ]
+  },
+  "SUPPLIERS": {
+    "schema": "SUPP_ID decimal(10,0), SUPP_PHONE string, SUPP_EMAIL string",
+    "rows": [
+      [10, "+1 800-555-0199", "Sales@Supplier.com"],
+      [11, "800 555 0100",    " INFO@S2.ORG"]
+    ]
+  }
+}

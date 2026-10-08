@@ -151,8 +151,8 @@ which backend your bundle declares.
 #### Example — initial-onboarding + content-pack backend
 
 ```
-Overlay drafted: overlays/saasfademo1-currency-fix/pack.yaml
-Remediation:    overlays/saasfademo1-currency-fix/remediation.md (Option D)
+Overlay drafted: overlays/demo-pod-currency-fix/pack.yaml
+Remediation:    overlays/demo-pod-currency-fix/remediation.md (Option D)
 
 Next steps:
   1. Review the overlay + remediation.md.

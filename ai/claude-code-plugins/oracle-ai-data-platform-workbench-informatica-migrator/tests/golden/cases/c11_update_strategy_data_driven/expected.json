@@ -1,0 +1,42 @@
+{
+  "TGT_PRODUCT": {
+    "rows": [
+      {
+        "PRODUCT_ID": 1,
+        "PRODUCT_NAME": "Widget",
+        "LIST_PRICE": 10.0,
+        "LOAD_TS": "2026-01-01T00:00:00"
+      },
+      {
+        "PRODUCT_ID": 2,
+        "PRODUCT_NAME": "Gadget",
+        "LIST_PRICE": 22.5,
+        "LOAD_TS": "2026-09-29T02:00:00"
+      },
+      {
+        "PRODUCT_ID": 4,
+        "PRODUCT_NAME": "Gizmo",
+        "LIST_PRICE": 7.0,
+        "LOAD_TS": "2026-01-01T00:00:00"
+      },
+      {
+        "PRODUCT_ID": 5,
+        "PRODUCT_NAME": "Sprocket",
+        "LIST_PRICE": 3.25,
+        "LOAD_TS": "2026-09-29T02:00:00"
+      },
+      {
+        "PRODUCT_ID": 6,
+        "PRODUCT_NAME": "Cog",
+        "LIST_PRICE": 1.1,
+        "LOAD_TS": "2026-09-29T02:00:00"
+      },
+      {
+        "PRODUCT_ID": 7,
+        "PRODUCT_NAME": "Whatsit",
+        "LIST_PRICE": 9.99,
+        "LOAD_TS": "2026-09-29T02:00:00"
+      }
+    ]
+  }
+}

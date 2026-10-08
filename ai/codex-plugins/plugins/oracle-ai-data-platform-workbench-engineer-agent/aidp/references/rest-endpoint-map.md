@@ -15,7 +15,7 @@ Source: memory `aidp_rest_api.md` + the AIDP platform reference, **now corrected
 > Same path shape as the LA `20240831/dataLakes` we use, so a future LA→GA migration is a two-token swap, not a rewrite.
 >
 > **RE-VERIFIED 2026-06-10** on a *second, independent* instance — tpcds DataLake
-> `…oc1.iad.<DATALAKE_OCID_REDACTED>…` (ws `<WORKSPACE_ID_REDACTED>`) + `aidp_skilltest` (for Spark SQL). All GA categories,
+> `…oc1.iad.<DATALAKE_OCID_REDACTED>…` (ws `<WORKSPACE_ID_REDACTED>`) + `<aidp-instance>` (for Spark SQL). All GA categories,
 > catalog/schema/table CRUD, MCP/REST `list_roles` parity, the Spark-SQL `SELECT` path, and
 > `ai_generate('openai.gpt-5.4', …)` confirmed **live**; only the Preview buckets (git/bundle/mlops) returned
 > 404 = not provisioned on that instance (expected cross-instance difference, not a regression). See the
@@ -94,7 +94,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 2026-06-10  FINAL-QA cross-instance pass. env: tpcds (region us-ashburn-1), DataLake …oc1.iad.<DATALAKE_OCID_REDACTED>…,
             workspace <WORKSPACE_UUID_REDACTED>; auth: oci raw-request --profile DEFAULT (api_key).
             NOTE: tpcds is a DIFFERENT instance than the 2026-06-09 <TENANCY> env — Preview-bucket (git/bundle/mlops)
-            provisioning differences across instances are EXPECTED, not regressions. SQL ran on aidp_skilltest
+            provisioning differences across instances are EXPECTED, not regressions. SQL ran on <aidp-instance>
             (DataLake …<DATALAKE_OCID_REDACTED>…, ws <WORKSPACE_ID_REDACTED>, cluster <CLUSTER_ID_REDACTED>, profile DEFAULT).
   -- rest-lake-governance (8/8 ok) --
   GET …/shares                          → 200 items=0   [data-sharing ✅]
@@ -123,7 +123,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   list_roles 200 (AI_DATA_PLATFORM_ADMIN, AUDITOR) — cross-checked vs REST /roles, identical (MCP/REST parity ✅)
   list_agent_flows 200 'No agent flows found' (valid empty, consistent with ws-scoped agentFlows items=0)
   list_volumes 400 Bad request on …/volumes (deterministic, 2× retry)   [volumes ⚠️ route reachable, rejects bare list]
-  -- sql-exec (aidp_skilltest, $HOME/.aidp/aidp_sql.py, profile DEFAULT) --
+  -- sql-exec (<aidp-instance>, $HOME/.aidp/aidp_sql.py, profile DEFAULT) --
   spark.sql SELECT COUNT(*) FROM default.default.deal_procurement_lifecycle_fact → ok, value 50, job 506   [analyzing-data ✅]
   spark.sql SELECT ai_generate('openai.gpt-5.4','reply with the single word OK') → ok, text 'OK', job 507   [ai-sql ✅]
   -> Net: GA categories + models-catalog + catalog/schema/table CRUD + Spark SELECT + ai_generate all LIVE on a
@@ -230,7 +230,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   api_key DEFAULT:  spark.sql('SELECT 1') → status ok, real spark_job  (REGRESSION PASS — api_key path byte-for-byte unchanged).
   session AIDP_SESSION:  helper takes the session branch (builds a SecurityTokenSigner, NO KeyError); create_session 401'd only
       because the local session token was EXPIRED + non-refreshable headlessly — construction is correct, expiry is the only failure.
-      End-to-end session-token success was verified by the PR author on their instance (OASECEAL); not re-verifiable in this env.
+      End-to-end session-token success was verified by the PR author on their instance (the test tenancy); not re-verifiable in this env.
   jobs:  GET …/workspaces/<WS>/jobs → 200 (tpcds holds 5 jobs; the "100+/page pagination" lesson is playground-specific but sound).
 ```
 

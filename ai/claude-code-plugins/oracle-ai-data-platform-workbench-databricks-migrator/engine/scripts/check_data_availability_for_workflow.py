@@ -827,10 +827,15 @@ installed = []
 for mod in missing_py:
     top = mod.split(".")[0]
     # Map common import names to pip package names
+    # Only curated names are installed: a bare import name is not a trustworthy
+    # package name (anyone can register it on PyPI). Others are reported.
     pip_name = {{"sklearn": "scikit-learn", "cv2": "opencv-python",
                 "pil": "Pillow", "yaml": "pyyaml", "attr": "attrs",
                 "dateutil": "python-dateutil", "bs4": "beautifulsoup4",
-                "crypto": "pycryptodome"}}.get(top.lower(), top)
+                "crypto": "pycryptodome", "numpy": "numpy", "pandas": "pandas",
+                "requests": "requests", "scipy": "scipy"}}.get(top.lower())
+    if pip_name is None:
+        continue
     try:
         r = subprocess.run(["pip", "install", "--quiet", pip_name],
                            capture_output=True, text=True, timeout=120)

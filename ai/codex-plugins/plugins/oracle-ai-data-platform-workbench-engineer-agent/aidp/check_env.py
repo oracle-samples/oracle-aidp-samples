@@ -2,14 +2,14 @@
 """SessionStart readiness check for the oracle-ai-data-platform-workbench-engineer-agent Codex plugin.
 
 Invoked by the SessionStart hook (hooks/session_start.py) after it stages the helper to ~/.aidp/. It:
-  1. Ensures the bundled Python deps (requirements.txt, a sibling of this file) are installed -auto `pip install`
-     ONLY if an import check fails, then writes a one-time sentinel so later sessions are instant.
+  1. Checks the bundled Python deps (requirements.txt, a sibling of this file) and prints the `pip install` command if any
+     is missing; installs them only when AIDP_PLUGIN_AUTOINSTALL=1 (then writes a one-time sentinel).
   2. Reports local OCI readiness (the `oci` CLI + a ~/.oci/config profile) -the one thing the plugin
      CANNOT bundle (per-user secrets). It does NOT do a network/auth call here (kept fast); the
      `aidp-engineer-bootstrap` skill does the live AIDP reachability check.
 
 NEVER blocks the session: always exits 0. Prints a concise one-line banner to stdout so the result
-shows in the session context. Set AIDP_PLUGIN_NO_AUTOINSTALL=1 to make it check-only (no pip).
+shows in the session context. It is check-only unless AIDP_PLUGIN_AUTOINSTALL=1 is set (then it runs pip).
 """
 import os, sys, subprocess, shutil
 
@@ -18,7 +18,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REQ = os.path.join(HERE, "requirements.txt")
 SENTINEL = os.path.join(HERE, ".aidp_deps_ok")
 MODS = ("oci", "requests", "websocket", "cryptography")  # websocket-client imports as `websocket`
-NO_AUTO = os.environ.get("AIDP_PLUGIN_NO_AUTOINSTALL") == "1"
+# Installing into the user's interpreter at session start is opt-in: set
+# AIDP_PLUGIN_AUTOINSTALL=1 to allow it. Otherwise the check prints the command.
+NO_AUTO = os.environ.get("AIDP_PLUGIN_AUTOINSTALL") != "1"
 
 out = []
 

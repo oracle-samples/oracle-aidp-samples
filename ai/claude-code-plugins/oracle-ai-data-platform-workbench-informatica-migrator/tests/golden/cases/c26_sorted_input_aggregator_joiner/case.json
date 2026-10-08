@@ -1,0 +1,11 @@
+{
+  "export": "m_region_channel_sales_sorted.xml",
+  "notes": [
+    "SQ_SALES -> SRT_REGION_CHANNEL (Sorter keys REGION ASC, CHANNEL ASC; 'Null Treated Low' = NO so NULLs sort HIGH) -> AGG_REGION_CHANNEL ('Sorted Input' = YES, group-by REGION, CHANNEL via EXPRESSIONTYPE=\"GROUPBY\") -> JNR_REGION detail side.",
+    "SQ_REGION_REF ('Number Of Sorted Ports' = 1 -> ORDER BY REGION; Oracle sorts NULL last, matching 'Null Is Highest Value') is the Joiner MASTER (ports REGION1 / REGION_NAME, PORTTYPE INPUT/OUTPUT/MASTER). Joiner 'Sorted Input' = YES, Join Condition REGION1 = REGION, Join Type = Master Outer Join (keep every detail = every aggregate row).",
+    "A sorted Aggregator between the sort origin and a sorted Joiner is allowed because it groups by the same leading ports the data is sorted on; the inputs really are sorted, so Sorted Input changes performance only -- the rows must equal the unsorted semantics.",
+    "Aggregator: a NULL group-by value forms its own group -- (NULL, WEB) = 30 + 20, (NULL, NULL) = 5, (EAST, NULL) = 10. SUM/MAX/COUNT ignore NULL AMT: (WEST, WEB) SUM 70, COUNT(AMT) 1, MAX 70.",
+    "Joiner: a NULL key never matches, not even the master row whose REGION is also NULL ('Unassigned'); the (NULL, WEB) and (NULL, NULL) aggregate rows survive with NULL REGION_NAME because it is a Master Outer Join. NORTH has no master row -> NULL REGION_NAME. Unmatched master rows (SOUTH, NULL) are dropped.",
+    "Not asserted: SUM over a group whose AMT values are all NULL (depends on the server's AggregateTreatNullAsZero setting) -- no such group in the data."
+  ]
+}

@@ -1,0 +1,163 @@
+# =====================================================================
+#  Iceberg external table sync: AIDP -> Oracle Autonomous Database
+#  Example configuration: copy this file to adw_sync.yaml and edit the copy
+#
+#    cp adw_sync.example.yaml adw_sync.yaml
+#
+#  Every key is documented here, with its trade-offs. Replace each CHANGE_ME_
+#  value and the demo_ prefixes with your own; the remaining keys are sensible
+#  defaults (ADMIN as the administrative user, mTLS with a wallet, a qualified
+#  registry table). The alternative shapes - one database user per ADW,
+#  walletless TLS, an unqualified registry - are described inline at the key
+#  they belong to.
+#
+#  The deployment copy, adw_sync.yaml, holds NO secret - only prefixes, region
+#  and tuning knobs. Every secret is read through the AIDP Credential Store:
+#  the service account from a native Service account credential, the per-ADW
+#  values as Vault References to OCI Vault. Safe to version and share, but
+#  this repository lists it in .gitignore so a real deployment's values are
+#  never committed to the samples.
+#
+#  The only per-run input is CATALOG, passed as a job parameter.
+#
+#  The file name matters. The notebook locates adw_sync.yaml without assuming
+#  any path: 'adw_sync.yaml' is a distinctive name, found on its own under
+#  /Workspace it already resolves, even if the notebook is renamed or the
+#  folder moved. That is also why this file is NOT called adw_sync.yaml - an
+#  example that the notebook could pick up, or that would make a real
+#  deployment ambiguous, is worse than none. A generic 'config.yaml' is only
+#  accepted when it sits next to the notebook, because a real workspace
+#  usually holds several files with that name, belonging to other projects.
+# =====================================================================
+
+# Region of the OBJECT STORAGE / lakehouse - NOT the ADWs.
+# Each ADW carries its own host in the DSN, so a multi-region fleet works unchanged.
+region: us-ashburn-1
+
+# --- OCI service account ---
+# ONE credential of type "Service account" in the AIDP Credential Store. It carries all
+# four values natively - User OCID, Tenancy OCID, Fingerprint and the private key - so
+# nothing is read from OCI Vault for the service account.
+#
+# The name is used VERBATIM: nothing is prefixed, suffixed or derived from it, so whatever
+# name your provisioning emits goes here unchanged.
+oci_credential_service_account: CHANGE_ME_exact_credential_name
+
+# --- ADW fleet ---
+# One prefix per ADW. Each expects:
+#   <prefix>_dsn  <prefix>_pwd                      always
+#   <prefix>_wallet_zip  <prefix>_wallet_pwd        only when flags.use_wallet is true
+#
+# _wallet_zip accepts 'oci://<bucket>@<namespace>/<object>' - preferred, because
+# provisioning becomes a CLI or Terraform call - or an AIDP Volume path.
+#
+# The ADW name in the logs is the prefix itself.
+adw_prefixes:
+  - demo_adw1
+  - demo_adw2
+
+# Administrative user. Two shapes:
+#
+#   adw_user: ADMIN          a single value, used on every ADW
+#
+#   adw_user:                per ADW, keyed by the prefix. Prefixes not listed fall
+#     demo_adw1: SYNC_ADMIN  back to ADMIN; an unknown key is rejected, because a typo
+#     demo_adw2: ADMIN       would otherwise silently connect as the wrong user.
+#
+# A positional list is refused: it rebinds users to the wrong ADWs as soon as
+# adw_prefixes is reordered, and nothing in the run would show it.
+#
+# This lives HERE and not in the Vault: it is configuration, not a secret.
+#
+# ADMIN is the recommended default. A dedicated user buys credential separation and
+# cleaner audit, NOT less privilege: this job needs CREATE USER and ALTER USER, and
+# ALTER USER reaches every account including ADMIN. If you do create one, PDB_DBA plus
+# two grants is the recipe - see the README, "Using a dedicated user instead of ADMIN".
+adw_user: ADMIN
+
+# --- Naming ---
+naming:
+  # The SCHEMA prefix is not listed here: it is always <catalog>_ , derived and not
+  # configurable. It is what stops two catalogs holding a same-named schema and table
+  # from writing to the same ADW object; leaving it as a knob would only allow the
+  # protection to be switched off.
+  table_prefix: ""
+  cred_name: null        # null = OCI_CRED_<CATALOG>
+  raw_suffix: "__RAW"
+
+# --- Behaviour ---
+flags:
+  create_views: false     # true = <T>__RAW plus view <T>
+  preserve_grants: true   # recapture and reapply grants on recreate
+  # Realigns tables whose tip snapshot references a schema older than current-schema-id,
+  # which matters for consumers that resolve the table shape through the snapshot.
+  # Writes to the SOURCE lakehouse and waits for asynchronous metadata regeneration - several
+  # seconds per table - so it can dominate the run time. Recommended OFF; enable per run.
+  force_snapshot: false
+  retry_failed: true      # one retry before writing the registry
+  bulk_discovery: true    # bulk listing through the Object Storage SDK
+  # mTLS wallet, fleet-wide. Set false ONLY when every ADB has mutual TLS set to NOT
+  # required; each <prefix>_dsn must then be the TLS connection string from the console,
+  # not the mTLS descriptor. With false, the two wallet secrets are not read at all -
+  # 4 credentials per ADW become 2 - and the wallet bucket and its policy become
+  # unnecessary. The Vault, its References and the secrets policy stay in both modes.
+  # From AIDP, false needs a PRIVATE-endpoint ADB: on a public endpoint, turning mutual
+  # TLS off requires an ACL, and an active ACL refuses AIDP (ORA-12529).
+  use_wallet: true
+
+# --- Parallelism ---
+# Connections per run = min(fleet size, adw_workers_cap) x workers
+parallelism:
+  workers: 8
+  adw_workers_cap: 4
+  intra_schema_workers: 1
+  introspect_workers: 8
+  discovery_workers: 8
+  read_workers: 32
+
+# --- Discovery ---
+discovery:
+  fallback_max_per_schema: 20
+  list_page: 1000
+  exclude_schemas:
+    - information_schema
+    - default_schema
+    - default
+
+# --- Infrastructure ---
+# Two tables the job owns, both created on demand and keyed by catalog:
+#
+#   registry_table          sync state, one row per (catalog, owner, table). This is what
+#                           drives the incremental CREATE / RECREATE / SKIP / DROP decision.
+#   credential_state_table  the API key fingerprint behind each schema's DBMS_CLOUD credential,
+#                           so a rotated key is detected and the credential reinstalled even
+#                           when no table changed. A fingerprint identifies a key; it is not
+#                           the key, so nothing secret is stored here.
+#
+# Both are written by the ADMINISTRATIVE connection, so the schema qualifier decides which
+# privileges adw_user needs - and the rule is the same for both:
+#
+#   ADMIN.<name>   needs CREATE ANY TABLE plus SELECT/INSERT/UPDATE/DELETE ANY TABLE when
+#                  adw_user is not ADMIN. A PDB_DBA user does carry these (verified on ADB
+#                  23ai), so it works - it just relies on privileges the job does not
+#                  otherwise need.
+#   <name>         unqualified - resolves to each ADW's own adw_user schema. Prefer this for
+#                  any non-ADMIN user: no ANY TABLE privileges required, and a fleet with
+#                  different users per ADW keeps its state separated.
+#
+# registry_table keeps its historical qualified default; credential_state_table is new and
+# defaults unqualified. Set both the same way for your deployment.
+registry_table: ADMIN.EXT_REGISTRY_V4
+credential_state_table: EXT_CRED_STATE_V1
+
+acl_privileges:
+  - connect
+vault_key: VaultSecretReference
+
+progress:
+  every_n: 100
+  every_pct: 5
+
+# CATALOG fallback for INTERACTIVE TESTING, when no job parameter exists.
+# Leave null in production: the banner warns loudly if this value is used.
+catalog: null

@@ -377,7 +377,7 @@ def derive_oac_scope(oac_url: str, *, audience: str | None = None) -> str:
     OAC's IDCS service-app publishes one scope: ``urn:opc:resource:consumer::all``.
     The scope prefix is the IDCS service-app's **audience**, which is a
     different hostname from the user-facing OAC URL (verified live 2026-05-01:
-    ``https://aidp-fusion-autopilot-test-...analytics.ocp.oraclecloud.com``
+    a test OAC instance
     publishes scopes under ``https://<24-char-id>.analytics.ocp.oraclecloud.com``).
 
     The full scope-claim format (concatenated, no separator):
@@ -409,7 +409,7 @@ def discover_oac_audience(oac_url: str, *, timeout: int = 15) -> str:
 
         ``https://<prefix>.analytics.ocp.oraclecloud.com``
 
-    Verified live 2026-05-01 against ``aidp-fusion-autopilot-test-...``.
+    Verified live 2026-05-01 against a test OAC instance.
 
     Args:
         oac_url: OAC instance URL.

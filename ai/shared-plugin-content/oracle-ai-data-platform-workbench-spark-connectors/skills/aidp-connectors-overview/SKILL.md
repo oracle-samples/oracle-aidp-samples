@@ -1,6 +1,6 @@
 ---
 name: aidp-connectors-overview
-description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 26 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, DB2, SQL Server, Azure SQL, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
+description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 26 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, Db2, SQL Server, Azure SQL, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
 allowed-tools: Read
 ---
 
@@ -75,10 +75,12 @@ If the user wants either of those, point them at API Key + inline OCI config (`o
 ## Cross-cutting AIDP gotchas (every connector inherits these)
 1. **Credentials live under `/tmp/`** — never `/Workspace/`. The latter is FUSE-mounted; intermittent disconnects + `os.chmod` no-op.
 2. **Files written for the JDBC driver process** must be world-readable up-front via `os.open(..., O_WRONLY|O_CREAT, 0o666)`.
+   Treat that as a last resort: the files hold a private key or wallet, so prefer the built-in
+   `aidataplatform` connector or the AIDP credential store, and set `AIDP_CRED_FILE_MODE=600`
+   wherever the driver runs as the notebook's own user.
 3. **Spark streaming checkpoints** must live under `/Volumes/<catalog>/<schema>/<volume>/...`, never `/Workspace/`, never `oci://`.
 4. **Refresh the AIDP session token** before live testing: `oci session authenticate --profile AIDP_SESSION --region us-ashburn-1`.
 
 ## References
 - Plugin README: [../../README.md](../../README.md)
 - Live-test matrix + results: [../../tests/live-results/RESULTS.md](../../tests/live-results/RESULTS.md)
-- AIDP notebook auth investigation: `Claude context/AIDP/AIDP Context/AIDP/aidp-notebook-authentication.md`

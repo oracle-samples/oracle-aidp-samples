@@ -27,9 +27,9 @@ are complements, not alternatives: the other one teaches the mechanism, this one
 | Where the logic lives | a PL/SQL procedure inside the ADW | an AIDP notebook; the ADWs stay pure consumers |
 | How it runs | by hand, one call per table | an AIDP job with a `CATALOG` parameter, on a schedule |
 | What it does per run | always drops and recreates | fingerprints the Iceberg metadata and recreates **only** what drifted; steady state issues zero DDL |
-| Credentials | placeholders edited into the SQL and the notebook | OCI Vault through the AIDP Credential Store; nothing in code or config |
+| Credentials | placeholders edited into the SQL and the notebook | the AIDP Credential Store: the service account as a native Service account credential, the per-ADW secrets as Vault References to OCI Vault. Nothing in code or config |
 | Consumer grants | lost on every recreate | recaptured before the drop and reapplied |
-| State | none | per-catalog registry table in each ADW |
+| State | none | per-catalog registry and credential-state tables in each ADW |
 | Scale proven | a demo table | 4,777 tables x 2 ADWs, discovery in ~30s |
 
 **Read the other one first if the pattern is new to you.** It is short, it shows the raw
@@ -74,32 +74,146 @@ a configuration change.
   job runs on - see [Dependencies](#dependencies). `oracledb` is the one that is *not* present
   by default: without it cell 1 fails immediately with `ModuleNotFoundError: No module named
   'oracledb'`. A `%pip install` inside the notebook does not survive a scheduled job.
-- Permission to create jobs and read the Credential Store.
+- Permission to create jobs, and to create and read Credential Store entries.
 
 **On the OCI side**
 
 - An IAM user - the service account - with an API key. This single identity is used by the
-  notebook to read Object Storage and by every ADW at query time.
-- A Vault with a master encryption key.
-- A private bucket for the wallets, if you use mTLS.
+  notebook to read Object Storage and by every ADW at query time. Its key is held in the AIDP
+  Credential Store, not in OCI Vault.
+- A Vault with a master encryption key, for the per-ADW secrets. Needed in **both** connection
+  modes.
+- A private bucket for the wallets - **mTLS only**.
 
 **On the ADW side**
 
-- `ADMIN` credentials for each ADW in the fleet.
-- The wallet, if mTLS is required, or a TLS connection string if it is not.
+- `ADMIN` credentials for each ADW in the fleet, or a dedicated user - see
+  [Using a dedicated user instead of ADMIN](#using-a-dedicated-user-instead-of-admin).
+- Either the **wallet** (mTLS, the default), or a **private endpoint** with mutual TLS set to not
+  required (walletless TLS). See [Connection mode](#connection-mode-mtls-or-walletless-tls).
+
+---
+
+## Credentials, policies and connection mode
+
+Two decisions shape every onboarding step: where each credential lives, and whether the fleet
+connects with a wallet. Both are settled here, so the steps below only have to say which mode
+they apply to.
+
+### Where each credential lives - two different places
+
+This deployment reads from **two** stores, and they are not interchangeable:
+
+| What | Where it lives | Credential type | Needed | Kept current by |
+|---|---|---|---|---|
+| OCI service account - User OCID, Tenancy OCID, fingerprint, private key | **inside AIDP**, in the Credential Store | **Service account** | always | updated in place, ideally by an **OCI Function** on the rotation event |
+| Per-ADW `_dsn` and `_pwd` | OCI Vault, referenced from AIDP | **Vault Reference** | always | whatever syncs your Vault, for example Terraform |
+| Per-ADW `_wallet_zip` and `_wallet_pwd` | OCI Vault, referenced from AIDP | **Vault Reference** | mTLS only | same as above |
+| The wallet files themselves | the wallet bucket, or an AIDP Volume | not a credential - an object | mTLS only | re-uploaded when the wallet is rotated |
+
+The service account entry is **not** a Vault Reference. Its values are stored in the Credential
+Store itself, so there is no Vault secret behind it and no `read secret-bundles` policy is needed
+for it. The consequence is that a Vault sync will **not** update it - whatever rotates the API key
+has to write the new values into this credential as well. See
+[Rotating the service account API key](#rotating-the-service-account-api-key).
+
+The per-ADW entries are the opposite case: they are Vault References, so the Vault stays the
+source of truth and AIDP always reads the `CURRENT` version. Nothing to do in AIDP on rotation.
+
+### Connection mode: mTLS or walletless TLS
+
+`flags.use_wallet` picks the mode for the **whole fleet**. It is a global switch and not inferred
+from whether a wallet secret happens to exist - a missing secret is a mistake worth seeing, not an
+instruction to silently change how the job connects.
+
+| | mTLS - `use_wallet: true` (default) | Walletless TLS - `use_wallet: false` |
+|---|---|---|
+| ADB "Mutual TLS authentication" | **required** - the ADB default | **not required** |
+| ADB network access | public or private endpoint | **private endpoint** - see below |
+| `<prefix>_dsn` holds | the mTLS connection descriptor (port 1522) | the TLS connection string (port 1521) |
+| Wallet bucket - [Step 1](#step-1---create-the-wallet-bucket-mtls-only) | yes, or an AIDP Volume | no |
+| Bucket policy for the service account - [Step 2](#step-2---grant-the-service-account-access-to-the-wallet-bucket-mtls-only) | yes, when `_wallet_zip` is an `oci://` URI | no |
+| Service account credential - [Step 3](#step-3---create-the-service-account-credential-in-aidp) | yes | yes |
+| Vault secrets per ADW - [Step 4](#step-4---create-the-per-adw-secrets-in-oci-vault) | 4: `_dsn`, `_pwd`, `_wallet_zip`, `_wallet_pwd` | 2: `_dsn`, `_pwd` |
+| Vault References per ADW - [Step 5](#step-5---register-the-secrets-as-vault-references) | 4 | 2 |
+| Secrets policy for AIDP - [Step 6](#step-6---grant-aidp-access-to-the-secrets-nothing-works-without-this) | yes | **yes** - `_dsn` and `_pwd` are still Vault References |
+| Cell 3 | downloads each wallet into a temporary directory unique to the run, removed at the end | skips the wallets; only the connectivity probe runs |
+| What a caller needs besides the password | the wallet | a network path to the private endpoint |
+
+Two things do **not** depend on the mode. The Vault References and their IAM policy stay, because
+walletless removes two secrets per ADW, not the Vault. And the service account stays: the ADWs
+read Object Storage with a `DBMS_CLOUD` credential built from its API key, which has nothing to do
+with how the job connects to the database.
+
+What that adds up to, counting both stores separately:
+
+| | Vault secrets | Credential Store entries |
+|---|---|---|
+| Service account, either mode | **0** - it is a native Service account credential | 1 |
+| Per ADW, walletless | 2 | 2 Vault References |
+| Per ADW, mTLS | 4 | 4 Vault References |
+| **Two-ADW fleet, walletless** | **4** | **5** |
+| **Two-ADW fleet, mTLS** | **8** | **9** |
+
+#### Walletless from AIDP needs a private endpoint
+
+On a **public** endpoint, OCI only lets you set mutual TLS to not required once a network ACL is
+in place - and an active ACL refused connections from AIDP in every configuration tried here: the
+client address the database reports for the AIDP session, AIDP's egress IP measured from a
+notebook, and all three RFC 1918 ranges together. Each attempt failed with `ORA-12529`. AIDP
+compute has no VCN, subnet or NSG of yours, so an ACL entry by VCN OCID is not available either.
+
+So on a public endpoint, keep the wallet. Walletless TLS is for ADBs on a **private endpoint**,
+where no ACL is involved and setting mutual TLS to not required is a single change. AIDP still has
+to reach that private endpoint, which is a networking prerequisite of its own.
+
+A corollary worth remembering: `ORA-12529`, or `DPY-6000: Listener refused connection`, from AIDP
+points at the ACL - not at TLS, the wallet or the password.
+
+### IAM policies, by mode
+
+Two subjects, and they need different statements:
+
+| Grant | Principal | mTLS | Walletless | What it is for |
+|---|---|---|---|---|
+| `use secrets` + `read secret-bundles`, in the secrets' compartment - [Step 6](#step-6---grant-aidp-access-to-the-secrets-nothing-works-without-this) | the **AIDP service** (`aidataplatform`) | yes | yes | resolving the per-ADW Vault References: `_dsn` and `_pwd` always, the two wallet secrets with mTLS |
+| `read objects` on the wallet bucket - [Step 2](#step-2---grant-the-service-account-access-to-the-wallet-bucket-mtls-only) | the **service account** | yes, with an `oci://` wallet path | no | cell 3 downloads each wallet with the service account's API key |
+| read access to the lakehouse bucket | the **service account** | yes | yes | discovery from the notebook, and every ADW at query time. Mode-independent, and specific to how your lakehouse is laid out, so not spelled out here |
+| anything for the Service account credential itself | - | no | no | it is a native credential: AIDP's own RBAC guards it, not IAM |
+
+### What holding the service account natively buys: Run As becomes usable
+
+A Vault Reference needs an IAM policy - `read secret-bundles` in the secret's compartment, for the
+AIDP service principal. That grant can only be scoped by compartment, so every AIDP instance in
+that compartment satisfies it. A native Service account credential needs **no IAM policy at all**,
+because the values never sit in Vault. What guards it is AIDP's own RBAC instead, which is per
+credential and per identity.
+
+That is what opens up [**Run As**](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/run-identity.html)
+for a scheduled job. Run As sets the execution identity explicitly - your own, or a service
+account - and only service accounts **stored in the Credential Store** can be selected. With the
+service account held there, a job can run as a non-person identity whose authority over OCI is a
+permission on that one credential entry, rather than a compartment-wide IAM grant.
+
+Selecting it still takes a grant: whoever configures the job needs at least **USE** permission on
+the service account's credential. This deployment does not depend on Run As - it is optional -
+and we have not exercised it here. The point is that the credential no longer stands in the way of
+using it.
 
 ---
 
 ## Onboarding, step by step
 
 Everything below is done once per environment, by hand, through the OCI Console and the AIDP
-Workbench. After that, adding an ADW is four secrets and one line of YAML.
+Workbench. **Steps 1 and 2 apply only with mTLS**; with `flags.use_wallet: false`, start at
+Step 3. After that, adding an ADW is two secrets and one line of YAML - four secrets with mTLS.
 
-### Step 1 - Create the wallet bucket
+### Step 1 - Create the wallet bucket (mTLS only)
 
 **Skip this step entirely if you set `flags.use_wallet: false`** - see
-[Walletless TLS](#walletless-tls). Only needed if your ADWs require mTLS. In the OCI Console: **Object Storage -> Buckets ->
-Create Bucket**, in the compartment where you keep this deployment.
+[Connection mode](#connection-mode-mtls-or-walletless-tls). Only needed if your ADWs require
+mTLS. In the OCI Console: **Object Storage -> Buckets -> Create Bucket**, in the compartment where
+you keep this deployment.
 
 | Field | Value |
 |---|---|
@@ -127,10 +241,17 @@ oci os object put --bucket-name aidp-adw-wallets \
 
 Note the namespace of your tenancy, you will need it: `oci os ns get`.
 
-### Step 2 - Grant the service account access to the bucket
+An AIDP Volume path also works for `_wallet_zip`, and then neither this bucket nor Step 2 is
+needed. The bucket is preferred because uploading a wallet becomes a CLI or Terraform call, and
+several AIDP instances can share one fleet.
 
-The bucket is read by the **IAM user whose API key is in the Vault** - the service account - not
-by the AIDP service principal. They are different subjects and need different statements.
+### Step 2 - Grant the service account access to the wallet bucket (mTLS only)
+
+**Skip this step with `flags.use_wallet: false`, or when the wallets live in an AIDP Volume.**
+
+The bucket is read by the **service account** - the IAM user whose API key you register in
+Step 3 - not by the AIDP service principal. Cell 3 downloads each wallet with that API key. They
+are different subjects and need different statements.
 
 In **Identity -> Policies**, in the bucket compartment:
 
@@ -148,48 +269,81 @@ policy subject, so it has to be expressed as a condition:
 allow any-user to read objects in compartment id <COMPARTMENT_OCID> where all { request.user.id = '<USER_OCID>', target.bucket.name = 'aidp-adw-wallets' }
 ```
 
-### Step 3 - Create the secrets in OCI Vault
+### Step 3 - Create the service account credential in AIDP
 
-You need a Vault with a master encryption key. In **Identity & Security -> Vault -> your vault
--> Secrets -> Create Secret**, create one secret per value below.
+**Both modes.** The service account comes from **one** credential of type **Service account** in
+the Credential Store. That type carries the whole identity, so it is the only entry this notebook
+needs for OCI, and nothing about it goes into OCI Vault.
+
+Create it in AIDP Workbench under **Credential Store -> Create -> Credentials**, pick
+**Service account** as the type, and fill the fields. The notebook reads them by the type's fixed
+field names:
+
+| Field in the form | Read as |
+|---|---|
+| User OCID | `key="userId"` |
+| Tenancy OCID | `key="tenancyId"` |
+| Fingerprint | `key="fingerprint"` |
+| Private key | `key="privateKey"` |
+
+Then put its name in `adw_sync.yaml` (Step 7):
+
+```yaml
+oci_credential_service_account: <exact credential name, as registered>
+```
+
+The name is used **verbatim**. Unlike `adw_prefixes`, which has suffixes appended to build the
+real names, this value *is* the credential name - nothing is prefixed, suffixed or derived from it,
+so a name emitted by external provisioning goes in unchanged.
+
+`Region` is also a field on the form; the notebook ignores it and uses `region` from the
+configuration, because that value is the Object Storage region rather than any ADW's.
+
+**The private key, in any of its usual shapes.** Full PEM with headers - PKCS#1
+(`-----BEGIN RSA PRIVATE KEY-----`) or PKCS#8 (`-----BEGIN PRIVATE KEY-----`) - or the bare base64
+body of a PKCS#1 key all work. A bare PKCS#8 body does not: a value without a header is read as
+PKCS#1, so store PKCS#8 keys with their headers. The notebook normalises the key for
+each consumer, because the two want different shapes. The Object Storage client takes a PEM;
+`DBMS_CLOUD.CREATE_CREDENTIAL` wants the **bare base64 body of a PKCS#1 key**, and a PKCS#8 body is
+accepted at creation and then signs incorrectly - the failure surfaces much later as `ORA-20401`
+on a read, or as `ORA-20000: Failed to generate column list` out of `CREATE_EXTERNAL_TABLE`.
+
+If the field name and the credential type disagree, `secrets.get` returns an **empty string**
+rather than an error - the notebook turns that into a message naming the credential and the field.
+
+Nothing read from the Credential Store is printed. The banner reports names and counts only, and
+the messages the notebook prints or raises are filtered so a value that came from the store is
+replaced with `[REDACTED]`, including when it arrives inside a driver or SDK error.
+
+### Step 4 - Create the per-ADW secrets in OCI Vault
+
+**Both modes** - walletless needs two per ADW, mTLS four. You need a Vault with a master
+encryption key. In **Identity & Security -> Vault -> your vault -> Secrets -> Create Secret**,
+create one secret per value below.
 
 **One secret holds one value. Never a JSON document with several fields.**
 
-**Service account secrets** - four, sharing a prefix of your choice. `demo_oci` is used throughout
-this documentation:
+The secrets share a prefix per ADW. One prefix per ADW; it also becomes that ADW's name in every
+log line, so pick something recognisable:
 
-| Secret name | Contents | Where to get it |
-|---|---|---|
-| `demo_oci_user_id` | OCID of the IAM user | Identity -> Users -> the user, "OCID" field |
-| `demo_oci_tenancy_id` | OCID of the tenancy | Profile menu -> Tenancy, "OCID" field |
-| `demo_oci_fingerprint` | API key fingerprint | Identity -> Users -> the user -> API Keys |
-| `demo_oci_privkey` | the private key contents | the `.pem` file you downloaded when creating the API key |
+| Secret name | Mode | Contents | Where to get it |
+|---|---|---|---|
+| `demo_adw1_dsn` | both | the connection string - **which one depends on the mode**, see below | ADW Console -> Database connection -> Connection strings; pick a service such as `_tpurgent` |
+| `demo_adw1_pwd` | both | password of the ADW administrative user | whoever provisioned the ADW |
+| `demo_adw1_wallet_zip` | mTLS only | `oci://aidp-adw-wallets@<namespace>/demo_adw1/Wallet_adw1.zip` | the URI of the object you uploaded in Step 1. An AIDP Volume path also works |
+| `demo_adw1_wallet_pwd` | mTLS only | password set when the wallet was downloaded | whoever downloaded the wallet |
 
-For `demo_oci_privkey`, two accepted shapes:
-
-- the **base64 body only**, on a single line, headers stripped - assumed to be PKCS#1;
-- the **full PEM including headers** - used verbatim, which covers PKCS#8
-  (`-----BEGIN PRIVATE KEY-----`), the format of many OCI Console generated keys.
-
-If your key is PKCS#8, store it **with the headers**. Without them it would be wrapped in the
-wrong header and the client fails with an invalid-key error that is hard to trace back.
-
-**Per-ADW secrets** - four for each ADW, sharing a prefix. One prefix per ADW; it also becomes
-that ADW's name in every log line, so pick something recognisable:
-
-| Secret name | Contents | Where to get it |
-|---|---|---|
-| `demo_adw1_dsn` | the full connection descriptor | ADW Console -> Database connection -> Connection strings; pick a service such as `_tpurgent` |
-| `demo_adw1_wallet_zip` | `oci://aidp-adw-wallets@<namespace>/demo_adw1/Wallet_adw1.zip` | the URI of the object you uploaded in Step 1. An AIDP Volume path also works |
-| `demo_adw1_pwd` | password of the ADW administrative user | whoever provisioned the ADW |
-| `demo_adw1_wallet_pwd` | password set when the wallet was downloaded | whoever downloaded the wallet |
+**`_dsn` is the one secret whose content changes with the mode.** With mTLS it holds the mTLS
+descriptor (port 1522), which only works together with the wallet. Walletless, it holds the
+**TLS** connection string (port 1521) - in the console, switch the TLS authentication selector to
+*TLS* before copying. An mTLS descriptor used without the wallet fails at the connectivity probe
+in cell 3, and that probe is the first place the mismatch shows.
 
 The two `wallet_*` secrets are **only read when `flags.use_wallet` is true**. With walletless
-TLS each ADW needs just `_dsn` and `_pwd`, so a two-ADW fleet drops from 12 secrets to 8.
+TLS, do not create them.
 
-Repeat for `demo_adw2`, `demo_adw3` and so on.
-
-At two ADWs that is **12 secrets**: 4 for the service account plus 4 per ADW.
+Repeat for `demo_adw2`, `demo_adw3` and so on. The totals per mode are in
+[Connection mode](#connection-mode-mtls-or-walletless-tls).
 
 **What must NOT become a secret.** The ADW administrative user name is not a secret: it lives
 in `adw_sync.yaml` under `adw_user`, and the ADW display name is derived from the prefix. Rule of
@@ -198,10 +352,10 @@ thumb: **a short, common value, or one that appears in logs, does not belong in 
 The wallet **files** do not belong there either - they exceed the 25 KB secret limit. Only the
 path and the password go to the Vault.
 
-### Step 4 - Register the secrets in the AIDP Credential Store
+### Step 5 - Register the secrets as Vault References
 
-For **each** secret created in Step 3, in AIDP Workbench: **Credential Store -> Create ->
-Credentials**.
+**Both modes.** For **each** secret created in Step 4, in AIDP Workbench: **Credential Store ->
+Create -> Credentials**.
 
 | Field | Value |
 |---|---|
@@ -216,7 +370,14 @@ This is a **one-off cost**: a Vault Reference stores the secret OCID and always 
 `CURRENT` version, so rotating a value in the Vault never requires touching the Credential Store
 again.
 
-### Step 5 - Grant AIDP access to the secrets. Nothing works without this.
+The Service account credential from Step 3 is the only entry in this deployment that is **not** a
+Vault Reference.
+
+### Step 6 - Grant AIDP access to the secrets. Nothing works without this.
+
+**Both modes.** Walletless removes two secrets per ADW, not the Vault: `_dsn` and `_pwd` are still
+Vault References, so this policy is needed with and without the wallet. It is **not** needed for
+the service account, which is a native credential.
 
 In **Identity -> Policies**, in the compartment holding the secrets:
 
@@ -232,36 +393,54 @@ Three traps that cost real time:
 - **`in tenancy` is only valid in a policy created in the root compartment.** Anywhere else use
   `in compartment id <ocid>`, or you get
   `Compartment ... does not exist or is not part of the policy compartment subtree`.
-- **Do not add a condition on `target.resource.tag.orcl-aidp.governingAidpId`.** That system tag
-  is applied to resources AIDP creates, not to secrets it merely references, so the predicate
-  never matches and the read fails. Consequence worth raising with a security team: today the
-  grant can only be scoped by compartment, so every AIDP instance in that compartment can read
-  the secrets.
+- **Scoping the grant to a single AIDP instance.** A condition on the generic defined-tag form
+  `target.resource.tag.orcl-aidp.governingAidpId` was tried here and never matches, so the read
+  fails. The Credential Store documentation prescribes a different predicate,
+  `request.principal.id = target.secret.system-tag.orcl-aidp.governingAidpId` - a **secret
+  system-tag** - which has not been exercised here. Testing it is low-risk: if the tag is absent
+  the policy fails closed. Without such a condition the grant is scoped only by compartment, so
+  every AIDP instance in that compartment can read these secrets - the argument for keeping them
+  in a compartment of their own.
 
 Symptom of a missing policy: cell 1 fails with `404 NotAuthorizedOrNotFound`. Note the same 404
 appears for a **non-existent** credential, so also check that the name matches the prefix in the
 YAML exactly.
 
-### Step 6 - Create `adw_sync.yaml`
+### Step 7 - Create `adw_sync.yaml`
 
-This folder ships only the commented template. Copy it to the name the notebook looks for:
+This folder ships one configuration file, and it is **not** the one the notebook reads:
 
-```bash
-cp adw_sync.sample.yaml adw_sync.yaml
+| File | Role |
+|---|---|
+| `adw_sync.example.yaml` | the commented template. Every key documented, with the trade-offs |
+| `adw_sync.yaml` | your deployment copy - the file the notebook reads. Not shipped; listed in this folder's `.gitignore` |
+
+Copy the template and edit the copy:
+
+```
+cp adw_sync.example.yaml adw_sync.yaml
 ```
 
-**The name matters** - `adw_sync.yaml` is the distinctive name the notebook resolves on its own
-under `/Workspace`. Keep the template untouched as a reference.
+Replace the `CHANGE_ME_` values and the `demo_` prefixes; the comments beside each key explain the
+alternatives.
 
-Then point `oci_credential_prefix` and `adw_prefixes` at the prefixes you chose, and set `region`.
+**The name matters** - `adw_sync.yaml` is the distinctive name the notebook resolves on its own
+under `/Workspace`, which is exactly why the repository does not ship a file with that name: a
+committed copy would collide with a real deployment's configuration (the notebook stops when it
+finds more than one), or, found alone, would run with its `CHANGE_ME_` values.
+
+Then set `oci_credential_service_account` to the credential name from Step 3, point
+`adw_prefixes` at the prefixes you chose, and set `region`. Set **`flags.use_wallet`** to the mode
+you chose: the template keeps the default `true` (mTLS); set `false` for walletless TLS.
 Nothing else is required; the banner in cell 1 lists which absent keys fell back to defaults.
 
-The YAML holds **no secret** - only prefixes, region and knobs. Version it freely.
+The YAML holds **no secret** - only prefixes, region and knobs. Version it freely in your own
+deployment repository.
 
 Objects created in ADW are named `<catalog>_<schema>.<table_prefix><table>`. With
 `CATALOG=sales`, the AIDP table `analytics.orders` becomes `SALES_ANALYTICS.ORDERS`.
 
-### Step 7 - Upload the folder and create the job
+### Step 8 - Upload the folder and create the job
 
 Upload `adw_external_table_sync.ipynb` and `adw_sync.yaml` into the same workspace folder, then
 create a job pointing at the notebook:
@@ -276,17 +455,22 @@ platform.
 
 One job per catalog, all pointing at the same notebook and the same YAML.
 
-### Step 8 - First run: read the dry run
+### Step 9 - First run: read the dry run
 
 Run sections 1 through 6 and **stop at the dry run**. It reports create / recreate / skip / drop
 per ADW with examples. Then run section 7 to apply.
+
+The end of section 3 is the first checkpoint: it connects once to every ADW, and is where a wrong
+mode shows up - an mTLS descriptor with `use_wallet: false`, a wallet that does not match its
+DSN, or an ACL in the way.
 
 Sections 3.5 (teardown) and 8 (validate) ship **disabled**: their code sits inside a triple-quoted
 string. Section 8 is read-only, so removing the surrounding `'''` is safe and is the recommended
 way to confirm the objects are queryable. Section 3.5 is destructive - read it before enabling.
 
-On a first run everything is `CREATE`. After a naming change, expect `DROP` of the old names plus
-`CREATE` of the new ones - a full re-registration, not data loss.
+On a first run everything is `CREATE`, and the summary's `creds` counts every schema, since each
+one gets its `DBMS_CLOUD` credential installed and recorded. After a naming change, expect `DROP`
+of the old names plus `CREATE` of the new ones - a full re-registration, not data loss.
 
 ## Where the notebook looks for the configuration
 
@@ -320,7 +504,11 @@ Two situations where it **stops instead of choosing**, both deliberately:
 ## Adding a new ADW
 
 Two secrets, two credentials, one line of YAML. No code change. (Four and four if
-`flags.use_wallet` is true — see [Walletless TLS](#walletless-tls).)
+`flags.use_wallet` is true - see [Connection mode](#connection-mode-mtls-or-walletless-tls).)
+
+**Before you start, match the fleet's mode.** `flags.use_wallet` is fleet-wide, so the new ADB
+has to fit it: with mTLS, mutual TLS left required and a wallet; walletless, a private endpoint
+with mutual TLS set to not required.
 
 **1. Choose a prefix.** Say `demo_adw3`. It becomes the ADW name in every log line, so pick
 something you will recognise.
@@ -338,9 +526,9 @@ oci os object put --bucket-name aidp-adw-wallets \
 
 | Secret | Contents |
 |---|---|
-| `demo_adw3_dsn` | the connection descriptor from the ADW Console |
-| `demo_adw3_wallet_zip` | `oci://aidp-adw-wallets@<namespace>/demo_adw3/Wallet_adw3.zip` |
+| `demo_adw3_dsn` | the connection string from the ADW Console - mTLS descriptor or TLS string, matching the fleet's mode |
 | `demo_adw3_pwd` | password of the administrative user |
+| `demo_adw3_wallet_zip` | `oci://aidp-adw-wallets@<namespace>/demo_adw3/Wallet_adw3.zip` |
 | `demo_adw3_wallet_pwd` | password of the wallet |
 
 **4. Register them in the Credential Store** as **Vault Reference**, each named exactly like its
@@ -358,6 +546,11 @@ adw_prefixes:
 **6. Run the job.** The new ADW starts empty, so everything is `CREATE` there while the existing
 ones report `SKIP`. Nothing else to do.
 
+Nothing changes for the service account: the same Service account credential serves the whole
+fleet, and the first run installs the `DBMS_CLOUD` credential built from it in each of the new
+ADW's schemas. No IAM change either - the existing policies already cover the new secrets, as long
+as they sit in the same compartment and, with mTLS, the wallet sits in the same bucket.
+
 Two things worth checking as the fleet grows:
 
 - **Connections.** `min(fleet, adw_workers_cap) x workers`. With the defaults that is 4 x 8 = 32,
@@ -370,28 +563,36 @@ Two things worth checking as the fleet grows:
 
 Delete the line from `adw_prefixes`. The notebook stops touching it; existing external tables keep
 working until you drop them. To clean up, point `CATALOG` at it and run the teardown cell before
-removing the line.
+removing the line. Then delete its secrets and their Credential Store entries - and, with mTLS, its
+wallet object.
 
-## Walletless TLS
+## Switching the fleet between mTLS and walletless
 
-`flags.use_wallet: false` turns the wallet off for the **whole fleet**. It is a global switch and
-not inferred from whether a wallet secret happens to exist - a missing secret is a mistake worth
-seeing, not an instruction to silently change how the job connects.
+The mode is a fleet-wide switch, so a change of mode is a change for every ADB at once.
 
-What it takes:
+**From mTLS to walletless:**
 
 1. On **every** ADB in the fleet, set **Mutual TLS authentication** to *not required*
-   (Console -> your ADB -> Network -> Edit). This normally requires a network ACL or a private
-   endpoint, so it is a security decision, not just a convenience.
+   (Console -> your ADB -> Network -> Edit). From AIDP this needs a **private endpoint** - see
+   [Walletless from AIDP needs a private endpoint](#walletless-from-aidp-needs-a-private-endpoint).
+   It is a security decision, not just a convenience: the wallet stops being part of what a
+   caller needs.
 2. Change each `<prefix>_dsn` secret to the **TLS** connection string from the console. The mTLS
    descriptor will not work without the wallet.
 3. Set `flags.use_wallet: false`.
 
 Then delete the `<prefix>_wallet_zip` and `<prefix>_wallet_pwd` secrets and their Credential Store
-entries, and the wallet bucket with them. Per ADW that is 4 secrets down to 2.
+entries, the wallet bucket and the bucket policy from Step 2. Per ADW that is 4 secrets down to 2.
+The secrets policy from Step 6 stays.
 
-The connectivity probe at the end of section 3 is what proves the switch worked: it is the only
-place a TLS/mTLS mismatch surfaces before the apply step.
+**From walletless back to mTLS:** set mutual TLS back to *required* on every ADB, recreate the
+wallet bucket and its policy (Steps 1 and 2), add the two wallet secrets per ADW and register them
+(Steps 4 and 5), change each `<prefix>_dsn` back to the mTLS descriptor, and set
+`flags.use_wallet: true`. On a public endpoint where an ACL was set, set mutual TLS back to
+required **before** clearing the ACL: OCI refuses to open the network while mutual TLS is off.
+
+Either way, the connectivity probe at the end of section 3 is what proves the switch worked: it is
+the only place a TLS/mTLS mismatch surfaces before the apply step.
 
 ---
 
@@ -459,23 +660,74 @@ Two operational notes:
   (`ORA-28219` / `ORA-20002`). This affects only the user you create by hand; the per-schema
   passwords the job generates are random.
 
-### Point the registry at the user's own schema
+### Web access is separate: this user cannot sign in to Database Actions
+
+A user created this way can connect through any SQL client - the job uses `python-oracledb` - but
+it cannot sign in to **Database Actions** (SQL Developer Web) in the console. That interface is
+served by **ORDS**, the Oracle REST Data Services layer in front of the database, and ORDS only
+accepts a sign-in from a schema that has been explicitly REST-enabled. On a fresh Autonomous
+Database only `ADMIN` is, which you can confirm with:
+
+```sql
+SELECT parsing_schema, status FROM user_ords_schemas;
+```
+
+This is deliberate: a database schema is not exposed over HTTP until someone decides it should be.
+`PDB_DBA` does not change it, because REST enablement is a per-schema action rather than a
+privilege a role can carry.
+
+The sync needs none of this, so leaving it disabled is the smaller surface. If you do want web
+access for the user, `ADMIN` can enable it:
+
+```sql
+BEGIN
+  ORDS_ADMIN.ENABLE_SCHEMA(
+    p_enabled             => TRUE,
+    p_schema              => 'AIDP_SYNC_ADMIN',
+    p_url_mapping_type    => 'BASE_PATH',
+    p_url_mapping_pattern => 'aidp_sync_admin',
+    p_auto_rest_auth      => TRUE);
+  COMMIT;
+END;
+/
+```
+
+Alternatively, inspect this schema's objects while signed in as `ADMIN` and qualify the names
+(`AIDP_SYNC_ADMIN.EXT_REGISTRY_V4`), which needs no enablement at all.
+
+### Point the job's own tables at the user's own schema
 
 ```yaml
 adw_user: AIDP_SYNC_ADMIN
-registry_table: EXT_REGISTRY_V4     # unqualified
+registry_table: EXT_REGISTRY_V4          # unqualified
+credential_state_table: EXT_CRED_STATE_V1 # same rule
 ```
 
-Unqualified, `registry_table` resolves to each ADW's own `adw_user` schema, so a fleet using
-different users per ADW keeps its state separated. The default `ADMIN.EXT_REGISTRY_V4` also works
-for a `PDB_DBA` user - it carries the `ANY TABLE` privileges - but there is no reason to depend
-on them.
+Both tables are created and written by the **administrative** connection, so the schema qualifier
+decides which privileges that user needs. Unqualified, they resolve to each ADW's own `adw_user`
+schema: no `ANY TABLE` privilege required, and a fleet using different users per ADW keeps its
+state separated.
+
+Qualified into another schema - the historical `ADMIN.EXT_REGISTRY_V4` default - also works for a
+`PDB_DBA` user, since it carries the `ANY TABLE` privileges. But there is no reason for the job to
+depend on privileges it does not otherwise need.
 
 ---
 
 ## Day-two operations
 
-### Rotating a secret
+### Rotating credentials
+
+Four things can rotate, and each one reaches the job by a different route:
+
+| What rotates | Where you change it | What the next run does |
+|---|---|---|
+| A per-ADW Vault secret - `_dsn`, `_pwd`, and with mTLS `_wallet_zip`, `_wallet_pwd` | a new secret version in OCI Vault | nothing special: the Vault Reference already reads `CURRENT` |
+| The service account API key | the Service account credential in AIDP | detects the new fingerprint and reinstalls the `DBMS_CLOUD` credential in every schema |
+| An ADB wallet - **mTLS only** | the wallet object, plus `_wallet_pwd` if the password changed | downloads the wallet again, as on every run |
+| The Vault master encryption key | OCI Vault | nothing: the secret values are unchanged |
+
+#### Rotating a Vault secret
 
 Create a new version of the secret in OCI Vault. Nothing else. The AIDP credential stores the
 **secret OCID** and always reads the `CURRENT` version, so no code, YAML or Credential Store
@@ -491,6 +743,74 @@ Distinguish the two rotations a security team may mean:
 Vault **auto-rotation** is not useful here: `rotationConfig.target_system_details` is required and
 accepts only `ADB` or `FUNCTION`. The target is the system that OWNS the credential, never the
 AIDP, which is a reader. Rotate externally.
+
+#### Rotating the service account API key
+
+Rotating the key in OCI is only half of it. The Service account credential is **not** a Vault
+Reference, so the new `fingerprint` and `privateKey` (and `userId`, if the IAM user changed) have
+to be written into it. **Recommended: drive that from an OCI Function** on the rotation event.
+Doing it by hand works but leaves a window in which the ADWs hold a key that no longer exists.
+
+The ADWs do not read Object Storage with the credential in AIDP - they read it with a `DBMS_CLOUD`
+credential **built from it**, one per schema, installed by this job. So the copy inside each ADW
+has to be rebuilt too, or every consumer query starts failing (`ORA-20401`, or
+`ORA-20000: Failed to generate column list`) while the sync still reports everything in sync -
+nothing about the *tables* changed.
+
+The job handles that part. It records, per schema, the **fingerprint** of the key each credential
+was built from:
+
+```yaml
+credential_state_table: EXT_CRED_STATE_V1
+```
+
+One row per `(catalog, schema)` holding `cred_name`, `key_fingerprint` and `updated_at`. A
+fingerprint identifies a key; it is not the key, and nothing secret is stored there. Same
+schema-qualifier rule as `registry_table` - leave it unqualified and it lands in the `adw_user`
+schema.
+
+Each run compares the recorded fingerprint against the one just read from the credential:
+
+| Situation | What happens |
+|---|---|
+| Fingerprints match, nothing to sync | nothing. Still zero DDL |
+| Fingerprints differ | the credential is reinstalled in every affected schema, even with no table work |
+| No row recorded yet (first run, or a new schema) | treated as differing, so the credential is installed and recorded |
+| Dry run | the mismatch is reported and nothing is written |
+
+So the rotation propagates on the next scheduled run with no flag to remember and no manual step.
+The summary carries a `creds` count of how many schemas were reinstalled:
+
+```
+demo_adw1: {'create': 0, 'recreate': 0, 'skip': 4762, 'drop': 0, 'ok': 0, 'err': 0, 'creds': 10, 'cred_err': 0}
+```
+
+No table is touched on that path, so consumers keep reading straight through it.
+
+A reinstall that **fails** - a wrong fingerprint, a key the database cannot parse, a missing
+privilege - is counted in `cred_err`, and the apply cell raises when any schema has `cred_err > 0`.
+The job therefore goes red instead of reporting success over a schema whose consumers can no longer
+read: `DROP_CREDENTIAL` has already run by the time `CREATE_CREDENTIAL` fails, so that schema has no
+credential until the next successful run.
+
+The detection compares the **fingerprint field** of the credential, as typed into the form. Update
+the fingerprint together with the private key: a new key under the old fingerprint is not seen as
+a rotation.
+
+This is the same in both connection modes. The `DBMS_CLOUD` credential is how the ADWs reach
+Object Storage, not how the job reaches the ADWs.
+
+#### Rotating a wallet (mTLS only)
+
+Rotating a wallet in the ADB console invalidates the previous one, so the job stops at the
+connectivity probe in cell 3 until the new wallet is in place. Download the new wallet, upload it
+over the same object, and update `<prefix>_wallet_pwd` if you set a new password. Uploading under
+a new object name also works; then point `<prefix>_wallet_zip` at the new URI.
+
+Nothing else: each run downloads the wallets into a temporary directory of its own and removes it
+at the end, so the next run uses the new file - no restart, no Credential Store change.
+
+Walletless TLS has no wallet to rotate. Its only per-ADW secrets are `_dsn` and `_pwd`.
 
 ### Handling a misaligned table
 
@@ -523,11 +843,15 @@ all.
 ### Reading the summary
 
 ```
-demo_adw1: {'create': 12, 'recreate': 3, 'skip': 4762, 'drop': 0, 'ok': 15, 'err': 0, 'grants': 8}
+demo_adw1: {'create': 12, 'recreate': 3, 'skip': 4762, 'drop': 0, 'ok': 15, 'creds': 2, 'cred_err': 0, 'err': 0, 'grants': 8}
 ```
 
-`skip` dominating is the healthy steady state. `err > 0` prints the first twenty errors with the
-real Oracle cause, which is often on the second line of the message.
+`skip` dominating is the healthy steady state. `creds` is the number of schemas whose `DBMS_CLOUD`
+credential was installed this run - those with table work, plus any whose recorded key fingerprint
+no longer matches. `cred_err` is the number of schemas where that install **failed**; any value
+above zero fails the job, since the schema is left without a `DBMS_CLOUD` credential. `err > 0`
+prints the first twenty errors with the real Oracle cause, which is often on the second line of
+the message.
 
 ### Teardown
 
@@ -549,7 +873,12 @@ protections are in `ARCHITECTURE.md`, section 7.
 
 | Symptom | Cause |
 |---|---|
-| `404 NotAuthorizedOrNotFound` on a credential | missing IAM policy, or a name that does not match the YAML prefix. The same 404 covers both |
+| `404 NotAuthorizedOrNotFound` on a credential | a Vault Reference without the Step 6 policy, or a name that does not match the YAML prefix. The same 404 covers both. The Service account credential needs no policy |
+| `Credential '...': field '...' returned empty` | the credential exists but its type does not carry that field - `oci_credential_service_account` must name a **Service account** credential |
+| `could not connect` at the end of section 3, with `use_wallet: false` | `<prefix>_dsn` still holds the mTLS descriptor, or the ADB still requires mutual TLS |
+| `could not connect` at the end of section 3, with `use_wallet: true` | the wallet does not match the DSN, or was rotated in the console and not re-uploaded |
+| `ORA-12529`, or `DPY-6000: Listener refused connection` | the ADB network ACL. From AIDP, an active ACL on a public endpoint refuses the connection whatever it lists; keep the wallet, or use a private endpoint. Not a TLS, wallet or password problem |
+| consumer queries fail with `ORA-20401` or `ORA-20000: Failed to generate column list` while the sync reports SKIP | the `DBMS_CLOUD` credential is stale after an API key rotation. The next run reinstalls it once the Service account credential holds the new key and fingerprint |
 | `Configuration file not found` | scheduled job with the config not next to the notebook. Set `CONFIG_PATH` |
 | `CATALOG not provided` | the job parameter is missing or spelled differently. `CATALOG` and `catalog` both work |
 | `CROSS-CATALOG COLLISION` | another catalog already owns objects this job would create. Check the schema prefix |
@@ -563,15 +892,15 @@ protections are in `ARCHITECTURE.md`, section 7.
 
 ## Configuration reference
 
-Full commented template in `adw_sync.sample.yaml`.
+Full commented template in `adw_sync.example.yaml`.
 
 | Key | Default | Purpose |
 |---|---|---|
 | `region` | **required** | Object Storage / lakehouse region, not the ADW's |
-| `oci_credential_prefix` | **required** | prefix of the API key credentials |
+| `oci_credential_service_account` | **required** | name of the Service account credential, used verbatim |
 | `adw_prefixes` | **required** | one prefix per ADW |
 | `adw_user` | `ADMIN` | a scalar for the whole fleet, or a mapping keyed by ADW prefix. A positional list is rejected |
-| `flags.use_wallet` | `true` | `false` = walletless TLS; the two `wallet_*` secrets are not read |
+| `flags.use_wallet` | `true` | fleet-wide connection mode. `true` = mTLS with a wallet per ADW; `false` = walletless TLS, the two `wallet_*` secrets are not read and no wallet bucket is needed. See [Connection mode](#connection-mode-mtls-or-walletless-tls) |
 | `naming.table_prefix` | empty | optional prefix on the ADW table name |
 | `naming.cred_name` | `OCI_CRED_<CATALOG>` | credential name inside the ADW |
 | `naming.raw_suffix` | `__RAW` | suffix of the raw table when `create_views` is on |
@@ -586,8 +915,9 @@ Full commented template in `adw_sync.sample.yaml`.
 | `parallelism.read_workers` | `32` | parallel `metadata.json` reads |
 | `discovery.list_page` | `1000` | objects per listing request; also the API maximum |
 | `discovery.fallback_max_per_schema` | `20` | cap on individual `DESCRIBE` calls per schema |
-| `discovery.exclude_schemas` | see sample | schemas never synced |
+| `discovery.exclude_schemas` | see the example file | schemas never synced |
 | `registry_table` | `ADMIN.EXT_REGISTRY_V4` | sync state, catalog-scoped. Leave **unqualified** when `adw_user` is not `ADMIN` |
+| `credential_state_table` | `EXT_CRED_STATE_V1` | API key fingerprint per `(catalog, schema)`, used to detect a rotation. Same schema-qualifier rule as `registry_table` |
 | `acl_privileges` | `[connect]` | network ACL privileges |
 | `vault_key` | `VaultSecretReference` | fixed literal for a Vault Reference |
 | `catalog` | `null` | interactive-testing fallback only; the banner warns when it is used |
@@ -602,15 +932,18 @@ carries the key is rejected rather than silently ignored. Reasoning in `ARCHITEC
 | Path | What it is |
 |---|---|
 | `adw_external_table_sync.ipynb` | the notebook |
-| `adw_sync.sample.yaml` | the commented template. Copy it to `adw_sync.yaml` - see Step 6 |
+| `adw_sync.example.yaml` | the commented template, documenting every key. Copy it to `adw_sync.yaml` and replace the `CHANGE_ME_` values |
+| `.gitignore` | keeps `adw_sync.yaml`, the deployment copy, out of version control |
 | `ARCHITECTURE.md` | design, diagrams, measured scale, test evidence, references |
 | `Architecture-EXT-TABLE-Sync.drawio.png` | component diagram, editable in draw.io |
-| `requirements.txt` | `oracledb`, `oci`, `pyyaml` - install as cluster libraries |
+| `requirements.txt` | `oracledb`, `oci`, `pyyaml`, `cryptography` - install as cluster libraries |
 | `README.md` | this file |
 
 ## Dependencies
 
-`oracledb`, `oci` and `pyyaml`, listed in `requirements.txt`.
+`oracledb`, `oci`, `pyyaml` and `cryptography`, listed in `requirements.txt`. `cryptography` converts the
+service account key to the PKCS#1 form `DBMS_CLOUD.CREATE_CREDENTIAL` needs; it is a dependency of `oci`, so
+it is normally present wherever `oci` is.
 
 **Install them as cluster libraries**, on the compute cluster attached to the notebook and to the
 job. In AIDP Workbench: **Compute -> your cluster -> Libraries -> Install new -> PyPI**, one entry

@@ -93,7 +93,7 @@ does not require a bootstrap of any MCP server to run.
   when the default isn't the target.
 - **Cluster must be RUNNING** for any data/SQL op. Check cluster status
   (`GET /workspaces/<ws>/clusters/<key>`); start it (`POST …/actions/start` with a `{}` body) if stopped.
-- **Persist + confirm every mutation.** Before any create/update/delete/run/deploy/grant, write the request
+- **Persist + confirm every mutation.** (Secret fields are persisted redacted and supplied at call time from the environment.) Before any create/update/delete/run/deploy/grant, write the request
   body to `.aidp/payloads/<verb>-<resource>.json`, show it to the user, and **confirm** before running it
   (auditable + re-runnable — see `references/payloads.md`). Especially for deploy/purge/delete/grant/share.
 - **Auth ladder:** `--profile DEFAULT` (api_key) → on 401/403/"NotAuthenticated"/"Security Token":

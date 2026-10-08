@@ -1,0 +1,12 @@
+{
+  "HIGH_VALUE_BY_REGION": {"rows": [
+    {"REGION": "EAST", "TOTAL_NET": 2250.00, "ORDER_CNT": 2},
+    {"REGION": "WEST", "TOTAL_NET": 2250.00, "ORDER_CNT": 1},
+    {"REGION": null,   "TOTAL_NET": 2700.00, "ORDER_CNT": 1}
+  ]},
+  "STD_ORDERS": {"rows": [
+    {"ORDER_ID": 1002, "CUST_LABEL": "BOLT", "SEG_NAME": "Small Biz",  "NET": 180.00},
+    {"ORDER_ID": 1005, "CUST_LABEL": "DYNA", "SEG_NAME": null,         "NET": 45.00},
+    {"ORDER_ID": 1007, "CUST_LABEL": "ACME", "SEG_NAME": "Enterprise", "NET": null}
+  ]}
+}

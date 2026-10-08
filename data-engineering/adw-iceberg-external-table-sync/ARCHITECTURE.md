@@ -48,20 +48,23 @@ Component and deployment view. Five boundaries matter:
 
 | Boundary | Holds | Role |
 |---|---|---|
-| **AI Data Platform** | Credential Store, the sync workflow | the single writer, and the only thing that issues DDL |
-| **OCI Object Storage** | the catalog bucket, plus a separate wallet bucket | the shared substrate; one copy of the data |
-| **OCI Vault** | one secret per value | the only place a password exists at rest |
+| **AI Data Platform** | Credential Store - the Service account credential and the Vault References - and the sync workflow | the single writer, and the only thing that issues DDL |
+| **OCI Object Storage** | the catalog bucket, plus a separate wallet bucket with mTLS | the shared substrate; one copy of the data |
+| **OCI Vault** | the per-ADW secrets, one value each | where the ADW passwords and DSNs - and with mTLS the wallet passwords - exist at rest |
 | **OCI Domain** | the dedicated service account | one identity, used by both the workflow and every ADW |
-| **Autonomous Data Warehouse** | schema, external tables, sync registry | N read-only consumers |
+| **Autonomous Data Warehouse** | schema, external tables, sync registry, credential state | N read-only consumers |
 
 Reading the edges:
 
 | Label | Meaning |
 |---|---|
 | `Used By` | a runtime dependency: the target consumes this component |
+| `Vault References` | the Credential Store entry stores the secret OCID and reads its `CURRENT` version at run time |
+| `API key held as a Service account credential` | the identity lives in the OCI Domain; its key is stored natively in the Credential Store, with nothing in Vault behind it |
 | `Belongs to` | ownership, established at provisioning time - the wallet and the secrets exist *for* that ADW, but the ADW never reads them |
 | `Direct Access` | reads straight from Object Storage, with no intermediary |
 | `PL/SQL Remote Execution` | the workflow issuing `DBMS_CLOUD` calls and DDL over a database connection |
+| dashed box or edge | present only with mTLS (`flags.use_wallet: true`); walletless TLS removes it - see [Connection modes](#connection-modes-mtls-and-walletless-tls) |
 
 Two of those edges deserve a closer look, because the diagram necessarily flattens them.
 
@@ -78,7 +81,8 @@ a source table and deletes it - and it is off by default.
 The single service account is the detail worth noticing: the **same** API key that the workflow
 uses to read Object Storage during discovery is the one each ADW uses, through
 `DBMS_CLOUD.CREATE_CREDENTIAL`, to read Parquet at query time. One thing to grant, rotate and
-audit.
+audit. Its key reaches the workflow through the Credential Store, as a Service account
+credential, and reaches each ADW as a `DBMS_CLOUD` credential the workflow builds from it.
 
 The `.drawio.png` embeds its own source, so it can be reopened and edited directly in
 [draw.io](https://app.diagrams.net).
@@ -91,6 +95,7 @@ flowchart LR
         ETL["ETL - Spark + Delta<br/>orchestrated by Airflow"]
         NB["Sync workflow<br/>this project"]
         CFG["adw_sync.yaml<br/>+ CATALOG job parameter"]
+        CS["Credential Store<br/>Service account credential<br/>+ Vault References"]
     end
 
     subgraph OS["OCI Object Storage - the shared substrate"]
@@ -100,14 +105,13 @@ flowchart LR
     end
 
     subgraph OCI["OCI platform services"]
-        VAULT["Vault<br/>secrets"]
-        CS["AIDP Credential Store<br/>Vault References"]
-        WB["Wallet bucket"]
+        VAULT["Vault<br/>per-ADW secrets"]
+        WB["Wallet bucket<br/>mTLS only"]
     end
 
     subgraph ADWS["Oracle Autonomous - N read-only consumers"]
         A1["ADW 1<br/>external tables"]
-        REG["sync registry<br/>ADMIN.EXT_REGISTRY_V4<br/>keyed by catalog"]
+        REG["sync registry<br/>+ credential state<br/>keyed by catalog"]
         A2["ADW 2"]
         AN["ADW N"]
     end
@@ -118,9 +122,9 @@ flowchart LR
 
     NB -->|"SHOW TABLES - existence"| ETL
     NB -->|"read metadata.json - shape"| ICE
-    CS --> VAULT
+    CS -->|"Vault References only"| VAULT
     NB -->|"secrets.get"| CS
-    NB -->|"wallet"| WB
+    NB -.->|"wallet, mTLS only"| WB
     CFG --> NB
     NB -->|"DDL only"| A1
     NB <-->|"read and write sync state"| REG
@@ -148,15 +152,17 @@ flowchart TD
         FIND["Locate adw_sync.yaml<br/>CONFIG_PATH, cwd, next to notebook,<br/>or distinctive name"]
         FIND --> YAML["Load YAML<br/>region, prefixes, flags, parallelism"]
         YAML --> DERIVE["Derive SCHEMA_PREFIX = catalog_<br/>and CRED_NAME = OCI_CRED_CATALOG"]
-        DERIVE --> SEC["Read secrets from Vault<br/>4 for the API key + 4 per ADW"]
+        DERIVE --> SEC["Read the Credential Store<br/>Service account credential: 4 fields<br/>+ per ADW: 2 Vault References, 4 with mTLS"]
         SEC --> FLEET["Build ADWS list"]
     end
 
-    FLEET --> W
+    FLEET --> WM
 
-    subgraph C3["Cell 3 - Wallets"]
-        W["Extract wallets to a per-run temp dir<br/>source marker prevents stale reuse"]
-        W --> PING["One connection per ADW<br/>fail fast on creds, network, policy"]
+    subgraph C3["Cell 3 - Wallets and connectivity"]
+        WM{"flags.use_wallet?"}
+        WM -->|"true - mTLS"| W["Extract wallets to a per-run temp dir<br/>source marker prevents stale reuse"]
+        WM -->|"false - walletless TLS"| PING
+        W --> PING["One connection per ADW<br/>fail fast on creds, network, policy, mode"]
     end
 
     PING --> D1
@@ -187,11 +193,15 @@ flowchart TD
         DEC -->|"fp differs"| RC["RECREATE"]
         DEC -->|"fp matches"| SK["SKIP - no statement runs"]
         DEC -->|"in registry, not in source"| DR["DROP"]
+        E3 --> CK{"per schema: recorded key<br/>fingerprint = current?"}
+        CK -->|yes| CKS["credential untouched"]
+        CK -->|"no - rotated"| CKR["reinstall the credential<br/>even with no table work"]
     end
 
     CR --> FS
     RC --> FS
     DR --> AP
+    CKR --> AP
 
     FS{"force_snapshot<br/>and misaligned?"} -->|yes| FSW["Dummy INSERT + DELETE on Delta<br/>then poll metadata until aligned<br/>UniForm conversion is async, 5-9s"]
     FS -->|no| AP
@@ -199,7 +209,7 @@ flowchart TD
 
     subgraph C7["Cell 7 - Apply"]
         AP["Per schema: ALTER USER + grants + ACL"]
-        AP --> AP2["Create DBMS_CLOUD credential<br/>once per schema, before parallelism"]
+        AP --> AP2["Create DBMS_CLOUD credential<br/>once per schema, before parallelism<br/>record the key fingerprint"]
         AP2 --> AP3["Capture grants BEFORE drop"]
         AP3 --> AP4["DROP + CREATE_EXTERNAL_TABLE<br/>window measured at ~0.8s"]
         AP4 --> AP5["Reapply grants"]
@@ -272,6 +282,36 @@ candidate. That was an actual bug: a second catalog computed `drop=4748`.
 `NOPARALLEL` plus `ALTER SESSION DISABLE PARALLEL DML` avoids `ORA-12838`, since ADW enables
 parallel DML by default and the registry MERGE is followed by reads of the same object.
 
+### Credential state
+
+A second, much smaller table records which **API key** each schema's `DBMS_CLOUD` credential was
+built from:
+
+```sql
+CREATE TABLE EXT_CRED_STATE_V1 (
+  catalog_name    VARCHAR2(128),
+  owner           VARCHAR2(128),
+  cred_name       VARCHAR2(128),
+  key_fingerprint VARCHAR2(128),
+  updated_at      TIMESTAMP,
+  CONSTRAINT ext_cred_state_v1_pk PRIMARY KEY (catalog_name, owner)
+) NOPARALLEL
+```
+
+It exists because the registry answers the wrong question for one failure mode. The ADWs read
+Object Storage with a credential **built from** the service account key, one per schema. Rotate
+that key and nothing about the *tables* changes, so every row still fingerprint-matches and the
+run reports SKIP across the board - while every consumer query fails with `ORA-20401`, or
+`ORA-20000: Failed to generate column list`. Healthy-looking sync, dead fleet.
+
+Comparing the recorded fingerprint against the one read from the credential closes that: a
+mismatch reinstalls the credential in the affected schemas, with no table touched, so consumers
+read straight through it. A fingerprint identifies a key and is not the key, so the table holds
+nothing secret.
+
+The check runs **before** the early return for "nothing to sync", which is the whole point - the
+rotation case is precisely the one where there is no table work to trigger it.
+
 ### Decision table
 
 | Registry state | Action | Statements executed |
@@ -281,8 +321,16 @@ parallel DML by default and the registry MERGE is followed by reads of the same 
 | fingerprint matches | **SKIP** | none |
 | in registry, absent from source | DROP | drop table and view |
 
-**SKIP is the common case in steady state and costs zero DDL** (only the per-run registry read and session setup). That is what makes the
-run time proportional to *change*, not to fleet size.
+And independently of the table state, per schema:
+
+| Credential state | Action | Statements executed |
+|---|---|---|
+| recorded fingerprint matches | none | none |
+| differs, or nothing recorded | reinstall credential | `ALTER USER` (password), `DROP`/`CREATE_CREDENTIAL`, record the fingerprint |
+
+**SKIP is the common case in steady state and costs zero DDL** (only the per-run registry and
+credential-state reads, plus session setup). That is what makes the run time proportional to
+*change*, not to fleet size.
 
 ### Idempotency
 
@@ -307,11 +355,12 @@ which is correct, and re-running converges.
 | Spark SQL | `SHOW NAMESPACES`, `SHOW TABLES`, `SHOW VIEWS`, `DESCRIBE EXTENDED` |
 | `DESCRIBE EXTENDED` | the only way to get a table's physical location here - `DESCRIBE DETAIL` fails on these tables |
 | Notebook job parameters | `oidlUtils.parameters.getParameter` |
-| AIDP Credential Store | `aidputils.secrets.get`, Vault Reference type |
-| Volume, optional | alternative location for wallet files |
+| AIDP Credential Store | `aidputils.secrets.get`: Service account type for the API key, Vault Reference type for the per-ADW secrets |
+| Volume, optional, mTLS only | alternative location for wallet files |
 | `oracledb` | Python driver, thin mode |
 | `oci` Python SDK | Object Storage listing and reads |
 | `pyyaml` | configuration |
+| `cryptography` | re-emits the service account key as PKCS#1 for `DBMS_CLOUD.CREATE_CREDENTIAL`; a dependency of `oci` |
 
 `REORG TABLE ... APPLY (UPGRADE UNIFORM(ICEBERG_COMPAT_VERSION=2))` regenerates Iceberg
 metadata when needed. Databricks' `MSCK REPAIR TABLE ... SYNC METADATA` does **not** exist in
@@ -331,7 +380,7 @@ open-source Spark and is not used.
 | `ALTER SESSION DISABLE PARALLEL DML` | avoids `ORA-12838` around the registry MERGE |
 | `user_tab_privs` | grant capture and replay across a recreate |
 | `all_users`, `all_objects` | existence checks and teardown reporting |
-| mTLS wallet, or TLS without wallet | connectivity |
+| mTLS wallet, or TLS without wallet | connectivity, chosen fleet-wide - see [Connection modes](#connection-modes-mtls-and-walletless-tls) |
 
 Grants each schema user receives, direct rather than through a role, because roles are disabled
 inside definer's-rights procedures:
@@ -343,13 +392,19 @@ GRANT READ, WRITE ON DIRECTORY DATA_PUMP_DIR TO <schema>;
 ALTER USER <schema> QUOTA UNLIMITED ON DATA;
 ```
 
+> Two tables belong to the job rather than to the data: `registry_table` holds the per-table
+> fingerprints that drive the incremental decision, and `credential_state_table` holds the API key
+> fingerprint behind each schema's credential. Both are created on demand, both are keyed by
+> catalog, and leaving their names unqualified puts them in the `adw_user` schema - which is what
+> you want when `adw_user` is not `ADMIN`, because it drops the need for any `ANY TABLE` privilege.
+
 ### OCI side
 
 | Item | What for |
 |---|---|
-| Object Storage | the lakehouse itself, plus the wallet bucket |
-| Vault + master encryption key | one secret per value; 25 KB base64 limit |
-| AIDP Credential Store | Vault References; one credential points at one secret OCID |
+| Object Storage | the lakehouse itself, plus the wallet bucket with mTLS |
+| Vault + master encryption key | the per-ADW secrets, one value each; 25 KB base64 limit. Needed in both connection modes |
+| AIDP Credential Store | one Service account credential for the API key, plus Vault References - one credential points at one secret OCID |
 | IAM service account with API key | the single identity that reads Object Storage, from both the notebook and every ADW |
 
 ### The service account
@@ -360,19 +415,87 @@ One IAM user, one API key, used by two consumers:
 2. every ADW, through `DBMS_CLOUD.CREATE_CREDENTIAL`, to read Parquet and Iceberg metadata at
    query time.
 
-Reusing one identity is deliberate: one thing to grant, rotate and audit. Its four fields live
-in the Vault as four separate secrets.
+Reusing one identity is deliberate: one thing to grant, rotate and audit. Its four fields live in
+**one Credential Store entry of type Service account**, inside AIDP - not in OCI Vault.
+
+That placement is what removes an IAM grant rather than narrowing one. A Vault Reference needs the
+AIDP service principal to hold `read secret-bundles` in the secret's compartment; a native
+Service account credential needs no IAM policy at all, because the values are not in Vault. What
+guards it instead is AIDP's own RBAC, which is per credential and per identity.
+
+Which is what makes **Run As** meaningful for this job. A scheduled run executes under an explicit
+identity - your own, or a service account - and per the
+[Run As documentation](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/run-identity.html)
+only service accounts stored in the Credential Store can be selected. With the service account
+held natively, a job can run as a non-person identity whose authority is a permission on that one
+credential entry, rather than a compartment-wide IAM grant that any AIDP instance in the
+compartment would also satisfy. Selecting it takes at least USE permission on the service
+account's credential for whoever configures the job. Not exercised here; the point is that the
+credential placement no longer stands in the way.
+
+### Connection modes: mTLS and walletless TLS
+
+`flags.use_wallet` selects how the workflow connects to the ADWs, for the whole fleet. It changes
+the connection path and nothing else: what the ADWs use to read Object Storage - the `DBMS_CLOUD`
+credential built from the service account key - is the same in both modes.
+
+| | mTLS - `true`, the default | Walletless TLS - `false` |
+|---|---|---|
+| ADB "Mutual TLS authentication" | required | not required |
+| ADB network access | public or private endpoint | private endpoint |
+| `<prefix>_dsn` | mTLS descriptor, port 1522 | TLS connection string, port 1521 |
+| Secrets read per ADW | `_dsn`, `_pwd`, `_wallet_zip`, `_wallet_pwd` | `_dsn`, `_pwd` |
+| Wallet bucket and its policy | yes, unless the wallets sit in an AIDP Volume | no |
+| Cell 3 | `ensure_wallets()` downloads each wallet with the service account, extracts it into a `mkdtemp` directory unique to the run; `cleanup_wallets()` removes it at the end | skipped |
+| Connection arguments (`_kw`) | user, password and DSN, plus `config_dir`, `wallet_location`, `wallet_password` | user, password and DSN |
+| What a caller needs besides the password | the wallet | a network path to the private endpoint |
+
+**The switch is explicit, never inferred** from whether a wallet secret exists. A missing secret is
+a provisioning mistake; inferring the mode from it would turn that mistake into a silent change of
+transport for one ADW.
+
+**The connectivity probe carries more weight without a wallet.** The end of cell 3 opens one
+connection per ADW before anything else runs. Walletless, it is the only proof that each `_dsn`
+really is a TLS string and not an mTLS descriptor, and its error names the mode and what each
+secret must hold.
+
+**From AIDP, walletless means a private endpoint.** On a public endpoint, OCI accepts "mutual TLS
+not required" only once a network ACL is set, and an active ACL refused AIDP's connections in
+every configuration tried, always with `ORA-12529`: the client address the database reports for
+the AIDP session, the egress IP measured from a notebook, and all three RFC 1918 ranges together.
+Whatever the ACL matches on, it is not the address the session reports. AIDP compute exposes no
+VCN, subnet or NSG either, so an ACL entry by VCN OCID is not an option. A private endpoint has no
+ACL in that path, which leaves walletless as a single change there - provided AIDP can reach the
+endpoint, a networking prerequisite of its own.
+
+**The security trade-off.** With mTLS a caller needs the wallet and the password, so the wallet
+bucket is itself a credential store and is treated as one. Walletless takes the wallet out of
+that, and the reachability of the private endpoint becomes the boundary. Neither mode changes who
+holds the service account key, or what the ADWs can read.
 
 ### Policies
 
-Reading secrets - the principal is the **AIDP service**:
+Two subjects, and only one grant depends on the mode:
+
+| Grant | Principal | mTLS | Walletless |
+|---|---|---|---|
+| `use secrets` + `read secret-bundles` | the **AIDP service** | yes - four secrets per ADW | yes - `_dsn` and `_pwd` |
+| `read objects` on the wallet bucket | the **service account user** | yes, with an `oci://` wallet path | no |
+| read on the lakehouse bucket | the **service account user** | yes | yes |
+| anything for the Service account credential | none - AIDP RBAC guards it, not IAM | - | - |
+
+Reading secrets - the principal is the **AIDP service**. Needed in **both** modes, for every
+per-ADW Vault Reference: `_dsn` and `_pwd` always, plus `_wallet_zip` and `_wallet_pwd` with mTLS.
+**Not** needed for the service account, which is a native credential:
 
 ```
 allow any-user to use secrets         in compartment id <CMP> where all { request.principal.type = 'aidataplatform' }
 allow any-user to read secret-bundles in compartment id <CMP> where all { request.principal.type = 'aidataplatform' }
 ```
 
-Reading the wallet bucket - the principal is the **service account user**, a different subject:
+Reading the wallet bucket - **mTLS only**, and only when `_wallet_zip` is an `oci://` URI. The
+principal is the **service account user**, a different subject, because cell 3 downloads each
+wallet with the service account's API key:
 
 ```
 allow group <SERVICE_ACCOUNT_GROUP> to read objects in compartment id <CMP> where target.bucket.name = 'aidp-adw-wallets'
@@ -384,12 +507,15 @@ Three IAM traps, all encountered in practice:
    ones are plural: `secrets`, `secret-bundles`, `secret-versions`, `secret-family`. The
    statement the AIDP console itself suggests is wrong here.
 2. `in tenancy` is only valid in a policy created in the **root** compartment.
-3. The AIDP console also suggests a condition on
-   `target.resource.tag.orcl-aidp.governingAidpId`. **AIDP does not apply that system tag to
-   referenced secrets** - verified after registering a Vault Reference. The predicate can never
-   match, so the read fails. Consequence worth raising with a security team: today the grant can
-   only be scoped by compartment, so every AIDP instance in that compartment can read the
-   secrets.
+3. Scoping the grant to a single AIDP instance. The Credential Store documentation prescribes
+   `request.principal.id = target.secret.system-tag.orcl-aidp.governingAidpId`, which is a
+   **secret system-tag** predicate. An earlier attempt here used the generic defined-tag form
+   `target.resource.tag.orcl-aidp.governingAidpId` and failed - which says nothing about the
+   documented form, since they are different predicates. Worth trying the documented one: if the
+   tag is absent the policy fails closed, so the blast radius of testing it is losing access, not
+   widening it. Without that condition the grant is scoped only by compartment, so every AIDP
+   instance in that compartment can read those secrets - which is the argument for keeping them
+   in a compartment of their own.
 
 ---
 
@@ -555,8 +681,13 @@ minutes. Treat it as a deliberate, per-run choice.
 | One secret holds one value, never JSON | one value per secret keeps rotation and auditing per credential |
 | Short, common values stay OUT of the Vault | they are not secrets, and the Vault is not the place for configuration |
 | Wallets in a bucket, not a Volume | provisioning becomes a CLI or Terraform call; several AIDP instances share one fleet |
+| Wallets extracted per run, into `mkdtemp` | two jobs on one driver never delete each other's wallet, and a rotated wallet is picked up on the next run |
+| Connection mode is a fleet-wide flag, never inferred | a missing wallet secret is a provisioning mistake, not an instruction to change transport |
+| Service account held natively, not as a Vault Reference | removes the compartment-wide `read secret-bundles` grant for the one credential every ADW depends on, and puts it under per-credential RBAC |
 | Discovery shields unreadable tables from DROP | a transient read failure must never delete a healthy external table |
 | Registry written after the work, only for successes | an interrupted run converges instead of lying |
+| Credential keyed by the API key fingerprint | rotating the key changes no table, so the registry alone reports SKIP while every consumer query fails; the fingerprint is what makes the rotation visible |
+| Fingerprint stored, never the key | it identifies a key well enough to compare, and the state table stays free of secrets |
 | Grants captured before the drop | `DROP` loses object grants; a recreate would silently revoke every consumer |
 
 ---
@@ -577,8 +708,12 @@ What was actually exercised, and what was not.
 | `RENAME COLUMN` and `DROP COLUMN` drift | `aligned` matched the observed consumer behaviour three times out of three |
 | Async UniForm conversion | measured at 5 to 9s; recreating earlier yields the old columns |
 | Vault secret rotation | new version picked up in the same session, no restart |
+| Service account credential | passed live: the four fields read by their fixed keys, and `DBMS_CLOUD.CREATE_CREDENTIAL` with the key converted to PKCS#1 reads Object Storage from the ADW |
+| API key rotation detection | passed live: a fingerprint mismatch reinstalls the credential in every affected schema with no table work (`creds > 0`), and the next run converges to `creds=0`. The edge cases - a match as a zero-DDL no-op, an absent state table treating every schema as stale, dry run reporting and writing nothing - were also exercised against a recording fake of the ADW |
+| Walletless TLS, `use_wallet: false` | passed live, against ADBs with mutual TLS set to not required |
 | Config discovery in a scheduled workflow | resolved with three decoy `config.yaml` files present |
-| Wallet from an Object Storage bucket | passed |
+| mTLS, `use_wallet: true`, wallet from an Object Storage bucket | passed live |
+| Walletless TLS on a public-endpoint ADB behind an ACL | `ORA-12529` in every configuration: the address the session reports, the measured egress IP, all three RFC 1918 ranges. Hence the private-endpoint requirement |
 | **Not tested:** parallel reader on the `_high` service | - |
 | **Not tested:** `PRESERVE_GRANTS` main path with real grants | - |
 | **Not tested:** snapshot auto-resolve without recreate | - |
@@ -622,6 +757,7 @@ of these tests against your own fleet.
 
 **AIDP**
 - [Credential Store - Preview](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/credential-store.html)
-- [Passing parameters in workflows](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/parameters1.html)
+- [Workflow jobs: Run As](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/run-identity.html)
+- [Passing parameters in workflows](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/parameters.html)
 - [AIDP SDK and CLI](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aiwap/sdkandcli.html)
 - [aidataplatform-sdk on GitHub](https://github.com/oracle-samples/aidataplatform-sdk)

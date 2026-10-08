@@ -1,0 +1,16 @@
+{
+  "name": "aidp-fabric-migrator",
+  "owner": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "description": "Oracle AIDP migration tooling for Microsoft Fabric.",
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-workbench-fabric-migrator",
+      "source": "./",
+      "displayName": "Oracle AIDP Migrator for Microsoft Fabric",
+      "description": "Migrate a Fabric workspace (notebooks, Warehouse T-SQL, shortcuts) to Oracle AIDP."
+    }
+  ]
+}

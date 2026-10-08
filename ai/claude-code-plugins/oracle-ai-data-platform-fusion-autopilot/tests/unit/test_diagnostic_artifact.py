@@ -246,7 +246,7 @@ def _bronze_4071_artifact():
     return BronzeSourceColumnMissingV1.model_validate({
         "schemaVersion": 1,
         "runId": "run-test-4071",
-        "tenant": "saasfademo1",
+        "tenant": "demo-pod",
         "errorCode": "AIDPF-4071",
         "errorMessage": "bronze node 'ap_payments' declares column(s) absent…",
         "generatedAt": "2026-06-11T00:00:00+00:00",

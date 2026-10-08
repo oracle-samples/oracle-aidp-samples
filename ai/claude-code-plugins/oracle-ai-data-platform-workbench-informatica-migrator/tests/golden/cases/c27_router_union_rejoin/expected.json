@@ -1,0 +1,56 @@
+{
+  "TGT_TXN_CLASSIFIED": {
+    "rows": [
+      {
+        "TXN_ID": 1,
+        "CATEGORY": "PAYMENT",
+        "SIGNED_AMT": 100.0
+      },
+      {
+        "TXN_ID": 2,
+        "CATEGORY": "REFUND",
+        "SIGNED_AMT": -40.0
+      },
+      {
+        "TXN_ID": 3,
+        "CATEGORY": "PAYMENT",
+        "SIGNED_AMT": 1500.0
+      },
+      {
+        "TXN_ID": 3,
+        "CATEGORY": "LARGE",
+        "SIGNED_AMT": 1485.0
+      },
+      {
+        "TXN_ID": 4,
+        "CATEGORY": "OTHER:FEE",
+        "SIGNED_AMT": 0
+      },
+      {
+        "TXN_ID": 5,
+        "CATEGORY": "UNKNOWN",
+        "SIGNED_AMT": 0
+      },
+      {
+        "TXN_ID": 6,
+        "CATEGORY": "REFUND",
+        "SIGNED_AMT": -2000.0
+      },
+      {
+        "TXN_ID": 6,
+        "CATEGORY": "LARGE",
+        "SIGNED_AMT": 1980.0
+      },
+      {
+        "TXN_ID": 7,
+        "CATEGORY": "OTHER:XFR",
+        "SIGNED_AMT": 0
+      },
+      {
+        "TXN_ID": 8,
+        "CATEGORY": "PAYMENT",
+        "SIGNED_AMT": null
+      }
+    ]
+  }
+}

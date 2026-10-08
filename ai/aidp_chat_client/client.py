@@ -3,9 +3,13 @@ AIDP Chat Client module for interacting with Oracle AIDP Chat Agent endpoints.
 """
 
 import json
+import os
 from typing import Any, Dict, List, Optional, Union
 import requests
 import oci
+
+# Seconds to wait for the endpoint; override with AIDP_HTTP_TIMEOUT.
+_TIMEOUT = float(os.environ.get("AIDP_HTTP_TIMEOUT", "120"))
 
 
 class AIDPChatClient:
@@ -66,7 +70,7 @@ class AIDPChatClient:
             headers = {"Content-Type": "application/json"}
         
         url = f"{self.aidp_url}{path}"
-        resp = requests.post(url, params=params, auth=self.signer, json=body, headers=headers)
+        resp = requests.post(url, params=params, auth=self.signer, json=body, headers=headers, timeout=_TIMEOUT)
         resp.raise_for_status()
         return resp
     
@@ -93,7 +97,8 @@ class AIDPChatClient:
             params=params, 
             auth=self.signer, 
             data=body, 
-            headers={"Content-Type": "application/octet-stream"}
+            headers={"Content-Type": "application/octet-stream"},
+            timeout=_TIMEOUT,
         )
         resp.raise_for_status()
         return resp
@@ -121,7 +126,8 @@ class AIDPChatClient:
             params=params, 
             auth=self.signer, 
             json=body, 
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=_TIMEOUT,
         )
         resp.raise_for_status()
         return resp
@@ -149,7 +155,8 @@ class AIDPChatClient:
             params=params, 
             auth=self.signer, 
             json=body, 
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=_TIMEOUT,
         )
         resp.raise_for_status()
         return resp
@@ -174,7 +181,8 @@ class AIDPChatClient:
             url, 
             params=params, 
             auth=self.signer, 
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=_TIMEOUT,
         )
         resp.raise_for_status()
         return resp.json()
@@ -197,7 +205,7 @@ class AIDPChatClient:
         url = f"{self.aidp_url}{path}"
         if obj:
             url = f"{url}/{obj}"
-        resp = requests.delete(url, auth=self.signer)
+        resp = requests.delete(url, auth=self.signer, timeout=_TIMEOUT)
         resp.raise_for_status()
         return resp
     

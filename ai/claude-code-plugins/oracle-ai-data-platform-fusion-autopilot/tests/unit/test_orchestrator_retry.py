@@ -83,7 +83,7 @@ class TestIsTransient:
         assert is_transient(exc)
 
     def test_schema_not_found_is_permanent(self) -> None:
-        """po_receipts on saasfademo1 (TC26 live, run_id=3f9b0648)."""
+        """po_receipts on demo-pod (TC26 live, run_id=3f9b0648)."""
         exc = _FakePy4JJavaError(
             "An error occurred while calling o577.load.",
             _FakeJavaException("DATA_ACCESS_LAYER_0031 - Schema: SCM not found"),

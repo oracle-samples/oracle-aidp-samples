@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Tool output directories
+output/
+analysis_report/
+reconcile_report/
+lineage/
+notebooks/
+reports/
+
+# Secrets / config
+.env
+*.secret
+credentials.*
+
+# Environment config (contains API keys — never commit)
+.env
+!.env.template
+
+# Web UI build artefacts
+web/node_modules/
+web/dist/
+web/.vite/
+
+
+# Local design/planning artifacts — kept on the author's machine, never
+# published. This repo is the tool and its code, not the plans behind it.
+docs/superpowers/
+.superpowers/

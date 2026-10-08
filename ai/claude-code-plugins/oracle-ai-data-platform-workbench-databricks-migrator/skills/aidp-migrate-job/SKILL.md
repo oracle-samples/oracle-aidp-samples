@@ -121,7 +121,7 @@ The migrated `.ipynb`s are uploaded to your AIDP workspace at `<output-base>` AN
 |---|---|
 | `RESULT: PARTIAL` with N cells failing all 10 attempts | [`aidp-fixup-cell`](../aidp-fixup-cell/SKILL.md) for each. |
 | Cluster died mid-run (WS disconnects) | Restart cluster. Re-invoke with `--skip-migrated` (default) — Pass-1 deps already done aren't repeated. |
-| User wants to abort | `pkill -f job_migrate.py` (SIGTERM) — lets the current cell finish. |
+| User wants to abort | `kill <pid>` with the PID recorded at launch (SIGTERM) — lets the current cell finish. `pkill -f` would also hit other users' runs on a shared host. |
 | User wants to resume after manual fixes to a dep | [`aidp-resume-migration`](../aidp-resume-migration/SKILL.md). |
 | Migrated table is in the redirect schema (`<sandbox>`) but user expected production location | Check [`references/gotchas.md`](../../references/gotchas.md) §"redirect schema". Re-run with `--no-redirect-schema` (USE WITH CARE — bypasses data-safety gate). |
 

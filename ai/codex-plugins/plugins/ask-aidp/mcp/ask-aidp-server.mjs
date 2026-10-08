@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -10,7 +10,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const SERVER_VERSION = '0.9.1';
+const SERVER_VERSION = '0.10.0';
 const SERVER_NAME = 'ask-aidp';
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
@@ -1173,7 +1173,13 @@ function requireValue(value, name) {
 
 function resolveAidp(config = {}) {
   const explicit = config.aidpBin || process.env.AIDP_CLI_BIN;
-  if (explicit) return { command: explicit, prefixArgs: [] };
+  if (explicit) {
+    // A Node entry script (e.g. .../aidp-cli/dist/bin/aidp.js, as recommended by
+    // normalizeSpawnTarget) is not directly executable on Windows (spawn EFTYPE);
+    // run it through the current Node binary like the vendored aidp.js below.
+    if (/\.(c|m)?js$/i.test(explicit)) return { command: process.execPath, prefixArgs: [explicit] };
+    return { command: explicit, prefixArgs: [] };
+  }
 
   const vendoredJs = path.join(PLUGIN_ROOT, 'vendor', 'node_modules', 'aidp-cli', 'dist', 'bin', 'aidp.js');
   if (existsSync(vendoredJs)) return { command: process.execPath, prefixArgs: [vendoredJs] };
@@ -1198,11 +1204,13 @@ function commonFlags(config = {}) {
 
 function sdkResolvePaths() {
   return [
+    // Only the plugin's own trees: a path outside PLUGIN_ROOT (and the
+    // process cwd in particular) would let a planted node_modules supply
+    // the module that handles the user's OCI credentials.
     path.join(PLUGIN_ROOT, 'vendor', 'node_modules'),
     path.join(PLUGIN_ROOT, 'node_modules'),
-    path.join(PLUGIN_ROOT, '..', '..', 'samples', 'npm-cli', 'node_modules'),
-    path.join(PLUGIN_ROOT, '..', '..', 'samples', 'node-sdk', 'node_modules'),
-    process.cwd()
+    // ...plus a directory the operator names explicitly (documented in the README).
+    ...(process.env.AIDP_VENDOR_NODE_MODULES ? [process.env.AIDP_VENDOR_NODE_MODULES] : [])
   ];
 }
 
@@ -2008,13 +2016,15 @@ function restSafeHeaders(headers = {}) {
   const blocked = new Set(['authorization', 'host', 'x-date', 'content-length', 'x-content-sha256']);
   const result = {};
   for (const [key, value] of Object.entries(headers)) {
-    if (blocked.has(key.toLowerCase())) throw new Error(`Do not set signed REST header: ${key}`);
-    result[key] = value;
+    const name = key.toLowerCase();
+    if (blocked.has(name)) throw new Error(`Do not set signed REST header: ${key}`);
+    if (Object.hasOwn(result, name)) throw new Error(`Duplicate REST header: ${key}`);
+    result[name] = value;
   }
   return result;
 }
 
-async function runRest(input) {
+export async function runRest(input, authProviderFactory = createSdkAuthProvider) {
   const config = workflowConfig(input.config || {});
   const reference = loadRestApiReference();
   const method = String(input.method || '').toUpperCase();
@@ -2024,6 +2034,9 @@ async function runRest(input) {
   }
   const endpoint = requireValue(config.endpoint, 'endpoint or AIDP_ENDPOINT').replace(/\/+$/, '');
   const headers = restSafeHeaders(input.headers || {});
+  const isComputeExport = method === 'POST' && /\/workspaces\/[^/]+\/clusters\/[^/]+\/actions\/exportComputeConfiguration$/.test(pathValue);
+  headers.accept ??= isComputeExport ? 'application/x-yaml' : 'application/json';
+  if (input.body !== undefined) headers['content-type'] ??= 'application/json';
   const query = input.query || {};
   const body = input.body === undefined ? undefined : JSON.stringify(input.body);
   const url = new URL(`${endpoint}${pathValue}`);
@@ -2042,14 +2055,15 @@ async function runRest(input) {
     }, null, 2));
   }
 
-  const { common, authProvider } = await createSdkAuthProvider(config);
+  const { common, authProvider } = await authProviderFactory(config);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), (input.timeoutSeconds || 120) * 1000);
   try {
     const request = await common.composeRequest({
       baseEndpoint: endpoint,
       path: pathValue,
-      defaultHeaders: { accept: 'application/json' },
+      // composeRequest appends defaults and overrides, so pass one merged set.
+      defaultHeaders: {},
       headerParams: headers,
       queryParams: query,
       method,
@@ -3938,7 +3952,18 @@ async function handleMessage(message) {
   }
 
   if (message.method === 'tools/call') {
-    const result = await handleToolCall(message.params?.name, message.params?.arguments || {});
+    // A tool that throws a pre-flight error (missing config, missing vendor
+    // dependency, unreadable localPath) should surface as a structured
+    // isError:true RESULT so the model can self-correct — not as a JSON-RPC
+    // -32000 protocol error carrying an internal stack trace with absolute
+    // filesystem paths. Matches the isError handling used for unknown tools
+    // and CLI/HTTP failures elsewhere in the server.
+    let result;
+    try {
+      result = await handleToolCall(message.params?.name, message.params?.arguments || {});
+    } catch (error) {
+      result = toolText(String(error?.message || error), true);
+    }
     jsonResponse(message.id, result);
     return;
   }
@@ -3953,32 +3978,66 @@ async function handleMessage(message) {
   }
 }
 
-let buffer = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', (chunk) => {
-  buffer += chunk;
-  let index;
-  while ((index = buffer.indexOf('\n')) >= 0) {
-    const line = buffer.slice(0, index).trim();
-    buffer = buffer.slice(index + 1);
-    if (!line) continue;
-    let message;
-    try {
-      message = JSON.parse(line);
-    } catch (error) {
-      jsonError(null, -32700, `Parse error: ${error.message}`);
-      continue;
-    }
-    Promise.resolve(handleMessage(message)).catch((error) => {
-      if (message.id !== undefined) jsonError(message.id, -32000, error.message, { stack: error.stack });
-    });
+// Importing the request runner for offline transport tests must not start stdio.
+// Compare real paths: Node resolves the main module's import.meta.url through
+// symlinks/junctions while process.argv[1] keeps the caller's spelling, so a
+// plain string comparison would silently skip stdio when the plugin directory
+// is reached through a symlink (e.g. ~/.codex/plugins/ask-aidp -> checkout).
+const isMainModule = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(path.resolve(process.argv[1])) === realpathSync(__filename);
+  } catch {
+    return false;
   }
-});
+})();
 
-process.stdin.on('end', () => process.exit(0));
+if (isMainModule) {
+  let buffer = '';
+  let pendingMessages = 0;
+  let stdinEnded = false;
 
-if (process.argv.includes('--self-test')) {
-  const fingerprint = createHash('sha256').update(readFileSync(__filename)).digest('hex').slice(0, 12);
-  process.stdout.write(JSON.stringify({ name: SERVER_NAME, version: SERVER_VERSION, tools: TOOLS.length, fingerprint, id: randomUUID() }, null, 2));
-  process.exit(0);
+  function finishAfterPendingMessages() {
+    if (stdinEnded && pendingMessages === 0 && !process.stdout.writableEnded) {
+      process.stdout.end();
+    }
+  }
+
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (chunk) => {
+    buffer += chunk;
+    let index;
+    while ((index = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, index).trim();
+      buffer = buffer.slice(index + 1);
+      if (!line) continue;
+      let message;
+      try {
+        message = JSON.parse(line);
+      } catch (error) {
+        jsonError(null, -32700, `Parse error: ${error.message}`);
+        continue;
+      }
+      pendingMessages += 1;
+      Promise.resolve(handleMessage(message))
+        .catch((error) => {
+          if (message.id !== undefined) jsonError(message.id, -32000, error.message, { stack: error.stack });
+        })
+        .finally(() => {
+          pendingMessages -= 1;
+          finishAfterPendingMessages();
+        });
+    }
+  });
+
+  process.stdin.on('end', () => {
+    stdinEnded = true;
+    finishAfterPendingMessages();
+  });
+
+  if (process.argv.includes('--self-test')) {
+    const fingerprint = createHash('sha256').update(readFileSync(__filename)).digest('hex').slice(0, 12);
+    process.stdout.write(JSON.stringify({ name: SERVER_NAME, version: SERVER_VERSION, tools: TOOLS.length, fingerprint, id: randomUUID() }, null, 2));
+    process.exit(0);
+  }
 }

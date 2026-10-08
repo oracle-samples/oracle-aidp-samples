@@ -1,8 +1,8 @@
 # TC29 — Laptop-terminal REST dispatch live evidence (P1.5ε)
 
-**Pod**: `playground` workspace (saasfademo1)
+**Pod**: `playground` workspace (demo-pod)
 **Date**: 2026-06-03
-**Branch**: `oussama-dev-p1.5e` @ `fe41107` + cumulative dispatch fixes
+**Branch**: `<branch>` @ `fe41107` + cumulative dispatch fixes
 **Operator**: redacted
 **Cluster**: `fusion_autopilot_dev` (UUID redacted)
 
@@ -126,7 +126,7 @@ execution_info: {'total_cells': 5, 'current_cell': 4}
 cell 1 (install) — pip rc=0 ✅
   output: "pip rc=0\nplugin installed to /tmp/aidp_fusion_autopilot_<...>/site-packages"
 cell 2 (creds) — ✅
-  output: "FUSION_BICC_PASSWORD loaded (length=8)\norchestrator loaded"
+  output: "FUSION_BICC_PASSWORD loaded\norchestrator loaded"
 cell 3 (run) — IN PROGRESS (no flushed outputs, AIDP-side current_cell=4)
 cell 4 (verify) — not reached
 ```
@@ -208,7 +208,7 @@ Validates (the entire `P1.5ε-fix1` acceptance, including reviewer round-3 corre
 
 ## What's NOT in this evidence
 
-- **Marker payload round-trip on a successful run.** The cluster-side BICC extract for `erp_suppliers` ran past the laptop-side 1800s `poll_run` deadline on this tenant (still RUNNING when laptop timed out at 30:33 wall). BICC latency for `SupplierExtractPVO` against `saasfademo1` is independent of the dispatch layer; the marker-parse + `RunSummary.from_marker_dict` round-trip is covered exhaustively by the in-process unit tests in `tests/unit/dispatch/test_dispatch_via_rest.py` (synthetic marker payloads exercise every shape and edge case).
+- **Marker payload round-trip on a successful run.** The cluster-side BICC extract for `erp_suppliers` ran past the laptop-side 1800s `poll_run` deadline on this tenant (still RUNNING when laptop timed out at 30:33 wall). BICC latency for `SupplierExtractPVO` against `demo-pod` is independent of the dispatch layer; the marker-parse + `RunSummary.from_marker_dict` round-trip is covered exhaustively by the in-process unit tests in `tests/unit/dispatch/test_dispatch_via_rest.py` (synthetic marker payloads exercise every shape and edge case).
 - **Cluster-side SOX-trail verification (cell 4).** Requires cell 3 to complete; verify cell never executed because BICC extract didn't finish before the laptop-side timeout.
 
 ## Bugs caught + fixed during TC29
@@ -349,7 +349,7 @@ The dispatch package's `tests/unit/dispatch/test_imports.py` ran clean on every 
 
 ## Redaction note
 
-All identifiers (AIDP host, `aiDataPlatformId`, workspace key, cluster key, job/run/task UUIDs, BICC username, Fusion pod URL, external-storage profile name) redacted per the workspace memory rule on sensitive identifiers. The non-redacted strings in this file (`fusion_autopilot_dev`, `saasfademo1`, `playground`, hash prefixes, `oracle_ai_data_platform_fusion_autopilot-0.1.0a0-py3-none-any.whl`) appear in prior public TC* evidence + plugin source docstrings.
+All identifiers (AIDP host, `aiDataPlatformId`, workspace key, cluster key, job/run/task UUIDs, BICC username, Fusion pod URL, external-storage profile name) redacted per the workspace memory rule on sensitive identifiers. The non-redacted strings in this file (`fusion_autopilot_dev`, `demo-pod`, `playground`, hash prefixes, `oracle_ai_data_platform_fusion_autopilot-0.1.0a0-py3-none-any.whl`) appear in prior public TC* evidence + plugin source docstrings.
 
 ## Closes
 

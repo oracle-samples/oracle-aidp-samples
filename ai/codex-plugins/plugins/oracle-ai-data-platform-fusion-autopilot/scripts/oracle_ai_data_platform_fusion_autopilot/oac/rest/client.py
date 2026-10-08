@@ -259,7 +259,7 @@ class OacRestClient:
         """``POST /api/<v>/catalog/connections`` — register the AIDP JDBC connection.
 
         Schema captured live 2026-05-01 from the OAC UI's actual create POST
-        (Chrome DevTools network interceptor on ``oacai.cealinfra.com``):
+        (Chrome DevTools network interceptor on a test OAC instance):
 
           - The discriminator is ``provider-name: "idljdbc"`` (Intelligent
             DataLake JDBC). Aliased here as ``connectionType`` to match

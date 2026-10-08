@@ -97,6 +97,14 @@ codex plugin add oracle-ai-data-platform-fusion-autopilot@oracle-aidp-codex
 
 See [`plugins/oracle-ai-data-platform-fusion-autopilot/README.md`](./plugins/oracle-ai-data-platform-fusion-autopilot/README.md) for Fusion/AIDP/OAC prerequisites, and its `tests/` for the unit suite (`make test` inside the plugin directory).
 
+## Install Snowflake Migrator
+
+```bash
+codex plugin add oracle-ai-data-platform-workbench-snowflake-migrator@oracle-aidp-codex
+```
+
+See [`plugins/oracle-ai-data-platform-workbench-snowflake-migrator/README.md`](./plugins/oracle-ai-data-platform-workbench-snowflake-migrator/README.md) for prerequisites and the runbook. The offline suite runs with `bin/snowmig-test` inside the plugin directory, and `bin/snowmig demo` runs the whole pipeline against an emulated estate with no credentials.
+
 ## Update
 
 ```bash

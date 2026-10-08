@@ -1,6 +1,6 @@
 # TC22 — `silver.dim_account` live verification (2026-05-07)
 
-> **Status**: ✅ **PASS (full verification, production-shape data)** — Chart of Accounts dim materialized end-to-end on `fusion_autopilot_dev` cluster against live `bronze.gl_coa`. All 5 BACKLOG P1.3 acceptance criteria satisfied. Unlike `dim_supplier` (where eseb-test's NULL `VENDORID` left the JOIN-form path live-untested), `dim_account` runs against a fully-populated production-shape CoA on the same demo pod — 63,464 rows, 100% populated on every key column, real account-type distribution.
+> **Status**: ✅ **PASS (full verification, production-shape data)** — Chart of Accounts dim materialized end-to-end on `fusion_autopilot_dev` cluster against live `bronze.gl_coa`. All 5 BACKLOG P1.3 acceptance criteria satisfied. Unlike `dim_supplier` (where <fusion-pod-2>'s NULL `VENDORID` left the JOIN-form path live-untested), `dim_account` runs against a fully-populated production-shape CoA on the same demo pod — 63,464 rows, 100% populated on every key column, real account-type distribution.
 
 ## Test setup
 

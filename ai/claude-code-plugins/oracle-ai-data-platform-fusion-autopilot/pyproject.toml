@@ -10,7 +10,7 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [
-  { name = "Ahmed Awan" }
+  { name = "Oracle AI Data Platform" }
 ]
 keywords = [
   "oracle", "aidp", "fusion", "bicc", "lakehouse", "delta",
@@ -61,9 +61,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ahmedawan-oracle/claude-code-plugins"
-Repository = "https://github.com/ahmedawan-oracle/claude-code-plugins"
-Issues = "https://github.com/ahmedawan-oracle/claude-code-plugins/issues"
+Homepage = "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-fusion-autopilot"
+Repository = "https://github.com/oracle-samples/oracle-aidp-samples"
+Issues = "https://github.com/oracle-samples/oracle-aidp-samples/issues"
 
 [project.scripts]
 aidp-fusion-autopilot = "oracle_ai_data_platform_fusion_autopilot.cli:main"

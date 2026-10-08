@@ -1,68 +1,116 @@
 {
-  "name": "oracle-aidp-codex",
-  "interface": {
-    "displayName": "Oracle AI Data Platform - Codex"
+ "name": "oracle-aidp-codex",
+ "interface": {
+  "displayName": "Oracle AI Data Platform - Codex"
+ },
+ "plugins": [
+  {
+   "name": "oracle-ai-data-platform-workbench-databricks-migrator",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Engineering"
   },
-  "plugins": [
-    {
-      "name": "oracle-ai-data-platform-workbench-databricks-migrator",
-      "source": {
-        "source": "local",
-        "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Engineering"
-    },
-    {
-      "name": "oracle-ai-data-platform-workbench-engineer-agent",
-      "source": {
-        "source": "local",
-        "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-engineer-agent"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Data"
-    },
-    {
-      "name": "oracle-ai-data-platform-workbench-spark-connectors",
-      "source": {
-        "source": "local",
-        "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Data"
-    },
-    {
-      "name": "ask-aidp",
-      "source": {
-        "source": "local",
-        "path": "./ai/codex-plugins/plugins/ask-aidp"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Data"
-    },
-    {
-      "name": "oracle-ai-data-platform-fusion-autopilot",
-      "source": {
-        "source": "local",
-        "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-fusion-autopilot"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Data"
-    }
-  ]
+  {
+   "name": "oracle-ai-data-platform-workbench-engineer-agent",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-engineer-agent"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Data"
+  },
+  {
+   "name": "oracle-ai-data-platform-workbench-spark-connectors",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-spark-connectors"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Data"
+  },
+  {
+   "name": "ask-aidp",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/ask-aidp"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Data"
+  },
+  {
+   "name": "oracle-ai-data-platform-fusion-autopilot",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-fusion-autopilot"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Data"
+  },
+  {
+   "name": "oracle-ai-data-platform-workbench-aws-migrator",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-aws-migrator"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Engineering"
+  },
+  {
+   "name": "oracle-ai-data-platform-workbench-snowflake-migrator",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-snowflake-migrator"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Engineering"
+  },
+  {
+   "name": "oracle-ai-data-platform-workbench-fabric-migrator",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-fabric-migrator"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Engineering"
+  },
+  {
+   "name": "oracle-ai-data-platform-workbench-informatica-migrator",
+   "source": {
+    "source": "local",
+    "path": "./ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-informatica-migrator"
+   },
+   "policy": {
+    "installation": "AVAILABLE",
+    "authentication": "ON_INSTALL"
+   },
+   "category": "Engineering"
+  }
+ ]
 }

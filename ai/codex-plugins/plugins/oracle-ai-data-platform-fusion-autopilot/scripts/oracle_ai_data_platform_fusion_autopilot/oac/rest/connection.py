@@ -1,7 +1,7 @@
 """Build the AIDP JDBC connection JSON payload for OAC.
 
 The 6-key shape was discovered live 2026-04-30 against
-``https://oacai.cealinfra.com`` by iterating through the OAC Connection
+a test OAC instance by iterating through the OAC Connection
 Details upload form (`Parameter <X> is missing in JSON` error
 messages). See ``docs/oac_rest_api_setup.md`` and the saved memory
 ``project_oac_aidp_connector_schema.md`` for the full discovery trace.

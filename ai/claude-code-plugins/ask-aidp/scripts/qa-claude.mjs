@@ -11,18 +11,23 @@
 //   5. tools/call dry-run suite for the SDK-backed and inline-data tools
 //      (upload, table-with-data, schema, git commit/push) so dry-run
 //      regressions cannot pass QA.
+//   6. CLI root request-model selection and Compute export REST transport
+//      (mocked HTTP), plus CLI/REST lookup and REST planning for every
+//      August/September 2026 addition.
 //
 // Exit code is non-zero if any check fails.
 import { spawnSync } from 'node:child_process';
+import { deepEqual } from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, readlinkSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { computeExportTransportTest, exportFields, exportModel, requestBodyReferenceTest } from './qa-compute-export.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const MARKETPLACE_ROOT = path.resolve(PLUGIN_ROOT, '..', '..');
 const SERVER = path.join(PLUGIN_ROOT, 'mcp', 'ask-aidp-server.mjs');
-const EXPECTED_VERSION = '0.9.1';
+const EXPECTED_VERSION = '0.10.0';
 const EXPECTED_TOOLS = 43;
 const MAX_STDIO_BUFFER = 16 * 1024 * 1024;
 const EXPECTED_TOOL_NAMES = [
@@ -125,12 +130,12 @@ function smokeTest() {
 
 function referenceCatalogs() {
   const cli = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'assets', 'aidp-cli-command-reference.json'), 'utf8'));
-  record('cli-reference-counts', cli.groupCount === 17 && cli.commandCount === 242, `groups=${cli.groupCount}, commands=${cli.commandCount}`);
+  record('cli-reference-counts', cli.groupCount === 18 && cli.commandCount === 256, `groups=${cli.groupCount}, commands=${cli.commandCount}`);
   const agentDeploy = cli.commands?.find((command) => command.fullName === 'aidp agent deploy');
   record('cli-agent-reference', Boolean(agentDeploy), agentDeploy ? 'aidp agent deploy present' : 'aidp agent deploy missing');
 
   const rest = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-reference.json'), 'utf8'));
-  record('rest-reference-counts', rest.categoryCount === 18 && rest.operationCount === 257, `categories=${rest.categoryCount}, operations=${rest.operationCount}`);
+  record('rest-reference-counts', rest.categoryCount === 19 && rest.operationCount === 271, `categories=${rest.categoryCount}, operations=${rest.operationCount}`);
 }
 
 // 2
@@ -267,13 +272,106 @@ function toolDryRuns() {
   record('dryrun-create-ai-compute', aiComputeOk, aiComputeOk ? 'AI Compute dry-run returns typed cluster body' : `AI Compute dry-run mismatch: ${aiCompute.detail}`);
 
   const restReference = planFor(responses, 16);
-  const restReferenceOk = !restReference.isError && restReference.plan?.categoryCount === 18
-    && restReference.plan?.operationCount === 257 && restReference.plan?.apiVersion === '20260430';
-  record('rest-reference-summary', restReferenceOk, restReferenceOk ? 'REST reference exposes 18 categories and 257 operations' : `REST reference mismatch: ${restReference.detail}`);
+  const restReferenceOk = !restReference.isError && restReference.plan?.categoryCount === 19
+    && restReference.plan?.operationCount === 271 && restReference.plan?.apiVersion === '20260430';
+  record('rest-reference-summary', restReferenceOk, restReferenceOk ? 'REST reference exposes 19 categories and 271 operations' : `REST reference mismatch: ${restReference.detail}`);
 
   const rest = planFor(responses, 17);
   const restOk = !rest.isError && String(rest.plan?.url || '').includes('/20260430/aiDataPlatforms/ocid1.aidataplatform.oc1..example/workspaces/workspace-key/clusters?type=AI_COMPUTE');
   record('dryrun-rest', restOk, restOk ? 'REST dry-run expands configured identifiers and query' : `REST dry-run mismatch: ${rest.detail}`);
+}
+
+// 6
+async function computeExportChecks() {
+  try {
+    requestBodyReferenceTest();
+    record('cli-root-request-model', true, 'root model selected from manifest regardless of README model order');
+  } catch (error) {
+    record('cli-root-request-model', false, error.message);
+  }
+  try {
+    await computeExportTransportTest();
+    record('rest-compute-export-transport', true, 'export defaults to Accept: application/x-yaml; dry-run and sent headers match');
+  } catch (error) {
+    record('rest-compute-export-transport', false, error.message);
+  }
+}
+
+function latestOperationChecks() {
+  const basePath = '/20260430/aiDataPlatforms/{aiDataPlatformId}';
+  const workspacePath = `${basePath}/workspaces/{workspaceKey}`;
+  const clusterPath = `${workspacePath}/clusters/{clusterKey}`;
+  const config = {
+    endpoint: 'https://aidp.example.com',
+    instanceId: 'ocid1.aidataplatform.oc1..example',
+    workspaceKey: 'workspace-key', clusterKey: 'cluster-key'
+  };
+  const latestOperations = [
+    ['bundle', 'publish-bundle-action', 'Bundle', 'POST', `${workspacePath}/actions/publishBundle`],
+    ['bundle', 'fetch-publish-status-action', 'Bundle', 'POST', `${workspacePath}/actions/getBundlePublishStatus`],
+    ['cluster', 'clone-compute', 'Cluster', 'POST', `${clusterPath}/actions/cloneCompute`],
+    ['cluster', 'export-compute-configuration', 'Cluster', 'POST', `${clusterPath}/actions/exportComputeConfiguration`],
+    ['cluster', 'get-compute-configuration', 'Cluster', 'GET', `${clusterPath}/actions/getComputeConfiguration`],
+    ['cluster', 'import-compute-configuration', 'Cluster', 'POST', `${clusterPath}/actions/importComputeConfiguration`],
+    ['cluster', 'search-maven-packages', 'Cluster', 'GET', `${clusterPath}/mavenPackages`],
+    ['data-lineage', 'export', 'DataLineage', 'POST', `${basePath}/actions/exportLineage`],
+    ['data-lineage', 'fetch-entity-lineage', 'DataLineage', 'POST', `${basePath}/actions/fetchLineage`],
+    ['volume', 'upload-and-extract-volume-zip', 'Volume', 'POST', `${basePath}/volumes/{volumeKey}/actions/uploadAndExtractZip`],
+    ['volume', 'zip-and-download-volume-folder', 'Volume', 'POST', `${basePath}/volumes/{volumeKey}/actions/zipAndDownloadFolder`],
+    ['workflow', 'list-task-run-retries', 'Workflow', 'GET', `${workspacePath}/taskRuns/{taskRunKey}/retries`],
+    ['workspace-object', 'upload-and-extract-workspace-zip', 'WorkspaceObject', 'POST', `${workspacePath}/actions/uploadAndExtractZip`],
+    ['workspace-object', 'zip-and-download-workspace-folder', 'WorkspaceObject', 'POST', `${workspacePath}/actions/zipAndDownloadFolder`]
+  ];
+  // Three calls per operation: CLI reference, REST reference, REST dry-run plan.
+  const calls = latestOperations.flatMap(([group, command, category, method, endpointPath], index) => {
+    const requestPath = endpointPath.replace('{volumeKey}', 'volume-key').replace('{taskRunKey}', 'task-run-key');
+    const id = 100 + index * 3;
+    return [
+      { jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'aidp_cli_reference', arguments: { group, command } } },
+      { jsonrpc: '2.0', id: id + 1, method: 'tools/call', params: { name: 'aidp_rest_api_reference', arguments: { category, search: endpointPath } } },
+      { jsonrpc: '2.0', id: id + 2, method: 'tools/call', params: { name: 'aidp_rest', arguments: { method, path: requestPath, dryRun: true, config } } }
+    ];
+  });
+  const wrongMethodId = 99;
+  calls.push({ jsonrpc: '2.0', id: wrongMethodId, method: 'tools/call', params: { name: 'aidp_rest', arguments: { method: 'GET', path: `${workspacePath}/actions/getBundlePublishStatus`, dryRun: true, config } } });
+  const responses = callServer(calls);
+
+  const failures = [];
+  latestOperations.forEach(([group, command, , method, endpointPath], index) => {
+    const id = 100 + index * 3;
+    const fullName = `aidp ${group} ${command}`;
+    const reference = planFor(responses, id);
+    const commandRef = reference.plan?.command;
+    if (reference.isError || commandRef?.fullName !== fullName || !String(commandRef?.usage || '').startsWith(fullName)) {
+      failures.push(`CLI reference: ${fullName}`);
+    } else if (command === 'export-compute-configuration') {
+      try {
+        deepEqual(commandRef.bodyModel, exportModel);
+        deepEqual(commandRef.bodyFields.map((field) => field.name).sort(), [...exportFields].sort());
+      } catch {
+        failures.push('export default lookup must expose the root request model');
+      }
+    }
+    const lookup = planFor(responses, id + 1);
+    if (lookup.isError || !lookup.plan?.matches?.some((op) => op.method === method && op.path === endpointPath)) {
+      failures.push(`REST reference: ${method} ${endpointPath}`);
+    }
+    const plan = planFor(responses, id + 2);
+    const expectedPath = endpointPath.replace('{volumeKey}', 'volume-key').replace('{taskRunKey}', 'task-run-key')
+      .replace('{aiDataPlatformId}', config.instanceId).replace('{workspaceKey}', config.workspaceKey).replace('{clusterKey}', config.clusterKey);
+    const expectedAccept = command === 'export-compute-configuration' ? 'application/x-yaml' : 'application/json';
+    let planPath = '';
+    try { planPath = new URL(plan.plan?.url).pathname; } catch { planPath = ''; }
+    if (plan.isError || plan.plan?.method !== method || planPath !== expectedPath || plan.plan?.headers?.accept !== expectedAccept) {
+      failures.push(`REST dry-run: ${method} ${endpointPath}`);
+    }
+  });
+  record('latest-operations', failures.length === 0, failures.length ? failures.join('; ') : `${latestOperations.length} additions resolve through CLI reference, REST reference, and REST planning`);
+
+  const wrongMethod = planFor(responses, wrongMethodId);
+  const wrongMethodRejected = (wrongMethod.isError || Boolean(responses.find((m) => m.id === wrongMethodId)?.error))
+    && /method and path do not match a documented AIDP REST operation/.test(wrongMethod.detail || '');
+  record('rest-bundle-status-method', wrongMethodRejected, wrongMethodRejected ? 'GET getBundlePublishStatus rejected; operation reference requires POST' : `expected rejection, got: ${wrongMethod.detail}`);
 }
 
 pluginManifest();
@@ -283,6 +381,8 @@ symlinks();
 claudeValidate();
 referenceCatalogs();
 toolDryRuns();
+await computeExportChecks();
+latestOperationChecks();
 
 const failed = results.filter((r) => !r.ok);
 for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}: ${r.detail}`);

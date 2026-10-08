@@ -4,10 +4,10 @@
 
 The `saas_batch_rest.py` extractor (extractors/saas_batch_rest.py) was unit-tested with 14 mock-based tests covering URL construction, payload shape, polling, and output parsing — all PASS.
 
-Live testing against the available Fusion demo pod (`fa-etap-dev5-saasfademo1.ds-fa.oraclepdemos.com`) is **not possible** because the saas-batch endpoint is not enabled on this pod:
+Live testing against the available Fusion demo pod (`<fusion-host>`) is **not possible** because the saas-batch endpoint is not enabled on this pod:
 
 ```
-$ curl -sv https://fa-etap-dev5-saasfademo1.ds-fa.oraclepdemos.com/saas-batch/security/tokenrelay?username=Casey.Brown&audience=...
+$ curl -sv https://<fusion-host>/saas-batch/security/tokenrelay?username=<fusion-user>&audience=...
 < HTTP/1.1 404 Not Found
 ```
 

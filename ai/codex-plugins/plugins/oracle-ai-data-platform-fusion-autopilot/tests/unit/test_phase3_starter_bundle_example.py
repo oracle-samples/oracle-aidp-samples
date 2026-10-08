@@ -103,7 +103,7 @@ class TestStarterBundleParse:
         # docs/v2-phase-3-variation-catalog.md "Round-3 restore notes").
         # Each role's `columnAliases.coa_*_segment` candidate list is
         # single-candidate-per-role; the values below pin the conventional
-        # Fusion COA defaults that saasfademo1 uses.
+        # Fusion COA defaults that demo-pod uses.
         required_columns = {
             "supplier_natural_key",
             "vendor_id",
@@ -113,7 +113,7 @@ class TestStarterBundleParse:
             "coa_natural_account_segment",
         }
         assert required_columns <= set(prof.resolved.column.keys())
-        # COA role-aliases pin the saasfademo1 conventional positions.
+        # COA role-aliases pin the demo-pod conventional positions.
         assert prof.resolved.column["coa_balancing_segment"] == "CodeCombinationSegment1"
         assert prof.resolved.column["coa_cost_center_segment"] == "CodeCombinationSegment2"
         assert prof.resolved.column["coa_natural_account_segment"] == "CodeCombinationSegment3"

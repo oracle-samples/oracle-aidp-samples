@@ -80,14 +80,14 @@ Tiered. Pick the install that matches what you'll run:
 | Local development (default) | `[all]` | `requirements-local.txt` | pandas + forecast + anomaly + viz | Every *validator type* + dashboards, but **not** PySpark — full local dev set for non-AIDP environments |
 | Core only | (none) | `requirements-core.txt` | pydantic, jinja2, pyyaml, requests | SLO, threshold, historical/drift, custom-query against a Spark backend (Spark provided externally); threshold/historical on `PandasBackend` need `[pandas]` |
 | Spark | `[spark]` | `requirements-spark.txt` | + PySpark 3.5+ | Local dev / non-AIDP environments. **Skip on AIDP Workbench** — Spark is pre-provisioned there and pip-installing pyspark overwrites it |
-| Pandas SQL | `[pandas]` | (none, use `pip install qualifire[pandas]`) | + pandasql | `PandasBackend` SQL path |
+| Pandas SQL | `[pandas]` | (none, use `pip install -e '.[pandas]'`) | + pandasql | `PandasBackend` SQL path |
 | Forecast | `[forecast]` | `requirements-forecast.txt` | + Prophet | `trend` validator |
 | Anomaly | `[anomaly]` | `requirements-anomaly.txt` | + scikit-learn, shap | `shape` (Isolation Forest), `pattern` (Random Forest) — both with SHAP explanations |
 | Visualisation | `[viz]` | `requirements-viz.txt` | + plotly, matplotlib | `generate_interactive_html(inline_plotly_js=True)` (the dashboard's inline-bundle path that survives VS Code's notebook sandbox) + `tests/manual/dashboard_charts.ipynb`. Optional — the CDN form of the interactive dashboard works without these |
 | Dev | `[dev]` | `requirements-dev.txt` | + pytest, pytest-mock, pytest-cov | Test runner + linting deps |
 
 > **Why `[all]` excludes PySpark:** AIDP Workbench provisions Spark
-> out-of-band. Co-installing `pyspark` via `pip install qualifire[all]`
+> out-of-band. Co-installing `pyspark` via `pip install -e '.[all]'`
 > would overwrite the pre-provisioned runtime. Local devs who want a
 > Spark-capable environment combine the two: `pip install
 > 'qualifire[all,spark]'`.
@@ -101,7 +101,7 @@ pip install -e .
 pip install -r requirements-local.txt
 pip install -e .
 # or
-pip install 'qualifire[all]'
+pip install -e '.[all]'   # from this directory; the project is not published on PyPI, and the PyPI name `qualifire` belongs to an unrelated package
 
 # Lean install — SLO + threshold + historical/drift on a Spark backend
 # that's already provisioned (Spark provided externally)
@@ -109,14 +109,14 @@ pip install -r requirements-core.txt
 pip install -e .
 
 # Add PySpark for local dev (skip on AIDP — Spark is pre-provisioned there)
-pip install 'qualifire[spark]'
+pip install -e '.[spark]'
 
 # Pick-and-choose extras
-pip install 'qualifire[forecast]'   # Prophet for trend validators
-pip install 'qualifire[anomaly]'    # Isolation Forest + SHAP for shape/pattern
+pip install -e '.[forecast]'   # Prophet for trend validators
+pip install -e '.[anomaly]'    # Isolation Forest + SHAP for shape/pattern
 
 # Local dev: all validators + PySpark
-pip install 'qualifire[all,spark]'
+pip install -e '.[all,spark]'
 
 # Development (test runner + linting deps)
 pip install -r requirements-dev.txt

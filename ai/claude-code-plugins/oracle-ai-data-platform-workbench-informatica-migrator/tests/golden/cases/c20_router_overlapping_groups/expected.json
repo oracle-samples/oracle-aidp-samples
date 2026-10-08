@@ -1,0 +1,102 @@
+{
+  "TGT_HIGH_BAL": {
+    "rows": [
+      {
+        "ACCT_ID": 1,
+        "BALANCE": 15000.0,
+        "RISK_SCORE": 80,
+        "REGION": "EMEA"
+      },
+      {
+        "ACCT_ID": 2,
+        "BALANCE": 20000.0,
+        "RISK_SCORE": 10,
+        "REGION": "US"
+      },
+      {
+        "ACCT_ID": 8,
+        "BALANCE": 12000.0,
+        "RISK_SCORE": null,
+        "REGION": "EMEA"
+      },
+      {
+        "ACCT_ID": 10,
+        "BALANCE": 10000.0,
+        "RISK_SCORE": 70,
+        "REGION": "emea"
+      }
+    ]
+  },
+  "TGT_HIGH_RISK": {
+    "rows": [
+      {
+        "ACCT_ID": 1,
+        "BALANCE": 15000.0,
+        "RISK_SCORE": 80,
+        "REGION": "EMEA"
+      },
+      {
+        "ACCT_ID": 3,
+        "BALANCE": 500.0,
+        "RISK_SCORE": 90,
+        "REGION": "APAC"
+      },
+      {
+        "ACCT_ID": 6,
+        "BALANCE": null,
+        "RISK_SCORE": 75,
+        "REGION": "US"
+      },
+      {
+        "ACCT_ID": 11,
+        "BALANCE": 300.0,
+        "RISK_SCORE": null,
+        "REGION": "SANCTIONED"
+      }
+    ]
+  },
+  "TGT_EMEA": {
+    "rows": [
+      {
+        "ACCT_ID": 1,
+        "BALANCE": 15000.0,
+        "RISK_SCORE": 80,
+        "REGION": "EMEA"
+      },
+      {
+        "ACCT_ID": 4,
+        "BALANCE": 100.0,
+        "RISK_SCORE": 5,
+        "REGION": "EMEA"
+      },
+      {
+        "ACCT_ID": 8,
+        "BALANCE": 12000.0,
+        "RISK_SCORE": null,
+        "REGION": "EMEA"
+      }
+    ]
+  },
+  "TGT_OTHER": {
+    "rows": [
+      {
+        "ACCT_ID": 5,
+        "BALANCE": 100.0,
+        "RISK_SCORE": 5,
+        "REGION": "US"
+      },
+      {
+        "ACCT_ID": 7,
+        "BALANCE": null,
+        "RISK_SCORE": null,
+        "REGION": null
+      },
+      {
+        "ACCT_ID": 9,
+        "BALANCE": 50.0,
+        "RISK_SCORE": null,
+        "REGION": "US"
+      }
+    ]
+  }
+}

@@ -39,7 +39,7 @@ from oracle_ai_data_platform_fusion_autopilot.schema.diagnostic_artifact import 
 def _dispatch_artifact(**overrides) -> ClusterDispatchDiagnosticV1:
     base = dict(
         runId="bootstrap-20260607-abc12345",
-        tenant="saasfademo1",
+        tenant="demo-pod",
         errorCode=AIDPF_2048_CLUSTER_BOOTSTRAP_DISPATCH_FAILED,
         errorMessage="cluster dispatch failed at upload_notebook",
         generatedAt=datetime(2026, 6, 7, 12, 0, tzinfo=timezone.utc),
@@ -58,7 +58,7 @@ def _dispatch_artifact(**overrides) -> ClusterDispatchDiagnosticV1:
 def _marker_artifact(**overrides) -> ClusterMarkerDiagnosticV1:
     base = dict(
         runId="bootstrap-20260607-abc12345",
-        tenant="saasfademo1",
+        tenant="demo-pod",
         errorCode=AIDPF_2049_CLUSTER_BOOTSTRAP_MARKER_INVALID,
         errorMessage="cluster marker invalid (envelope_missing)",
         generatedAt=datetime(2026, 6, 7, 12, 0, tzinfo=timezone.utc),

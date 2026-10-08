@@ -1,0 +1,16 @@
+{
+  "TGT_PRODUCT_QTR_SALES": {"ignore": ["SALES_KEY"], "rows": [
+    {"PRODUCT_ID": 1, "PRODUCT_NAME": "Widget", "QUARTER_NO": 1, "SALES_AMT": 100.00},
+    {"PRODUCT_ID": 1, "PRODUCT_NAME": "Widget", "QUARTER_NO": 2, "SALES_AMT": 200.00},
+    {"PRODUCT_ID": 1, "PRODUCT_NAME": "Widget", "QUARTER_NO": 3, "SALES_AMT": 300.00},
+    {"PRODUCT_ID": 1, "PRODUCT_NAME": "Widget", "QUARTER_NO": 4, "SALES_AMT": 400.00},
+    {"PRODUCT_ID": 2, "PRODUCT_NAME": "Gadget", "QUARTER_NO": 1, "SALES_AMT": 50.00},
+    {"PRODUCT_ID": 2, "PRODUCT_NAME": "Gadget", "QUARTER_NO": 2, "SALES_AMT": null},
+    {"PRODUCT_ID": 2, "PRODUCT_NAME": "Gadget", "QUARTER_NO": 3, "SALES_AMT": 0.00},
+    {"PRODUCT_ID": 2, "PRODUCT_NAME": "Gadget", "QUARTER_NO": 4, "SALES_AMT": 75.50},
+    {"PRODUCT_ID": 3, "PRODUCT_NAME": "Gizmo",  "QUARTER_NO": 1, "SALES_AMT": null},
+    {"PRODUCT_ID": 3, "PRODUCT_NAME": "Gizmo",  "QUARTER_NO": 2, "SALES_AMT": null},
+    {"PRODUCT_ID": 3, "PRODUCT_NAME": "Gizmo",  "QUARTER_NO": 3, "SALES_AMT": null},
+    {"PRODUCT_ID": 3, "PRODUCT_NAME": "Gizmo",  "QUARTER_NO": 4, "SALES_AMT": null}
+  ]}
+}

@@ -7,7 +7,7 @@ defaults:
 
 environments:
   dev:
-    workspaceKey: 54368733-3a17-47a1-b231-869d8ae2a048
+    workspaceKey: WORKSPACE-UUID-PLACEHOLDER
     region: us-ashburn-1
     ociProfile: AIDP_SESSION                # local OCI session token (oci session authenticate)
 

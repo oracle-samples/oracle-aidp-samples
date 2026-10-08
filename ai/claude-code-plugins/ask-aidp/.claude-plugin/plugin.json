@@ -1,6 +1,6 @@
 {
   "name": "ask-aidp",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Ask and operate Oracle AI Data Platform resources from Claude Code through aidp-cli, OCI-signed REST endpoints, and native SDK tools.",
   "author": {
     "name": "Oracle",

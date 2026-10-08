@@ -1,0 +1,76 @@
+# Custom conversion rules for Informatica to AIDP migration
+# These rules are applied BEFORE the built-in converter
+# Priority: higher number = applied first (0-100)
+
+rules:
+  # Convert an incremental-extract watermark parameter comparison.
+  # The watermark parameter name is captured rather than hardcoded, since
+  # different Informatica implementations name it differently
+  # (e.g. $$LAST_EXTRACT_DATE, $$LAST_LOAD_DATE, $$WATERMARK_DATE).
+  #
+  # Deliberately narrow: matches only date/watermark-shaped parameter names.
+  # General $$-parameter resolution (including parameter-file scope precedence)
+  # is infa_compat.param()'s job, not a custom rule's. Widening this pattern
+  # gives non-date parameters a date default - see the RUN_MODE case.
+  - name: incremental_watermark_filter
+    description: "Convert an incremental-extract watermark parameter comparison"
+    match_type: expression
+    match_pattern: "\\$\\$(\\w*(?:DATE|DT|EXTRACT|WATERMARK|TIMESTAMP|TS)\\w*)"
+    replacement: "spark.conf.get('migration.{group1}', '1900-01-01')"
+    priority: 90
+
+  # Custom Oracle function mapping
+  - name: oracle_sysdate
+    description: "Convert Oracle SYSDATE to Spark current_timestamp"
+    match_type: function
+    match_pattern: "SYSDATE"
+    replacement: "F.current_timestamp()"
+    priority: 80
+
+  # Company-specific: Convert proprietary ETL_BATCH_ID function
+  - name: custom_batch_id
+    description: "Replace ETL_BATCH_ID with AIDP batch parameter"
+    match_type: expression
+    match_pattern: "ETL_BATCH_ID\\(\\)"
+    replacement: "F.lit(spark.conf.get('migration.batch_id', '0'))"
+    priority: 85
+
+  # Oracle NLS date format to Spark
+  - name: oracle_nls_date
+    description: "Convert Oracle NLS_DATE_FORMAT to Spark date format"
+    match_type: expression
+    match_pattern: "TO_DATE\\((.+?),\\s*'DD-MON-YYYY'\\)"
+    replacement: "F.to_date({group1}, 'dd-MMM-yyyy')"
+    priority: 75
+
+  # Handle Oracle ROWNUM
+  - name: oracle_rownum
+    description: "Convert Oracle ROWNUM to Spark row_number"
+    match_type: sql
+    match_pattern: "ROWNUM\\s*<=?\\s*(\\d+)"
+    replacement: ".limit({group1})"
+    priority: 70
+
+  # Oracle CONNECT BY hierarchy
+  - name: oracle_connect_by
+    description: "Flag Oracle CONNECT BY for manual review"
+    match_type: sql
+    match_pattern: "CONNECT\\s+BY"
+    replacement: "# TODO: CONNECT BY hierarchy query — rewrite using Spark GraphX or recursive CTE\n# Original: {match}"
+    priority: 95
+
+  # Oracle analytic functions
+  - name: oracle_analytics_over
+    description: "Convert Oracle analytic OVER clause"
+    match_type: sql
+    match_pattern: "(\\w+)\\s+OVER\\s*\\(PARTITION BY\\s+(.+?)\\s+ORDER BY\\s+(.+?)\\)"
+    replacement: "F.{group1}().over(Window.partitionBy({group2}).orderBy({group3}))"
+    priority: 60
+
+  # Informatica variable assignment
+  - name: infa_variable_assignment
+    description: "Convert Informatica variable assignment (SetVariable)"
+    match_type: expression
+    match_pattern: "SetVariable\\((.+?),\\s*(.+?)\\)"
+    replacement: "# Variable {group1} = {group2}  (handled via Spark conf)"
+    priority: 65

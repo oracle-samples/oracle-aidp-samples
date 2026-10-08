@@ -2,6 +2,44 @@
 
 All notable changes to this plugin are documented here.
 
+## [Unreleased]
+
+### Security
+- The MCP server resolves `oci-common` and `aidp-typescript-client` only from the plugin's
+  own `vendor/node_modules` / `node_modules` (or `AIDP_VENDOR_NODE_MODULES`), no longer from
+  the process working directory or sibling sample trees, so a planted module cannot be
+  loaded in the process that holds the user's OCI credentials.
+
+## [0.10.0] - 2026-09-21
+
+### Fixed
+
+- Select CLI root request models using the CLI operation manifest instead of the
+  first (potentially nested) model in the Markdown. Regenerate the catalog,
+  including `ExportComputeConfigurationDetails` and its four root fields.
+- Default Compute configuration export REST requests to `Accept: application/x-yaml`
+  and JSON request bodies to `Content-Type: application/json`. Merge headers once
+  so OCI request composition does not append conflicting Accept values; expose
+  the same effective headers in dry runs.
+- Add `qa-claude.mjs` regressions for model ordering, root fields, empty models, MLflow field
+  spelling, header overrides, composed HTTP headers, and mocked YAML responses.
+  Live export and workspace YAML readback still require an enabled instance.
+
+### Changed
+
+- Regenerate the CLI catalog from Oracle's current reference: 18 groups and 256
+  commands, including Data Lineage, bundle publishing, Compute configuration
+  import/export and cloning, Maven search, ZIP operations, and task-run retries.
+- Regenerate the REST catalog from Oracle's full endpoint index: 19 categories
+  and 271 operations for API version `/20260430`. Preserve documented deprecated
+  endpoints for compatibility and use POST for bundle publish status, as specified
+  in the operation reference.
+- Document the newer CLI requirement and route new bundle publishing requests
+  through the generic CLI/REST tools while retaining legacy deployment helpers.
+- Test CLI lookup, REST lookup, and REST request planning for all 14 additions,
+  including rejection of the incorrect GET method for bundle publish status.
+- Retain the upload, CSV ingestion, marketplace, and packaging fixes from 0.9.1.
+
 ## [0.9.1] - 2026-08-27
 
 ### Fixed

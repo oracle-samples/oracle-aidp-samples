@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest>=8.0.0
+
+# Dev-only. Parses the Spark SQL this plugin generates, in tests/
+# test_generated_sql_parses.py. Not a runtime dependency: the plugin emits SQL
+# and never parses it. Added after a real Spark parser caught generated DDL
+# that every hand-written assertion had accepted.
+sqlglot>=25.0.0

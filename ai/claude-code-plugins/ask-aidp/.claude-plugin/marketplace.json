@@ -4,14 +4,14 @@
     "name": "Oracle Corporation"
   },
   "metadata": {
-    "version": "0.9.1",
+    "version": "0.10.0",
     "description": "Single-plugin marketplace for the Ask AIDP Claude Code plugin."
   },
   "plugins": [
     {
       "name": "ask-aidp",
       "description": "Ask and operate Oracle AI Data Platform resources with aidp-cli, OCI-signed REST endpoints, and native SDK tools.",
-      "version": "0.9.1",
+      "version": "0.10.0",
       "source": "./",
       "category": "data",
       "keywords": [

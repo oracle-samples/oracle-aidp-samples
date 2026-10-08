@@ -1,6 +1,6 @@
 # Oracle AI Data Platform Workbench Spark Connectors shared skills
 
-This directory is the canonical source for the Spark connector `SKILL.md` files shared by the Claude Code and Codex plugin variants.
+This directory is the canonical source for the Apache Spark connector `SKILL.md` files shared by the Claude Code and Codex plugin variants.
 
 Edit skills here first, then run:
 

@@ -1,0 +1,16 @@
+week_start,week_end,account_id,account_name,region,segment,arr_usd,risk_level,risk_reason,days_to_renewal,owner
+2026-07-27,2026-08-02,acct_001,Account A,North America,Enterprise,2400000,Medium,Executive sponsor changed,90,Person A
+2026-07-27,2026-08-02,acct_002,Account B,North America,Enterprise,1800000,High,Usage decline and unresolved SLA concern,105,Person B
+2026-07-27,2026-08-02,acct_006,Account D,North America,Enterprise,3200000,Low,Healthy usage and active champion,47,Person C
+2026-07-27,2026-08-02,acct_008,Account F,North America,Strategic,5100000,Medium,Procurement review not scheduled,180,Person A
+2026-07-27,2026-08-02,acct_011,Account H,North America,Enterprise,1950000,High,Adoption below enterprise benchmark,67,Person B
+2026-07-27,2026-08-02,acct_004,Account C,EMEA,Enterprise,2100000,High,Open security questionnaire,140,Person D
+2026-07-27,2026-08-02,acct_007,Account E,APAC,Enterprise,1450000,Medium,Champion engagement down,96,Person E
+2026-07-27,2026-08-02,acct_010,Account G,APAC,Enterprise,2600000,Medium,Expansion delayed by integration issue,122,Person E
+2026-08-03,2026-08-09,acct_001,Account A,North America,Enterprise,2400000,Low,New executive sponsor confirmed,83,Person A
+2026-08-03,2026-08-09,acct_002,Account B,North America,Enterprise,1800000,Medium,SLA remediation plan in progress,98,Person B
+2026-08-03,2026-08-09,acct_006,Account D,North America,Enterprise,3200000,Low,Expansion workshop completed,40,Person C
+2026-08-03,2026-08-09,acct_011,Account H,North America,Enterprise,1950000,High,Adoption still below enterprise benchmark,60,Person B
+2026-08-03,2026-08-09,acct_004,Account C,EMEA,Enterprise,2100000,Medium,Security questionnaire submitted,133,Person D
+2026-08-03,2026-08-09,acct_007,Account E,APAC,Enterprise,1450000,Low,Champion meeting scheduled,89,Person E
+2026-08-03,2026-08-09,acct_010,Account G,APAC,Enterprise,2600000,Medium,Integration timeline under review,115,Person E

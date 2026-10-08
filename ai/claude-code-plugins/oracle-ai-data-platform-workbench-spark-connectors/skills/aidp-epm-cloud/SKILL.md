@@ -29,7 +29,7 @@ from oracle_ai_data_platform_connectors.rest.epm import (
 )
 
 # EPM_USERNAME MUST be in identity-domain form: tenancy.user@domain
-# e.g. epmloaner622.first.last@oracle.com
+# e.g. mytenancy.first.last@example.com
 session = http_basic_session(
     username=os.environ["EPM_USERNAME"],
     password=os.environ["EPM_PASSWORD"],
@@ -64,7 +64,7 @@ print("cells:", df.count())
 ```
 
 ## Gotchas
-- **Username MUST include the identity-domain prefix.** `tenancy.user@domain` (e.g. `epmloaner622.first.last@oracle.com`). The bare `first.last@oracle.com` returns 401.
+- **Username MUST include the identity-domain prefix.** `tenancy.user@domain` (e.g. `mytenancy.first.last@example.com`). The bare `first.last@oracle.com` returns 401.
 - **POV members must be leaf-level.** EPM returns 400 / empty if you pass a parent member without `IChildren()` / `ILvl0Descendants()`.
 - **`#Missing` cells** — empty Planning blocks come back as the literal string `"#Missing"`. Helper preserves this in the `value` column; cast to numeric and filter as needed.
 - **401 vs 403** — 401 = auth fail (re-check Basic creds). 403 = permission denied (different code path; don't retry).

@@ -88,8 +88,10 @@ def _manual_command(deps_dir: Path | None) -> str:
             f'"{sys.executable}" -m pip install --target "{deps_dir}" '
             f'-r "{_REQUIREMENTS}"'
         )
-    # Installed-wheel mode (no bundled requirements.txt): reinstall the package.
-    return f'"{sys.executable}" -m pip install oracle-ai-data-platform-fusion-autopilot'
+    # Installed-wheel mode (no bundled requirements.txt): reinstall from the plugin
+    # checkout. The package is not published on PyPI, so a bare distribution name
+    # would install whatever someone registers under it.
+    return f'"{sys.executable}" -m pip install "{_SCRIPTS_DIR.parent}"'
 
 
 @contextlib.contextmanager

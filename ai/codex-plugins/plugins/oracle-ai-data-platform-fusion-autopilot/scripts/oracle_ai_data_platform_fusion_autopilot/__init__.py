@@ -10,7 +10,6 @@ Productized Fusion ERP/HCM/SCM -> AIDP pipeline:
 
 Public CLI: `aidp-fusion-autopilot` (see `cli.py`).
 
-Reference plan: C:/Users/anuma/.codex/plans/oracle-ai-data-platform-fusion-autopilot.md
 """
 
 from __future__ import annotations

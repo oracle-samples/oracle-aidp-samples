@@ -1,0 +1,4 @@
+# The notebook resolves a file named adw_sync.yaml anywhere under /Workspace, so a committed
+# copy would collide with a real deployment's configuration. Only adw_sync.example.yaml ships;
+# copy it to adw_sync.yaml and edit that copy locally.
+adw_sync.yaml

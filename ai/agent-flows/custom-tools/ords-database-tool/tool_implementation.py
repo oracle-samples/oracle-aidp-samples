@@ -1,4 +1,5 @@
 import json
+import re
 import urllib.request
 import urllib.error
 import base64
@@ -31,6 +32,10 @@ class OrdsSqlTool(CustomToolBase):
         timeout = tool_conf.get("timeout", 60)
 
         endpoint = f"{ords_url}/_/sql"
+
+        # Read-only unless the deployer opts in: the SQL comes from the model.
+        if not tool_conf.get("allow_dml", False) and not re.match(r"^\s*(select|with)\b", sql or "", re.I):
+            return {"error": "only SELECT/WITH statements are allowed; set conf.allow_dml=true to permit others"}
 
         try:
             # Build request

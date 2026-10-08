@@ -2,6 +2,11 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+- Security: live-run notes in the CHANGELOG, `references/` and skills no longer carry the
+  test tenancy's name, Object Storage namespace, DataLake OCIDs or workspace and cluster ids.
+
 ## [0.1.0+codex.20260623113518] — 2026-06-23 (initial release)
 
 First public release of the **Codex CLI** plugin for the Oracle AI Data Platform (AIDP) Workbench Engineer Agent. Mirrors the Claude Code plugin (`ai/claude-code-plugins/oracle-ai-data-platform-workbench-engineer-agent`). Codex has no separate "commands" or "agents" abstraction at the plugin layer — everything is folded into the `skills/` directory.

@@ -37,7 +37,7 @@ When Codex installs the plugin from the public GitHub repo, Codex or the configu
 ## Contact
 
 For questions about this privacy policy, open an issue at
-<https://github.com/ahmedawan-oracle/oracle-ai-data-platform-workbench-spark-connectors/issues>.
+<https://github.com/oracle-samples/oracle-aidp-samples/issues>.
 
 ## Changes
 

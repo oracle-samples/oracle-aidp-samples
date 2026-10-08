@@ -42,4 +42,4 @@ oac:
 
 notifications:
   onFailure:
-    - ahmed.shahzad.awan@oracle.com
+    - data-team@example.com

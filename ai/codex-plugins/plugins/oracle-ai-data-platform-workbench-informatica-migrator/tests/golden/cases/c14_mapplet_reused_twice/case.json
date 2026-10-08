@@ -1,0 +1,11 @@
+{
+  "export": "m_contacts_clean.xml",
+  "notes": [
+    "One folder-level MAPPLET (Input Transformation -> Expression -> Output Transformation) instantiated twice in one mapping: mplt_clean_contact on the customer pipeline and mplt_clean_contact1 (the Designer's auto-suffixed second instance name) on the supplier pipeline. Each instance processes only its own pipeline's rows.",
+    "Mapplet instances are spelled as PowerCenter writes them in a mapping: <INSTANCE ... TRANSFORMATION_TYPE=\"Mapplet\" TYPE=\"MAPPLET\"/>. Inside the mapplet the Input Transformation's ports are PORTTYPE OUTPUT and the Output Transformation's ports are PORTTYPE INPUT (MAPPLETGROUP Input/Output).",
+    "The mapplet is passive, so the key (CUST_ID / SUPP_ID) goes straight from the Source Qualifier to the target alongside the mapplet's outputs; row alignment is preserved.",
+    "REPLACECHR(0, s, '()- .', NULL): a NULL NewChar removes every character of the set; CaseFlag 0 = case-insensitive (irrelevant for punctuation). '+' is not in the set and stays.",
+    "LOWER(LTRIM(RTRIM(e))) trims blanks both sides and lower-cases; NULL in -> NULL out.",
+    "PHONE_FLAG = IIF(ISNULL(IN_PHONE), 'N', 'Y')."
+  ]
+}

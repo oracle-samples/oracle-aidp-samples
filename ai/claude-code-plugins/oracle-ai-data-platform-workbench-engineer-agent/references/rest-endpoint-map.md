@@ -2,8 +2,8 @@
 
 Source: memory `aidp_rest_api.md` + the AIDP platform reference, **now corrected by a live probe**.
 
-> **LIVE-VERIFIED 2026-06-09** (tenancy `oaseceal` ns `idseylbmv0mm`, region `us-ashburn-1`, DataLake
-> `…oc1.iad.amaaaaaaai22xpqa…`, `oci raw-request --profile DEFAULT` api_key). **This environment serves
+> **LIVE-VERIFIED 2026-06-09** (the test tenancy ns `<namespace>`, region `us-ashburn-1`, DataLake
+> `…oc1.iad.<redacted>…`, `oci raw-request --profile DEFAULT` api_key). **This environment serves
 > `API_VERSION=20240831` and `PATH_PREFIX=dataLakes`.** GA `20260430` returns **404 here** (not live in this
 > tenancy), and the `aiDataPlatforms` prefix also 404s — so default to **`20240831/dataLakes`** for this env
 > and treat `20260430` as the future GA target, not a fallback to try first here. **Official-doc
@@ -15,7 +15,7 @@ Source: memory `aidp_rest_api.md` + the AIDP platform reference, **now corrected
 > Same path shape as the LA `20240831/dataLakes` we use, so a future LA→GA migration is a two-token swap, not a rewrite.
 >
 > **RE-VERIFIED 2026-06-10** on a *second, independent* instance — tpcds DataLake
-> `…oc1.iad.amaaaaaaai22xpqahbvgp…` (ws `54368733…`) + `aidp_skilltest` (for Spark SQL). All GA categories,
+> `…oc1.iad.<redacted>…` (ws `<uuid>…`) + `<aidp-instance>` (for Spark SQL). All GA categories,
 > catalog/schema/table CRUD, MCP/REST `list_roles` parity, the Spark-SQL `SELECT` path, and
 > `ai_generate('openai.gpt-5.4', …)` confirmed **live**; only the Preview buckets (git/bundle/mlops) returned
 > 404 = not provisioned on that instance (expected cross-instance difference, not a regression). See the
@@ -52,7 +52,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 ## Verification log
 
 ```
-2026-06-09  env: tenancy oaseceal (ns idseylbmv0mm), region us-ashburn-1, DataLake …oc1.iad.amaaaaaaai22xpqa…
+2026-06-09  env: the test tenancy, region us-ashburn-1, DataLake …oc1.iad.<redacted>…
             auth: oci raw-request --profile DEFAULT (api_key) — works for IAD REST (same tenancy, cross-region)
   GET …/20240831/dataLakes/<OCID>/workspaces                  → 200  (control-plane sanity)
   GET …/20240831/dataLakes/<OCID>/shares                      → 200  items=0      [data-sharing ✅]
@@ -91,11 +91,11 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   SQL write grammar (via scripts/aidp_sql.py on USER cluster): CREATE/INSERT/UPDATE/DELETE/MERGE/OPTIMIZE/
      VACUUM/DESCRIBE HISTORY/VERSION AS OF/DROP all un-wrapped → status:ok, error:None [aidp-sql-ddl ✅ VERIFIED]
 
-2026-06-10  FINAL-QA cross-instance pass. env: tpcds (region us-ashburn-1), DataLake …oc1.iad.amaaaaaaai22xpqahbvgp…,
-            workspace 54368733-3a17-47a1-b231-869d8ae2a048; auth: oci raw-request --profile DEFAULT (api_key).
-            NOTE: tpcds is a DIFFERENT instance than the 2026-06-09 oaseceal env — Preview-bucket (git/bundle/mlops)
-            provisioning differences across instances are EXPECTED, not regressions. SQL ran on aidp_skilltest
-            (DataLake …amaaaaaaai22xpqasd3uk…, ws 6a8352b8, cluster 1e751026, profile DEFAULT).
+2026-06-10  FINAL-QA cross-instance pass. env: tpcds (region us-ashburn-1), DataLake …oc1.iad.<redacted>…,
+            workspace <uuid>; auth: oci raw-request --profile DEFAULT (api_key).
+            NOTE: tpcds is a DIFFERENT instance than the 2026-06-09 test-tenancy env — Preview-bucket (git/bundle/mlops)
+            provisioning differences across instances are EXPECTED, not regressions. SQL ran on <aidp-instance>
+            (DataLake …<redacted>…, ws <id>, cluster <id>, profile DEFAULT).
   -- rest-lake-governance (8/8 ok) --
   GET …/shares                          → 200 items=0   [data-sharing ✅]
   GET …/recipients                      → 200 items=0   [data-sharing ✅]
@@ -123,17 +123,17 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
   list_roles 200 (AI_DATA_PLATFORM_ADMIN, AUDITOR) — cross-checked vs REST /roles, identical (MCP/REST parity ✅)
   list_agent_flows 200 'No agent flows found' (valid empty, consistent with ws-scoped agentFlows items=0)
   list_volumes 400 Bad request on …/volumes (deterministic, 2× retry)   [volumes ⚠️ route reachable, rejects bare list]
-  -- sql-exec (aidp_skilltest, scripts/aidp_sql.py, profile DEFAULT) --
+  -- sql-exec (<aidp-instance>, scripts/aidp_sql.py, profile DEFAULT) --
   spark.sql SELECT COUNT(*) FROM default.default.deal_procurement_lifecycle_fact → ok, value 50, job 506   [analyzing-data ✅]
   spark.sql SELECT ai_generate('openai.gpt-5.4','reply with the single word OK') → ok, text 'OK', job 507   [ai-sql ✅]
   -> Net: GA categories + models-catalog + catalog/schema/table CRUD + Spark SELECT + ai_generate all LIVE on a
      2nd instance. Only Preview buckets (git/bundle/mlops) 404 = not provisioned there (expected, not a regression).
 
 2026-06-10  DE-AGENT cross-instance pass. env: a FRESH instance PROVISIONED VIA THE PLUGIN (oci ai-data-platform
-            create) in compartment DataServices (region us-ashburn-1). DataLake
-            …oc1.iad.amaaaaaaai22xpqaxrwz7emimuk6jmsn3n6tpa5m2vdometlwlhdnzib6yfa, ws e26cedff-cb07-4c6a-9ef7-4526c87c4190,
+            create) in compartment <compartment> (region us-ashburn-1). DataLake
+            …oc1.iad.<redacted>…, ws <uuid>,
             cluster de_agent_cluster (USER, Spark 3.5.0, ACTIVE); auth: oci raw-request --profile DEFAULT (api_key).
-            Confirms the plugin works on an instance it created itself, not just pre-existing oaseceal/tpcds.
+            Confirms the plugin works on an instance it created itself, not just pre-existing instances.
   -- control-plane (oci raw-request) --
   GET …/shares · /recipients · /roles · /models?modelType=GENERATIVE_AI · /userSettings · /agentFlowGuardrails → 200
   GET …/catalogs · /schemas · /workspaces · /clusters (list+detail+libraries) → 200
@@ -176,8 +176,8 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 
 ```
 2026-06-12  PR#1 (v0.4.4 tester-feedback) CLAIM RE-VERIFICATION — independent THIRD instance, maintainer pass.
-            env: tpcds (region us-ashburn-1), DataLake …oc1.iad.amaaaaaaai22xpqahbvgp…, workspace 54368733…,
-            cluster `tpcds` key 98d06c4f… (ACTIVE); oci raw-request --profile DEFAULT (api_key) + scripts/aidp_sql.py.
+            env: tpcds (region us-ashburn-1), DataLake …oc1.iad.<redacted>…, workspace <uuid>…,
+            cluster `tpcds` key <cluster-id>… (ACTIVE); oci raw-request --profile DEFAULT (api_key) + scripts/aidp_sql.py.
   -- DOC-2: default guardrails (lake-scoped) --
   GET …/20240831/dataLakes/<OCID>/agentFlowGuardrails → 200, EXACTLY 5 items (CONFIRMS the v0.4.4 aidp-agent-flows table):
      CONTENT_MODERATION        | USER_REQUEST   | BLOCK   (Content Moderation prevention)
@@ -205,7 +205,7 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
        ^[A-Za-z][A-Za-z0-9_.-]*$ (which allows hyphens/dots) — a distinct surface, NOT a contradiction.
 
 2026-06-12  BUG-1 FRESH-INSTANCE REPRO ATTEMPT — provisioned a brand-new DataLake to test the first-DDL claim.
-            env: NEW DataLake `bug1_fresh_repro` (…oc1.iad.amaaaaaaai22xpqadoxb2yepq6…, created+ACTIVE 2026-06-12),
+            env: NEW DataLake `bug1_fresh_repro` (…oc1.iad.<redacted>…, created+ACTIVE 2026-06-12),
             default workspace `bug1_ws` (c8d42a5c…), fresh USER cluster `bug1_cluster` (0ab9e520…, ACTIVE);
             oci ai-data-platform CLI to provision; scripts/aidp_sql.py for the DDL.
   -- BUG-1: first bare CREATE TABLE on a genuinely fresh instance --
@@ -218,19 +218,19 @@ MCP happens to be configured, its tools mirror these endpoints and may be used a
 ```
 
 ```
-2026-06-12  PR#2 (v0.5.0) MAINTAINER RE-VERIFICATION — env: tpcds (us-ashburn-1), DataLake …amaaaaaaai22xpqahbvgp…,
-            workspace 54368733…, cluster `tpcds` 98d06c4f… (ACTIVE); oci raw-request --profile DEFAULT (api_key) + scripts/aidp_sql.py.
+2026-06-12  PR#2 (v0.5.0) MAINTAINER RE-VERIFICATION — env: tpcds (us-ashburn-1), DataLake …<redacted>…,
+            workspace <uuid>…, cluster `tpcds` <cluster-id>… (ACTIVE); oci raw-request --profile DEFAULT (api_key) + scripts/aidp_sql.py.
   -- catalog-extractor correction (the PR's headline doc fix) --
   GET …/20240831/dataLakes/<OCID>/extractors          → 200 {"items":[]}              (CONFIRMS the correct path)
   GET …/20240831/dataLakes/<OCID>/metadataExtractors  → 404 NotAuthorizedOrNotFound   (CONFIRMS the old note probed the WRONG path)
   -- Spark-UI gateway proxy (control-plane alternative to kernel-side uiWebUrl) --
-  GET https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/sparkui/98d06c4f…/api/v1/applications
+  GET https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/sparkui/<cluster-id>…/api/v1/applications
       → 200, running app (appSparkVersion 3.5.0, completed:false, sparkUser dataflow)  (CONFIRMS the gateway proxy)
   -- session-token auth code (scripts/aidp_sql.py) --
   api_key DEFAULT:  spark.sql('SELECT 1') → status ok, real spark_job  (REGRESSION PASS — api_key path byte-for-byte unchanged).
   session AIDP_SESSION:  helper takes the session branch (builds a SecurityTokenSigner, NO KeyError); create_session 401'd only
       because the local session token was EXPIRED + non-refreshable headlessly — construction is correct, expiry is the only failure.
-      End-to-end session-token success was verified by the PR author on their instance (OASECEAL); not re-verifiable in this env.
+      End-to-end session-token success was verified by the PR author on their instance (the test tenancy); not re-verifiable in this env.
   jobs:  GET …/workspaces/<WS>/jobs → 200 (tpcds holds 5 jobs; the "100+/page pagination" lesson is playground-specific but sound).
 ```
 

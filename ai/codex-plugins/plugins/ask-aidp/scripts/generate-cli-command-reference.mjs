@@ -3,12 +3,17 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { get } from 'node:https';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { requestBodyReference } from './cli-body-reference.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const source = 'https://github.com/oracle-samples/aidataplatform-sdk/blob/main/docs/cli/README.md';
 const rawSource = 'https://raw.githubusercontent.com/oracle-samples/aidataplatform-sdk/main/docs/cli/README.md';
 const input = process.argv[2] || '';
+const manifestPath = process.argv[3] || process.env.AIDP_CLI_MANIFEST;
+const manifest = manifestPath ? JSON.parse(readFileSync(manifestPath, 'utf8')) : undefined;
+const operations = new Map((manifest?.commandGroups || []).flatMap((group) =>
+  group.commands.map((command) => [`aidp ${group.name} ${command.name}`, command])));
 
 async function readMarkdown() {
   if (input) return readFileSync(input, 'utf8');
@@ -78,22 +83,9 @@ while ((sectionMatch = sectionPattern.exec(markdown))) {
   const command = parts.slice(2).join(' ');
   const anchor = section.match(/<a id="([^"]+)"><\/a>/)?.[1] || `${group}-${command}`.replace(/\s+/g, '-');
   const usage = section.match(/\*\*Usage:\*\*\s*`([^`]+)`/)?.[1] || '';
-  const bodyModel = section.match(/\*\*Request Body \(`([^`]+)`\):\*\*/)?.[1] || '';
-  const bodyFields = [];
-  const bodyStart = section.indexOf('**Request Body');
-
-  if (bodyStart >= 0) {
-    const bodyPart = section.slice(bodyStart).split('**Example:**')[0].split('---')[0];
-    const fieldPattern = /- `([^`]+)` \(([^)]+)\) —\s*([^-]*)/g;
-    let fieldMatch;
-    while ((fieldMatch = fieldPattern.exec(bodyPart))) {
-      bodyFields.push({
-        name: fieldMatch[1],
-        type: fieldMatch[2],
-        description: fieldMatch[3].trim()
-      });
-    }
-  }
+  const operation = operations.get(fullName);
+  if (manifest && !operation) throw new Error(`${fullName}: command missing from CLI manifest.`);
+  const { bodyModel, bodyFields } = requestBodyReference(section, operation, fullName);
 
   const summarySection = section
     .split('**Usage:**')[0]
@@ -149,6 +141,7 @@ for (const group of groups) {
 const reference = {
   generatedAt: new Date().toISOString(),
   source,
+  ...(manifest ? { modelSource: { name: 'aidp-cli/dist/operation_manifest.json', version: manifest.version, sourceSpecSha256: manifest.sourceSpecSha256 } } : {}),
   groupCount: groups.length,
   commandCount: commands.length,
   groups,

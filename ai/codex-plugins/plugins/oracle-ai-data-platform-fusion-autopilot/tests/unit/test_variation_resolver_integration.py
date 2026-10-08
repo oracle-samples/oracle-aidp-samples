@@ -1,13 +1,13 @@
 """Integration test for bronze probe + walker against the starter pack.
 
-Feeds a mocked Spark whose DESCRIBE returns the saasfademo1 fixture
+Feeds a mocked Spark whose DESCRIBE returns the demo-pod fixture
 columns; asserts the walker resolves all seven currently-declared
 variation points to the values in
 ``examples/profiles/finance-default.yaml``.
 
 This is the round-trip contract: bootstrap (Step 8) MUST produce the
 same `resolved.column.*` / `resolved.semantic.*` map on a clean
-saasfademo1 fixture as the hand-authored gold reference.
+demo-pod fixture as the hand-authored gold reference.
 """
 
 from __future__ import annotations
@@ -41,10 +41,10 @@ PACK_ROOT = (
 )
 
 
-# saasfademo1 / finance-default fixture: the column set bootstrap will
+# demo-pod / finance-default fixture: the column set bootstrap will
 # observe on a conventional-Fusion tenant. Mirrors what the starter pack
 # expects in `pack.yaml` columnAliases + semanticVariants.
-_SAASFADEMO_BRONZE: dict[str, list[str]] = {
+_DEMO_POD_BRONZE: dict[str, list[str]] = {
     "erp_suppliers": [
         "VENDORID",
         "SEGMENT1",
@@ -53,7 +53,7 @@ _SAASFADEMO_BRONZE: dict[str, list[str]] = {
     ],
     "ap_invoices": [
         "ApInvoicesInvoiceCurrencyCode",
-        # NB: ApInvoicesCurrencyCode is ALSO present on saasfademo1 — this
+        # NB: ApInvoicesCurrencyCode is ALSO present on demo-pod — this
         # makes invoice_currency_code a multi-match case. For the
         # AutoResolved integration test we omit it; the multi-match
         # case lives in `test_starter_pack_multi_match_currency`.
@@ -89,18 +89,18 @@ def _mock_spark(per_table_columns: dict[str, list[str]]) -> MagicMock:
     return spark
 
 
-class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
+class TestDemoPodFixtureResolvesAllStarterVariationPoints:
     """Every starter-pack variation point must resolve to the value
     `examples/profiles/finance-default.yaml` pins."""
 
     def test_all_seven_variation_points_resolved(self) -> None:
         pack = load_pack(PACK_ROOT)
-        spark = _mock_spark(_SAASFADEMO_BRONZE)
+        spark = _mock_spark(_DEMO_POD_BRONZE)
         observed = describe_bronze(
             spark,
             catalog="cat",
             bronze_schema="bronze",
-            dataset_ids=list(_SAASFADEMO_BRONZE.keys()),
+            dataset_ids=list(_DEMO_POD_BRONZE.keys()),
         )
 
         def cols_for(applies_to: str) -> set[str]:
@@ -123,7 +123,7 @@ class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
                 continue
             result = walk_column_alias(spec, cols_for(spec.appliesTo))
             assert isinstance(result, AutoResolved), (
-                f"variation point {name!r} did not auto-resolve on saasfademo1 "
+                f"variation point {name!r} did not auto-resolve on demo-pod "
                 f"fixture (got {type(result).__name__})"
             )
             resolutions[name] = result.chosen
@@ -133,7 +133,7 @@ class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
             result = walk_semantic_variant(spec, cols_for(spec.appliesTo))
             assert isinstance(result, AutoResolved), (
                 f"semantic variant {name!r} did not auto-resolve on "
-                f"saasfademo1 fixture (got {type(result).__name__})"
+                f"demo-pod fixture (got {type(result).__name__})"
             )
             resolutions[name] = result.chosen
 
@@ -149,7 +149,7 @@ class TestSaasfademoFixtureResolvesAllStarterVariationPoints:
 
 class TestStarterPackMultiMatchCurrency:
     """When BOTH currency-code candidates are present (the realistic
-    saasfademo1 case), bootstrap must surface a MultiMatch outcome so
+    demo-pod case), bootstrap must surface a MultiMatch outcome so
     the operator picks. The auto-resolve test above strips the second
     candidate to isolate the round-trip; this test re-adds it."""
 
@@ -160,7 +160,7 @@ class TestStarterPackMultiMatchCurrency:
             MultiMatch,
         )
 
-        bronze = dict(_SAASFADEMO_BRONZE)
+        bronze = dict(_DEMO_POD_BRONZE)
         bronze["ap_invoices"] = bronze["ap_invoices"] + ["ApInvoicesCurrencyCode"]
         spark = _mock_spark(bronze)
         observed = describe_bronze(
@@ -191,7 +191,7 @@ class TestStarterPackNoMatchOnMissingColumn:
             NoMatch,
         )
 
-        bronze = dict(_SAASFADEMO_BRONZE)
+        bronze = dict(_DEMO_POD_BRONZE)
         bronze["erp_suppliers"] = ["SEGMENT1"]  # VENDORID dropped
         spark = _mock_spark(bronze)
         observed = describe_bronze(
