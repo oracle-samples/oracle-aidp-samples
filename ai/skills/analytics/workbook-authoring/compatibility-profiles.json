@@ -1,0 +1,52 @@
+{
+  "manifestVersion": 1,
+  "defaultCompatibilityTarget": "standard",
+  "profileRoot": "compatibility-profiles",
+  "profiles": [
+    {
+      "id": "pv-1155",
+      "target": "legacy",
+      "authoredProjectVersion": 1155,
+      "minimumServerProjectVersion": 1155,
+      "maximumServerProjectVersion": 1161,
+      "releaseAliases": [
+        "26.05"
+      ]
+    },
+    {
+      "id": "pv-1162",
+      "target": "standard",
+      "authoredProjectVersion": 1162,
+      "minimumServerProjectVersion": 1162,
+      "maximumServerProjectVersion": 1167,
+      "releaseAliases": [
+        "26.07"
+      ]
+    },
+    {
+      "id": "pv-1168",
+      "target": "baseline",
+      "authoredProjectVersion": 1168,
+      "minimumServerProjectVersion": 1168,
+      "maximumServerProjectVersion": 1176,
+      "releaseAliases": [
+        "26.09"
+      ],
+      "sourceRevision": "bdca113bc2a55a92ee5f70c9a37fc747b772c9ad",
+      "maintenanceSourceBranch": "version_26_09_50"
+    },
+    {
+      "id": "pv-1177",
+      "target": "current",
+      "authoredProjectVersion": 1177,
+      "minimumServerProjectVersion": 1177,
+      "maximumServerProjectVersion": 1190,
+      "requiresSchemaCapabilities": true,
+      "releaseAliases": [
+        "26.10",
+        "26.11",
+        "26.12"
+      ]
+    }
+  ]
+}

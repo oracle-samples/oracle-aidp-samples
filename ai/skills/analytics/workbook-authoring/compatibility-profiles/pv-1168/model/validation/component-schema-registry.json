@@ -1,0 +1,788 @@
+{
+  "workbook": {
+    "schemaType": "workbook",
+    "schemaDefinitions": [
+      {
+        "schemaDefName": "WorkbookRoot",
+        "versionField": "projectVersion",
+        "versions": [
+          "1096",
+          "1123",
+          "1134",
+          "1161",
+          "1162"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/",
+        "versionMapping": [
+          [
+            "1102",
+            "1096"
+          ],
+          [
+            "1112",
+            "1096"
+          ],
+          [
+            "1121",
+            "1096"
+          ],
+          [
+            "1122",
+            "1096"
+          ],
+          [
+            "1128",
+            "1123"
+          ],
+          [
+            "1139",
+            "1134"
+          ],
+          [
+            "1142",
+            "1134"
+          ],
+          [
+            "1146",
+            "1134"
+          ],
+          [
+            "1155",
+            "1134"
+          ],
+          [
+            "1168",
+            "1162"
+          ]
+        ]
+      },
+      {
+        "schemaDefName": "WorkbookCriteriaConfig",
+        "versionField": "_version",
+        "versions": [
+          "1.0.1",
+          "1.0.2"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/criteriaConfig"
+      },
+      {
+        "schemaDefName": "WorkbookParameters",
+        "relativeSchemaType": "parameters"
+      },
+      {
+        "schemaDefName": "WorkbookFilterControlCollections",
+        "relativeSchemaType": "filterControlCollections"
+      },
+      {
+        "schemaDefName": "WorkbookReportConfig",
+        "relativeSchemaType": "reportConfig"
+      },
+      {
+        "schemaDefName": "WorkbookConditionalFormatRules",
+        "relativeSchemaType": "conditionalFormatRules"
+      },
+      {
+        "schemaDefName": "WorkbookCanvasView",
+        "versions": [
+          "0.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/canvasView"
+      },
+      {
+        "schemaDefName": "WorkbookCanvasConfig",
+        "versionField": "_version",
+        "versions": [
+          "1.0.4",
+          "1.0.5",
+          "1.0.6"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/canvasConfig"
+      },
+      {
+        "schemaDefName": "WorkbookPluginView",
+        "versions": [
+          "0.0.0",
+          "2.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/pluginView"
+      },
+      {
+        "schemaDefName": "WorkbookLogicalDataModel",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0",
+          "2.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/pluginView/logicalDataModel"
+      },
+      {
+        "schemaDefName": "WorkbookSettingsLogicalDataModel",
+        "versionField": "_settingsVersion",
+        "versions": [
+          "1.0.0",
+          "2.0.0",
+          "2.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/pluginView/settingsLogicalDataModel"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfig",
+        "versionField": "_version",
+        "versions": [
+          "1.1.46",
+          "1.1.47",
+          "1.1.48",
+          "1.1.49",
+          "1.1.50",
+          "1.1.51",
+          "1.1.52",
+          "1.1.53",
+          "1.1.54",
+          "1.1.55",
+          "1.1.56",
+          "1.1.57",
+          "1.1.58",
+          "1.1.59",
+          "1.1.60",
+          "1.1.61",
+          "1.1.62",
+          "1.1.63",
+          "1.1.64",
+          "1.1.65",
+          "1.1.66",
+          "1.1.67",
+          "1.1.68",
+          "1.1.69",
+          "1.1.70",
+          "1.1.71",
+          "1.1.72",
+          "1.1.73",
+          "1.1.74",
+          "1.1.75",
+          "1.1.76",
+          "1.1.77",
+          "1.1.78",
+          "1.1.79",
+          "1.1.80",
+          "1.1.81",
+          "1.1.82",
+          "1.1.83",
+          "1.1.84"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfig"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigCanvasSummaryViz",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/canvassummaryviz"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigTable",
+        "versionField": "_version",
+        "versions": [
+          "1.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/table"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigPivot",
+        "versionField": "_version",
+        "versions": [
+          "1.0.1",
+          "1.0.2"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/pivot"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigComboMultiLayerChart",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0",
+          "1.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/comboMultiLayerChart"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigGanttChart",
+        "versionField": "_version",
+        "versions": [
+          "1.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/ganttchart"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigButtonBar",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0",
+          "1.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/buttonbar"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigParallelCoordinates",
+        "versionField": "_version",
+        "versions": [
+          "1.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/parallelcoordinates"
+      },
+      {
+        "schemaDefName": "WorkbookStoryConfig",
+        "versionField": "_version",
+        "versions": [
+          "1.0.4",
+          "1.0.2",
+          "1.0.1",
+          "1.0.3",
+          "1.0.5",
+          "1.0.6",
+          "1.0.7",
+          "1.0.8"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/storyConfig"
+      },
+      {
+        "schemaDefName": "WorkbookStoryPageConfig",
+        "versionField": "_version",
+        "versions": [
+          "1.0.1",
+          "1.0.2",
+          "1.0.3",
+          "1.0.4",
+          "1.0.5"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/storyPageConfig"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigSpacer",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/spacer"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigStandaloneLegend",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/standalonelegend"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigWaterfall",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/waterfall"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigGauge",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/gauge"
+      },
+      {
+        "schemaDefName": "WorkbookViewConfigIFrame",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/iframe"
+      },
+      {
+        "schemaDefName": "WorkbookRequestParameterBindings",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/workbook/{VERSION}/requestVariableParameterBindings"
+      }
+    ],
+    "parsedSchemaDefinitions": [
+      {
+        "jsonPath": "/",
+        "noConditionSchemaDefName": "WorkbookRoot"
+      },
+      {
+        "jsonPath": "/criteria/criteriaConfig",
+        "noConditionSchemaDefName": "WorkbookCriteriaConfig"
+      },
+      {
+        "jsonPath": "/parameters",
+        "noConditionSchemaDefName": "WorkbookParameters"
+      },
+      {
+        "jsonPath": "/filterControlCollections",
+        "noConditionSchemaDefName": "WorkbookFilterControlCollections"
+      },
+      {
+        "jsonPath": "/reportConfig",
+        "noConditionSchemaDefName": "WorkbookReportConfig"
+      },
+      {
+        "jsonPath": "/reportConfig/settings/conditionalFormatRules",
+        "noConditionSchemaDefName": "WorkbookConditionalFormatRules"
+      },
+      {
+        "jsonPath": "/views/children",
+        "propertyConditions": [
+          {
+            "schemaDefName": "WorkbookCanvasView",
+            "conditions": [
+              {
+                "name": "type",
+                "value": "saw:canvas"
+              }
+            ]
+          },
+          {
+            "schemaDefName": "WorkbookPluginView",
+            "conditions": [
+              {
+                "name": "type",
+                "value": "saw:pluginView"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "jsonPath": "/views/children/canvasConfig",
+        "noConditionSchemaDefName": "WorkbookCanvasConfig"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/lastSavedLogicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm1/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm2/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm3/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm4/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm5/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm6/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm7/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm8/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm9/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm10/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm11/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm12/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm13/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm14/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/dataModels/children/logicalDataModel/settings/logicalDataModel/dataLayersInfo/dataLayers/ndm15/logicalDataModel",
+        "noConditionSchemaDefName": "WorkbookSettingsLogicalDataModel"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig",
+        "noConditionSchemaDefName": "WorkbookViewConfig"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.canvassummaryviz",
+        "noConditionSchemaDefName": "WorkbookViewConfigCanvasSummaryViz"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.table",
+        "noConditionSchemaDefName": "WorkbookViewConfigTable"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.pivot",
+        "noConditionSchemaDefName": "WorkbookViewConfigPivot"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.chart.comboMultiLayerChart",
+        "noConditionSchemaDefName": "WorkbookViewConfigComboMultiLayerChart"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.ganttchart",
+        "noConditionSchemaDefName": "WorkbookViewConfigGanttChart"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.buttonbar",
+        "noConditionSchemaDefName": "WorkbookViewConfigButtonBar"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.parallelcoordinates",
+        "noConditionSchemaDefName": "WorkbookViewConfigParallelCoordinates"
+      },
+      {
+        "jsonPath": "/stories/children/storyConfig",
+        "noConditionSchemaDefName": "WorkbookStoryConfig"
+      },
+      {
+        "jsonPath": "/snapshots/children/storyPageConfig",
+        "noConditionSchemaDefName": "WorkbookStoryPageConfig"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.spacer",
+        "noConditionSchemaDefName": "WorkbookViewConfigSpacer"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.chart.standalonelegend",
+        "noConditionSchemaDefName": "WorkbookViewConfigStandaloneLegend"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.chart.waterfall",
+        "noConditionSchemaDefName": "WorkbookViewConfigWaterfall"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.gauge",
+        "noConditionSchemaDefName": "WorkbookViewConfigGauge"
+      },
+      {
+        "jsonPath": "/views/children/viewConfig/settings/oracle.bi.tech.iframe",
+        "noConditionSchemaDefName": "WorkbookViewConfigIFrame"
+      },
+      {
+        "jsonPath": "/requestVariableParameterBindings",
+        "noConditionSchemaDefName": "WorkbookRequestParameterBindings"
+      }
+    ]
+  },
+  "parameters": {
+    "schemaType": "parameters",
+    "schemaDefinitions": [
+      {
+        "schemaDefName": "ParametersRoot",
+        "versionField": "_version",
+        "versions": [
+          "1.0.5"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/parameters/{VERSION}/"
+      }
+    ],
+    "parsedSchemaDefinitions": [
+      {
+        "jsonPath": "/",
+        "noConditionSchemaDefName": "ParametersRoot"
+      }
+    ]
+  },
+  "filterControlCollections": {
+    "schemaType": "filterControlCollections",
+    "schemaDefinitions": [
+      {
+        "schemaDefName": "FilterControlCollectionsRoot",
+        "versions": [
+          "0.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/"
+      },
+      {
+        "schemaDefName": "FilterControlConfig",
+        "versionField": "_version",
+        "versions": [
+          "1.0.6",
+          "1.0.7",
+          "1.0.8",
+          "1.0.9",
+          "1.0.10",
+          "1.0.11"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/filterControlConfig"
+      },
+      {
+        "schemaDefName": "ColumnFilterControl",
+        "versions": [
+          "0.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/columnFilterControl"
+      },
+      {
+        "schemaDefName": "ExpressionFilterControl",
+        "versions": [
+          "0.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/expressionFilterControl"
+      },
+      {
+        "schemaDefName": "ParameterFilterControl",
+        "versions": [
+          "0.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/parameterFilterControl"
+      },
+      {
+        "schemaDefName": "GroupFilterControl",
+        "versions": [
+          "0.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/groupFilterControl"
+      }
+    ],
+    "parsedSchemaDefinitions": [
+      {
+        "jsonPath": "/",
+        "noConditionSchemaDefName": "FilterControlCollectionsRoot"
+      },
+      {
+        "jsonPath": "/children/filterControls/children/filterControlConfig",
+        "noConditionSchemaDefName": "FilterControlConfig"
+      },
+      {
+        "jsonPath": "/children/filterControls/children",
+        "propertyConditions": [
+          {
+            "schemaDefName": "ColumnFilterControl",
+            "conditions": [
+              {
+                "name": "type",
+                "value": "saw:columnFilterControl"
+              }
+            ]
+          },
+          {
+            "schemaDefName": "ExpressionFilterControl",
+            "conditions": [
+              {
+                "name": "type",
+                "value": "saw:expressionFilterControl"
+              }
+            ]
+          },
+          {
+            "schemaDefName": "ParameterFilterControl",
+            "conditions": [
+              {
+                "name": "type",
+                "value": "saw:parameterFilterControl"
+              }
+            ]
+          },
+          {
+            "schemaDefName": "GroupFilterControl",
+            "conditions": [
+              {
+                "name": "type",
+                "value": "saw:groupFilterControl"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "reportConfig": {
+    "schemaType": "reportConfig",
+    "schemaDefinitions": [
+      {
+        "schemaDefName": "ReportConfigRoot",
+        "versionField": "_version",
+        "versions": [
+          "1.0.6",
+          "1.0.7",
+          "1.0.8",
+          "1.0.9"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/"
+      },
+      {
+        "schemaDefName": "ReportConfigColor",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/colorScheme"
+      },
+      {
+        "schemaDefName": "ReportConfigShape",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/shapeScheme"
+      },
+      {
+        "schemaDefName": "ReportConfigSchemeServiceSettings",
+        "versionField": "version",
+        "versions": [
+          "1.0.3"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/schemeServiceSettings"
+      },
+      {
+        "schemaDefName": "ReportConfigEnvironment",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/reportEnvironment"
+      },
+      {
+        "schemaDefName": "ReportConfigProjectSettings",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/projectSettings"
+      },
+      {
+        "schemaDefName": "ReportConfigAutoApplyData",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/autoApplyData"
+      },
+      {
+        "schemaDefName": "ReportConfigQueryBuilder",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/queryBuilder"
+      },
+      {
+        "schemaDefName": "ReportConfigStoryNavigator",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/storynavigator"
+      },
+      {
+        "schemaDefName": "ReportConfigFilterBar",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/filterBar"
+      }
+    ],
+    "parsedSchemaDefinitions": [
+      {
+        "jsonPath": "/",
+        "noConditionSchemaDefName": "ReportConfigRoot"
+      },
+      {
+        "jsonPath": "/settings/oracle.bi.tech.colorSchemeService",
+        "noConditionSchemaDefName": "ReportConfigColor"
+      },
+      {
+        "jsonPath": "/settings/oracle.bi.tech.shapeSchemeService",
+        "noConditionSchemaDefName": "ReportConfigShape"
+      },
+      {
+        "jsonPath": "/settings/oracle.bi.tech.shapeSchemeService/settings",
+        "noConditionSchemaDefName": "ReportConfigSchemeServiceSettings"
+      },
+      {
+        "jsonPath": "/settings/oracle.bi.tech.colorSchemeService/settings",
+        "noConditionSchemaDefName": "ReportConfigSchemeServiceSettings"
+      },
+      {
+        "jsonPath": "/settings/reportenvironment",
+        "noConditionSchemaDefName": "ReportConfigEnvironment"
+      },
+      {
+        "jsonPath": "/settings/projectSettings",
+        "noConditionSchemaDefName": "ReportConfigProjectSettings"
+      },
+      {
+        "jsonPath": "/settings/autoApplyData",
+        "noConditionSchemaDefName": "ReportConfigAutoApplyData"
+      },
+      {
+        "jsonPath": "/settings/querybuilder",
+        "noConditionSchemaDefName": "ReportConfigQueryBuilder"
+      },
+      {
+        "jsonPath": "/settings/storynavigator",
+        "noConditionSchemaDefName": "ReportConfigStoryNavigator"
+      },
+      {
+        "jsonPath": "/settings/oracle.bi.tech.filterBar",
+        "noConditionSchemaDefName": "ReportConfigFilterBar"
+      }
+    ]
+  },
+  "conditionalFormatRules": {
+    "schemaType": "conditionalFormatRules",
+    "schemaDefinitions": [
+      {
+        "schemaDefName": "ConditionalFormatRulesRoot",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/conditionalFormatRules/{VERSION}/"
+      },
+      {
+        "schemaDefName": "ConditionalFormatRulesSettings",
+        "versionField": "_version",
+        "versions": [
+          "1.0.0",
+          "1.0.1"
+        ],
+        "schema$IdPattern": "http://oracle.com/bi/conditionalFormatRules/{VERSION}/settings"
+      }
+    ],
+    "parsedSchemaDefinitions": [
+      {
+        "jsonPath": "/",
+        "noConditionSchemaDefName": "ConditionalFormatRulesRoot"
+      },
+      {
+        "jsonPath": "/settings",
+        "noConditionSchemaDefName": "ConditionalFormatRulesSettings"
+      }
+    ]
+  }
+}

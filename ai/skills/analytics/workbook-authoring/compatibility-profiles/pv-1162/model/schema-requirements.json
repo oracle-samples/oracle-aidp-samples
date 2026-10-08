@@ -1,0 +1,106 @@
+{
+  "contractVersion": 1,
+  "components": [
+    {
+      "schemaIdPattern": "http://oracle.com/bi/filterControlCollections/{VERSION}/filterControlConfig",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.11"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.9"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/colorScheme",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/projectSettings",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/schemeServiceSettings",
+      "versionField": "version",
+      "supportedVersions": [
+        "1.0.3"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/reportConfig/{VERSION}/shapeScheme",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/",
+      "versionField": "projectVersion",
+      "supportedVersions": [
+        "1162"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/canvasConfig",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.6"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/criteriaConfig",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.2"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/pluginView/logicalDataModel",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/pluginView/settingsLogicalDataModel",
+      "versionField": "_settingsVersion",
+      "supportedVersions": [
+        "2.0.1",
+        "1.0.0",
+        "2.0.0"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfig",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.1.80",
+        "1.1.84"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/comboMultiLayerChart",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.0"
+      ]
+    },
+    {
+      "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfigSettings/table",
+      "versionField": "_version",
+      "supportedVersions": [
+        "1.0.1"
+      ]
+    }
+  ]
+}
