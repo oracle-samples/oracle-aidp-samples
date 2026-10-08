@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { deepEqual, rejects } from 'node:assert/strict';
+import { deepEqual } from 'node:assert/strict';
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -368,14 +368,19 @@ async function main() {
       assert(plan.headers.accept === (command === 'export-compute-configuration' ? 'application/x-yaml' : 'application/json'), `wrong effective Accept header: ${endpointPath}`);
     }
 
-    await rejects(server.request('tools/call', {
+    // The server reports pre-flight tool errors as an isError:true result (no
+    // JSON-RPC protocol error, no stack trace), so inspect the result text.
+    const wrongMethod = await server.request('tools/call', {
       name: 'aidp_rest',
       arguments: {
         method: 'GET', path: `${workspacePath}/actions/getBundlePublishStatus`, dryRun: true,
         config: { endpoint: 'https://aidp.example.com', instanceId: 'ocid1.aidataplatform.oc1..example', workspaceKey: 'workspace-key' }
       }
-    }), /method and path do not match a documented AIDP REST operation/,
-    'bundle publish status must use POST as specified by its operation reference');
+    });
+    assert(
+      wrongMethod.isError && /method and path do not match a documented AIDP REST operation/.test(toolText(wrongMethod)),
+      'bundle publish status must use POST as specified by its operation reference'
+    );
 
     const schemaReference = await server.request('tools/call', {
       name: 'aidp_cli_reference',

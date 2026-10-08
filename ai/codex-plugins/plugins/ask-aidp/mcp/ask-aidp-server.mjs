@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -1173,7 +1173,13 @@ function requireValue(value, name) {
 
 function resolveAidp(config = {}) {
   const explicit = config.aidpBin || process.env.AIDP_CLI_BIN;
-  if (explicit) return { command: explicit, prefixArgs: [] };
+  if (explicit) {
+    // A Node entry script (e.g. .../aidp-cli/dist/bin/aidp.js, as recommended by
+    // normalizeSpawnTarget) is not directly executable on Windows (spawn EFTYPE);
+    // run it through the current Node binary like the vendored aidp.js below.
+    if (/\.(c|m)?js$/i.test(explicit)) return { command: process.execPath, prefixArgs: [explicit] };
+    return { command: explicit, prefixArgs: [] };
+  }
 
   const vendoredJs = path.join(PLUGIN_ROOT, 'vendor', 'node_modules', 'aidp-cli', 'dist', 'bin', 'aidp.js');
   if (existsSync(vendoredJs)) return { command: process.execPath, prefixArgs: [vendoredJs] };
@@ -3946,7 +3952,18 @@ async function handleMessage(message) {
   }
 
   if (message.method === 'tools/call') {
-    const result = await handleToolCall(message.params?.name, message.params?.arguments || {});
+    // A tool that throws a pre-flight error (missing config, missing vendor
+    // dependency, unreadable localPath) should surface as a structured
+    // isError:true RESULT so the model can self-correct — not as a JSON-RPC
+    // -32000 protocol error carrying an internal stack trace with absolute
+    // filesystem paths. Matches the isError handling used for unknown tools
+    // and CLI/HTTP failures elsewhere in the server.
+    let result;
+    try {
+      result = await handleToolCall(message.params?.name, message.params?.arguments || {});
+    } catch (error) {
+      result = toolText(String(error?.message || error), true);
+    }
     jsonResponse(message.id, result);
     return;
   }
@@ -3962,8 +3979,30 @@ async function handleMessage(message) {
 }
 
 // Importing the request runner for offline transport tests must not start stdio.
-if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+// Compare real paths: Node resolves the main module's import.meta.url through
+// symlinks/junctions while process.argv[1] keeps the caller's spelling, so a
+// plain string comparison would silently skip stdio when the plugin directory
+// is reached through a symlink (e.g. ~/.codex/plugins/ask-aidp -> checkout).
+const isMainModule = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(path.resolve(process.argv[1])) === realpathSync(__filename);
+  } catch {
+    return false;
+  }
+})();
+
+if (isMainModule) {
   let buffer = '';
+  let pendingMessages = 0;
+  let stdinEnded = false;
+
+  function finishAfterPendingMessages() {
+    if (stdinEnded && pendingMessages === 0 && !process.stdout.writableEnded) {
+      process.stdout.end();
+    }
+  }
+
   process.stdin.setEncoding('utf8');
   process.stdin.on('data', (chunk) => {
     buffer += chunk;
@@ -3979,13 +4018,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
         jsonError(null, -32700, `Parse error: ${error.message}`);
         continue;
       }
-      Promise.resolve(handleMessage(message)).catch((error) => {
-        if (message.id !== undefined) jsonError(message.id, -32000, error.message, { stack: error.stack });
-      });
+      pendingMessages += 1;
+      Promise.resolve(handleMessage(message))
+        .catch((error) => {
+          if (message.id !== undefined) jsonError(message.id, -32000, error.message, { stack: error.stack });
+        })
+        .finally(() => {
+          pendingMessages -= 1;
+          finishAfterPendingMessages();
+        });
     }
   });
 
-  process.stdin.on('end', () => process.exit(0));
+  process.stdin.on('end', () => {
+    stdinEnded = true;
+    finishAfterPendingMessages();
+  });
 
   if (process.argv.includes('--self-test')) {
     const fingerprint = createHash('sha256').update(readFileSync(__filename)).digest('hex').slice(0, 12);

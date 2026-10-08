@@ -24,6 +24,10 @@ All notable changes to this plugin are documented here.
 - Add regressions for model ordering, root fields, empty models, MLflow field
   spelling, header overrides, composed HTTP headers, and mocked YAML responses.
   Live export and workspace YAML readback still require an enabled instance.
+- Start the stdio server when launched through a symlinked/junctioned plugin path
+  (real-path main-module check), return tool pre-flight errors as `isError` results
+  instead of JSON-RPC errors with stack traces, and run an `AIDP_CLI_BIN` that points
+  at a Node script through `node` so Windows does not fail with `spawn EFTYPE`.
 
 ### Changed
 
