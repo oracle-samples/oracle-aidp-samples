@@ -35,6 +35,7 @@ Dimensions: queryName, queryId, plus whatever is passed in `dimensions`.
 from __future__ import annotations
 
 import datetime as _dt
+import math
 import queue
 import re
 import threading
@@ -52,6 +53,7 @@ MAX_DIMENSIONS = 20                     # PostMetricData: up to 20 dimensions pe
 _BUILTIN_DIMS = ("queryName", "queryId")
 _NS_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")   # custom namespace: letter, then alphanumerics/_
 _NS_RESERVED = ("oci_", "oracle_")
+_DIM_KEY_RE = re.compile(r"^[!-~]{1,256}$")   # dimension key: printable ASCII, no spaces
 
 
 def oci_config_from_secrets(secrets, credential_name: str, keys=CREDENTIAL_KEYS) -> dict:
@@ -94,7 +96,7 @@ def progress_metrics(p) -> Dict[str, float]:
                      ("processedRowsPerSecond", "processedRowsPerSecond"),
                      ("numInputRows", "numInputRows")):
         v = _get(p, src)
-        if v is not None and v == v:                     # skip None and NaN
+        if v is not None and math.isfinite(float(v)):    # skip None, NaN and +/-inf
             out[dst] = float(v)
     dur = _get(p, "durationMs") or {}
     if _get(dur, "triggerExecution") is not None:
@@ -117,7 +119,7 @@ def progress_metrics(p) -> Dict[str, float]:
 def _dims(p, extra: Dict[str, str]) -> Dict[str, str]:
     d = {"queryName": str(_get(p, "name") or "unnamed"), "queryId": str(_get(p, "id") or "")}
     d.update({k: str(v) for k, v in (extra or {}).items() if v is not None})
-    return {k: v[:256] for k, v in d.items() if v}       # OCI: dimension values up to 256 chars
+    return {k: v[:256] for k, v in d.items() if v}       # keep values well inside OCI's length limit
 
 
 class OciStreamingMetricsListener(_Base):
@@ -137,13 +139,17 @@ class OciStreamingMetricsListener(_Base):
         if reserved:
             raise ValueError(f"dimension name(s) {reserved} are set by the listener itself")
         extra = {k: v for k, v in (dimensions or {}).items() if v is not None}
+        bad = [k for k in extra if not isinstance(k, str) or not _DIM_KEY_RE.match(k) or "." in k]
+        if bad:                                 # OCI rejects the whole batch for one bad key
+            raise ValueError(f"invalid dimension key(s) {bad}: printable ASCII, 1-256 chars, "
+                             "no periods or spaces")
         if len(extra) + len(_BUILTIN_DIMS) > MAX_DIMENSIONS:
             raise ValueError(f"at most {MAX_DIMENSIONS - len(_BUILTIN_DIMS)} extra dimensions "
                              f"(OCI allows {MAX_DIMENSIONS} per metric, 2 are queryName/queryId)")
         self._post, self.compartment_id, self.namespace = post, compartment_id, namespace
         self.resource_group, self.dimensions, self._log = resource_group, extra, log
         self._q: "queue.Queue[dict]" = queue.Queue(maxsize=queue_max)
-        self._flush = flush_seconds
+        self.flush_seconds = float(flush_seconds)
         self._lock = threading.Lock()          # callbacks and the worker run on different threads
         self._stats = {"progress_events": 0, "queued": 0, "posted": 0, "failed": 0, "dropped": 0,
                        "last_error": None}
@@ -166,12 +172,21 @@ class OciStreamingMetricsListener(_Base):
                     self._stats[k] += v
 
     # ------------------------------------------------------------ construction from an OCI config
+    @staticmethod
+    def ingestion_endpoint(region: str) -> str:
+        """PostMetricData lives on the telemetry-ingestion host, not the default monitoring endpoint.
+        The SDK fills in the realm's second-level domain (oraclecloud.com, oraclegovcloud.uk, ...)."""
+        import oci
+        return oci.regions.endpoint_for(
+            "monitoring", region=region,
+            service_endpoint_template="https://telemetry-ingestion.{region}.{secondLevelDomain}")
+
     @classmethod
     def from_config(cls, config: dict, compartment_id: str, **kw) -> "OciStreamingMetricsListener":
         import oci
         oci.config.validate_config(config)
         client = oci.monitoring.MonitoringClient(
-            config, service_endpoint=f"https://telemetry-ingestion.{config['region']}.oraclecloud.com")
+            config, service_endpoint=cls.ingestion_endpoint(config["region"]))
 
         def post(items: List[dict]) -> int:
             details = oci.monitoring.models.PostMetricDataDetails(metric_data=[
@@ -241,7 +256,7 @@ class OciStreamingMetricsListener(_Base):
                 self._count(failed=len(items), last_error=f"{type(e).__name__}: {str(e)[:300]}")
 
     def _run(self) -> None:
-        while not self._stop.wait(self._flush):
+        while not self._stop.wait(self.flush_seconds):
             self.flush()
         self.flush()
 

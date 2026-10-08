@@ -165,3 +165,31 @@ def test_stats_snapshot_is_a_copy():
 def test_builtin_dimension_names_cannot_be_overridden():
     with pytest.raises(ValueError, match="set by the listener"):
         make(lambda items: 0, dimensions={"queryName": "x"})
+
+
+@pytest.mark.parametrize("key", ["a.b", "a b", "", "café", "x" * 257])
+def test_invalid_dimension_keys_rejected(key):
+    with pytest.raises(ValueError, match="invalid dimension key"):
+        make(lambda items: 0, dimensions={key: "v"})
+    make(lambda items: 0, dimensions={"ok_key-1": "a.b c"}).close()   # values may contain anything
+
+
+def test_ingestion_endpoint_is_realm_aware():
+    pytest.importorskip("oci")
+    ep = osl.OciStreamingMetricsListener.ingestion_endpoint
+    assert ep("us-ashburn-1") == "https://telemetry-ingestion.us-ashburn-1.oraclecloud.com"
+    assert ep("uk-gov-london-1") == "https://telemetry-ingestion.uk-gov-london-1.oraclegovcloud.uk"
+
+
+def test_from_config_uses_the_realm_endpoint(monkeypatch):
+    oci = pytest.importorskip("oci")
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, config, **kw): seen.update(kw)
+    monkeypatch.setattr(oci.config, "validate_config", lambda cfg: None)
+    monkeypatch.setattr(oci.monitoring, "MonitoringClient", FakeClient)
+    cfg = {"user": "u", "tenancy": "t", "fingerprint": "f", "region": "uk-gov-london-1", "key_content": "k"}
+    lst = osl.OciStreamingMetricsListener.from_config(cfg, "c", flush_seconds=3600, log=lambda s: None)
+    lst.close()
+    assert seen["service_endpoint"] == "https://telemetry-ingestion.uk-gov-london-1.oraclegovcloud.uk"

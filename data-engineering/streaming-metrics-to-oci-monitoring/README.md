@@ -190,7 +190,8 @@ Constructor options: `flush_seconds` (default `10`), `queue_max` (default `10000
 
 - **Custom namespace rules.** The name must match `^[A-Za-z][A-Za-z0-9_]*$` and must not start with
   `oci_` or `oracle_`. OCI allows 20 dimensions per metric; the listener uses 2, so you can add up
-  to 18. The constructor rejects values outside these rules.
+  to 18. Dimension keys must be printable ASCII without periods or spaces (OCI rejects the whole
+  batch otherwise). The constructor rejects values outside these rules.
 - **Datapoint timestamps** must be recent (OCI accepts roughly the last 2 hours). Values that wait in
   the queue during a long OCI outage are rejected and counted as `failed`.
 - **`close()`** waits up to 90 s for the final flush. One OCI call can take up to the SDK's 60 s read
@@ -198,6 +199,8 @@ Constructor options: `flush_seconds` (default `10`), `queue_max` (default `10000
   `flush_incomplete: True`.
 - **Checkpoint location.** On AIDP, use an explicit `file:///…` path (for short demos) or Object
   Storage. A bare `/tmp/...` checkpoint fails with *"Wrong FS: compute:/tmp/…, expected: file:///"*.
+- **Endpoint.** `from_config` derives the `telemetry-ingestion` host from the region via
+  `oci.regions.endpoint_for`, so government and sovereign realms resolve to their own domain.
 - **Small demos and shuffle partitions.** A stateful query keeps one state store per shuffle
   partition. With the default 200 partitions, the tiny demo spent ~8 s per micro-batch; with
   `spark.sql.shuffle.partitions=4` it took ~0.5 s. The listener reports this, it doesn't cause it.
