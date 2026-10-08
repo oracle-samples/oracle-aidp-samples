@@ -173,6 +173,29 @@ class WeeklyBusinessReviewContractTests(unittest.TestCase):
         for value in agent.DEFAULT_FILTERS.values():
             self.assertIn(value, request)
 
+    def test_json_repair_preserves_commas_inside_valid_strings(self) -> None:
+        plan = self._base_plan()
+        plan["message"] = "Stages: [A, B,] and C,] close soon."
+        text = "```json\n" + json.dumps(plan) + "\n```"
+
+        parsed = agent.extract_json_object(text)
+
+        self.assertEqual(parsed["message"], plan["message"])
+        repaired = agent.extract_json_object('{"mode": "text", "message": "ok", }')
+        self.assertEqual(repaired, {"mode": "text", "message": "ok"})
+
+    def test_plan_validation_rejects_impossible_dates_and_null_metrics(self) -> None:
+        plan = self._base_plan()
+        plan["screen"]["filters"]["start_date"] = "2026-13-99"
+        plan["screen"]["filters"]["end_date"] = "2026-13-99"
+        with self.assertRaisesRegex(ValueError, "valid calendar date"):
+            agent.validate_response_plan(plan)
+
+        plan = self._base_plan()
+        plan["screen"]["metrics"][0]["value"] = None
+        with self.assertRaisesRegex(ValueError, r"metrics\[0\].value is required"):
+            agent.validate_response_plan(plan)
+
     def test_multi_week_fixture_resolves_to_latest_snapshot(self) -> None:
         data_dir = Path(__file__).parent / "sample_data"
 

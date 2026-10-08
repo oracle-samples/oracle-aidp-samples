@@ -21,6 +21,8 @@ File provenance within `a2ui/`:
   `v0_9/common_types.json`, `v0_9/server_to_client.json`
 - Adapted from upstream (modified by Oracle, per their headers): `manager.py`,
   `parser.py`, and `v0_9/complete_catalog.json`
+- Oracle-original (no upstream derivation; covered by this repository's
+  UPL-1.0 license): `__init__.py`
 
 The original copyright and modification notices in adapted source files are
 retained. A copy of the applicable license is included at

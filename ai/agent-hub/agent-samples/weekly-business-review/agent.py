@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import inspect
 from importlib import metadata as importlib_metadata
 import json
@@ -25,7 +26,7 @@ except ModuleNotFoundError:
 logger = logging.getLogger("weekly_business_review_sqltool")
 checkpointer = globals().get("checkpointer", None)
 
-TENANCY_OCID = os.getenv("OCI_TENANCY_OCID", "").strip()
+COMPARTMENT_OCID = os.getenv("OCI_COMPARTMENT_OCID", "").strip()
 OCI_ENDPOINT = os.getenv("OCI_INFERENCE_ENDPOINT", "").strip()
 MODEL_ID = os.getenv("OCI_MODEL_ID", "").strip()
 CATALOG_KEY = os.getenv("WBR_CATALOG_KEY", "").strip()
@@ -71,7 +72,7 @@ def build_llm() -> Any:
     """Build the OCI-backed planner used by the deployed WBR agent."""
 
     required_configuration = {
-        "OCI_TENANCY_OCID": TENANCY_OCID,
+        "OCI_COMPARTMENT_OCID": COMPARTMENT_OCID,
         "OCI_INFERENCE_ENDPOINT": OCI_ENDPOINT,
         "OCI_MODEL_ID": MODEL_ID,
     }
@@ -86,7 +87,7 @@ def build_llm() -> Any:
 
     llm_conf = OCIAIConf(
         model_provider="generic",
-        compartment_id=TENANCY_OCID,
+        compartment_id=COMPARTMENT_OCID,
         model_args={},
         endpoint=OCI_ENDPOINT,
         model_id=MODEL_ID,
@@ -288,7 +289,12 @@ def extract_json_object(raw: str) -> dict[str, Any]:
         elif char == "}":
             depth -= 1
             if depth == 0:
-                parsed = json.loads(re.sub(r",(?=\s*[}\]])", "", text[start : index + 1]))
+                candidate = text[start : index + 1]
+                try:
+                    parsed = json.loads(candidate)
+                except json.JSONDecodeError:
+                    # Repair trailing commas only when the raw text is not valid JSON.
+                    parsed = json.loads(re.sub(r",(?=\s*[}\]])", "", candidate))
                 if not isinstance(parsed, dict):
                     raise ValueError("Response plan must be a JSON object.")
                 return parsed
@@ -327,6 +333,10 @@ def validate_response_plan(plan: dict[str, Any]) -> dict[str, Any]:
     for field in ("start_date", "end_date"):
         if not isinstance(filters[field], str) or not re.fullmatch(r"20\d{2}-\d{2}-\d{2}", filters[field]):
             raise ValueError(f"screen.filters.{field} must use YYYY-MM-DD.")
+        try:
+            datetime.date.fromisoformat(filters[field])
+        except ValueError:
+            raise ValueError(f"screen.filters.{field} must be a valid calendar date in YYYY-MM-DD.") from None
     if filters["start_date"] > filters["end_date"]:
         raise ValueError("screen.filters.start_date must not be after end_date.")
 
@@ -337,7 +347,9 @@ def validate_response_plan(plan: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(metric, dict):
             raise ValueError(f"metrics[{index}] must be an object.")
         _required_text(metric.get("label"), f"metrics[{index}].label", 50)
-        _required_text(str(metric.get("value", "")), f"metrics[{index}].value", 40)
+        if metric.get("value") is None:
+            raise ValueError(f"metrics[{index}].value is required.")
+        _required_text(str(metric["value"]), f"metrics[{index}].value", 40)
         if metric.get("caption") is not None:
             _required_text(metric["caption"], f"metrics[{index}].caption", 100)
 

@@ -48,7 +48,7 @@ When data is unavailable or no rows match the requested scope, the agent reports
 ## Repository layout
 
 ```text
-weekly-business-review-github/
+weekly-business-review/
 |-- agent.py                     # Deployment entrypoint and complete agent
 |-- requirements.txt             # Additional Python dependency
 |-- test_agent_contract.py       # Offline regression and contract tests
@@ -75,7 +75,7 @@ The sample data uses fictional, anonymized organizations:
 ## Prerequisites
 
 - An Oracle AIDP workspace with Agent Hub access
-- A catalog and schema available to the AIDP SQLTool connection
+- An external Oracle Database catalog (for example Autonomous Database) and schema registered in AIDP for the SQLTool connection
 - Compute and read permissions for the uploaded tables
 - Access to an OCI Generative AI model
 - An Agent Hub renderer that supports the included A2UI catalog components
@@ -86,7 +86,9 @@ Schema validation is required and fails closed. Deployments must install the dec
 
 ## Load the sample data
 
-Upload each file in `sample_data/` as a table with the matching filename:
+The AIDP SQLTool executes its predefined queries against an external Oracle Database catalog (for example Autonomous Database) registered in AIDP, so the five tables must live in that database. Uploading the CSVs into an AIDP internal catalog will not work: the queries use Oracle SQL (`FETCH FIRST`, `TO_DATE`) and are pushed down to the external database. `WBR_SCHEMA_KEY` is the schema name (for example `ADMIN`) and the queries use bare table names.
+
+Load each file in `sample_data/` into that database as a table with the matching filename:
 
 | File | Table |
 |---|---|
@@ -106,26 +108,26 @@ The agent requires five deployment values:
 
 | Value | Purpose |
 |---|---|
-| `WBR_CATALOG_KEY` | AIDP catalog containing the Weekly Business Review tables |
+| `WBR_CATALOG_KEY` | External Oracle Database catalog registered in AIDP that contains the Weekly Business Review tables |
 | `WBR_SCHEMA_KEY` | Schema containing the Weekly Business Review tables |
-| `OCI_TENANCY_OCID` | OCI tenancy or compartment identifier accepted by your AIDP model runtime |
+| `OCI_COMPARTMENT_OCID` | Compartment OCID used by the OCI Generative AI model runtime |
 | `OCI_INFERENCE_ENDPOINT` | Endpoint for your OCI Generative AI deployment |
 | `OCI_MODEL_ID` | Model identifier available in that deployment and region |
 
 No concrete OCI identifier, endpoint, model, catalog, or schema is included in this repository.
 
-To find the OCI identifier, sign in to the OCI Console, open **Identity & Security**, select **Compartments**, choose the compartment used by the AIDP deployment, and copy the identifier required by your model runtime. The environment-variable name follows this example's runtime contract; confirm whether your environment expects a tenancy or compartment OCID.
+To find the compartment OCID, sign in to the OCI Console, open **Identity & Security**, select **Compartments**, choose the compartment where the Generative AI model can be invoked, and copy its OCID.
 
 To find the inference endpoint and model, open the OCI Generative AI service, select the region and model deployment used by the agent, copy the inference endpoint, and copy the exact model identifier. Confirm that the endpoint region matches the deployed model.
 
-To find the AIDP catalog and schema, open **Master catalog** in AIDP Workbench, select the catalog containing the uploaded CSV tables, expand the catalog, and select the schema. Confirm that all five required tables are visible and accessible to the deployed agent principal and compute.
+To find the AIDP catalog and schema, open **Master catalog** in AIDP Workbench, select the external Oracle Database catalog containing the five tables, expand the catalog, and select the schema. Confirm that all five required tables are visible and accessible to the deployed agent principal and compute.
 
 Set these values in the deployment environment or the approved Agent Hub configuration mechanism:
 
 ```text
 WBR_CATALOG_KEY=<catalog containing the five tables>
 WBR_SCHEMA_KEY=<schema containing the five tables>
-OCI_TENANCY_OCID=<your OCI tenancy OCID>
+OCI_COMPARTMENT_OCID=<your OCI compartment OCID>
 OCI_INFERENCE_ENDPOINT=<insert your OCI inference endpoint>
 OCI_MODEL_ID=<insert your deployed model ID>
 ```
