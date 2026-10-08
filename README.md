@@ -19,7 +19,9 @@ oracle-aidp-samples/
 │   └── migration/            # Migrating workloads to AIDP
 ├── data-engineering/
 │   ├── ingestion/            # Connectors and data loading patterns
+│   ├── lineage/              # Reading and visualizing AIDP data lineage
 │   └── transformation/       # Pipeline architectures and table formats
+│       ├── delta-clone-metadata/
 │       ├── liquid-clustering/
 │       ├── medallion-lake/
 │       ├── scd/
@@ -91,6 +93,16 @@ Patterns for connecting to and loading data from a wide range of sources.
 
 ---
 
+### Data Engineering — Lineage
+
+Working with the lineage AIDP records automatically for every notebook and workflow run: which tables fed which, through which job, and how each column was derived.
+
+| Notebook | Description |
+|---|---|
+| [Visualize AIDP Lineage](data-engineering/lineage/Visualize_AIDP_Lineage.ipynb) | Fetch a table's upstream and downstream lineage through the DataLineage API, draw the table and column graphs inline in the notebook, and hand the lineage to other tools as DataFrames or OpenLineage events. |
+
+---
+
 ### Data Engineering — Transformation
 
 Architectural patterns and pipeline templates for data transformation at scale.
@@ -159,6 +171,7 @@ Combines Delta liquid clustering with UniForm-generated Iceberg metadata for cro
 | [Slowly Changing Dimensions (SCD Type 2)](data-engineering/transformation/scd/slowly_changing_dimension_template.ipynb) | Track historical changes to dimension records using SCD Type 2 with Jinja2-templated merge logic. |
 | [Streaming — Energy Delta Liquid Clustering](data-engineering/transformation/streaming/energy_delta_streaming_liquid_clustering_demo.ipynb) | Real-time smart grid monitoring with streaming Delta tables, anomaly detection, and statistical baselines for energy consumption. |
 | [Streaming — Manufacturing Delta Liquid Clustering](data-engineering/transformation/streaming/manufacturing_delta_streaming_liquid_clustering_demo.ipynb) | Continuous ingestion and clustering of manufacturing sensor data using Spark Structured Streaming and Delta Lake. |
+| [Zero-Copy Clone and Table Metadata](data-engineering/transformation/delta-clone-metadata/zero_copy_clone_and_table_metadata.ipynb) | Create constant-time zero-copy clones with Delta `SHALLOW CLONE`, observe copy-on-write divergence from the source, and attach and read table and column metadata in SQL. |
 
 #### Cross-Format & External Table Interop
 
@@ -281,7 +294,7 @@ Before running any sample, ensure you have:
 
 - An active **Oracle AI Data Platform Workbench** environment with a compute cluster.
 - The required **IAM policies** configured for the services used (Object Storage, ALH, AI Services, etc.).
-- Cluster libraries installed from the `requirements.txt` file included in the relevant sample folder, where applicable.
+- Cluster libraries installed from the `requirements.txt` file included in the relevant sample folder, where applicable. A `requirements-test.txt`, where present, is for running that sample's tests locally and is not for the cluster.
 
 ### General Steps
 
