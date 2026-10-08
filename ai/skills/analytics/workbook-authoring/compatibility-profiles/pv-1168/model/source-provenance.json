@@ -1,0 +1,8 @@
+{
+  "maintenanceSourceBranch": "version_26_09_50",
+  "sourceRevision": "bdca113bc2a55a92ee5f70c9a37fc747b772c9ad",
+  "profileID": "pv-1168",
+  "viewConfigVersion": "1.1.84",
+  "regressionServerRevision": "1548cd20f050",
+  "generation": "release-native support-window synchronization and add-on staging; release-native registry conversion"
+}
