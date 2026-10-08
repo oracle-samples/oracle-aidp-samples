@@ -53,7 +53,7 @@ def _dispatch_config() -> ResolvedClusterDispatchConfig:
 def _happy_marker_payload() -> dict:
     marker = ClusterProbeMarker(
         markerVersion=1,
-        tenant="saasfademo1",
+        tenant="demo-pod",
         bronzeFingerprint="sha256:happy",
         observedSchema={"erp_suppliers": [{"name": "Segment1", "type": "string"}]},
         walkerResults=[
@@ -120,7 +120,7 @@ def _call(monkeypatch, tmp_path: Path, **overrides):
         bundle_path=bundle_path,
         pack=MagicMock(name="ResolvedPack"),
         dispatch_config=_dispatch_config(),
-        tenant="saasfademo1",
+        tenant="demo-pod",
         client_factory=lambda: MagicMock(name="AidpRestClient"),
     )
     kwargs.update(overrides)
@@ -173,7 +173,7 @@ class TestHappyPath:
         _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
         marker = _call(monkeypatch, tmp_path)
         assert isinstance(marker, ClusterProbeMarker)
-        assert marker.tenant == "saasfademo1"
+        assert marker.tenant == "demo-pod"
         assert marker.bronze_fingerprint == "sha256:happy"
 
     def test_helper_called_with_bootstrap_marker_constants(
@@ -325,7 +325,7 @@ class TestNotebookBuilder:
             bundle_yaml="apiVersion: x\n",
             pack_files={"pack.yaml": "id: starter"},
             pack_manifest={"chain_layers": [], "entry_layer_index": 0},
-            tenant="saasfademo1",
+            tenant="demo-pod",
             bicc_secret_name="fusion_bicc_password",
             bicc_secret_key="password",
         )

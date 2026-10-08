@@ -290,3 +290,16 @@ def test_message_names_column_count_and_declaration(spark):  # noqa: F811
 def test_column_found_whatever_its_case(spark):  # noqa: F811
     """The target says Qty, the DataFrame says QTY: still checked."""
     assert _check(spark, "QTY int", [5000], _target("Qty", "number", 3, 0)) is not None
+
+
+
+@pytest.mark.parametrize("p,s,ddl,value", [
+    (3, 5, "decimal(3,3)", Decimal("0.123")),
+    (40, 2, "decimal(38,2)", Decimal("12.34")),
+])
+def test_a_declaration_the_ddl_clamps_is_checked_against_the_clamped_type(
+        spark, p, s, ddl, value):  # noqa: F811
+    """The DDL creates DECIMAL(38,2) for NUMBER(40,2) and DECIMAL(3,3) for
+    NUMBER(3,5). Casting to the declaration instead failed every write --
+    DECIMAL_PRECISION_EXCEEDS_MAX_PRECISION, or a ParseException."""
+    assert _fits(spark, f"a {ddl}", value, _target("a", "number", p, s))

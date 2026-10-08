@@ -4,12 +4,12 @@
     "name": "Oracle AI Data Platform",
     "url": "https://github.com/oracle-samples/oracle-aidp-samples"
   },
-  "description": "AWS → Oracle AIDP migration tooling.",
+  "description": "Oracle AIDP migration tooling for AWS.",
   "plugins": [
     {
       "name": "oracle-ai-data-platform-workbench-aws-migrator",
       "source": "./",
-      "displayName": "AWS → Oracle AIDP Migrator",
+      "displayName": "Oracle AIDP Migrator for AWS",
       "description": "Migrate an AWS data stack (S3/Glue/Athena/EMR/SageMaker) to Oracle AIDP."
     }
   ]

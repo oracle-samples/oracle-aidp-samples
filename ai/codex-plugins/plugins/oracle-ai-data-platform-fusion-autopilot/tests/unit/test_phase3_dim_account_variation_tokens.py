@@ -3,7 +3,7 @@
 The Phase 3 parity harness alone CANNOT detect a regression that
 re-removes the `{{ column.coa_*_segment }}` tokens from
 `dim_account.sql` — both the variation-token shape (substituting to
-`CodeCombinationSegment1/2/3` on saasfademo1) and the hardcoded
+`CodeCombinationSegment1/2/3` on demo-pod) and the hardcoded
 shape (literal `CodeCombinationSegment1/2/3`) render to byte-identical
 output on the conventional COA. That ambiguity is exactly what
 allowed the Phase 3 round-2 rollback to slip through. This module

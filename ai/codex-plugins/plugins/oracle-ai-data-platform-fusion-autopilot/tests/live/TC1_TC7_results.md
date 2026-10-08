@@ -1,4 +1,4 @@
-# TC1 + TC7 — Live test results, saasfademo1, 2026-04-30
+# TC1 + TC7 — Live test results, demo-pod, 2026-04-30
 
 End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fusion pod.
 
@@ -6,12 +6,12 @@ End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fus
 
 | | |
 |---|---|
-| Fusion pod | `https://fa-etap-dev5-saasfademo1.ds-fa.oraclepdemos.com` |
-| Fusion user | `Casey.Brown` (BIAdmin role) |
+| Fusion pod | `https://<fusion-host>` |
+| Fusion user | `<fusion-user>` (BIAdmin role) |
 | BICC External Storage profile | `fusion_bicc_external_storage` (configured 2026-04-30 via UI) |
-| OCI bucket | `fusion-bicc-saasfademo1` (namespace `idseylbmv0mm`) |
-| API key fingerprint | `71:78:61:77:ee:71:fb:13:e4:77:1d:62:23:49:63:20` |
-| AIDP workspace | `54368733-3a17-47a1-b231-869d8ae2a048` |
+| OCI bucket | `<bucket>` (namespace `<namespace>`) |
+| API key fingerprint | `<fingerprint>` |
+| AIDP workspace | `<uuid>` |
 | AIDP cluster | `tpcds` |
 
 ## TC1 — BICC bulk extract
@@ -22,7 +22,7 @@ End-to-end Fusion → BICC → AIDP medallion bronze proven against the demo Fus
 | Datastore | `FscmTopModelAM.PrcExtractAM.PozBiccExtractAM.SupplierExtractPVO` (full AM-hierarchy, NOT pdf1's `FscmTopModelAM.SupplierExtractPVO`) |
 | Schema option | `Financial` |
 | Row count | **229 rows** |
-| Sample rows | Real users (CALVIN.ROTH, anu.rathi, Monico.Procurementmanager); Segment1=`1252,1254,1256,1265,1266`; Org=CORPORATION |
+| Sample rows | Sample users (<fusion-user>, <fusion-user>, <fusion-user>); Segment1=`1252,1254,1256,1265,1266`; Org=CORPORATION |
 
 **Status: PASS** — verified 2026-04-30T15:23 UTC.
 

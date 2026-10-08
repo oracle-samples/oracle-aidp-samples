@@ -47,7 +47,10 @@ Foundational examples to help you get up and running on AIDP Workbench.
 | [Analyse Data Using PySpark](getting-started/Analyse_Data_Using_PySpark.ipynb) | PySpark fundamentals: catalog and schema setup, table creation, data insertion, schema exploration, and matplotlib visualizations. |
 | [Analyse Data Using SQL](getting-started/Analyse_Data_Using_SQL.ipynb) | Core SQL operations on AIDP including DataFrame creation, transformations, aggregations, and simple visualizations. |
 | [ALH External Catalog MERGE](getting-started/ALH_ExternalCatalog_Merge.ipynb) | End-to-end MERGE workflow into an ALH table via an AIDP external catalog: insert/update/delete with merge keys and OOS-staging skip optimization. |
-| [Parameterize Notebooks with Native Widgets](getting-started/Native_Notebook_Widgets.ipynb) | Demonstrate text, dropdown, combobox, and multiselect widgets, job and `notebook.run` overrides, and a fail-fast check for job parameters that a widget silently ignores. |
+| [Native Apache Iceberg Table](getting-started/Native_Iceberg_Table.ipynb) | Create a native Iceberg table in a Standard catalog, then explore schema and partition evolution, MERGE, snapshots, and time travel. |
+| [Parameterize Notebooks with Native Widgets](getting-started/Native_Notebook_Widgets.ipynb) | Native notebook widgets (text, dropdown, combobox, multiselect), job and `notebook.run` parameter overrides, and a fail-fast check for job parameters a widget silently ignores. |
+
+The native Iceberg sample uses an existing AIDP Standard catalog. The Hadoop catalog sample under Data Engineering registers a separate Spark catalog on OCI Object Storage. Delta UniForm samples create Delta tables that publish Iceberg-compatible metadata.
 
 #### Delta Lake
 
@@ -56,7 +59,7 @@ Foundational examples to help you get up and running on AIDP Workbench.
 | [Use Delta Lake Table](getting-started/Delta_Lake/Use_Delta_Lake_Table.ipynb) | Comprehensive guide covering Delta table operations: updates, merges, time travel, liquid clustering, and vacuuming. |
 | [Delta Change Data Feed](getting-started/Delta_Lake/Delta_Change_Feed.ipynb) | Capture row-level changes (inserts, updates, deletes) from Delta tables for CDC, incremental processing, and streaming pipelines. |
 | [Handle Schema Evolution](getting-started/Delta_Lake/Handle_Schema_Evolution.ipynb) | Add and evolve columns in Delta tables without rewriting existing data, leveraging automatic schema evolution. |
-| [Delta UniForm Tables](getting-started/Delta_Lake/DeltaUniformTables.ipynb) | Create Delta UniForm tables that automatically synchronize Iceberg metadata for cross-format interoperability. |
+| [Delta UniForm Tables](getting-started/Delta_Lake/DeltaUniformTables.ipynb) | Create Delta UniForm tables that automatically synchronize Apache Iceberg metadata for cross-format interoperability. |
 
 #### Migration
 
@@ -74,13 +77,13 @@ Patterns for connecting to and loading data from a wide range of sources.
 | Notebook | Description |
 |---|---|
 | [Read/Write Oracle Ecosystem Connectors](data-engineering/ingestion/Read_Write_Oracle_Ecosystem_Connectors.ipynb) | Connect to Oracle Database, Oracle Exadata, ALH, and ATP with external catalog support and SQL pushdown. |
-| [Read/Write External Ecosystem Connectors](data-engineering/ingestion/Read_Write_External_Ecosystem_Connectors/) | Per-database read/write ingestion notebooks — Hive Metastore, Microsoft SQL Server, Azure SQL, PostgreSQL, MySQL, and IBM DB2 (4.1) — each with SQL pushdown and a connector-options reference. |
-| [Read-Only Ingestion Connectors](data-engineering/ingestion/Read_Only_Ingestion_Connectors.ipynb) | Use read-only connectors for MySQL HeatWave, REST APIs, Oracle Fusion BICC, Kafka, and other sources. |
+| [Read/Write External Ecosystem Connectors](data-engineering/ingestion/Read_Write_External_Ecosystem_Connectors/) | Per-database read/write ingestion notebooks — Apache Hive Metastore, Microsoft SQL Server, Azure SQL, PostgreSQL, MySQL, and IBM Db2 (4.1) — each with SQL pushdown and a connector-options reference. |
+| [Read-Only Ingestion Connectors](data-engineering/ingestion/Read_Only_Ingestion_Connectors.ipynb) | Use read-only connectors for MySQL HeatWave, REST APIs, Oracle Fusion BICC, Apache Kafka, and other sources. |
 | [Connect Using Custom JDBC Driver](data-engineering/ingestion/Connect_Using_Custom_JDBC_Driver.ipynb) | Integrate custom JDBC drivers (e.g., SQLite, Snowflake) with Spark for connecting to databases not bundled by default. |
 | [Execute Oracle ALH SQL](data-engineering/ingestion/Execute%20Oracle%20ALH%20SQL.ipynb) | Execute SQL statements directly against Oracle ALH using the `oracledb` Python package. |
 | [Ingest Data Using YAML](data-engineering/ingestion/Ingest_data_using_yaml/Ingest_data_using_YAML.ipynb) | Config-driven ingestion from cloud storage (CSV, JSON) and JDBC sources with schema validation and data quality checks. |
-| [Ingest from Multi-Cloud](data-engineering/ingestion/Ingest_from_Multi_Cloud.ipynb) | Ingest data from Azure Data Lake Storage (ADLS) and AWS S3 with proper JAR configuration and credential management. |
-| [Ingest into Apache Iceberg (OCI Native)](data-engineering/ingestion/Ingest_into_iceberg_hadoop_catalog_oci_native.ipynb) | End-to-end Apache Iceberg workflow: table creation, querying, schema evolution, time travel, and metadata inspection using OCI native protocol and Hadoop catalog. |
+| [Ingest from Multi-Cloud](data-engineering/ingestion/Ingest_from_Multi_Cloud.ipynb) | Ingest data from Azure Data Lake Storage (ADLS) and Amazon S3 with proper JAR configuration and credential management. |
+| [Apache Iceberg with an OCI Hadoop Catalog](data-engineering/ingestion/Ingest_into_iceberg_hadoop_catalog_oci_native.ipynb) | Register a Spark Hadoop catalog on OCI Object Storage, then create, query, and evolve an Iceberg table. |
 | [Pipe-Delimited File Ingestion](data-engineering/ingestion/PipeDelimited.ipynb) | Read pipe-delimited (`\|`) files from OCI Object Storage and register them as external tables. |
 | [Read Excel Files](data-engineering/ingestion/Read_excel_data/read_excel.ipynb) | Read Excel (`.xlsx`) files using the Spark Excel connector and convert them to Spark DataFrames or CSV. |
 | [Streaming from OCI Streaming Service](data-engineering/ingestion/Streaming/StreamingFromOCIStreamingService.ipynb) | Consume messages from OCI Streaming (Kafka-compatible) using Spark Structured Streaming with SASL/OAUTHBearer authentication. |
@@ -130,9 +133,9 @@ Demonstrates Delta Lake liquid clustering for automatic query optimization and d
 | [Telecommunications](data-engineering/transformation/liquid-clustering/telecommunications_delta_liquid_clustering_demo.ipynb) | Network and customer usage data |
 | [Transportation](data-engineering/transformation/liquid-clustering/transportation_delta_liquid_clustering_demo.ipynb) | Fleet and logistics optimization |
 
-#### Apache Iceberg Uniform Liquid Clustering
+#### Delta UniForm Liquid Clustering
 
-Combines Delta UniForm with Apache Iceberg Liquid Clustering for open-format, cross-engine table optimization. Industry variants available:
+Combines Delta liquid clustering with UniForm-generated Iceberg metadata for cross-engine reads. These samples write Delta tables. Industry variants available:
 
 | Notebook | Industry |
 |---|---|
@@ -320,3 +323,18 @@ This project welcomes contributions from the community. Before submitting a pull
 ## License
 
 See [LICENSE](./LICENSE.txt)
+
+## Trademarks
+
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+Apache, Apache Spark, Spark, Apache Iceberg, Iceberg, Apache Kafka, and Kafka
+are either registered trademarks or trademarks of The Apache Software
+Foundation in the United States and/or other countries. Delta Lake is a
+trademark of LF Projects, LLC. Other third-party product names in this
+repository (for example Databricks, Snowflake, Microsoft Fabric, Amazon Web
+Services, Informatica, Claude Code, and Codex) are trademarks of their
+respective owners and are used only to identify the products the samples work
+with. Oracle is not affiliated with, sponsored by or endorsed by their owners,
+and no endorsement by The Apache Software Foundation is implied. Each plugin's
+NOTICE file names the marks it uses.

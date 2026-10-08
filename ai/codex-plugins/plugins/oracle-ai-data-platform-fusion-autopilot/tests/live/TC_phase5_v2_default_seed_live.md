@@ -6,7 +6,7 @@
 
 Step 10 of the Phase 5 plan. Validates that the default-flipped
 `aidp-fusion-autopilot run --mode seed` (no explicit `--execution-backend`)
-produces the same output on saasfademo1 that the explicit Phase-4
+produces the same output on demo-pod that the explicit Phase-4
 `--execution-backend content-pack` run produced (TC_phase4_v2_seed_live).
 
 Four validations gated by this evidence trail:

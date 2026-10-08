@@ -190,6 +190,7 @@ class AIDPClient:
         Throttling and transient 5xx responses are retried with backoff.
         """
         url = f"{self.base_url}{path}"
+        kwargs.setdefault("timeout", 120)
         retryable = self._RETRY_STATUSES_POST if method.upper() == "POST" else self._RETRY_STATUSES
         for attempt in range(4):
             resp = self._session.request(method, url, **kwargs)
@@ -270,7 +271,7 @@ class AIDPClient:
         # Step 2: PUT file to PAR URL
         file_size = os.path.getsize(local_path)
         with open(local_path, "rb") as f:
-            upload_resp = requests.put(par_url, data=f, headers={"Content-Length": str(file_size)})
+            upload_resp = requests.put(par_url, data=f, headers={"Content-Length": str(file_size)}, timeout=600)
             upload_resp.raise_for_status()
             etag = upload_resp.headers.get("etag")
 

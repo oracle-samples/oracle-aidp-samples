@@ -162,7 +162,7 @@ have. Do not invoke them; they are not present in `skills/`.
 - **Where AIDP has no dedicated connector for a source, there is a
   documented four-tier source-access ladder** — AIDP standard catalog →
   AIDP external catalog → dedicated `aidataplatform` connector (25 of them,
-  covering DB2, Azure SQL, NetSuite, Snowflake, Salesforce, and more) →
+  covering Db2, Azure SQL, NetSuite, Snowflake, Salesforce, and more) →
   native Spark JDBC as a last resort → explicit "no path" for mainframe
   VSAM/IMS and SAP IDoc/RFC. The full ladder, with the Informatica
   connection-type mapping, is summarized below. **The generator does not yet

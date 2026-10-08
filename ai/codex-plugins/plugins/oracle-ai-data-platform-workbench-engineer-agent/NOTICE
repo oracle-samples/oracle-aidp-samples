@@ -3,4 +3,18 @@ Codex CLI plugin
 
 Made by Ahmed Awan (Forward Deployed Engineering).
 
-Copyright (c) 2026 Oracle Corporation. Licensed under the MIT License — see the LICENSE file.
+Copyright (c) 2026 Oracle and/or its affiliates. Licensed under the MIT License — see the LICENSE file.
+
+Trademarks
+
+Oracle, Java, MySQL, and NetSuite are registered trademarks of Oracle and/or
+its affiliates. Other names may be trademarks of their respective owners.
+OpenAI and Codex are trademarks of OpenAI. Apache, Apache Spark, Spark, Apache
+Kafka, Kafka, Apache Iceberg, and Iceberg are either registered trademarks or
+trademarks of The Apache Software Foundation in the United States and/or other
+countries. No endorsement by The Apache Software Foundation is implied. Delta
+Lake, and MLflow are trademarks of LF Projects, LLC. Databricks and Unity
+Catalog are trademarks of Databricks, Inc. Snowflake is a trademark of
+Snowflake Inc. Tableau is a trademark of Salesforce, Inc. Third-party names
+are used only to identify the products this plugin works with; it is not
+affiliated with, sponsored by or endorsed by OpenAI.

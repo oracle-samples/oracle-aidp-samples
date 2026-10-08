@@ -1,6 +1,6 @@
-# AWS → Oracle AIDP Migrator (Codex plugin)
+# Oracle AIDP Migrator for AWS (Codex plugin)
 
-Migrate an AWS data stack (S3, Glue, Athena) to Oracle AI Data Platform. Same
+Migrate an AWS data stack (Amazon S3, AWS Glue, Amazon Athena) to Oracle AI Data Platform. Same
 deterministic engine as the Claude Code plugin, exposed to Codex / Cursor /
 Claude Desktop through an **MCP server** with four tools: `inventory`, `plan`,
 `migrate`, `verify`.

@@ -3,7 +3,7 @@ name: aws-aidp-migrator
 description: "Migrate an AWS data stack (S3, Glue, Athena, EMR, SageMaker) to Oracle AI Data Platform (AIDP). Use when the user wants to inventory an AWS data estate, plan a migration to AIDP, translate Athena SQL or Glue ETL/PySpark to Spark on AIDP, or verify a migration's output. Wraps the `aws-aidp` CLI, with the verbs inventory, plan, migrate and verify."
 ---
 
-# AWS → Oracle AIDP migrator
+# Oracle AIDP migrator for AWS
 
 This skill drives the `aws-aidp` CLI, which migrates an AWS data stack to Oracle
 AIDP in four verbs. The translators are **deterministic-first**: each rewrite is a

@@ -93,7 +93,7 @@ BLOCKS_NEXT_PHASE: false (helper + tests are sufficient evidence
 that the gate works; the integration loop is a wiring concern,
 not a contract concern).
 
-## Row 5 — Live evidence on saasfademo1 (Validations A/B/C/D)
+## Row 5 — Live evidence on demo-pod (Validations A/B/C/D)
 
 **Status:** PENDING — operator-driven cluster session required.
 
@@ -102,7 +102,7 @@ The placeholder evidence file at
 validations needed. Phase 6 may BEGIN against the static evidence
 (unit + parity tests, dispatcher contract) but the Phase 5 PR
 description should NOT claim "default-flipped CLI verified on
-saasfademo1" until the operator runs the four validations.
+demo-pod" until the operator runs the four validations.
 
 BLOCKS_NEXT_PHASE: false (Phase 6's dashboard work doesn't
 require Phase 5's live evidence; the parity tests gate the
@@ -130,7 +130,7 @@ BLOCKS_NEXT_PHASE: false
 | 2 | Shared run_id | RESOLVED | no |
 | 3 | Bronze readiness gate wired | RESOLVED | no |
 | 4 | Fusion PVO drift gate | PARTIAL (helper + tests; dispatcher wiring deferred) | no |
-| 5 | Live evidence on saasfademo1 | PENDING (operator session required) | no |
+| 5 | Live evidence on demo-pod | PENDING (operator session required) | no |
 | 6 | P4-L2 runtime fixes | DEFERRED | no |
 
 Zero `BLOCKS_NEXT_PHASE: true` rows. Phase 6 dashboard contracts work

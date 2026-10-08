@@ -58,7 +58,7 @@ def _executed_notebook(*cells: dict) -> dict:
 
 
 def _happy_marker_payload() -> dict:
-    return {"ok": True, "marker": {"tenant": "saasfademo1"}}
+    return {"ok": True, "marker": {"tenant": "demo-pod"}}
 
 
 def _client(

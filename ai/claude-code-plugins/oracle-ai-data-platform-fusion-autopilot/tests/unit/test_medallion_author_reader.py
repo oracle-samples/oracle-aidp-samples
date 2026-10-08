@@ -267,7 +267,7 @@ class TestPhase41ClusterDispatchScope:
 
         artifact = ClusterDispatchDiagnosticV1(
             runId=run_id,
-            tenant="saasfademo1",
+            tenant="demo-pod",
             errorCode="AIDPF-2048",
             errorMessage="upload failed",
             generatedAt=_TS,
@@ -287,7 +287,7 @@ class TestPhase41ClusterDispatchScope:
 
         artifact = ClusterMarkerDiagnosticV1(
             runId=run_id,
-            tenant="saasfademo1",
+            tenant="demo-pod",
             errorCode="AIDPF-2049",
             errorMessage="envelope missing",
             generatedAt=_TS,
@@ -375,7 +375,7 @@ def _write_4071(tmp_path: Path, run_id: str, node: str = "ap_payments") -> None:
         write_bronze_source_column_missing_diagnostic,
     )
     artifact = BronzeSourceColumnMissingV1.model_validate({
-        "schemaVersion": 1, "runId": run_id, "tenant": "saasfademo1",
+        "schemaVersion": 1, "runId": run_id, "tenant": "demo-pod",
         "errorCode": "AIDPF-4071", "errorMessage": "missing",
         "generatedAt": "2026-06-11T00:00:00+00:00",
         "node": node,

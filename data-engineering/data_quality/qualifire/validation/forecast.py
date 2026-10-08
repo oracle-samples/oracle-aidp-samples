@@ -23,7 +23,7 @@ def _import_prophet():
     except ImportError:
         raise ImportError(
             "Prophet is required for forecast validation. "
-            "Install it with: pip install 'qualifire[forecast]'"
+            "Install it with: pip install -e '.[forecast]'"
         )
 
 

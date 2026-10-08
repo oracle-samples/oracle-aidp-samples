@@ -3,7 +3,7 @@
 Migration assistant for **Microsoft Fabric → Oracle AI Data Platform (AIDP)**. It reads
 a Fabric workspace exported through Fabric's native Git integration, inventories the
 estate, and translates notebooks, Warehouse T-SQL, Dataflow Gen2 (Power Query M) and
-Data Pipelines to Spark and AIDP jobs — emitting reviewable artifacts and flagging
+Data Pipelines to Apache Spark and AIDP jobs — emitting reviewable artifacts and flagging
 anything it cannot convert safely.
 
 **Nothing is written to AIDP unless you ask for it.** `inventory`, `plan`,
@@ -22,7 +22,7 @@ needs `--apply`, and never overwrites anything it did not create.
 |---|---|---|
 | **Notebooks** (PySpark, `%%sql`) | → | Spark notebooks, OneLake paths remapped |
 | **Warehouse** tables, views, queries | → | Spark SQL |
-| **Lakehouse** shortcuts (S3, ADLS Gen2, …) | → | `oci://` locations |
+| **Lakehouse** shortcuts (Amazon S3, ADLS Gen2, …) | → | `oci://` locations |
 | **Data Pipelines** | → | AIDP workflow jobs (tasks + `dependsOn`) |
 | **Semantic models** | → | inventoried only (DAX has no AIDP target) |
 | **Dataflows** (Power Query / M) | → | PySpark scripts (needs Node; see below) |

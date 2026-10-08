@@ -1,10 +1,9 @@
 {
-  "_comment": "OPTIONAL — the plugin does NOT require an MCP. It is fully self-contained (oci raw-request + scripts/aidp_sql.py). This template is only for users who want to wire an AIDP MCP as an optional accelerator: fill the placeholders from ~/.oci/config + your DataLake/workspace and save as .mcp.json (NEVER commit it — .gitignored). The aidp MCP package, if used, comes from amitranjan-oracle/ai-data-engineer-agent.",
+  "_comment": "OPTIONAL — the plugin does NOT require an MCP. It is fully self-contained (oci raw-request + scripts/aidp_sql.py). This template is only for users who want to wire an AIDP MCP as an optional accelerator: fill the placeholders from ~/.oci/config + your DataLake/workspace and save as .mcp.json (NEVER commit it — .gitignored). The aidp MCP package, if used, must come from a repository you control and have reviewed.",
   "mcpServers": {
     "aidp": {
       "command": "python",
       "args": ["-m", "aidp_agent.mcp_server"],
-      "_command_alt_when_published_to_pypi": ["uvx", "aidp-mcp"],
       "cwd": "${AIDP_AGENT_REPO_PATH}",
       "env": {
         "AIDP_REGION": "${AIDP_REGION}",

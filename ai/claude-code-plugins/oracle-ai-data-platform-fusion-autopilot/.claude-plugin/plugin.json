@@ -3,10 +3,11 @@
   "version": "0.1.0-alpha",
   "description": "Productized Fusion → Oracle AI Data Platform pipeline. Curated BICC extracts for the most-asked Fusion ERP/HCM/SCM datasets, bronze→silver→gold medallion architecture, conformed COA/calendar/org/supplier/item dimensions, ready-made AR-aging/AP-aging/GL-balance/PO-backlog/Supplier-spend gold marts, and MCP-native Oracle Analytics Cloud (OAC) workbook authoring. OAC AIDP connection and dataset creation remain governed manual OAC UI steps; the legacy .bar OAC REST install path still ships for snapshot deployments. End-user consumption via OAC MCP (Preview) chat in Claude/Cline/Copilot. Same pattern shown in the official Oracle blog 'Bring Fusion Data into AIDP Workbench Using BICC', productized. Additive to and complementary with Oracle's managed Fusion data offerings — never positioned as a replacement.",
   "author": {
-    "name": "Ahmed Awan"
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
   },
-  "homepage": "https://github.com/ahmedawan-oracle/claude-code-plugins",
-  "repository": "https://github.com/ahmedawan-oracle/claude-code-plugins",
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-fusion-autopilot",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
   "license": "MIT",
   "keywords": [
     "oracle",

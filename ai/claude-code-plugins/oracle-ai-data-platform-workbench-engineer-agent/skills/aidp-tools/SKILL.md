@@ -9,7 +9,7 @@ A **standalone Tool** is a reusable tool object an agent or an agent-flow node r
 instead of inlining the config in every flow. Workspace-scoped under the LA AgentFlows family.
 
 > **Engine:** `oci raw-request --profile DEFAULT` (no CLI group in v1.0.0). **Workspace-scoped**, and the
-> write path is **VERIFIED live 2026-06-10** (round-trip on `oaseceal`): `POST …/workspaces/<ws>/tools` → **200**
+> write path is **VERIFIED live 2026-06-10** (round-trip on the test tenancy): `POST …/workspaces/<ws>/tools` → **200**
 > (returns `key`, `toolConfig`, `toolProvider`, `toolType`, `inputSchema`, …); `DELETE …/tools/<key>` → **204**.
 
 ## When to use

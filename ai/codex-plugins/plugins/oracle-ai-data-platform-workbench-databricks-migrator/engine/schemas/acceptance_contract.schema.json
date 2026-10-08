@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/srao-positron/oci-aidp-databricks-validator/schemas/acceptance_contract.schema.json",
+  "$id": "https://github.com/oracle-samples/oracle-aidp-samples/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator/engine/schemas/acceptance_contract.schema.json",
   "title": "AIDP Migrator Acceptance Contract",
   "description": "Optional per-notebook contract that asserts a streaming/batch pipeline drained successfully BEFORE the migrator marks the notebook PASS. Pattern adapted from codex-plugin-oci-aidp-migration-workbench `aidp-batch-stream-acceptance` skill.",
   "type": "object",

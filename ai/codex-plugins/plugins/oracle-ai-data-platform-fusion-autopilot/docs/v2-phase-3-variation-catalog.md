@@ -51,13 +51,13 @@ columnAliases + hardcoded `CodeCombinationSegment1/2/3` directly into
 `dim_account.sql`. That rollback was an architectural regression
 under PLAN §9.5.4: the engine substitutes variation-point tokens at
 runtime from values that `bootstrap` resolves at onboarding;
-v1-equivalence on saasfademo1 is *satisfied* by the variation-point
+v1-equivalence on demo-pod is *satisfied* by the variation-point
 design (resolved values happen to match v1's hardcodes), not in
 conflict with it.
 
 Round-3 (feature `v2-phase-3-fix-variation-points`) restores the
 three columnAliases + the three `{{ column.* }}` tokens. On
-saasfademo1's conventional COA, bootstrap auto-resolves each role to
+demo-pod's conventional COA, bootstrap auto-resolves each role to
 its single conventional candidate (`Segment1` / `Segment2` /
 `Segment3`); the renderer substitutes those identifiers into
 `dim_account.sql`; output rows are byte-identical to v1.
@@ -133,7 +133,7 @@ intentional scope decision. Three reasons:
 AP aging is a future feature that needs (a) a renderer extension for
 optional column projection / two-schema variants, (b) declarative
 tenant-side coverage threshold configuration, and (c) live evidence
-that any saasfademo1-or-comparable tenant has Terms/Due-date coverage
+that any demo-pod-or-comparable tenant has Terms/Due-date coverage
 above the threshold (the v1 default 10%).
 
 **Acceptance impact**: the parity harness ships proxy-mode-only fixture

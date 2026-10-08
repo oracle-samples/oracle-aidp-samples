@@ -16,9 +16,9 @@ https://aidp.<region>.oci.oraclecloud.com/<API_VERSION>/<PATH_PREFIX>/<dataLakeO
 
 - **Region host (us-ashburn-1):** `https://aidp.us-ashburn-1.oci.oraclecloud.com`
   - Live DNS resolves via `overlay.us-ashburn-1.oci.oraclecloud.com`. **Do NOT** use the swagger's dev host
-    `aidpdev2.us-phoenix-1.oci.oc-test.com` — it is a non-production artifact.
+    (an internal `oc-test.com` address) — it is a non-production artifact.
 - **`<API_VERSION>`** — resolved per endpoint (see `rest-endpoint-map.md`):
-  - **LIVE-VERIFIED 2026-06-09 (tenancy `oaseceal`/`idseylbmv0mm`, us-ashburn-1): this env serves
+  - **LIVE-VERIFIED 2026-06-09 (the test tenancy/`<namespace>`, us-ashburn-1): this env serves
     `20240831`. GA `20260430` returns 404 here.** So default to **`20240831`**; treat `20260430` as the
     future GA target and only try it after a tenancy upgrade (probe, don't assume).
   - LA categories (agent flows, models catalog): **`20240831`**.

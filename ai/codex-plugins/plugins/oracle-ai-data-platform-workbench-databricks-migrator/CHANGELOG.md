@@ -2,6 +2,18 @@
 
 All notable changes to this plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Security
+- Cluster-side dependency resolution no longer installs an import name just because a PyPI
+  package of that name exists; only curated mappings are installed and the rest are
+  reported for the operator to add explicitly. The generated availability check follows
+  the same rule.
+- `aidp_executor` session calls carry a timeout; `run_migration.sh` logs to a private
+  temp file and asks for `kill <PID>` instead of `pkill -f`.
+- `check_aws_creds.py` reports whether an S3 secret is set and its last four characters,
+  never the value.
+
 ## [0.2.0] - 2026-06-24
 
 - Bundled the OpenAI-based Python migration engine under `engine/`.

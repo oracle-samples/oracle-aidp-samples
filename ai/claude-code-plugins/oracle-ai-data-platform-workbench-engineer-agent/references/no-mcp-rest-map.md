@@ -10,7 +10,7 @@ via `oci raw-request` (auth + base URL in [`oci-raw-request.md`](oci-raw-request
 [`scripts/aidp_sql.py`](../scripts/aidp_sql.py) helper (see below). An `aidp` MCP, if one happens to be
 configured, is an **optional accelerator** only — never assumed.
 
-> **LIVE-VERIFIED 2026-06-09** (tenancy `oaseceal`, us-ashburn-1, `oci raw-request --profile DEFAULT`,
+> **LIVE-VERIFIED 2026-06-09** (the test tenancy, us-ashburn-1, `oci raw-request --profile DEFAULT`,
 > `20240831/dataLakes`). Endpoints below returned the noted status with the api_key DEFAULT profile and
 > **no MCP** in the path.
 

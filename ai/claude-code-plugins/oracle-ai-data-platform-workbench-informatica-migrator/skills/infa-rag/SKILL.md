@@ -24,6 +24,7 @@ similar transformations.
 PYTHONPATH=engine python3 -m infa2aidp.cli rag stats
 PYTHONPATH=engine python3 -m infa2aidp.cli rag list --approved-only
 PYTHONPATH=engine python3 -m infa2aidp.cli rag export -o rag_export.json
+# Import only exports this tool produced in a trusted environment, and review `rag list` before any --use-llm run.
 PYTHONPATH=engine python3 -m infa2aidp.cli rag import -i rag_export.json
 PYTHONPATH=engine python3 -m infa2aidp.cli rag clear
 ```

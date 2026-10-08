@@ -43,7 +43,7 @@ The only code in this plugin is `scripts/aidp_sql.py`; it needs `oci`, `requests
 > `export PLUGIN_DIR="${CLAUDE_PLUGIN_ROOT}"` (Claude sets `CLAUDE_PLUGIN_ROOT` for this plugin), or run
 > `claude plugin list`, copy the install path, and `export PLUGIN_DIR=<that path>`. Every `aidp_sql.py`
 > example in these skills uses `"$PLUGIN_DIR/scripts/aidp_sql.py"`. (On a clean first session the SessionStart
-> hook already auto-installs the deps; the manual step below is only a fallback.)
+> hook checks the deps and prints the install command; it installs them only with `AIDP_PLUGIN_AUTOINSTALL=1`.)
 
 ```bash
 python -m pip install -r "$PLUGIN_DIR/scripts/requirements.txt"

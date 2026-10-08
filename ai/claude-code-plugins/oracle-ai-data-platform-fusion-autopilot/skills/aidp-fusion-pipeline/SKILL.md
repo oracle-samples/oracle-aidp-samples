@@ -142,7 +142,6 @@ Mirrors pdf1 §"What Can You Do Once the Data is in Oracle AI Data Platform":
 
 ## References
 
-- Plan: `C:\Users\anuma\.claude\plans\oracle-ai-data-platform-fusion-autopilot.md`
 - Sibling plugin (single-PVO connector): [`oracle-ai-data-platform-workbench-spark-connectors`](../../../oracle-ai-data-platform-workbench-spark-connectors/)
 - Official Oracle BICC blog: https://blogs.oracle.com/ai-data-platform/bring-fusion-data-into-oracle-ai-data-platform-workbench-using-bicc
 - Ateam blog (saas-batch path): https://www.ateam-oracle.com/how-to-extract-fusion-data-using-oracle-ai-data-platform

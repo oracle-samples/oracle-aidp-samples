@@ -14,3 +14,8 @@ shortcuts.metadata.json, alm.settings.json and lakehouse.metadata.json
 schemas, all three of which this tool had previously guessed at.
 
 The full licence texts, copyright lines included, are in THIRD_PARTY_LICENSES.md.
+
+Trademarks: these files may contain Microsoft trademarks or logos. Use of Microsoft
+trademarks or logos must follow Microsoft's Trademark & Brand Guidelines and must not
+cause confusion or imply Microsoft sponsorship; third-party trademarks or logos are
+subject to their respective policies. They are present here only as test data.

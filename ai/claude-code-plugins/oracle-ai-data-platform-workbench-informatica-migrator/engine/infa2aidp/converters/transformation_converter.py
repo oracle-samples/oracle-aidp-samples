@@ -378,10 +378,14 @@ class TransformationConverter:
         re.IGNORECASE | re.DOTALL,
     )
 
-    # An Oracle string literal ('' is an escaped quote) or a double-quoted
-    # identifier, scanned in one pass so a quote of one kind inside the
-    # other cannot start a false token.
-    _SQL_QUOTED = re.compile(r"'(?:[^']|'')*'|\"[^\"]*\"")
+    # An Oracle string literal ('' is an escaped quote), a double-quoted
+    # identifier or a /* block comment */, scanned in one pass so a quote
+    # of one kind inside another cannot start a false token. The comment
+    # has to be in the same pass: the apostrophe in `/* customer's */`
+    # opened a literal that swallowed the `JOIN CUSTOMERS` after it, so
+    # that table was never qualified and the join read whatever the
+    # session's catalog called CUSTOMERS.
+    _SQL_QUOTED = re.compile(r"'(?:[^']|'')*'|\"[^\"]*\"|/\*.*?\*/", re.DOTALL)
     _SQL_MASK = re.compile(r"\x00(\d+)\x00")
 
     @staticmethod
@@ -404,6 +408,8 @@ class TransformationConverter:
 
         def _one(m: re.Match) -> str:
             tok = m.group(0)
+            if tok.startswith("/*"):
+                return " "  # a comment is not SQL: dropped, not restored
             if tok.startswith('"'):
                 return tok[1:-1] if re.fullmatch(r"[A-Za-z_][\w$#]*", tok[1:-1]) else tok
             lits.append(tok)
@@ -470,6 +476,22 @@ class TransformationConverter:
                 out.append(first)
         return out
 
+    @staticmethod
+    def _sql_unscannable(masked: str) -> Optional[str]:
+        """Why literal-masked SQL cannot be rewritten safely, or None.
+
+        The override reaches here with its whitespace collapsed, so a
+        ``--`` line comment would run to the end of the whole query in
+        Spark and silently cut off what followed it. A quote left after
+        masking is an unterminated literal: the scan cannot tell SQL from
+        data past it.
+        """
+        if "--" in masked:
+            return "it carries a -- line comment, which would comment out the rest of the query once it is on one line"
+        if "'" in masked:
+            return "it has an unterminated string literal, so its tables cannot be found reliably"
+        return None
+
     def _sql_refusal_reason(
         self, sql: str, source_tables: Optional[dict[str, str]]
     ) -> str:
@@ -487,6 +509,9 @@ class TransformationConverter:
                 f"it uses a double-quoted identifier, {quoted.group(0)}, which "
                 f"Spark would read as a string literal"
             )
+        unscanned = self._sql_unscannable(masked)
+        if unscanned:
+            return unscanned
         known = {k.upper() for k in (source_tables or {})}
         unknown = sorted(self._sql_tables_referenced(sql) - known)
         if unknown:
@@ -500,6 +525,8 @@ class TransformationConverter:
 
     # A qualified column reference in a join condition: TABLE.COLUMN.
     _SQL_QUALIFIED_COL = re.compile(r"\b([A-Za-z_][\w$#]*)\s*\.\s*[A-Za-z_][\w$#]*")
+    # The same reference with the column captured, for backquoting it.
+    _SQL_QUALIFIED_COL_PARTS = re.compile(r"\b([A-Za-z_][\w$#]*)\s*\.\s*([A-Za-z_][\w$#]*)")
 
     # One conjunct of a join condition that equates a column across two
     # tables: TABLE.COLUMN = TABLE.COLUMN, optionally parenthesised.
@@ -536,7 +563,7 @@ class TransformationConverter:
                 "it is written in Informatica's outer-join syntax "
                 "({ A LEFT OUTER JOIN B ON ... }), which is not translated"
             )
-        if self._SQL_UNTRANSLATABLE.search(masked):
+        if self._SQL_UNTRANSLATABLE.search(masked) or self._sql_unscannable(masked):
             return None, [], self._sql_refusal_reason(udj, source_tables)
         if not source_tables:
             return None, [], "the mapping's source tables were not available to qualify it"
@@ -573,7 +600,9 @@ class TransformationConverter:
                 if t in tables:
                     continue
                 if not tables:
-                    select.append(f"{t}.{c} AS {c}")
+                    # Backquoted: Oracle and PowerCenter allow # and $ in a
+                    # column name, and ORDER# unquoted is a ParseException.
+                    select.append(f"{t}.`{c}` AS `{c}`")
                 tables.append(t)
         equated = self._udj_equated(masked)
         for col, tables in holders.items():
@@ -582,7 +611,14 @@ class TransformationConverter:
                     f"column {col} exists in {', '.join(tables)} and the join does "
                     f"not equate it, so one table's value cannot stand for both"
                 )
-        return f"SELECT {', '.join(select)} FROM {', '.join(named)} WHERE {udj}", named, None
+        # The condition's column references are backquoted too, for the
+        # same reason as the select list: an order number is usually the
+        # join key, and `ORDERS.ORDER# = LINES.ORDER#` unquoted is a
+        # ParseException. Done on the masked text so literals are untouched.
+        cond_masked, cond_lits = self._mask_sql_literals(udj)
+        cond = self._unmask_sql_literals(self._SQL_QUALIFIED_COL_PARTS.sub(
+            lambda m: f"{m.group(1)}.`{m.group(2)}`", cond_masked), cond_lits)
+        return f"SELECT {', '.join(select)} FROM {', '.join(named)} WHERE {cond}", named, None
 
     def _udj_equated(self, masked_udj: str):
         """``equated(col, tables)``: whether the condition's top-level AND
@@ -680,7 +716,8 @@ class TransformationConverter:
         # Every check and rewrite below runs with string literals masked: a
         # literal is data, and neither a table name nor ':' inside one is SQL.
         masked, lits = self._mask_sql_literals(sql)
-        if self._SQL_UNTRANSLATABLE.search(masked) or '"' in masked:
+        if (self._SQL_UNTRANSLATABLE.search(masked) or '"' in masked
+                or self._sql_unscannable(masked)):
             return None
 
         known = {k.upper(): v for k, v in source_tables.items()}
@@ -830,6 +867,14 @@ class TransformationConverter:
                              sql[sql.upper().find(" FROM "):] if " FROM " in sql.upper() else sql,
                              re.IGNORECASE) is not None
                 or (simple is not None and re.search(r"\(|\bCASE\b", simple.group("cols"), re.IGNORECASE))
+                # The single-table path keeps only the WHERE. DISTINCT and
+                # ORDER BY in the override used to come back through the
+                # Select Distinct / Sorted Ports settings -- PowerCenter's
+                # Generate SQL writes them into the override -- but a SQL
+                # Query now overrides those settings, so such an override is
+                # run as written. A comment is only masked on that path too.
+                or (simple is not None and re.match(r"DISTINCT\b", simple.group("cols").strip(), re.IGNORECASE))
+                or re.search(r"\bORDER\s+BY\b|/\*|--", sql, re.IGNORECASE) is not None
             )
             if complex_sql:
                 # A join/union/sub-select override cannot be reproduced by

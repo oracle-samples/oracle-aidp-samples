@@ -1,8 +1,8 @@
 """TC10h-7 prep — BICC extracts for AR (transactions, receipts) + GL (balances, COA, journals).
 
 Run inside an AIDP notebook session attached to the `tpcds` cluster.
-Source: saasfademo1 Fusion demo pod.
-PVO names: live-confirmed against saasfademo1 BICC catalog 2026-04-30.
+Source: demo-pod Fusion demo pod.
+PVO names: live-confirmed against demo-pod BICC catalog 2026-04-30.
 
 Output: bronze tables under fusion_catalog.bronze.*
 
@@ -11,8 +11,8 @@ Pattern mirrors the official Oracle AIDP sample notebook
 format handler with `fusion-bicc` connector.
 
 Requires the bundle's BICC env vars set in the AIDP secrets (or pass inline):
-  - FUSION_BICC_BASE_URL  — e.g. https://saasfademo1-fa-ext.oracledemos.com
-  - FUSION_BICC_USER      — Casey.Brown
+  - FUSION_BICC_BASE_URL  — e.g. https://demo-pod-fa-ext.oracledemos.com
+  - FUSION_BICC_USER      — <fusion-user>
   - FUSION_BICC_PASSWORD  — vault-managed
   - FUSION_BICC_EXTERNAL_STORAGE — name of BICC External Storage profile
 """

@@ -31,7 +31,7 @@ PACK_ROOT = (
 )
 
 
-SAASFADEMO_BRONZE: dict[str, list[str]] = {
+DEMO_POD_BRONZE: dict[str, list[str]] = {
     "erp_suppliers": ["VENDORID", "SEGMENT1"],
     "ap_invoices": ["ApInvoicesInvoiceCurrencyCode", "ApInvoicesCancelledDate"],
     "gl_coa": [
@@ -53,7 +53,7 @@ def _mock_spark() -> MagicMock:
     def _sql(query: str):
         target = query.split()[-1]
         dataset = target.split(".")[-1]
-        cols = SAASFADEMO_BRONZE.get(dataset, [])
+        cols = DEMO_POD_BRONZE.get(dataset, [])
         df = MagicMock(name=f"df_{dataset}")
         df.collect.return_value = [_row(c) for c in cols]
         return df

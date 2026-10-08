@@ -296,3 +296,73 @@ def test_sql_lit_round_trips_quotes_and_backslashes(spark, value):  # noqa: F811
     ns = {"spark": spark}
     exec(NotebookGenerator()._parameters_cell(Mapping(name="m"), Session(name="s")), ns)  # noqa: S102
     assert spark.sql("SELECT " + ns["_sql_lit"](value) + " AS v").collect()[0]["v"] == value
+
+
+# ── Regressions found reviewing the fixes above ──────────────────────
+
+def test_an_apostrophe_in_a_comment_does_not_hide_a_table(spark, views):  # noqa: F811
+    """`/* customer's */` opened a fake literal that swallowed the JOIN after
+    it, so CUSTOMERS was never qualified and the join read whatever the
+    session's catalog called CUSTOMERS."""
+    sql = (
+        "SELECT o.ORDER_ID, c.NAME FROM ORDERS o /* customer's master */ "
+        "JOIN CUSTOMERS c ON o.CUST_ID = c.CUST_ID"
+    )
+    code = _code(_sq(sql=sql))
+    assert "JOIN oltp.app.customers c" in code
+    assert "customer's" not in code
+    rows = _run(spark, _sq(sql=sql, sources=views)).orderBy("ORDER_ID").collect()
+    assert [r["ORDER_ID"] for r in rows] == [1, 2, 4]
+
+
+def test_a_line_comment_or_an_unterminated_literal_is_refused():
+    """The override is put on one line, so `--` would comment out the rest
+    of the query in Spark."""
+    assert _refused(_sq(sql=JOIN_SQL + " -- open orders only"))
+    assert _refused(_sq(sql=JOIN_SQL + " WHERE c.NAME = 'unterminated"))
+
+
+def test_a_simple_override_keeps_its_distinct_and_order_by(spark, views):  # noqa: F811
+    """PowerCenter's Generate SQL writes Select Distinct and Sorted Ports
+    into the override. The single-table path keeps only the WHERE, and the
+    settings that used to restore them are now overridden by the SQL
+    Query, so such an override runs as written."""
+    lines = _sq(sql="SELECT DISTINCT ORDERS.CUST_ID FROM ORDERS", distinct=True,
+                sources=views)
+    assert "SELECT DISTINCT" in _code(lines)
+    assert sorted(r["CUST_ID"] for r in _run(spark, lines).collect()) == [10, 11, 99]
+    lines = _sq(sql="SELECT ORDERS.ORDER_ID FROM ORDERS ORDER BY ORDERS.ORDER_ID DESC",
+                sorted_ports=1, sources=views)
+    assert "ORDER BY" in _code(lines)
+    assert [r["ORDER_ID"] for r in _run(spark, lines).collect()] == [4, 3, 2, 1]
+
+
+def test_a_udj_column_with_a_hash_in_its_name_runs(spark):  # noqa: F811
+    """Oracle and PowerCenter allow # and $ in a column name; unquoted in
+    the select list, ORDER# was a ParseException."""
+    spark.createDataFrame([(1, 10), (2, 11)], "`ORDER#` int, CUST_ID int") \
+        .createOrReplaceTempView("sqh_orders")
+    spark.createDataFrame([(10, "Acme")], "CUST_ID int, NAME string") \
+        .createOrReplaceTempView("sqh_customers")
+    lines = _sq(udj="ORDERS.CUST_ID = CUSTOMERS.CUST_ID",
+                sources={"ORDERS": "sqh_orders", "CUSTOMERS": "sqh_customers"},
+                columns={"ORDERS": ["ORDER#", "CUST_ID"], "CUSTOMERS": ["CUST_ID", "NAME"]})
+    df = _run(spark, lines)
+    assert df.columns == ["ORDER#", "CUST_ID", "NAME"]
+    assert [tuple(r) for r in df.collect()] == [(1, 10, "Acme")]
+
+
+def test_a_udj_joining_on_a_hash_column_runs(spark):  # noqa: F811
+    """The select list was backquoted but the condition was not, so a UDJ
+    that JOINS on ORDER# -- the usual shape, an order number is the key --
+    was still a ParseException. Found in review of the fix above."""
+    spark.createDataFrame([(1, "A"), (2, "B")], "`ORDER#` int, STATUS string") \
+        .createOrReplaceTempView("sqk_orders")
+    spark.createDataFrame([(1, 10), (1, 11), (3, 12)], "`ORDER#` int, LINE_AMT int") \
+        .createOrReplaceTempView("sqk_lines")
+    lines = _sq(udj="ORDERS.ORDER# = LINES.ORDER# AND LINES.LINE_AMT > 10",
+                sources={"ORDERS": "sqk_orders", "LINES": "sqk_lines"},
+                columns={"ORDERS": ["ORDER#", "STATUS"], "LINES": ["ORDER#", "LINE_AMT"]})
+    df = _run(spark, lines)
+    assert df.columns == ["ORDER#", "STATUS", "LINE_AMT"]
+    assert [tuple(r) for r in df.collect()] == [(1, "A", 11)]

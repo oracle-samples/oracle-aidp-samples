@@ -41,7 +41,7 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "AIDP Informatica Migrator",
+    "displayName": "Oracle AIDP Migrator for Informatica",
     "shortDescription": "Self-contained Informatica to Oracle AIDP migrations from Codex.",
     "longDescription": "Migrate Informatica ETL onto Oracle AI Data Platform from Codex: mappings become PySpark notebooks, workflows become AIDP job definitions. The plugin bundles its Python engine and stages it to ~/.aidp-infa-migrator/engine on SessionStart, so no separate clone is required. Reads IDMC/IICS cloud mapping JSON and PowerCenter 10.x repository XML; 8.x and 9.x are refused by a version gate rather than mis-migrated. The compiler is deterministic and needs no model: 36 transformation types convert, 14 more are reported with a named reason and a rebuild path, and 72 Informatica expression functions are supported. An OpenAI key only widens what the rules cannot reach. Workflows carry the session dependency graph, Quartz schedules and a declarable timezone, with worklets expanded; tasks that have no AIDP equivalent are reported with their configured values rather than dropped. Reads and writes are catalog-addressed, so no JDBC URLs or credentials appear in a generated notebook. A construct the tool cannot convert faithfully becomes an explicit review item, never a silent approximation.",
     "developerName": "Oracle",

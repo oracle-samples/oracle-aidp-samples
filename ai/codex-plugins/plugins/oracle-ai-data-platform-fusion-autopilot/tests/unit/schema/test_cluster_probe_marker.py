@@ -34,7 +34,7 @@ from oracle_ai_data_platform_fusion_autopilot.schema.cluster_probe_marker import
 def _marker(**overrides) -> ClusterProbeMarker:
     base = dict(
         markerVersion=1,
-        tenant="saasfademo1",
+        tenant="demo-pod",
         bronzeFingerprint="sha256:abc123",
         observedSchema={"erp_suppliers": [{"name": "Segment1", "type": "string"}]},
         walkerResults=[
@@ -225,7 +225,7 @@ class TestClusterProbeEnvelope:
         restored = ClusterProbeEnvelope.model_validate(payload)
         assert restored.ok is True
         assert restored.marker is not None
-        assert restored.marker.tenant == "saasfademo1"
+        assert restored.marker.tenant == "demo-pod"
 
     def test_error_envelope_round_trip(self) -> None:
         envelope = ClusterProbeEnvelope(

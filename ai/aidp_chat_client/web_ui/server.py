@@ -61,7 +61,9 @@ def get_signer():
     return _cached_signer
 
 app = Flask(__name__, static_folder=".")
-CORS(app)
+# The proxy signs every request with the operator's OCI credentials and has no
+# login of its own, so it answers only the UI it serves unless told otherwise.
+CORS(app, origins=os.environ.get("AIDP_CORS_ORIGINS", "http://localhost:5001,http://127.0.0.1:5001").split(","))
 
 
 @app.route("/")
@@ -136,4 +138,5 @@ def chat():
 if __name__ == "__main__":
     logger.info("AIDP Agent Chat proxy -> %s", AGENT_URL)
     logger.info("Open http://localhost:5001 in your browser")
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    # Loopback by default: set AIDP_BIND_HOST=0.0.0.0 only behind an authenticating front door.
+    app.run(host=os.environ.get("AIDP_BIND_HOST", "127.0.0.1"), port=5001, debug=False)

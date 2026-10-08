@@ -61,7 +61,7 @@ read-only grant is a second guarantee.
   exact `SUM` over every decimal column **of the source**, at the source's
   scale on both sides. In connector mode the source total is computed in
   Snowflake (`sum("C")::VARCHAR`, one qualified pushdown per table) and the
-  target's by Spark over the Delta column, and the two are compared as exact
+  target's by Apache Spark over the Delta column, and the two are compared as exact
   decimals. Floats are never summed for equality, because float tolerance is
   wrong for money. A total past 38 digits cannot be held by either engine's
   SUM: that column is listed under `sums_not_comparable`, the other decimal

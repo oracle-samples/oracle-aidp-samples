@@ -23,6 +23,8 @@ Usage:
 """
 
 import base64
+import pathlib
+import os
 import json
 import time
 import uuid
@@ -132,8 +134,12 @@ def main() -> None:
     print(f"    -d '{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{{}}}}' \\")
     print(f"    https://{OAC_HOST}/api/mcp")
     print()
-    print("Full token (paste into curl):")
-    print(access_token)
+    token_path = pathlib.Path.home() / ".oac-mcp-token"
+    fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(access_token)
+    print(f"Full token written to {token_path} (mode 0600); paste from there rather than from this terminal.")
+    print(f"Token prefix: {access_token[:12]}...")
 
 
 if __name__ == "__main__":

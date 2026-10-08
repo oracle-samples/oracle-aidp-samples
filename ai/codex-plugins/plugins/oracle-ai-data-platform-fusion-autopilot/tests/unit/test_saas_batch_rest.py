@@ -24,7 +24,7 @@ from oracle_ai_data_platform_fusion_autopilot.extractors.saas_batch_rest import 
 # ---------------------------------------------------------------------------
 
 
-def _mock_session(auth: tuple[str, str] | None = ("Casey.Brown", "pwd")):
+def _mock_session(auth: tuple[str, str] | None = ("<fusion-user>", "pwd")):
     s = MagicMock()
     s.auth = auth
     return s
@@ -45,7 +45,7 @@ class TestGetTokenRelay:
         params = call.kwargs["params"]
         assert url == "https://my-pod.fa.example.com/saas-batch/security/tokenrelay"
         assert params == {
-            "username": "Casey.Brown",
+            "username": "<fusion-user>",
             "audience": "urn:opc:resource:fusion:pod:name=my-pod",
             "scope": "*",
         }

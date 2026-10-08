@@ -10,7 +10,7 @@ CREATE OR REPLACE TABLE fusion_catalog.gold.ar_aging
 USING DELTA
 AS
 WITH applied_per_invoice AS (
-    -- AR receipts in saasfademo1 don't always join 1:1 to invoices via
+    -- AR receipts in demo-pod don't always join 1:1 to invoices via
     -- TransactionId; we approximate by aggregating receipts per customer
     -- and netting against invoice totals. For pixel-perfect aging,
     -- ar_receipt_application_extract_pvo (if available) gives the exact

@@ -2,7 +2,7 @@
 
 Run the full Oracle AI Data Platform (AIDP) data-engineering surface from Codex in natural language.
 
-This plugin includes 37 AIDP-focused skills plus a bundled Spark SQL helper. It is self-contained for the common path: control-plane work uses the official `aidp` CLI or `oci raw-request`, and interactive Spark SQL/notebook cells use the staged helper at `~/.aidp/aidp_sql.py`. The AIDP MCP server is optional.
+This plugin includes 37 AIDP-focused skills plus a bundled Apache Spark SQL helper. It is self-contained for the common path: control-plane work uses the official `aidp` CLI or `oci raw-request`, and interactive Spark SQL/notebook cells use the staged helper at `~/.aidp/aidp_sql.py`. The AIDP MCP server is optional.
 
 ## Install
 

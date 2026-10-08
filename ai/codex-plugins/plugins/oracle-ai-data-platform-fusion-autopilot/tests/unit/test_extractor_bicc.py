@@ -19,7 +19,7 @@ class TestBuildOptionsDict:
         opts = build_options_dict(
             pvo,
             fusion_service_url="https://my-pod.fa.us-phoenix-1.oraclecloud.com",
-            username="Casey.Brown",
+            username="<fusion-user>",
             password="REDACTED",
             fusion_external_storage="my_external_storage",
         )
@@ -27,7 +27,7 @@ class TestBuildOptionsDict:
         assert opts == {
             "type": "FUSION_BICC",
             "fusion.service.url": "https://my-pod.fa.us-phoenix-1.oraclecloud.com",
-            "user.name": "Casey.Brown",
+            "user.name": "<fusion-user>",
             "password": "REDACTED",
             "schema": "Financial",                    # from PvoEntry.schema
             "fusion.external.storage": "my_external_storage",

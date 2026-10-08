@@ -47,7 +47,7 @@ task runs + output (`taskRuns` / task-run output under the run) for executed cod
 ## Authoring a job — TWO-STEP create→update (LIVE-VERIFIED 2026-06-10)
 **A job is created with a name-only body, then a second `update-job` call adds clusters + tasks.** A single
 POST that inlines `tasks`/`displayName` is **rejected** (`400 Invalid resource name` / `Invalid Task type`).
-Confirmed live on `aidp_skilltest` and via the official SDK sample `workflow_notebook_job_sample.py`.
+Confirmed live on `<aidp-instance>` and via the official SDK sample `workflow_notebook_job_sample.py`.
 
 - **Step 1 — create (name-only):** `POST …/workspaces/<ws>/jobs` with
   `{"name":"etl_daily.job","path":"/Workspace/Shared","maxConcurrentRuns":1}` → **201**, returns the job key.
@@ -140,7 +140,7 @@ inside a task, see `oidlUtils.notebook.run/exit` in `aidp-notebooks`.
 2. Build the task DAG (deps, schedule); show the user the JSON job spec **before** creating.
 3. `POST` to create, trigger a test run, poll the run to terminal, read task output.
 4. On failure, route to `aidp-spark-debugging` (logs + Spark UI) with the failing task run.
-5. Clean up test jobs (`DELETE …/jobs/{key}`) when validating.
+5. Offer to clean up test jobs (`DELETE …/jobs/{key}`) when validating — only jobs created in this session, listed first and deleted after explicit confirmation.
 
 ## Interactive SQL (only if a task needs a quick check)
 For ad-hoc Spark-SQL outside a job, use the bundled helper — no MCP required:

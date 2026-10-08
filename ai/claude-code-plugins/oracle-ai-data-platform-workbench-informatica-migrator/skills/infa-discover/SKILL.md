@@ -42,6 +42,7 @@ a password into chat.
 | `--port` | `6005` | |
 | `--user` | `INFA_USER` env var | |
 | `--password` | `INFA_PASSWORD` env var | |
+| — | `INFA_CA_BUNDLE` / `INFA_TLS_VERIFY` env vars | TLS verification is on by default. Point `INFA_CA_BUNDLE` at a corporate CA bundle; set `INFA_TLS_VERIFY=0` only for a self-signed lab host. |
 | `--repo` | `INFA_REPO` env var | Repository name |
 | `--domain` | `INFA_DOMAIN` env var | |
 | `--method` | `auto` | `auto`, `soap`, or `pmrep` — `auto` picks whichever is reachable |

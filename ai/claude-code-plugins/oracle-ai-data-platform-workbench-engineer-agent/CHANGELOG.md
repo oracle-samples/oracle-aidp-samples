@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+- Security: live-run notes in the CHANGELOG, `references/` and skills no longer carry the
+  test tenancy's name, Object Storage namespace, DataLake OCIDs or workspace and cluster ids.
+
 ## [0.5.0] — 2026-06-12 (session-token auth parity + Spark-metrics tooling + reliability hardening)
 
 - **Session-token (security_token) auth parity** — `scripts/aidp_sql.py` now runs cell execution under an
@@ -13,7 +18,7 @@ All notable changes to this plugin are documented here. Format loosely follows
   oci-CLI versions that write minimal session profiles without tenancy/user/fingerprint; on full session profiles
   the old code instead built a wrong api_key signer and 401'd — the fix is correct either way). LIVE-VERIFIED
   end-to-end: `SELECT 1` + a Spark-UI metric capture both `ok` under api_key (DEFAULT) AND session token
-  (OASECEAL), and 9 control-plane APIs return identical results under both. `references/oci-raw-request.md`
+  (the test tenancy), and 9 control-plane APIs return identical results under both. `references/oci-raw-request.md`
   documents the full session-token path as first-class; `aidp-engineer-bootstrap` notes DEFAULT may be either.
 - **Listing reliability** — fixed a false "0 jobs" on a 100+-job workspace (zsh unquoted-flag + a parser that
   rendered an error as an empty list). Hardened `aidp-pipelines` + `oci-raw-request.md`: paginate (100+/page),
@@ -91,7 +96,7 @@ Docs only; no skill/behavior change.
 ## [0.4.4] — 2026-06-12 (tester-feedback triage: doc + caveat hardening, live-reverified) — #1, @craxelfn
 
 Folded in findings from a fresh-instance test pass (`taha-test-agent`, us-ashburn-1), then re-verified the
-behaviors live against an established instance (`amitV2`): control-plane lake-scoped reads confirmed the
+behaviors live against an established instance (`<aidp-instance>`): control-plane lake-scoped reads confirmed the
 **5 default guardrails** (exact type/scope/action) and the empty `/models` catalog; the SQL engine confirmed
 `SELECT 1`, `ai_generate('openai.gpt-5.4')` working while `/models` is empty, the `SHOW TABLES` qualification,
 and that bare `CREATE TABLE` is **not** reproducible on an established instance. Docs/caveats only; no skill
@@ -256,7 +261,7 @@ unconfirmable wrappers stay verify-first.
 - **`aidp-ingest-file-to-table`** — documented limits (comma-only delimiter; no multi-line-JSON external tables).
 - **`references/dq-rules.md`** (new) + **`aidp-data-quality`** — persistable `.aidp/dq-rules.md` rule-set convention.
 
-**Live-validated on a brand-new instance (`aidp_skilltest`, oaseceal/IAD).** All 36 skills exercised end-to-end
+**Live-validated on a brand-new instance (`<aidp-instance>`, test tenancy/IAD).** All 36 skills exercised end-to-end
 with synthetic data + real resource creation: **21 PASS / 5 PARTIAL / 6 NA / 4 NOT_PROVISIONED / 0 FAIL**
 (NOT_PROVISIONED = agent-flow/KB writes gated by `AiFeatureStatus=None` on a fresh instance + git/bundle Preview;
 NA = composition/local skills). `ai_generate('openai.gpt-5.4', …)`, full Delta DDL/DML, table/view CRUD,
@@ -274,7 +279,7 @@ confirmed live. Two doc fixes from the test:
 
 A 21-agent capability audit (plugin vs the full AIDP surface) scored the 31-skill plugin ~73% — strong on the
 read/analyze core, materially incomplete on write-side SQL and the agentic/AI surface. Closed **all** P0/P1/P2
-gaps, **live-probe-first** on the disposable `aidp_agent_e2e` instance (`oaseceal`, api_key DEFAULT). Skill
+gaps, **live-probe-first** on the disposable `aidp_agent_e2e` instance (test tenancy, api_key DEFAULT). Skill
 count **31 → 36**.
 
 **New skills (5):**
@@ -316,7 +321,7 @@ verified live). The plugin already *optionally consumes* a local-stdio `aidp` MC
   the `FetchMcpObjects` / `TestMcpConnection` / `TestMcpExternalTool` introspection actions, the REST path, and
   a no-fabrication note (round-trip an existing flow to confirm the node-graph wrapper + per-auth credential
   fields). All field names grounded in the official SDK models; not invented.
-- **Verified live 2026-06-10:** `GET …/workspaces/<ws>/agentFlows` → **200** on `oaseceal` (IAD); every
+- **Verified live 2026-06-10:** `GET …/workspaces/<ws>/agentFlows` → **200** on the test tenancy (IAD); every
   `/mcp`,`/mcpServers`,`/remoteMcp` server path → 404 on both `20240831/dataLakes` and `20260430/aiDataPlatforms`.
   Recorded in `references/rest-endpoint-map.md`.
 
@@ -413,13 +418,13 @@ to be the **agent-skills layer on top of it**, replacing the private `ai-data-en
 ## [Unreleased] — 2026-06-09 (self-contained engine: live E2E on BOTH instances)
 
 ### Verified (no MCP, api_key DEFAULT only — proves the self-contained engine + portability)
-Ran end-to-end on **two AIDP instances** in tenancy `oaseceal` / us-ashburn-1, using ONLY
+Ran end-to-end on **two AIDP instances** in the test tenancy / us-ashburn-1, using ONLY
 `oci raw-request` (control plane) + `scripts/aidp_sql.py` (SQL) — no MCP, no `AIDP_SESSION`, no
 `ai-data-engineer-agent`:
 - **`tpcds`** — control plane: catalogs(4)/schemas(102)/tables(27)/workspaces(4)/clusters(3)/jobs(5)/
   roles(2)/shares/recipients/models all **200**. SQL via the helper: `status ok` for analyzing-data
   (count 28,800,991 + join), profiling, data-quality (0 grain dupes), and ai-sql (`ai_generate` ok).
-- **`AI_agentic_ahmed`** (`dcccq9jvbur9mflxwp8iad`) — control plane: catalogs(1)/schemas(2)/workspaces(3)/
+- **a second DataLake** (`<host>`) — control plane: catalogs(1)/schemas(2)/workspaces(3)/
   roles(3)/shares/recipients/models all **200**. SQL via the helper on a freshly-started cluster:
   `status ok` (`SELECT 1`, `spark.range`, Spark 3.5.0, `ai_generate('openai.gpt-5.4')` → OK).
 - **Cluster lifecycle (self-contained)**: started + stopped `disco_test_cluster` via
@@ -469,7 +474,7 @@ Ran end-to-end on **two AIDP instances** in tenancy `oaseceal` / us-ashburn-1, u
 - Signature differentiators: `aidp-federate`, `aidp-ai-sql`.
 - Provisioning: `aidp-workspace-admin`.
 
-### Live verification — 2026-06-09 (tenancy `oaseceal`, region us-ashburn-1, DataLake IAD, cluster `tpcds`)
+### Live verification — 2026-06-09 (the test tenancy, region us-ashburn-1, DataLake IAD, cluster `tpcds`)
 **Control-plane / MCP (verified):** `list_workspaces` (4), `list_catalogs` (4), `list_schemas` (102 in
 `default`), `list_tables`, `get_table` (`store_sales`, 23 cols), `get_default_cluster`, `list_clusters`
 (`tpcds` ACTIVE), `create_notebook` + `nb_create_session` (created + cleaned up), `list_roles` (2),
@@ -495,11 +500,11 @@ NotAuthorizedOrNotFound (not provisioned in this `20240831` tenancy).
 - `spark-debugging` ✅ Spark-UI proxy returned 20 real SQL executions with durations/status.
 - `notebooks` ✅ create notebook + kernel session + `nb_execute_code` round-trip (created & cleaned up).
 
-**Net:** end-to-end live test complete on tenancy `oaseceal` / us-ashburn-1 / `tpcds`. Remaining caveats:
+**Net:** end-to-end live test complete on the test tenancy / us-ashburn-1 / `tpcds`. Remaining caveats:
 `credentials` GET list-shape TBD (route 400); `git`/`bundles`/`agent-flows`(REST) not provisioned in this
 `20240831` tenancy; `mlops` MLflow shape not probed. See `references/rest-endpoint-map.md` → Verification log.
 
-### Second-instance retest — 2026-06-09 (DataLake `AI_agentic_ahmed`, host `dcccq9jvbur9mflxwp8iad…iad`, OCID `…amaaaaaaai22xpqascswsnjxzgudl4tsnyqj47pbqh2q3zd6dzkbrtrg5lia`, via the `aidp_ahmed` MCP alias)
+### Second-instance retest — 2026-06-09 (a second DataLake, host `<host>`, OCID `…<redacted>…`, via a second MCP alias)
 Confirms **multi-instance portability** — a *different* DataLake/OCID in the same tenancy behaves identically.
 - **Control-plane (MCP) ✅:** `list_workspaces` (3: egress_disco_v2, AIDP_private_test_to_ATP, agentic_flow),
   `list_catalogs` (1), `list_schemas` (default, oci_ai_models), `list_clusters` (2 USER, both STOPPED;
