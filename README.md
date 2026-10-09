@@ -157,6 +157,7 @@ Combines Delta liquid clustering with UniForm-generated Iceberg metadata for cro
 | Notebook | Description |
 |---|---|
 | [Slowly Changing Dimensions (SCD Type 2)](data-engineering/transformation/scd/slowly_changing_dimension_template.ipynb) | Track historical changes to dimension records using SCD Type 2 with Jinja2-templated merge logic. |
+| [Concurrent Writes to Native Iceberg Tables](data-engineering/transformation/iceberg/Iceberg_Concurrent_Writes.ipynb) | Concurrent appends and overlapping MERGE statements on native Iceberg tables, with a retry helper for commit conflicts. |
 | [Streaming — Energy Delta Liquid Clustering](data-engineering/transformation/streaming/energy_delta_streaming_liquid_clustering_demo.ipynb) | Real-time smart grid monitoring with streaming Delta tables, anomaly detection, and statistical baselines for energy consumption. |
 | [Streaming — Manufacturing Delta Liquid Clustering](data-engineering/transformation/streaming/manufacturing_delta_streaming_liquid_clustering_demo.ipynb) | Continuous ingestion and clustering of manufacturing sensor data using Spark Structured Streaming and Delta Lake. |
 
