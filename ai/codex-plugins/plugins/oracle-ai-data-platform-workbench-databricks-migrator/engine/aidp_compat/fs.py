@@ -29,6 +29,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+from aidp_compat.notebook_policy import assert_path_in_sandbox
+
 
 # â”€â”€ OCI Object Storage client (API key auth via CLI config file) â”€â”€
 # Used by all fs operations on oci:// paths. NEVER uses
@@ -140,6 +142,7 @@ class AIDPFileSystemUtils:
     def __init__(self, spark=None):
         self._spark = spark
         self._mounts = {}
+        self._mount_configs = {}   # mount_point -> extra_configs (in memory only, see mount())
         self._mount_config_file = os.environ.get(
             "AIDP_MOUNT_CONFIG",
             "/opt/aidp/config/mounts.json"
@@ -308,9 +311,14 @@ class AIDPFileSystemUtils:
         raise FileNotFoundError(f"Path not found: {translated}")
 
     def cp(self, src: str, dst: str, recurse: bool = False) -> bool:
-        """Copy a file or directory."""
+        """Copy a file or directory.
+
+        The destination must be inside the declared sandbox prefix
+        (``aidp_compat.notebook_policy``); otherwise ``PermissionError``.
+        """
         src_t = self._translate_path(src)
         dst_t = self._translate_path(dst)
+        assert_path_in_sandbox(dst_t, operation="dbutils.fs.cp")
         src_oci = _parse_oci_uri(src_t)
         dst_oci = _parse_oci_uri(dst_t)
 
@@ -414,9 +422,15 @@ class AIDPFileSystemUtils:
         return True
 
     def mv(self, src: str, dst: str, recurse: bool = False) -> bool:
-        """Move a file or directory (copy + delete source)."""
+        """Move a file or directory (copy + delete source).
+
+        Both the source (which is deleted) and the destination must be inside
+        the declared sandbox prefix; otherwise ``PermissionError``.
+        """
         src_t = self._translate_path(src)
         dst_t = self._translate_path(dst)
+        assert_path_in_sandbox(src_t, operation="dbutils.fs.mv")
+        assert_path_in_sandbox(dst_t, operation="dbutils.fs.mv")
         src_oci = _parse_oci_uri(src_t)
 
         if src_oci is None and _parse_oci_uri(dst_t) is None:
@@ -428,8 +442,13 @@ class AIDPFileSystemUtils:
         return True
 
     def rm(self, path: str, recurse: bool = False) -> bool:
-        """Remove a file or directory."""
+        """Remove a file or directory.
+
+        The path must be inside the declared sandbox prefix; otherwise
+        ``PermissionError`` (the refusal is recorded in the policy log).
+        """
         translated = self._translate_path(path)
+        assert_path_in_sandbox(translated, operation="dbutils.fs.rm")
         parsed = _parse_oci_uri(translated)
 
         if parsed is not None:
@@ -478,8 +497,12 @@ class AIDPFileSystemUtils:
         but AIDP's /Volumes FUSE mount can raise `VolumeFileAlreadyExistsException`
         (non-standard) when the directory exists. We pre-check + tolerate any
         "already exists" style error so the call behaves like dbutils.fs.mkdirs.
+
+        The path must be inside the declared sandbox prefix (it creates a
+        directory marker object / directory); otherwise ``PermissionError``.
         """
         translated = self._translate_path(path)
+        assert_path_in_sandbox(translated, operation="dbutils.fs.mkdirs")
         parsed = _parse_oci_uri(translated)
 
         if parsed is not None:
@@ -528,8 +551,9 @@ class AIDPFileSystemUtils:
             return f.read(max_bytes)
 
     def put(self, path: str, contents: str, overwrite: bool = False) -> bool:
-        """Write string contents to a file."""
+        """Write string contents to a file (inside the sandbox prefix only)."""
         translated = self._translate_path(path)
+        assert_path_in_sandbox(translated, operation="dbutils.fs.put")
         parsed = _parse_oci_uri(translated)
 
         if parsed is not None:
@@ -555,16 +579,18 @@ class AIDPFileSystemUtils:
 
         On AIDP, this adds a path mapping rather than a real FUSE mount.
         The mapping is stored in memory and optionally persisted to config.
+
+        ``extra_configs`` (Databricks passes credentials here) are kept on
+        this instance only; they are never written to the process
+        environment, which notebook code must not be able to populate or read.
         """
         self._mounts[mount_point] = source
         print(f"[AIDP] Mount registered: {mount_point} -> {source}")
         print(f"[AIDP] Note: This is a path mapping, not a FUSE mount.")
 
         if extra_configs:
-            # Store extra configs for credential reference
-            for key, val in extra_configs.items():
-                env_key = f"AIDP_MOUNT_{mount_point.replace('/', '_')}_{key}".upper()
-                os.environ[env_key] = str(val)
+            # Keep for credential reference, in memory only (keys, not values, are printable).
+            self._mount_configs[mount_point] = {str(k): str(v) for k, v in extra_configs.items()}
 
         return True
 

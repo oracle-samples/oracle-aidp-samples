@@ -2497,6 +2497,189 @@ def get_write_redirect_summary() -> Dict:
 
 
 # ============================================================
+# Notebook sandbox policy (kernel-side, aidp_compat.notebook_policy)
+# ============================================================
+# aidp_compat refuses to execute dbutils.notebook.run cells and refuses the
+# compat write helpers (dbutils.fs.rm/mv/cp/put/mkdirs, safe_io) until a
+# sandbox is declared: AIDP_SANDBOX_CATALOG / AIDP_SANDBOX_SCHEMA /
+# AIDP_SANDBOX_PREFIX. The write-redirect schema and bucket ARE the migration
+# sandbox, so the cluster bootstrap declares them, together with the staging
+# areas the migrator itself steers notebooks into (see _SANDBOX_STAGING_PREFIXES)
+# and the tool's own output directory. setdefault: an operator-provided value
+# wins and replaces the whole comma list. The first bootstrap freezes the
+# policy for the kernel (aidp_compat.notebook_policy is a one-shot snapshot).
+#
+# dbutils.secrets is restricted to the scope/key literals found while planning
+# the job's notebooks (AIDP_SECRET_SCOPES / AIDP_SECRET_KEYS, "none" until the
+# first task is planned). An operator-provided value wins there too.
+
+# FUSE / local paths the migration prompt rewrites notebook writes to:
+# /dbfs/x and dbfs:/x -> /Volumes/default/default/dbfs/x; torch / h5py /
+# sqlite -> /tmp then copy to /Volumes. Not OCI, never redirected, so they
+# must be declared or every such write in a child notebook is refused.
+_SANDBOX_STAGING_PREFIXES: Tuple[str, ...] = ("/Volumes/default/default/dbfs/", "/tmp/")
+
+
+def sandbox_prefixes(output_base: Optional[str] = None) -> List[str]:
+    """Sandbox prefix list for the kernel: redirect bucket, staging areas, output dir."""
+    prefixes = [f"oci://{_REDIRECT_BUCKET}@{_REDIRECT_NAMESPACE}/", *_SANDBOX_STAGING_PREFIXES]
+    if output_base and output_base.strip():
+        prefixes.append(output_base.strip().rstrip("/") + "/")
+    return prefixes
+
+
+# Planned dbutils.secrets references for the current job: scope -> keys ("*" =
+# a literal scope with a non-literal key). Accumulates across the job's tasks
+# (deps are processed before the tasks that %run them); reset per job.
+_planned_secret_refs: Dict[str, Set[str]] = {}
+_SECRET_METHODS = ("get", "getBytes", "list")
+
+
+def clear_planned_secret_refs() -> None:
+    _planned_secret_refs.clear()
+
+
+def _cell_sources(cells: List[Dict]) -> List[str]:
+    out = []
+    for c in cells or []:
+        if isinstance(c, dict) and c.get("cell_type", "code") == "code":
+            src = c.get("source", "")
+            out.append("".join(src) if isinstance(src, list) else str(src or ""))
+    return out
+
+
+def collect_secret_refs(sources: List[str]) -> Dict[str, Set[str]]:
+    """``*.secrets.get/getBytes(scope, key)`` and ``*.secrets.list(scope)`` literals.
+
+    Cells that do not parse (magics) are retried with ``%``/``!`` lines
+    dropped; cells that still do not parse contribute nothing.
+    """
+    refs: Dict[str, Set[str]] = {}
+
+    def _lit(node):
+        return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
+
+    for src in sources:
+        tree = None
+        for text in (src, "\n".join(l for l in src.splitlines() if not l.lstrip().startswith(("%", "!")))):
+            try:
+                tree = ast.parse(text)
+                break
+            except SyntaxError:
+                continue
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in _SECRET_METHODS
+                    and isinstance(node.func.value, ast.Attribute)
+                    and node.func.value.attr == "secrets"):
+                continue
+            params = {"scope": node.args[0] if node.args else None,
+                      "key": node.args[1] if len(node.args) > 1 else None}
+            for kw in node.keywords:
+                if kw.arg in params:
+                    params[kw.arg] = kw.value
+            scope = _lit(params["scope"])
+            if not scope:
+                continue  # dynamic scope: the operator must allowlist it explicitly
+            keys = refs.setdefault(scope.lower(), set())
+            if node.func.attr != "list":
+                key = _lit(params["key"])
+                keys.add(key.lower() if key else "*")
+    return refs
+
+
+def record_planned_secret_refs(cells: List[Dict]) -> Dict[str, Set[str]]:
+    """Fold the secret references of a task's cells into the job plan."""
+    for scope, keys in collect_secret_refs(_cell_sources(cells)).items():
+        _planned_secret_refs.setdefault(scope, set()).update(keys)
+    return _planned_secret_refs
+
+
+def secret_allowlists() -> Tuple[str, str]:
+    """(AIDP_SECRET_SCOPES, AIDP_SECRET_KEYS) values for the planned references ("none" when empty)."""
+    scopes = ",".join(sorted(_planned_secret_refs))
+    keys = ",".join(sorted(f"{s}/{k}" for s, ks in _planned_secret_refs.items() for k in ks))
+    return scopes or "none", keys or "none"
+
+
+def build_sandbox_policy_snippet(output_base: Optional[str] = None,
+                                 secret_scopes: Optional[str] = None,
+                                 secret_keys: Optional[str] = None) -> str:
+    """Kernel snippet declaring the write-redirect sandbox as the notebook policy.
+
+    Declares AIDP_SANDBOX_* (setdefault), the planned dbutils.secrets
+    allowlist (operator value wins; the previous planned value is replaced)
+    and freezes the policy via ``require_policy()``.
+    """
+    catalog, schema = _REDIRECT_TABLE_PREFIX.split(".", 1)
+    prefix = ",".join(sandbox_prefixes(output_base))
+    if secret_scopes is None:
+        secret_scopes, secret_keys = secret_allowlists()
+    lines = [
+        "import os as _os",
+        f"_os.environ.setdefault('AIDP_SANDBOX_CATALOG', {catalog!r})",
+        f"_os.environ.setdefault('AIDP_SANDBOX_SCHEMA', {schema!r})",
+        f"_os.environ.setdefault('AIDP_SANDBOX_PREFIX', {prefix!r})",
+        "def _aidp_declare_secret_allowlist(var, planned):",
+        "    # An operator-provided value wins; a value this tool planned earlier is replaced.",
+        "    marker = '_AIDP_PLANNED_' + var",
+        "    if _os.environ.get(var) in (None, _os.environ.get(marker)):",
+        "        _os.environ[var] = planned",
+        "        _os.environ[marker] = planned",
+        f"_aidp_declare_secret_allowlist('AIDP_SECRET_SCOPES', {secret_scopes!r})",
+        f"_aidp_declare_secret_allowlist('AIDP_SECRET_KEYS', {(secret_keys or 'none')!r})",
+        "from aidp_compat.notebook_policy import require_policy as _aidp_require_policy",
+        "_aidp_require_policy()",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+async def fetch_notebook_policy_log(session) -> List[Dict]:
+    """Pull the aidp_compat notebook-policy log from the kernel and clear it so
+    the next task starts clean. Entries are refusals, allowed exceptions and
+    sandbox declarations (notebook path, cell index, rule, target, remediation).
+    Returns [] when the kernel has no log or the probe fails."""
+    probe = (
+        "from aidp_compat.notebook_policy import policy_log_json as _aidp_plj, clear_policy_log as _aidp_plc\n"
+        "print('AIDP_POLICY_LOG=' + _aidp_plj()); _aidp_plc()"
+    )
+    try:
+        result = await session.execute(probe, timeout=30)
+        out = format_outputs(result.get("outputs", [])) or ""
+    except Exception as e:
+        tprint(f"[policy] WARN could not fetch notebook policy log: {str(e)[:120]}")
+        return []
+    marker = "AIDP_POLICY_LOG="
+    idx = out.find(marker)
+    if idx < 0:
+        return []
+    payload = out[idx + len(marker):].strip().split("\n", 1)[0]
+    try:
+        entries = json.loads(payload)
+    except json.JSONDecodeError:
+        return []
+    return entries if isinstance(entries, list) else []
+
+
+def render_notebook_policy_log(entries: List[Dict]) -> str:
+    """Markdown table for the test report (mirrors aidp_compat.notebook_policy.policy_log_markdown)."""
+    if not entries:
+        return ""
+    rows = ["| Event | Notebook | Cell | Rule | Target | Remediation |", "|---|---|---|---|---|---|"]
+    for e in entries:
+        cell = "" if e.get("cell_index") is None else str(e.get("cell_index"))
+        rows.append("| {ev} | `{nb}` | {cell} | {rule} | `{tgt}` | {rem} |".format(
+            ev=e.get("event", ""), nb=e.get("notebook_path") or "-", cell=cell,
+            rule=e.get("rule") or "-",
+            tgt=str(e.get("target", "")).replace("|", "\\|") or "-",
+            rem=str(e.get("remediation", "")).replace("|", "\\|") or "-",
+        ))
+    return "\n".join(rows) + "\n"
+
+
+# ============================================================
 # Source Writer-Wrapper Interceptors (runtime, kernel-side)
 # ============================================================
 #
@@ -5982,6 +6165,9 @@ async def process_notebook(
 
         nb, original_outputs, readable = parse_notebook(local_nb)
         cells = nb.get("cells", [])
+        # Planning: the dbutils.secrets scope/key literals of this task join
+        # the job's allowlist, which the per-task bootstrap declares below.
+        record_planned_secret_refs(cells)
         total_cells = len(cells)
         code_cells = sum(1 for c in cells if c.get("cell_type") == "code" and "".join(c.get("source", [])).strip())
         markdown_cells = sum(1 for c in cells if c.get("cell_type") == "markdown")
@@ -6143,6 +6329,11 @@ async def process_notebook(
                 "from aidp_compat import dbutils, displayHTML, sql, translate_path, set_notebook_dir\n"
                 # Set the notebook dir so dbutils.notebook.run("../relative") resolves correctly
                 + f"set_notebook_dir({notebook_dir!r})\n"
+                # Declare the write-redirect sandbox (+ staging prefixes, output
+                # dir) as the aidp_compat notebook policy and the planned
+                # dbutils.secrets allowlist; without it dbutils.notebook.run /
+                # compat writes refuse.
+                + build_sandbox_policy_snippet(OUTPUT_BASE)
                 + local_syspath_block
                 # (AIDP perf-config injection removed â€” we no longer set any
                 # spark.conf during migration or in the artifact, per request.)
@@ -7731,6 +7922,18 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                     test_report += f"- {c['kind']}: `{c['redirected']}` â† {c['originals']}. {c['note']}\n"
                 test_report += "\n"
 
+        # ── Notebook policy log (sandbox gate: refusals + allowed exceptions) ──
+        _pl = await fetch_notebook_policy_log(session)
+        if _pl:
+            test_report += "## Notebook Policy Log\n"
+            test_report += (
+                "Sandbox-gate events raised on the cluster by `aidp_compat.notebook_policy` during "
+                "this task (`dbutils.notebook.run` cells and compat write helpers). `refused` entries "
+                "did not execute; `allowed_exception` entries ran under a reviewed "
+                "`AIDP_NOTEBOOK_POLICY_ALLOW` rule; `sandbox_declared` records the sandbox identifiers.\n\n"
+            )
+            test_report += render_notebook_policy_log(_pl) + "\n"
+
         test_report += "## Cell Results\n"
         for cr in cell_results:
             ci = cr["cell"]
@@ -8939,6 +9142,8 @@ async def _process_job_inner(job: dict, session: AIDPSession) -> dict:
     # job starts with a clean slate (so two parallel migrations of
     # different jobs in the same Python process can't collide).
     clear_write_redirect_map()
+    # Same scope for the planned dbutils.secrets allowlist (per-task bootstrap).
+    clear_planned_secret_refs()
 
     tprint(f"\n{'='*60}")
     tprint(f"JOB: {job_name} ({len(job['tasks'])} tasks, {len(layers)} layers)")
@@ -9033,6 +9238,7 @@ async def _process_job_inner(job: dict, session: AIDPSession) -> dict:
                 _bootstrap_snippets = [
                     "from aidp_compat import dbutils, displayHTML, sql, translate_path",
                     f"import os; os.makedirs('{OUTPUT_BASE}', exist_ok=True)",
+                    build_sandbox_policy_snippet(OUTPUT_BASE),
                     build_oidlutils_bridge_snippet(OUTPUT_BASE, job_name),
                 ]
                 for _bs in _bootstrap_snippets:
@@ -9553,6 +9759,7 @@ async def main():
     _bootstrap_snippets = [
         "from aidp_compat import dbutils, displayHTML, sql, translate_path",
         f"import os; os.makedirs('{OUTPUT_BASE}', exist_ok=True)",
+        build_sandbox_policy_snippet(OUTPUT_BASE),
     ]
 
     async def _connect_and_bootstrap(cluster_id: str, job_name: str = "default"):

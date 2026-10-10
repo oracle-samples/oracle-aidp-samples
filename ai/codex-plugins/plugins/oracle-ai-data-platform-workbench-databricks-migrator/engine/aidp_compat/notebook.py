@@ -2,6 +2,13 @@
 AIDP Notebook Utils - Replacement for dbutils.notebook
 Uses the same exec()-based approach proven to work on AIDP
 (as used by the source workload's aidp_dbutils).
+
+Every cell passes the mandatory sandbox gate in ``aidp_compat.notebook_policy``
+before it is executed: a sandbox (catalog, schema, object-storage prefix,
+network posture) must be declared for the run, and each cell is AST-checked
+for environment reads, process/network imports, destructive filesystem calls
+and writes outside the sandbox. Refusals raise ``PermissionError`` naming the
+notebook, cell, rule and remediation, and are recorded in the policy log.
 """
 
 import os
@@ -9,6 +16,13 @@ import sys
 import json
 import nbformat
 from typing import Dict, Any, Optional
+
+from aidp_compat.notebook_policy import (
+    SandboxPolicy,
+    ScanContext,
+    enforce_cell_policy,
+    require_policy,
+)
 
 
 class NotebookExit(Exception):
@@ -65,9 +79,13 @@ class _EntryPoint:
 class AIDPNotebookUtils:
     """Drop-in replacement for dbutils.notebook."""
 
-    def __init__(self, spark=None, workspace_root: str = "/Workspace"):
+    def __init__(self, spark=None, workspace_root: str = "/Workspace",
+                 policy: Optional[SandboxPolicy] = None):
         self._spark = spark
         self._workspace_root = workspace_root
+        # Explicit policy for this instance; otherwise the process-wide policy
+        # (set_sandbox_policy) or the AIDP_SANDBOX_* environment is used.
+        self._policy = policy
 
     @property
     def entry_point(self):
@@ -103,7 +121,16 @@ class AIDPNotebookUtils:
 
         Uses exec() on notebook cells - proven to work on AIDP.
         This matches the source workload's aidp_dbutils approach.
+
+        Raises:
+            SandboxUndeclaredError: no sandbox policy is declared (nothing runs).
+            PolicyViolation: a cell was refused by the notebook policy; the
+                message names the notebook path, cell index, rule id and
+                remediation. Cells before it have already executed.
         """
+        # Fail closed: the sandbox must be declared before anything executes.
+        policy = self._policy or require_policy()
+
         notebook_path = self._resolve_path(path)
 
         if not os.path.exists(notebook_path):
@@ -140,9 +167,13 @@ class AIDPNotebookUtils:
             except Exception as e:
                 print(f"[notebook.run] warning: could not set widget parameters: {e}")
 
+        # Import / shim aliases and string constants seen so far in this run,
+        # so `import os as o` in one cell still gates `o.environ` in the next.
+        scan_context = ScanContext()
+
         # Execute each code cell in the caller's namespace
         try:
-            for cell in nb.cells:
+            for cell_index, cell in enumerate(nb.cells):
                 if cell.cell_type == "code":
                     source = cell.source.strip()
 
@@ -153,7 +184,18 @@ class AIDPNotebookUtils:
                     if source.startswith("%") or source.startswith("!"):
                         continue
 
-                    exec(source, caller_globals)
+                    # Mandatory policy gate at the execution sink: parse the
+                    # cell and refuse anything that leaves the sandbox
+                    # (PermissionError with notebook path, cell index, rule,
+                    # remediation). Allowed exceptions are logged, not raised.
+                    enforce_cell_policy(
+                        source,
+                        notebook_path=notebook_path,
+                        cell_index=cell_index,
+                        policy=policy,
+                        context=scan_context,
+                    )
+                    exec(compile(source, notebook_path, "exec"), caller_globals)
 
         except NotebookExit as e:
             return str(e.value)

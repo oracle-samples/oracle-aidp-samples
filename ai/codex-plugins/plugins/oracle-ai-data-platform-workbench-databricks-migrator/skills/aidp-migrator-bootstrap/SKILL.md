@@ -149,3 +149,5 @@ Any FAIL row → emit the exact command the user needs to run to fix it. Do not 
 - This skill never modifies anything. It is read-only.
 - If the user is on a session token and it's about to expire (`oci session validate` shows <10 minutes remaining), warn them and suggest refresh BEFORE invoking a long-running skill like [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md).
 - Re-run after any change in region, DataLake, workspace, or cluster.
+- Secrets posture: `dbutils.secrets` on the cluster is OCI Vault-only (`AIDP_VAULT_OCID`). If the shell or cluster environment carries `AIDP_ALLOW_PLAINTEXT_SECRETS=1`, `AIDP_SECRET_*` or `AIDP_SECRETS_FILE`, flag it as a WARN row -- those are local-demo switches and must not reach a cluster that executes customer notebooks.
+- Sandbox posture: `job_migrate.py` declares `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` / `AIDP_SANDBOX_PREFIX` on the cluster automatically; a migrated notebook that is later scheduled outside the migrator must carry the same three variables or its `dbutils.notebook.run` / compat writes refuse (fail closed).
