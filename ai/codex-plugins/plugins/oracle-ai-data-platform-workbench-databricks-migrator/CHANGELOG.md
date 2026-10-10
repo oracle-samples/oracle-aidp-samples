@@ -19,10 +19,14 @@ All notable changes to this plugin are documented here. Format loosely follows [
   complete access key pair and session token) and init-script lines were echoed with their
   values; only the Hadoop cell masked, and the earlier entry here claiming otherwise was
   wrong. Masking is compiled into the cluster cells themselves (names containing KEY, SECRET,
-  TOKEN, PASSWORD, PASSPHRASE, CREDENTIAL, ENCRYPT, DECRYPT and any non-allowlisted `AWS_*`
-  variable; the s3a access / secret / session-token keys), so the value never leaves the
-  kernel, and anything shaped like an AWS access-key id is scrubbed from the returned text as
-  defence in depth. Importing the script no longer opens a cluster session.
+  TOKEN, PASSWORD, PASSPHRASE, CREDENTIAL, ENCRYPT, DECRYPT and any non-allowlisted name
+  containing AWS -- `AWS_*`, `AWSPASS`, `S3_AWS_SIGNATURE`; the s3a access / secret /
+  session-token keys), so the value never leaves the kernel, and anything shaped like an AWS
+  access-key id is scrubbed from the returned text as defence in depth. Init-script lines keep
+  only a name-shaped head (`export AWS_SECRET_ACCESS_KEY=<40 chars redacted>`, `echo <47
+  chars, rest redacted>`): a value-first `<secret>=key` line, an `echo <secret> > file`
+  command and an `aws_secret_access_key: <secret>` fragment print no value. Importing the
+  script no longer opens a cluster session.
 - **Mandatory notebook sandbox gate** (`engine/aidp_compat/notebook_policy.py`,
   SEC-AIDP-SAMPLES-005). `dbutils.notebook.run` refuses to execute anything until a sandbox
   (`AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` / `AIDP_SANDBOX_PREFIX`, or an explicit

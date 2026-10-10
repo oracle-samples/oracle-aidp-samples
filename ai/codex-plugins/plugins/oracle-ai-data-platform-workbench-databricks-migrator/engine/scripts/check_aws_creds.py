@@ -11,10 +11,14 @@ Values are never printed (SEC-NEW-DATABRICKS-02). A credential-like value
 is shown as ``<set, N chars>`` and nothing else; only documented non-secret
 settings (region, endpoint, provider class, ARNs, config-file paths) print
 in clear. Credential-like means: the name contains KEY, SECRET, TOKEN,
-PASSWORD, PASSWD, PASSPHRASE, CREDENTIAL, ENCRYPT or DECRYPT, or is an
-``AWS_*`` variable that is not in the non-secret allowlist (unknown
-``AWS_*`` names are masked, not shown). Init-script lines are printed as
-``<lhs>=<N chars redacted>``. The masking helpers are compiled into the
+PASSWORD, PASSWD, PASSPHRASE, CREDENTIAL, ENCRYPT or DECRYPT, or contains
+AWS anywhere (``AWS_*``, ``AWSPASS``, ``S3_AWS_SIGNATURE``) and is not in the
+non-secret allowlist -- an AWS-related name the allowlist does not know is
+masked, not shown. Init-script lines are printed as ``<name>=<N chars
+redacted>`` or ``<command> <N chars, rest redacted>``; a name is kept only
+when it is name-shaped, so a value-first ``<secret>=key`` line, an ``echo
+<secret>`` command and an ``aws_secret_access_key: <secret>`` fragment print
+no value either. The masking helpers are compiled into the
 cluster cells themselves, so the value never leaves the kernel; as defence
 in depth the returned text is additionally scrubbed of anything shaped
 like an AWS access-key id before it is printed here.
@@ -34,7 +38,7 @@ WORKSPACE_ROOT = "/Workspace"
 
 # ---------- masking policy (also shipped into the cluster cells) ----------
 
-#: Names that match a credential marker (or carry the AWS_ prefix) but are
+#: Names that match a credential marker (or contain AWS) but are
 #: documented non-secret AWS SDK settings: regions, paths, ARNs, switches.
 NON_SECRET_NAMES = frozenset({
     "AWS_REGION", "AWS_DEFAULT_REGION", "AWS_PROFILE", "AWS_DEFAULT_OUTPUT",
@@ -62,8 +66,8 @@ def is_secret_name(name):
     up = name.upper()
     if up in NON_SECRET_NAMES or up.endswith(NON_SECRET_SUFFIXES):
         return False
-    if up.startswith("AWS_"):
-        return True  # unknown AWS_* names default to masked
+    if "AWS" in up:
+        return True  # any AWS-related name the allowlist does not know is masked
     return any(m in up for m in SECRET_MARKERS)
 
 
@@ -77,18 +81,59 @@ def show(name, value):
     return mask(value) if is_secret_name(name) else value
 
 
+#: Shell words that may stand before the name in an assignment (``export X=``).
+ASSIGN_PREFIXES = frozenset({"export", "set", "setenv", "local", "declare",
+                             "readonly", "typeset", "env"})
+
+#: Shape of a word that is a *name* -- identifier, dotted config key, flag,
+#: comment marker or ``name:`` label -- rather than a value.
+_NAME_SHAPED = re.compile(r"^-{0,2}[A-Za-z_#][A-Za-z0-9_.:-]*$")
+
+
+def is_name_shaped(word):
+    """True when *word* may be printed in clear: it is identifier / dotted
+    key / flag shaped and not long *and* mixed-case the way an encoded value
+    is (``PlantedBareKeyValue``). Real names are upper-case (``AWS_...``),
+    lower-case (``fs.s3a.secret.key``), short, or flags (``-Dfs.s3a.secret.key``,
+    ``--secret-key``), which are names by construction."""
+    if not _NAME_SHAPED.match(word):
+        return False
+    if word.startswith("-"):
+        return True
+    return len(word) < 16 or word == word.lower() or word == word.upper()
+
+
 def redact_line(line):
-    """An init-script line with every value removed: keeps what is left of
-    the first ``=`` (``export AWS_SECRET_ACCESS_KEY``) or the first two words
-    of a command, and reports the rest as a length."""
+    """An init-script line with every value removed.
+
+    ``name=value`` keeps the name (``export AWS_SECRET_ACCESS_KEY``) and
+    reports the value as a length -- but only when the left-hand side is a
+    name or ``<prefix> <name>``; a value-first ``<secret>=key`` line or an
+    ``echo <secret>=x`` command has its left-hand side redacted too. Any
+    other line keeps its first word (the command or a ``name:`` label) and
+    reports the rest as a length, so ``echo <secret> > file`` and
+    ``aws_secret_access_key: <secret>`` print no value.
+    """
     s = line.strip()
     if "=" in s:
         lhs, rhs = s.split("=", 1)
-        return "%s=<%d chars redacted>" % (lhs.strip()[:80], len(rhs.strip()))
+        words = lhs.split()
+        tail = "=<%d chars redacted>" % len(rhs.strip())
+        if len(words) == 1 and is_name_shaped(words[0]):
+            return words[0][:80] + tail
+        if (len(words) == 2 and words[0].lower() in ASSIGN_PREFIXES
+                and is_name_shaped(words[1])):
+            return " ".join(words)[:80] + tail
+        if len(words) > 1 and is_name_shaped(words[0]):
+            return "%s <%d chars redacted>%s" % (words[0][:80], len(lhs.strip()), tail)
+        return "<%d chars redacted>%s" % (len(lhs.strip()), tail)
     words = s.split()
-    if len(words) <= 1:
-        return s[:80]
-    return "%s <%d chars, rest redacted>" % (" ".join(words[:2])[:80], len(s))
+    if not words:
+        return s
+    head = words[0][:80] if is_name_shaped(words[0]) else "<%d chars redacted>" % len(words[0])
+    if len(words) == 1:
+        return head
+    return "%s <%d chars, rest redacted>" % (head, len(s))
 
 
 def _mask_prelude():
@@ -96,12 +141,16 @@ def _mask_prelude():
     prints a value, so the cell and this module apply the same rules."""
     import inspect
     return "\n".join([
+        "import re",
         "NON_SECRET_NAMES = frozenset(%r)" % (sorted(NON_SECRET_NAMES),),
         "SECRET_MARKERS = %r" % (SECRET_MARKERS,),
         "NON_SECRET_SUFFIXES = %r" % (NON_SECRET_SUFFIXES,),
+        "ASSIGN_PREFIXES = frozenset(%r)" % (sorted(ASSIGN_PREFIXES),),
+        "_NAME_SHAPED = re.compile(%r)" % (_NAME_SHAPED.pattern,),
         inspect.getsource(is_secret_name),
         inspect.getsource(mask),
         inspect.getsource(show),
+        inspect.getsource(is_name_shaped),
         inspect.getsource(redact_line),
     ])
 
