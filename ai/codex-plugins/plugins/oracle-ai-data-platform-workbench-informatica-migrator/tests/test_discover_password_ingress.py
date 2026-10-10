@@ -438,6 +438,41 @@ def test_an_error_echoing_the_escaped_request_body_is_redacted(tmp_path, fake_cr
     assert "<Password>***</Password>" in caplog.text
 
 
+def test_redaction_installed_twice_still_redacts_the_traceback():
+    """Found by the full suite: a second install_redaction() used to stack
+    a second filter on the handler. The first filter rendered the
+    traceback with ITS secrets and nulled exc_info; the second then found
+    nothing left to render and the new password stayed in exc_text. One
+    filter per process, secrets accumulate, and an already-rendered
+    exc_text is redacted too."""
+    import sys
+    from infa2aidp.secret_ingress import install_redaction
+
+    root = logging.getLogger()
+    handler = logging.Handler()
+    root.addHandler(handler)
+    try:
+        install_redaction("an-earlier-secret")
+        flt = install_redaction(SECRET)
+        try:
+            raise RuntimeError(f"boom {SECRET} and an-earlier-secret")
+        except RuntimeError:
+            rec = logging.LogRecord("x", logging.ERROR, __file__, 1, "failed", (), sys.exc_info())
+        assert handler.filter(rec)      # the handler's whole filter chain, in order
+        assert SECRET not in (rec.exc_text or ""), "the second password leaked through the first filter's rendering"
+        assert "an-earlier-secret" not in (rec.exc_text or "")
+        assert REDACTED in rec.exc_text
+        assert [f for f in handler.filters if isinstance(f, RedactingFilter)] == [flt], \
+            "exactly one redacting filter on the handler, however many installs"
+        # a traceback some other handler already rendered is redacted as well
+        rec2 = logging.LogRecord("x", logging.ERROR, __file__, 1, "failed", (), None)
+        rec2.exc_text = f"Traceback...\nRuntimeError: boom {SECRET}"
+        assert flt.filter(rec2)
+        assert SECRET not in rec2.exc_text and REDACTED in rec2.exc_text
+    finally:
+        root.removeHandler(handler)
+
+
 def test_connection_config_repr_hides_the_password():
     cfg = InfaConnectionConfig(host="h", username="u", password=SECRET, repository="r")
     assert SECRET not in repr(cfg)

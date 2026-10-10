@@ -269,9 +269,15 @@ class RedactingFilter(logging.Filter):
     exception text -- before a handler formats it. Each secret is redacted
     in every spelling :func:`_secret_spellings` lists."""
 
-    def __init__(self, secrets) -> None:
+    def __init__(self, secrets=()) -> None:
         super().__init__()
-        spellings = {v for s in secrets if s for v in _secret_spellings(s)}
+        self._secrets: list = []
+        self.add(*secrets)
+
+    def add(self, *secrets: str) -> None:
+        """Redact *secrets* too, from now on."""
+        spellings = set(self._secrets)
+        spellings.update(v for s in secrets if s for v in _secret_spellings(s))
         # Longest first, so a secret that contains another is redacted whole.
         self._secrets = sorted(spellings, key=len, reverse=True)
 
@@ -307,22 +313,34 @@ class RedactingFilter(logging.Filter):
             record.args = tuple(self._scrub(a) for a in record.args)
         if record.exc_info and record.exc_info[1] is not None:
             # The traceback text is rendered from exc_info by the formatter;
-            # swap in a pre-rendered, redacted copy instead.
+            # render it here instead so it can be redacted below.
             import traceback
-            record.exc_text = self.redact("".join(traceback.format_exception(*record.exc_info)))
+            record.exc_text = "".join(traceback.format_exception(*record.exc_info))
             record.exc_info = None
+        if record.exc_text:
+            # Also covers a traceback another handler or filter rendered
+            # first -- the formatter caches it on the record, so an
+            # unredacted rendering would otherwise be reused as-is.
+            record.exc_text = self.redact(record.exc_text)
         return True
 
 
+#: The one filter :func:`install_redaction` maintains per process. Secrets
+#: accumulate in it: installing twice must not stack two filters on a
+#: handler, since the first would render the traceback with its own
+#: secrets and the second would find nothing left to render.
+_REDACTOR = RedactingFilter()
+
+
 def install_redaction(*secrets: str) -> RedactingFilter:
-    """Attach a :class:`RedactingFilter` for *secrets* to every handler on
-    the root logger (``logging.basicConfig`` installs exactly one) and
-    return it so callers can redact free text with the same rules."""
-    flt = RedactingFilter(secrets)
-    root = logging.getLogger()
-    for handler in root.handlers:
-        handler.addFilter(flt)
-    return flt
+    """Redact *secrets* from every handler on the root logger
+    (``logging.basicConfig`` installs exactly one) from now on, and return
+    the filter so callers can redact free text with the same rules."""
+    _REDACTOR.add(*secrets)
+    for handler in logging.getLogger().handlers:
+        if _REDACTOR not in handler.filters:
+            handler.addFilter(_REDACTOR)
+    return _REDACTOR
 
 
 def prepare_live_credentials(host: str, password_file: Optional[str],
