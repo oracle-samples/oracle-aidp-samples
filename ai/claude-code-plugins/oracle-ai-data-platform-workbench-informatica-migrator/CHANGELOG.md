@@ -61,26 +61,54 @@ packaged as a Claude Code plugin.
   stored or echoed. `--password-file <path>` is the file-based alternative:
   on POSIX a group- or world-readable file is refused (mode & 0o077 must be
   0); on Windows, where `st_mode` carries no such bits, the check is skipped
-  with a debug note rather than refusing every file. `INFA_PASSWORD` keeps
-  working. A host of the form `user:pass@host` is rejected, since it would
-  put the credential in every request URL and exception message.
+  with a debug note rather than refusing every file. The file may be UTF-8
+  with or without a BOM or UTF-16 with a BOM (what Notepad and PowerShell
+  write); a BOM is not read into the password, and a file that is not text
+  is a clear error naming the path. `INFA_PASSWORD` keeps working. Only a
+  bare hostname or address (with an optional `:port`) is accepted for
+  `--host`: `user:pass@host`, a `/` path, a `?` query or a `#` fragment
+  would each put the rest of the value into every request URL and
+  exception message. Option names must be spelled out in full --
+  `--password-fil <value>` is no longer prefix-matched to `--password-file`
+  (which turned the secret into a path and named it in the error) -- and
+  the values after an unrecognised option are masked as `***` in argparse's
+  error.
 - **Diagnostics never carry the password.** Once resolved, the password is
   redacted (`***`) from every log record -- message, arguments, exception
-  text -- so a library error that echoes a request URL or connection string
-  reaches the terminal without it, verbose or not. The connection config's
-  `repr` hides the password, the SOAP login no longer logs a session-id
-  prefix (a bearer credential), and every LoginRequest field is XML-escaped,
-  so a password containing `&` or `<` can neither break nor rewrite the
-  request. Success is reported as host, repository and the password's
-  *source* (`--password-file` / `INFA_PASSWORD`).
+  text -- in every spelling a transport gives it (raw, XML-escaped as in
+  the SOAP body, percent-encoded as in a URL, backslash-escaped as in
+  JSON), so a library error that echoes a request body, URL or connection
+  string reaches the terminal without it. Verbose mode no longer re-raises
+  the exception: the interpreter's own traceback printer bypasses every
+  logging filter, so `-v` logs the (redacted) traceback and exits 1
+  instead. The connection config's `repr` hides the password, the SOAP
+  login no longer logs a session-id prefix (a bearer credential), and every
+  LoginRequest field is XML-escaped, so a password containing `&` or `<`
+  can neither break nor rewrite the request. Success is reported as host,
+  repository and the password's *source* (`--password-file` /
+  `INFA_PASSWORD`).
 - **Generated notebooks are gated on credential literals.** The read-back
   validation that already catches notebooks which cannot run now also fails
-  one that embeds a credential: `password=`/`pwd=`/`token=`/`secret=`/
-  `api_key=` as a string literal (keyword, assignment, dict entry,
-  `.option()`/`.config()` pair), `user:pass@` or `jdbc:oracle:thin:user/pass@`
-  in a URL, `password=` in a connection string, an `Authorization:
-  Basic/Bearer` header. Runtime lookups (`os.environ[...]`, f-string holes,
-  secret-store calls) are not flagged. Such notebooks are listed in
+  one that embeds a credential: a string literal keyed by a credential name
+  -- any identifier with a `password`/`passwd`/`passphrase`/`pwd`/`secret`/
+  `token`/`api_key` segment, camelCase and `PASSWORD_PROD` included, unless
+  the next segment says it is a fact *about* a credential (`password_env`,
+  `token_url`, `PASSWORD_HASH`, `secret_ocid`) -- as a keyword, an
+  assignment (plain, annotated, augmented, tuple-unpacked, or through a
+  subscript such as `os.environ["ADW_PASSWORD"] = "..."`), a dict entry or
+  a setter-style `.option()`/`.config()`/`.set()` pair (positional or
+  `key=`/`value=`), adjacent-literal concatenation and bytes included;
+  `user:pass@` or `jdbc:oracle:thin:user/pass@` in a URL; `password=` /
+  `token=` in something shaped like a URL or connection string; an
+  `Authorization: Basic/Bearer` header. Runtime lookups (`os.environ[...]`,
+  f-string holes, secret-store calls) are not flagged, and neither is SQL:
+  a source-qualifier override such as `WHERE TOKEN = 1` is a column, not a
+  connection string, and no longer fails the run. Markdown cells, and code
+  cells that do not parse, go through a text form of the same rule, so a
+  password beside a syntax error or in a heading cell is still reported.
+  Usernames and hostnames are deliberately *not* a failing rule: they are
+  configuration, not secrets, and failing a migration on `user="ADMIN"`
+  would make the gate cry wolf. Such notebooks are listed in
   `reports/broken_notebooks.md` by line and shape -- never by value --
   the summary gains a `SECURITY:` line, `migrate` exits 1, and `demo.sh`'s
   verify step fails. A REVIEW REQUIRED refusal is exempt from the cannot-run

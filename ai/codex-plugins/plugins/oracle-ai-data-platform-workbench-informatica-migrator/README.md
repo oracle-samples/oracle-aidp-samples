@@ -308,16 +308,28 @@ Run `PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli <command> --help` for flag
 
 `discover` is the only command that authenticates to a live system. The
 repository password is read from `--password-file <path>` (a file only its
-owner can read -- `chmod 600`; on Windows the permission check is skipped) or
-from `INFA_PASSWORD` in the environment / `.env`. `--password <value>` is
-refused with exit code 2: a password on the command line is visible in `ps`,
-shell history, CI transcripts and pasted support commands. Diagnostics, verbose
-included, name the host, repository and where the password came from -- never
-the password or a connection string -- and a host of the form `user:pass@host`
-is rejected. `migrate` additionally fails (exit 1, `SECURITY:` line in the
-summary) if a generated notebook embeds a credential literal (`password=`,
-`token=`, `user:pass@` in a URL, an `Authorization` header); generated code
-reads credentials at runtime from the environment, never from source.
+owner can read -- `chmod 600`; on Windows the permission check is skipped; UTF-8
+with or without a BOM and UTF-16 with a BOM are all read correctly, so a file
+written by Notepad or PowerShell works as-is) or from `INFA_PASSWORD` in the
+environment / `.env`. `--password <value>` is refused with exit code 2: a
+password on the command line is visible in `ps`, shell history, CI transcripts
+and pasted support commands. Option names must be spelled out in full (no
+`--password-fil` prefix matching), and argparse's "unrecognized arguments"
+error masks the values it would otherwise echo. Diagnostics, verbose included,
+name the host, repository and where the password came from -- never the
+password or a connection string, in any of its spellings (raw, XML-escaped,
+percent-encoded); `-v` logs a redacted traceback rather than re-raising. Only a
+bare hostname or address is accepted for `--host` (`user:pass@host`, a path, a
+query or a fragment are rejected). `migrate` additionally fails (exit 1,
+`SECURITY:` line in the summary) if a generated notebook embeds a credential
+literal -- a string keyed by a credential name in any shape (`password=`,
+`os.environ["ADW_PASSWORD"] = "..."`, `dbPassword`, `.option(key=, value=)`),
+`user:pass@` in a URL, `password=`/`token=` in a connection string, an
+`Authorization` header -- in code, in a cell that does not parse, or in
+markdown. SQL that filters on a column called `TOKEN` or `PWD` is not a
+connection string and does not trip it. Usernames and hostnames are
+configuration, not secrets, and are deliberately not a failing rule. Generated
+code reads credentials at runtime from the environment, never from source.
 
 ### Deploying to AIDP
 
