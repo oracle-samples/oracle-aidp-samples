@@ -2497,6 +2497,71 @@ def get_write_redirect_summary() -> Dict:
 
 
 # ============================================================
+# Notebook sandbox policy (kernel-side, aidp_compat.notebook_policy)
+# ============================================================
+# aidp_compat refuses to execute dbutils.notebook.run cells and refuses the
+# compat write helpers (dbutils.fs.rm/mv/cp/put, safe_io) until a sandbox is
+# declared: AIDP_SANDBOX_CATALOG / AIDP_SANDBOX_SCHEMA / AIDP_SANDBOX_PREFIX.
+# The write-redirect schema and bucket ARE the migration sandbox, so the
+# cluster bootstrap declares them. setdefault: an operator-provided value
+# (e.g. an extra /Volumes staging prefix, comma-separated) wins.
+
+def build_sandbox_policy_snippet() -> str:
+    """Kernel snippet declaring the write-redirect sandbox as the notebook policy."""
+    catalog, schema = _REDIRECT_TABLE_PREFIX.split(".", 1)
+    prefix = f"oci://{_REDIRECT_BUCKET}@{_REDIRECT_NAMESPACE}/"
+    return (
+        "import os as _os\n"
+        f"_os.environ.setdefault('AIDP_SANDBOX_CATALOG', {catalog!r})\n"
+        f"_os.environ.setdefault('AIDP_SANDBOX_SCHEMA', {schema!r})\n"
+        f"_os.environ.setdefault('AIDP_SANDBOX_PREFIX', {prefix!r})\n"
+    )
+
+
+async def fetch_notebook_policy_log(session) -> List[Dict]:
+    """Pull the aidp_compat notebook-policy log from the kernel and clear it so
+    the next task starts clean. Entries are refusals, allowed exceptions and
+    sandbox declarations (notebook path, cell index, rule, target, remediation).
+    Returns [] when the kernel has no log or the probe fails."""
+    probe = (
+        "from aidp_compat.notebook_policy import policy_log_json as _aidp_plj, clear_policy_log as _aidp_plc\n"
+        "print('AIDP_POLICY_LOG=' + _aidp_plj()); _aidp_plc()"
+    )
+    try:
+        result = await session.execute(probe, timeout=30)
+        out = format_outputs(result.get("outputs", [])) or ""
+    except Exception as e:
+        tprint(f"[policy] WARN could not fetch notebook policy log: {str(e)[:120]}")
+        return []
+    marker = "AIDP_POLICY_LOG="
+    idx = out.find(marker)
+    if idx < 0:
+        return []
+    payload = out[idx + len(marker):].strip().split("\n", 1)[0]
+    try:
+        entries = json.loads(payload)
+    except json.JSONDecodeError:
+        return []
+    return entries if isinstance(entries, list) else []
+
+
+def render_notebook_policy_log(entries: List[Dict]) -> str:
+    """Markdown table for the test report (mirrors aidp_compat.notebook_policy.policy_log_markdown)."""
+    if not entries:
+        return ""
+    rows = ["| Event | Notebook | Cell | Rule | Target | Remediation |", "|---|---|---|---|---|---|"]
+    for e in entries:
+        cell = "" if e.get("cell_index") is None else str(e.get("cell_index"))
+        rows.append("| {ev} | `{nb}` | {cell} | {rule} | `{tgt}` | {rem} |".format(
+            ev=e.get("event", ""), nb=e.get("notebook_path") or "-", cell=cell,
+            rule=e.get("rule") or "-",
+            tgt=str(e.get("target", "")).replace("|", "\\|") or "-",
+            rem=str(e.get("remediation", "")).replace("|", "\\|") or "-",
+        ))
+    return "\n".join(rows) + "\n"
+
+
+# ============================================================
 # Writer-Wrapper Interceptors (runtime, kernel-side)
 # ============================================================
 #
@@ -6143,6 +6208,9 @@ async def process_notebook(
                 "from aidp_compat import dbutils, displayHTML, sql, translate_path, set_notebook_dir\n"
                 # Set the notebook dir so dbutils.notebook.run("../relative") resolves correctly
                 + f"set_notebook_dir({notebook_dir!r})\n"
+                # Declare the write-redirect sandbox as the aidp_compat notebook
+                # policy; without it dbutils.notebook.run / compat writes refuse.
+                + build_sandbox_policy_snippet()
                 + local_syspath_block
                 # (AIDP perf-config injection removed — we no longer set any
                 # spark.conf during migration or in the artifact, per request.)
@@ -7731,6 +7799,18 @@ WHEN TO REWIND: If this is attempt 7+ and the root cause appears to be upstream,
                     test_report += f"- {c['kind']}: `{c['redirected']}` ← {c['originals']}. {c['note']}\n"
                 test_report += "\n"
 
+        # ── Notebook policy log (sandbox gate: refusals + allowed exceptions) ──
+        _pl = await fetch_notebook_policy_log(session)
+        if _pl:
+            test_report += "## Notebook Policy Log\n"
+            test_report += (
+                "Sandbox-gate events raised on the cluster by `aidp_compat.notebook_policy` during "
+                "this task (`dbutils.notebook.run` cells and compat write helpers). `refused` entries "
+                "did not execute; `allowed_exception` entries ran under a reviewed "
+                "`AIDP_NOTEBOOK_POLICY_ALLOW` rule; `sandbox_declared` records the sandbox identifiers.\n\n"
+            )
+            test_report += render_notebook_policy_log(_pl) + "\n"
+
         test_report += "## Cell Results\n"
         for cr in cell_results:
             ci = cr["cell"]
@@ -9033,6 +9113,7 @@ async def _process_job_inner(job: dict, session: AIDPSession) -> dict:
                 _bootstrap_snippets = [
                     "from aidp_compat import dbutils, displayHTML, sql, translate_path",
                     f"import os; os.makedirs('{OUTPUT_BASE}', exist_ok=True)",
+                    build_sandbox_policy_snippet(),
                     build_oidlutils_bridge_snippet(OUTPUT_BASE, job_name),
                 ]
                 for _bs in _bootstrap_snippets:
@@ -9553,6 +9634,7 @@ async def main():
     _bootstrap_snippets = [
         "from aidp_compat import dbutils, displayHTML, sql, translate_path",
         f"import os; os.makedirs('{OUTPUT_BASE}', exist_ok=True)",
+        build_sandbox_policy_snippet(),
     ]
 
     async def _connect_and_bootstrap(cluster_id: str, job_name: str = "default"):

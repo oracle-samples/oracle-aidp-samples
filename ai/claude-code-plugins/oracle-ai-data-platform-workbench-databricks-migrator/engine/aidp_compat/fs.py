@@ -29,6 +29,8 @@ import subprocess
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+from aidp_compat.notebook_policy import assert_path_in_sandbox
+
 
 # ── OCI Object Storage client (API key auth via CLI config file) ──
 # Used by all fs operations on oci:// paths. NEVER uses
@@ -308,9 +310,14 @@ class AIDPFileSystemUtils:
         raise FileNotFoundError(f"Path not found: {translated}")
 
     def cp(self, src: str, dst: str, recurse: bool = False) -> bool:
-        """Copy a file or directory."""
+        """Copy a file or directory.
+
+        The destination must be inside the declared sandbox prefix
+        (``aidp_compat.notebook_policy``); otherwise ``PermissionError``.
+        """
         src_t = self._translate_path(src)
         dst_t = self._translate_path(dst)
+        assert_path_in_sandbox(dst_t, operation="dbutils.fs.cp")
         src_oci = _parse_oci_uri(src_t)
         dst_oci = _parse_oci_uri(dst_t)
 
@@ -414,9 +421,15 @@ class AIDPFileSystemUtils:
         return True
 
     def mv(self, src: str, dst: str, recurse: bool = False) -> bool:
-        """Move a file or directory (copy + delete source)."""
+        """Move a file or directory (copy + delete source).
+
+        Both the source (which is deleted) and the destination must be inside
+        the declared sandbox prefix; otherwise ``PermissionError``.
+        """
         src_t = self._translate_path(src)
         dst_t = self._translate_path(dst)
+        assert_path_in_sandbox(src_t, operation="dbutils.fs.mv")
+        assert_path_in_sandbox(dst_t, operation="dbutils.fs.mv")
         src_oci = _parse_oci_uri(src_t)
 
         if src_oci is None and _parse_oci_uri(dst_t) is None:
@@ -428,8 +441,13 @@ class AIDPFileSystemUtils:
         return True
 
     def rm(self, path: str, recurse: bool = False) -> bool:
-        """Remove a file or directory."""
+        """Remove a file or directory.
+
+        The path must be inside the declared sandbox prefix; otherwise
+        ``PermissionError`` (the refusal is recorded in the policy log).
+        """
         translated = self._translate_path(path)
+        assert_path_in_sandbox(translated, operation="dbutils.fs.rm")
         parsed = _parse_oci_uri(translated)
 
         if parsed is not None:
@@ -528,8 +546,9 @@ class AIDPFileSystemUtils:
             return f.read(max_bytes)
 
     def put(self, path: str, contents: str, overwrite: bool = False) -> bool:
-        """Write string contents to a file."""
+        """Write string contents to a file (inside the sandbox prefix only)."""
         translated = self._translate_path(path)
+        assert_path_in_sandbox(translated, operation="dbutils.fs.put")
         parsed = _parse_oci_uri(translated)
 
         if parsed is not None:
