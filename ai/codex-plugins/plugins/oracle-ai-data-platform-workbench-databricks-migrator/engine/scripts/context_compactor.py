@@ -13,10 +13,12 @@ import re
 from typing import List, Optional
 
 # The only filenames save_and_truncate ever produces: ``tool_<NNN>_<tool>.txt``
-# (zero-padded counter, tool names are identifiers). get_saved_output accepts
-# nothing else, so the model-supplied argument can never name a path
-# (SEC-AIDP-SAMPLES-DBX-NEW-01).
-SAVED_OUTPUT_NAME = re.compile(r"^tool_\d{3,}_[A-Za-z0-9_]+\.txt$")
+# (zero-padded ASCII counter, tool names are identifiers). get_saved_output
+# accepts nothing else, so the model-supplied argument can never name a path
+# (SEC-AIDP-SAMPLES-DBX-NEW-01). Anchored with ``\A``/``\Z`` and applied with
+# ``fullmatch`` so a trailing newline cannot slip past ``$``; ``[0-9]`` rather
+# than ``\d`` so non-ASCII decimal digits are refused as well.
+SAVED_OUTPUT_NAME = re.compile(r"\Atool_[0-9]{3,}_[A-Za-z0-9_]+\.txt\Z")
 
 # Result prefixes callers can test for. A policy refusal is final: the caller
 # must not keep searching other compactors for the same filename.
@@ -33,7 +35,7 @@ def validate_output_filename(filename) -> Optional[str]:
         return "path separators and relative segments are not allowed"
     if os.path.basename(filename) != filename or os.path.isabs(filename):
         return "only a bare filename is allowed"
-    if not SAVED_OUTPUT_NAME.match(filename):
+    if not SAVED_OUTPUT_NAME.fullmatch(filename):
         return "only tool output files named tool_<NNN>_<tool>.txt can be retrieved"
     return None
 
@@ -240,7 +242,7 @@ class ContextCompactor:
             names = os.listdir(self._base_dir)
         except OSError:
             return []
-        return sorted(n for n in names if SAVED_OUTPUT_NAME.match(n))
+        return sorted(n for n in names if SAVED_OUTPUT_NAME.fullmatch(n))
 
     def get_saved_output(self, filename: str) -> str:
         """

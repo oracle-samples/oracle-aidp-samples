@@ -65,7 +65,10 @@ All notable changes to this plugin are documented here. Format loosely follows [
   planted symlink cannot escape either), logs refusals and returns a
   `[context_compactor] Refused` string; `_handle_get_tool_output` validates before consulting
   any compactor and stops walking the compactor history on a refusal. "File not found" and
-  read errors no longer echo the host path or non-output files.
+  read errors no longer echo the host path or non-output files. The name allow-list is
+  anchored with `\A`/`\Z`, applied with `fullmatch` and restricted to ASCII digits, so a
+  newline-terminated name or one spelt with non-ASCII decimal digits is refused before any
+  filesystem access instead of reaching `open()`.
 - Added `engine/tests/` (pytest) covering these controls; `pytest.ini` scopes collection to
   them.
 

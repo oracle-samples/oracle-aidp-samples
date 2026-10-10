@@ -95,6 +95,12 @@ def test_path_like_names_refused(compactor, name):
     "tool_000_x.log",            # not .txt
     "tool_000_x y.txt",          # tool names are identifiers
     "tool_000_.txt",             # empty tool name
+    "tool_000_x.txt\n",          # trailing newline ('$' would accept it)
+    "tool_000_x.txt\r\n",        # CRLF-terminated
+    "\ntool_000_x.txt",          # leading newline
+    "tool_٠٠١_x.txt",  # Arabic-Indic digits ('\\d' would accept them)
+    "tool_０００_x.txt",  # fullwidth digits
+    "tool_000_é.txt",       # non-ASCII letter in the tool name
 ])
 def test_names_outside_the_saved_output_pattern_refused(compactor, name):
     with open(os.path.join(compactor._base_dir, "notes.txt"), "w", encoding="utf-8") as fh:
@@ -132,8 +138,23 @@ def test_validate_output_filename():
     validate = context_compactor.validate_output_filename
     assert validate("tool_003_run_on_cluster.txt") is None
     assert validate("tool_1234_x.txt") is None
-    for bad in ("../tool_003_x.txt", "/etc/passwd", "tool_003_x.txt/..", None, 3, b"tool_003_x.txt"):
+    for bad in ("../tool_003_x.txt", "/etc/passwd", "tool_003_x.txt/..", None, 3, b"tool_003_x.txt",
+                "tool_003_x.txt\n", "tool_٠٠٣_x.txt"):
         assert isinstance(validate(bad), str), bad
+
+
+def test_newline_terminated_name_refused_before_filesystem_access(compactor, monkeypatch):
+    compactor.save_and_truncate("run_on_cluster", LONG_RESULT)
+    opened = []
+    real_open = open
+
+    def recording_open(path, *args, **kwargs):
+        opened.append(path)
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", recording_open)
+    _assert_refused(compactor.get_saved_output("tool_000_run_on_cluster.txt\n"), compactor)
+    assert opened == [], "a refused name must never reach open()"
 
 
 # ---------------------------------------------------------------------------
@@ -202,3 +223,13 @@ def test_dispatch_get_tool_output_refuses_path(agent_module, compactor):
         "get_tool_output", {"filename": compactor.test_secret}, session=None, log_fn=None))
     assert result.startswith(REFUSED)
     assert MARKER not in result
+
+
+def test_dispatch_get_tool_output_refuses_newline_terminated_name(agent_module, compactor, monkeypatch):
+    calls = _spy(monkeypatch, compactor)
+    compactor.save_and_truncate("run_on_cluster", LONG_RESULT)
+    agent_module._compactor_history.append(compactor)
+    result = asyncio.run(agent_module._handle_tool_call(
+        "get_tool_output", {"filename": "tool_000_run_on_cluster.txt\n"}, session=None, log_fn=None))
+    assert result.startswith(REFUSED)
+    assert calls == [], "the handler must refuse before consulting any compactor"
