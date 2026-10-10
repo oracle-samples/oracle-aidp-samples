@@ -97,6 +97,26 @@ packaged as a Claude Code plugin.
   `AIDP_REGION`, which is interpolated into the deploy hostname, must be a
   single DNS label. Pinned by `tests/test_env_file_ingress.py`, including the
   hunter's end-to-end repro against the real SDK when it is installed.
+- **`discover` no longer sends the repository password over cleartext HTTP
+  (SEC-AIDP-SAMPLES-INFA-H3).** The Web Services Hub URL took its scheme
+  from the port number -- `https` only when the port was literally 7343 --
+  and the CLI default was `--port 6005` (the domain gateway, not a hub port
+  at all), so every documented invocation POSTed the `LoginRequest`, whose
+  body is the PowerCenter repository password, and every SessionId after it,
+  in the clear; `connect("auto")` then fell through to pmrep with the
+  password already on the wire, and the TLS-verification setting had nothing
+  to verify. The hub is now `https://` on every port, the CLI default is
+  `--port 7343`, `--wsh-url` / `INFA_WSH_URL` names an exact endpoint (any
+  port; an explicit `https://` URL is used as-is), and cleartext is an
+  explicit opt-in -- `--insecure-http` / `INFA_WSH_ALLOW_HTTP=1` -- that is
+  logged as a WARNING naming the host. Without it an `http://` hub is
+  refused *before* any request is made (`InsecureTransportError`, a
+  `ConnectionError`), and `--method auto` goes on to pmrep having sent
+  nothing, saying so at WARNING level. `skills/infa-discover/SKILL.md` and
+  `env.template` describe the flags. Pinned by `tests/test_wsh_cleartext.py`:
+  default and 7333/6005 configs build `https://` URLs, an `http://` URL
+  without the opt-in makes no request, auto mode still reaches pmrep, the
+  opt-in allows http with a warning, and the CLI/env wiring.
 - **The repository password no longer travels on the command line
   (SEC-AIDP-SAMPLES-002).** `discover --password <value>` is refused with
   exit code 2 and the message "Do not pass passwords in argv. Use

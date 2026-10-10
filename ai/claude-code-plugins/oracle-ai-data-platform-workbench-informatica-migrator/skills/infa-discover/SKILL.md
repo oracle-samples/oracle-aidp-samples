@@ -25,10 +25,19 @@ skip this and go straight to
 # (never on the command line, where they land in shell history and `ps`)
 PYTHONPATH=engine python3 -m infa2aidp.cli discover \
   --host <powercenter-host> \
-  --port 6005 \
+  --port 7343 \
   --method auto \
   -o ./crawl_output
 ```
+
+The Web Services Hub is reached over `https://` on every port -- the first
+SOAP call is the LoginRequest, whose body is the repository password. A hub
+on a non-standard HTTPS port takes `--wsh-url https://host:8443/wsh/services`
+(or `INFA_WSH_URL`). Informatica's own default hub is HTTP on 7333; sending
+the password over cleartext needs an explicit `--insecure-http` (or
+`INFA_WSH_ALLOW_HTTP=1`) and is logged as a WARNING -- without it the SOAP
+attempt is refused before anything is sent and `--method auto` goes on to
+pmrep. Only agree to `--insecure-http` for a lab host.
 
 `--user`/`--repo`/`--domain` exist as flags but the environment variables
 are the recommended form; never ask the user to paste a password into chat.
@@ -45,10 +54,12 @@ the password itself.
 | Flag | Default | Notes |
 |---|---|---|
 | `--host` | required | PowerCenter host |
-| `--port` | `6005` | |
+| `--port` | `7343` | Web Services Hub HTTPS port. 7333 is Informatica's HTTP port and needs `--insecure-http`. |
+| `--wsh-url` | `INFA_WSH_URL` env var | Exact hub URL (`https://host:8443/wsh/services`) when host:port is not enough. `https://` unless `--insecure-http`. |
+| `--insecure-http` | off (`INFA_WSH_ALLOW_HTTP=1`) | Allow cleartext `http://` to the hub. The repository password travels in the clear; logged as a WARNING. Lab hosts only. |
 | `--user` | `INFA_USER` env var | |
 | `--password-file` | `INFA_PASSWORD` env var | Path of an owner-only (`chmod 600`) file holding the password; group/world-readable files are refused on POSIX (check skipped on Windows). `--password <value>` is refused outright. |
-| — | `INFA_CA_BUNDLE` / `INFA_TLS_VERIFY` env vars | TLS verification is on by default. Point `INFA_CA_BUNDLE` at a corporate CA bundle; set `INFA_TLS_VERIFY=0` only for a self-signed lab host. |
+| — | `INFA_CA_BUNDLE` / `INFA_TLS_VERIFY` env vars | The hub is always `https://` (above) and the certificate is verified by default. Point `INFA_CA_BUNDLE` at a corporate CA bundle; set `INFA_TLS_VERIFY=0` only for a self-signed lab host. |
 | `--repo` | `INFA_REPO` env var | Repository name |
 | `--domain` | `INFA_DOMAIN` env var | |
 | `--method` | `auto` | `auto`, `soap`, or `pmrep` — `auto` picks whichever is reachable |

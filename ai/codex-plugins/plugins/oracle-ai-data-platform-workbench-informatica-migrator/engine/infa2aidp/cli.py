@@ -66,13 +66,12 @@ def _cmd_discover(args: argparse.Namespace) -> int:
 
     password, password_source = prepare_live_credentials(args.host, args.password_file)  # never argv
     cfg = InfaConnectionConfig(
-        host=args.host,
-        port=args.port,
+        host=args.host, port=args.port, password=password,
         username=args.user or os.environ.get("INFA_USER", ""),
-        password=password,
         repository=args.repo or os.environ.get("INFA_REPO", ""),
         domain=args.domain or os.environ.get("INFA_DOMAIN", ""),
         verify_tls=os.environ.get("INFA_CA_BUNDLE") or os.environ.get("INFA_TLS_VERIFY", "1") != "0",
+        wsh_url=args.wsh_url or os.environ.get("INFA_WSH_URL", ""), allow_insecure_http=args.insecure_http or os.environ.get("INFA_WSH_ALLOW_HTTP", "") == "1",
     )
     crawler = InformaticaCrawler(cfg)
     method = crawler.connect(method=args.method)
@@ -400,7 +399,9 @@ def _add_common(p: argparse.ArgumentParser) -> None:
 # (command, flags, kwargs) triples -- data-driven, so a new flag is one line, not a new elif branch. "version" takes none.
 _ARG_SPECS: list[tuple[str, tuple[str, ...], dict]] = [
     ("discover", ("--host",), dict(required=True, help="Informatica PowerCenter host")),
-    ("discover", ("--port",), dict(type=int, default=6005)),
+    ("discover", ("--port",), dict(type=int, default=7343, help="Web Services Hub port: 7343 is the HTTPS default, 7333 the HTTP one (needs --insecure-http)")),
+    ("discover", ("--wsh-url",), dict(default=None, metavar="URL", help="Exact Web Services Hub URL, e.g. https://host:8443/wsh/services (INFA_WSH_URL); must be https:// unless --insecure-http")),
+    ("discover", ("--insecure-http",), dict(action="store_true", help="Allow cleartext http:// to the Web Services Hub (INFA_WSH_ALLOW_HTTP=1) -- the repository password travels in the clear; lab hosts only")),
     ("discover", ("--user",), dict(default=None)),
     ("discover", ("--password",), dict(action=RejectPasswordArgv)),  # refused: argv leaks into ps/history/CI logs
     ("discover", ("--password-file",), dict(default=None, metavar="PATH", help="File holding the repository password (owner-only, chmod 600); else INFA_PASSWORD")),

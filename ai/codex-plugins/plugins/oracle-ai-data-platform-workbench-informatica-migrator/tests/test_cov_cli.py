@@ -42,7 +42,9 @@ class TestDispatcher:
         d = p.parse_args(["deploy", "-i", "x", "--dry-run"])
         assert d.dry_run and d.output is None and not d.overwrite
         disc = p.parse_args(["discover", "--host", "h"])
-        assert (disc.port, disc.method, disc.output) == (6005, "auto", "./crawl_output")
+        # 7343, the Web Services Hub HTTPS port: 6005 is the domain gateway, and the
+        # old http:// default sent the repository password in the clear (SEC-AIDP-SAMPLES-INFA-H3).
+        assert (disc.port, disc.method, disc.output) == (7343, "auto", "./crawl_output")
         r = p.parse_args(["rag", "stats"])
         assert (r.action, r.output) == ("stats", "rag_export.json")
 
@@ -471,7 +473,7 @@ class TestLineageAndDiscover:
         assert rc == 1                     # errors and nothing exported
         cfg = seen["cfg"]
         assert (cfg.host, cfg.port, cfg.username, cfg.password, cfg.repository) == (
-            "pc.example", 6005, "admin", "from-env", "REP")
+            "pc.example", 7343, "admin", "from-env", "REP")
         assert seen["method"] == "soap"
         assert seen["crawl"] == (os.path.join(str(tmp_path), "exported_xml"), ["SALES", "HR"], True)
         assert seen["report"] == os.path.join(str(tmp_path), "infa_inventory_report.md")

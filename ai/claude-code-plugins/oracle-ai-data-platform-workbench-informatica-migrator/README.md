@@ -321,6 +321,12 @@ connection string and does not trip it. Usernames and hostnames are
 configuration, not secrets, and are deliberately not a failing rule. Generated
 code reads credentials at runtime from the environment, never from source.
 
+The Web Services Hub is reached over `https://` on every port (default
+`--port 7343`; `--wsh-url` / `INFA_WSH_URL` for an exact endpoint): the first
+SOAP call is the LoginRequest and its body is the repository password. An
+`http://` hub is refused before anything is sent unless `--insecure-http` /
+`INFA_WSH_ALLOW_HTTP=1` is given, which is logged as a WARNING -- lab hosts only.
+
 ### Where `.env` is read from
 
 Settings come from the shell environment first, then `~/.infa2aidp/.env`, then a

@@ -5,7 +5,9 @@ or PMREP CLI to programmatically browse repository metadata and export mappings,
 workflows, and sessions as XML — eliminating manual export.
 
 Supported access methods (tried in order):
-  1. SOAP MetadataService — http://<host>:<port>/wsh/services/MetadataService
+  1. SOAP MetadataService — https://<host>:<port>/wsh/services/MetadataService
+     (https on every port; cleartext http only with an explicit opt-in --
+     the LoginRequest carries the repository password, SEC-AIDP-SAMPLES-INFA-H3)
   2. PMREP CLI — requires pmrep installed on the network
 
 NOTE: PowerCenter 10.x on-premises does NOT have a REST API for repository
@@ -44,11 +46,17 @@ logger = logging.getLogger(__name__)
 _WSH_NS = "http://www.informatica.com/wsh"
 
 
+class InsecureTransportError(ConnectionError):
+    """The Web Services Hub URL is plain ``http://`` and cleartext was not
+    opted into. Raised BEFORE any request is made: the first SOAP call is
+    the LoginRequest, and its body is the repository password."""
+
+
 @dataclass
 class InfaConnectionConfig:
     """Informatica PowerCenter connection configuration."""
     host: str
-    port: int = 7333                   # WSH default HTTP port (7343 for HTTPS)
+    port: int = 7343                   # WSH default HTTPS port (7333 is the HTTP one -- see allow_insecure_http)
     username: str = ""
     # repr=False: a config that ends up in a log line, an exception message
     # or a debugger must never print the password.
@@ -66,11 +74,27 @@ class InfaConnectionConfig:
     # TLS verification for the Web Services Hub: True, False, or the path
     # of a CA bundle (PEM) for a corporate CA. Default on.
     verify_tls: "bool | str" = True
+    # Cleartext HTTP to the Web Services Hub. Off (default): the auto-built
+    # URL is https:// on EVERY port and an http:// wsh_url is refused before
+    # the LoginRequest -- the repository password -- is sent. The scheme used
+    # to follow the port number (https only for 7343), so the CLI default and
+    # every documented invocation sent the password in the clear. On
+    # (--insecure-http / INFA_WSH_ALLOW_HTTP=1): http is allowed, with a
+    # WARNING naming the host. Lab hosts only.
+    allow_insecure_http: bool = False
 
     def __post_init__(self) -> None:
         # A host of the form user:secret@pc.example would put the credential
         # into every request URL, exception message and proxy log.
         reject_url_credentials(self.host, self.wsh_url)
+
+    def resolved_wsh_url(self) -> str:
+        """The Web Services Hub base URL: ``wsh_url`` as given, else built
+        from host and port -- ``https://`` unless cleartext was opted into."""
+        if self.wsh_url:
+            return self.wsh_url
+        proto = "http" if self.allow_insecure_http else "https"
+        return f"{proto}://{self.host}:{self.port}/wsh/services"
 
 
 @dataclass
@@ -151,6 +175,13 @@ class InformaticaCrawler:
                 self._access_method = m
                 logger.info("Connected via %s", m)
                 return m
+            except InsecureTransportError as exc:
+                # Nothing was sent. In auto mode the run goes on to pmrep,
+                # so say out loud why SOAP was not tried rather than burying
+                # it in a debug line under pmrep's own error.
+                last_error = exc
+                if len(methods) > 1:
+                    logger.warning("SOAP skipped: %s", exc)
             except Exception as exc:
                 last_error = exc
                 logger.debug("Method %s failed: %s", m, exc)
@@ -178,11 +209,24 @@ class InformaticaCrawler:
 
     def _connect_soap(self):
         """Connect via SOAP MetadataService LoginRequest."""
-        wsh = self.config.wsh_url
-        if not wsh:
-            proto = "https" if self.config.port == 7343 else "http"
-            wsh = f"{proto}://{self.config.host}:{self.config.port}/wsh/services"
-            self.config.wsh_url = wsh
+        wsh = self.config.resolved_wsh_url()
+        scheme = wsh.split("://", 1)[0].lower() if "://" in wsh else ""
+        if scheme != "https":
+            # Checked before the POST: requests sends headers and body right
+            # after the TCP handshake, so even a hub that would reject the
+            # call has already received the password by then.
+            if not self.config.allow_insecure_http:
+                raise InsecureTransportError(
+                    f"Refusing to send the repository password to {wsh} over cleartext "
+                    "HTTP. Give an https:// Web Services Hub URL (--wsh-url / "
+                    "INFA_WSH_URL), or opt in to cleartext for a lab host with "
+                    "--insecure-http / INFA_WSH_ALLOW_HTTP=1."
+                )
+            logger.warning(
+                "Sending the repository password to %s over cleartext HTTP "
+                "(--insecure-http / INFA_WSH_ALLOW_HTTP=1 is set)", self.config.host,
+            )
+        self.config.wsh_url = wsh
 
         # Login via MetadataService. Every field is XML-escaped: a password
         # containing & or < used to produce a malformed (or, for a crafted
