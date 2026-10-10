@@ -13,6 +13,29 @@ All notable changes to this plugin are documented here. Format loosely follows [
   temp file and asks for `kill <PID>` instead of `pkill -f`.
 - `check_aws_creds.py` reports whether an S3 secret is set and its last four characters,
   never the value.
+- **Mandatory notebook sandbox gate** (`engine/aidp_compat/notebook_policy.py`,
+  SEC-AIDP-SAMPLES-005). `dbutils.notebook.run` refuses to execute anything until a sandbox
+  (`AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` / `AIDP_SANDBOX_PREFIX`, or an explicit
+  `SandboxPolicy`) is declared, and AST-checks every non-magic cell before `exec`: process /
+  network imports, `os.environ` / `os.getenv` / `os.system` / `os.popen` / `os.exec*`,
+  `shutil.rmtree`, `eval` / `exec` / `compile` / `__import__`, `open()` on absolute paths
+  outside the prefix, and `dbutils.fs.rm/mv/cp/put`, `saveAsTable` / `insertInto`,
+  `df.write.*`, `spark.sql` DDL/DML whose literal target leaves the sandbox are refused with a
+  `PermissionError` naming notebook path, cell index, rule id and remediation. Non-literal
+  write targets are refused unless the rule id is listed in `AIDP_NOTEBOOK_POLICY_ALLOW`.
+  `dbutils.fs.rm/mv/cp/put` and the `safe_io` write helpers assert their target at runtime.
+  Refusals and allowed exceptions are recorded in a policy log that `job_migrate.py` renders
+  into each task's test report (**Notebook Policy Log**); the cluster bootstrap declares the
+  write-redirect schema/bucket as the sandbox automatically.
+- **Secrets shim is Vault-only by default** (`engine/aidp_compat/secrets.py`,
+  SEC-AIDP-SAMPLES-006). `AIDP_SECRET_*` environment scanning and the JSON file fallback
+  (now only via an explicit `AIDP_SECRETS_FILE`) happen only with
+  `AIDP_ALLOW_PLAINTEXT_SECRETS=1`; the file must be owner-only (`0600`) on POSIX (skipped
+  with a note on Windows); plaintext mode logs one `insecure plaintext secrets mode active`
+  line without values; `AIDP_SECRET_SCOPES` restricts `get` / `list` / `listScopes` to
+  allowlisted scopes and list operations never reveal values.
+- Added `engine/tests/` (pytest) covering both controls; `pytest.ini` scopes collection to
+  them.
 
 ## [0.2.0] - 2026-06-24
 

@@ -200,6 +200,48 @@ This plugin is the **Codex CLI** package for the AIDP Databricks Migration Toolk
 
 ---
 
+## Runtime safety: notebook sandbox policy and secrets
+
+The bundled `aidp_compat` layer that migrated notebooks import on the cluster enforces two
+fail-closed controls at runtime (in addition to the static cell analysis and write redirects
+the migrator applies while it drives the cluster):
+
+**Notebook sandbox policy** (`aidp_compat.notebook_policy`). `dbutils.notebook.run(...)` and
+the compat write helpers (`dbutils.fs.rm/mv/cp/put`, `safe_io.safe_*` writers) refuse to run
+until a sandbox is declared for the run:
+
+| Variable | Meaning |
+|---|---|
+| `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` | The only catalog.schema that table writes may target |
+| `AIDP_SANDBOX_PREFIX` | Object-storage prefix (`oci://bucket@ns/path/`) that path writes, `dbutils.fs` deletes/moves and absolute `open()` calls must stay under; comma list for an extra `/Volumes/...` staging area |
+| `AIDP_SANDBOX_ALLOW_NETWORK` | `1` permits network imports (`requests`, `socket`, `urllib`, `http.client`, `paramiko`); default off |
+| `AIDP_NOTEBOOK_POLICY_ALLOW` | Comma list of rule ids that are a reviewed exception (for example `NBP-TABLE-DYNAMIC` for a non-literal `saveAsTable` target) |
+| `AIDP_NOTEBOOK_POLICY_LOG` | Optional JSONL file that receives every refusal / allowed exception |
+
+`job_migrate.py` declares the write-redirect schema and bucket as the sandbox automatically on
+every cluster connect (an operator-provided value wins). Before each non-magic cell runs, the
+cell is parsed and refused with a `PermissionError` naming the notebook path, cell index, rule
+id and remediation if it imports `subprocess` / `socket` / `requests` / `urllib` /
+`http.client` / `ctypes` / `pty` / `paramiko`, touches `os.environ` / `os.getenv` /
+`os.system` / `os.popen` / `os.exec*`, calls `shutil.rmtree`, `eval` / `exec` / `compile` /
+`__import__`, opens an absolute path outside the prefix, or writes (`saveAsTable`,
+`insertInto`, `df.write.*`, `CREATE TABLE` / `INSERT` / `DROP` / `MERGE` / `DELETE` via
+`spark.sql`, `dbutils.fs.rm/mv/cp/put`) to a literal target outside the sandbox. Non-literal
+write targets are refused too unless their rule id is allowlisted. Refusals and allowed
+exceptions are recorded and rendered into each task's test report under
+**Notebook Policy Log**. Scheduled jobs that keep using `aidp_compat` after migration must
+declare the same variables in their environment.
+
+**Secrets** (`dbutils.secrets`). Lookups go to OCI Vault only (`AIDP_VAULT_OCID`, secret named
+`<scope>/<key>`). The plaintext demo fallbacks (`AIDP_SECRET_<SCOPE>_<KEY>` environment
+variables and the JSON file named by `AIDP_SECRETS_FILE`) are consulted only when
+`AIDP_ALLOW_PLAINTEXT_SECRETS=1`; the file must be owner-only (`0600`) on POSIX, and the shim
+logs one line (`insecure plaintext secrets mode active`, never a value) when the mode is on.
+`AIDP_SECRET_SCOPES=<scope,scope>` restricts which scopes `get` / `list` / `listScopes` may
+touch; list operations return names only.
+
+---
+
 ## Privacy
 
 This plugin **does not collect, store, transmit, or share any user data**. Everything runs locally against **your own** AIDP tenancy. Full statement: [`PRIVACY.md`](./PRIVACY.md).
