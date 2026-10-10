@@ -18,6 +18,7 @@ import sys
 import types
 
 import pytest
+from secret_files import temp_secret
 
 # The canonical stage sources. They live under engine/ because the shipped
 # artifact is now a generated notebook (see target/stage_notebooks.py) and
@@ -1516,7 +1517,8 @@ def test_the_one_migration_config_is_read_as_uploaded(source_helpers, tmp_path):
     cfg = tmp_path / "snowmig-config.yaml"
     cfg.write_text(json.dumps({
         "snowflake": {"account": "ACC", "warehouse": "WH", "database": "DB",
-                      "user": "u", "auth": "password", "password": "p"},
+                      "user": "u", "auth": "password",
+                      "password_path": temp_secret("p")},
         "aidp": {"datalake_ocid": "ocid1.aidataplatform.oc1..x"},
     }), encoding="utf-8")
     loaded = source_helpers.load_source_config(cfg)

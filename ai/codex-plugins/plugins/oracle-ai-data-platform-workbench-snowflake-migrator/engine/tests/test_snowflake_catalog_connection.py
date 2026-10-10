@@ -5,6 +5,7 @@ read at call time, never an inline value. A config file that ends up in a
 ticket or a commit then carries no credential.
 """
 import json
+import os
 
 import pytest
 
@@ -12,11 +13,12 @@ from target.snowflake_catalog_connection import (
     ConnectionConfigError, build_snowflake_connection_details,
     load_connection_config,
 )
+from secret_files import write_secret
 
 
 def _config(tmp_path, **overrides):
     key = tmp_path / "rsa.p8"
-    key.write_text("-----BEGIN PRIVATE KEY-----\nabc\n", encoding="utf-8")
+    write_secret(key, "-----BEGIN PRIVATE KEY-----\nabc\n")
     base = {"account": "ORG-ACC", "warehouse": "WH", "database": "SALES_DB",
             "user": "SVC", "auth": "keypair", "key_path": str(key)}
     base.update(overrides)
@@ -88,24 +90,34 @@ def test_a_schema_key_is_accepted_and_left_out_of_the_body(tmp_path):
     assert details["SNOWFLAKE_DATABASE_NAME"]
 
 
-def test_the_credential_may_be_inline_in_the_one_config_file(tmp_path):
-    """One file, everything in it -- the documented default."""
+def test_an_inline_credential_is_refused_with_the_path_field_to_use(tmp_path):
+    """SEC-AIDP-SAMPLES-001: the config travels, so a credential value in it
+    is refused here too -- the error names the `*_path` and not the value."""
     config = {"account": "ORG-ACC", "user": "SVC", "warehouse": "WH",
               "database": "DB", "auth": "keypair",
-              "private_key": "-----BEGIN PRIVATE KEY-----\nINLINE\n"}
-    details = build_snowflake_connection_details(config)
-    assert details["SNOWFLAKE_AUTHENTICATION_METHOD"] == "KeyPair"
-    assert "INLINE" in details["SNOWFLAKE_PRIVATE_KEY_CONTENT"]
+              "private_key": "-----BEGIN PRIVATE KEY-----\nINLINE-KEY\n"}
+    with pytest.raises(ConnectionConfigError, match="key_path") as caught:
+        build_snowflake_connection_details(config)
+    assert "INLINE-KEY" not in str(caught.value)
 
-    pw = build_snowflake_connection_details(
-        {**config, "auth": "password", "private_key": None,
-         "password": "inline-pw"})
-    assert pw["SNOWFLAKE_AUTHENTICATION_METHOD"] == "Basic"
-    assert pw["SNOWFLAKE_PASSWORD"] == "inline-pw"
+    with pytest.raises(ConnectionConfigError, match="password_path") as caught:
+        build_snowflake_connection_details(
+            {**config, "auth": "password", "private_key": None,
+             "password": "inline-pw"})
+    assert "inline-pw" not in str(caught.value)
+
+
+@pytest.mark.skipif(os.name == "nt",
+                    reason="POSIX mode bits; Windows files inherit the profile ACL")
+def test_a_credential_file_others_can_read_is_refused(tmp_path):
+    config = _config(tmp_path)
+    os.chmod(config["key_path"], 0o644)
+    with pytest.raises(ConnectionConfigError, match="readable by others"):
+        build_snowflake_connection_details(config)
 
 
 def test_keypair_with_neither_inline_nor_path_is_refused(tmp_path):
-    with pytest.raises(ConnectionConfigError, match="private_key"):
+    with pytest.raises(ConnectionConfigError, match="key_path"):
         build_snowflake_connection_details(
             {"account": "A", "user": "U", "warehouse": "W", "database": "D",
              "auth": "keypair"})
@@ -113,7 +125,7 @@ def test_keypair_with_neither_inline_nor_path_is_refused(tmp_path):
 
 def test_password_auth_reads_the_password_file(tmp_path):
     secret = tmp_path / "pw"
-    secret.write_text("hunter2\n", encoding="utf-8")
+    write_secret(secret, "hunter2\n")
     details = build_snowflake_connection_details(
         _config(tmp_path, auth="password", password_path=str(secret)))
     assert details["SNOWFLAKE_AUTHENTICATION_METHOD"] == "Basic"
@@ -148,7 +160,10 @@ def test_keypair_without_a_key_path_is_refused(tmp_path):
         build_snowflake_connection_details(config)
 
 
-def test_an_unreadable_credential_file_names_the_path(tmp_path):
-    with pytest.raises(ConnectionConfigError, match="private key not readable"):
+def test_an_unreadable_credential_file_names_the_file(tmp_path):
+    """By its basename: the directory may name a user, a host or a store."""
+    with pytest.raises(ConnectionConfigError, match="not readable") as caught:
         build_snowflake_connection_details(
             _config(tmp_path, key_path=str(tmp_path / "gone.p8")))
+    assert "gone.p8" in str(caught.value)
+    assert str(tmp_path) not in str(caught.value)

@@ -35,6 +35,7 @@ import pytest
 from fake_pushdown import FakeLakeSpark, FakeSnowflake
 from test_data_migration_scripts import _CatalogSpark, _inject_spark, _load
 from test_structure_views import _ViewSpark
+from secret_files import temp_secret
 
 D = decimal.Decimal
 MV = "MV_ORDER_TOTALS"
@@ -89,7 +90,7 @@ def _estate(tmp_path, *, mv_listed_as="views"):
     config = tmp_path / "source.json"
     config.write_text(json.dumps({"snowflake": {
         "account": "acct", "warehouse": "WH", "database": "SNOWMIG_DB",
-        "user": "svc", "auth": "password", "password": "p",
+        "user": "svc", "auth": "password", "password_path": temp_secret("p"),
         "schema": "CORE"}}), encoding="utf-8")
     return reports, config
 

@@ -10,6 +10,7 @@ import snowmig
 from target import provisioning
 from target.provisioning import ProvisionTransportError
 from test_provisioning import Fake
+from secret_files import write_secret
 
 
 OCID = "ocid1.aidataplatform.oc1.iad.fakefakefakefake"
@@ -101,7 +102,8 @@ _FAKE_PASSWORD = "FAKE-PASSWORD-not-real-123"
 def _source_config(tmp_path, **snowflake):
     import yaml
     block = {"account": "ACME-TEST", "user": "READER", "warehouse": "WH",
-             "database": "DB", "auth": "password", "password": _FAKE_PASSWORD}
+             "database": "DB", "auth": "password",
+             "password_path": write_secret(tmp_path / "pw", _FAKE_PASSWORD)}
     block.update(snowflake)
     block = {k: v for k, v in block.items() if v is not None}
     cfg = tmp_path / "snowmig-config.yaml"
@@ -136,22 +138,30 @@ def test_the_execute_path_uploads_only_the_block_and_says_so(
     body = json.loads(fake.contents[
         "backup-snowflake-migration/plan/snowmig-config.json"]["body"])
     assert set(body) == {"snowflake"} and "datalake_ocid" not in json.dumps(body)
+    # SEC-AIDP-SAMPLES-001: the block names the credential file on the
+    # mount; the file went up beside it; the value is in neither the block
+    # nor the console.
+    secret_remote = "backup-snowflake-migration/plan/snowmig-config.password_path"
+    assert body["snowflake"]["password_path"] == f"/Workspace/{secret_remote}"
+    assert _FAKE_PASSWORD not in json.dumps(body)
+    assert fake.contents[secret_remote]["body"] == _FAKE_PASSWORD
     err = capsys.readouterr().err
     assert "CREDENTIAL ON THE WORKSPACE MOUNT" in err and "holds" in err
+    assert secret_remote in err and _FAKE_PASSWORD not in err
 
 
-def test_a_path_form_secret_is_refused_by_the_cli_before_anything_is_written(
+def test_an_inline_secret_is_refused_by_the_cli_before_anything_is_written(
         tmp_path, monkeypatch, capsys):
-    pem = tmp_path / "rsa_key.p8"
-    pem.write_text("-----BEGIN PRIVATE KEY-----\nFAKE\n", encoding="utf-8")
-    cfg = _source_config(tmp_path, auth="keypair", key_path=str(pem),
-                         password=None)
+    cfg = _source_config(tmp_path, auth="keypair",
+                         private_key="-----BEGIN PRIVATE KEY-----\nFAKE\n",
+                         password_path=None)
     fake = Fake()
     _install(monkeypatch, fake)
     rc = _provision(tmp_path, "--source-config", str(cfg), "--execute")
     assert rc == 1
     err = capsys.readouterr().err
-    assert "key_path" in err and "inline" in err.lower()
+    assert "`private_key`" in err and "`key_path`" in err
+    assert "FAKE" not in err
     assert fake.ops == []
     assert not (tmp_path / "provision_result.json").exists()
 

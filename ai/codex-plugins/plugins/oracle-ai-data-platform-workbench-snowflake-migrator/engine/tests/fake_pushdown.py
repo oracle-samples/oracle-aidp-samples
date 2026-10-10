@@ -30,6 +30,7 @@ import decimal
 import json
 import re
 import threading
+from secret_files import temp_secret
 
 _IDENT = r'"(?:[^"]|"")*"'
 _QUALIFIED = re.compile(rf'({_IDENT})\.({_IDENT})\.({_IDENT})')
@@ -384,5 +385,5 @@ def source_for(spark, database="SNOWMIG_DB", schema="TYPES"):
     from dataplane.snowmig_source import SnowflakeSource
     return SnowflakeSource(spark, config={
         "account": "acct", "warehouse": "WH", "database": database,
-        "user": "svc", "auth": "password", "password": "p",
+        "user": "svc", "auth": "password", "password_path": temp_secret("p"),
         "schema": schema})

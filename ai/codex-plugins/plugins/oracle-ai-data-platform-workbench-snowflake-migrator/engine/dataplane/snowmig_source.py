@@ -28,23 +28,34 @@ provided`), which is how these were established.
 
 Credentials come from a CONFIG FILE, never from arguments: the same rule the
 control plane follows. Point --source-config at a JSON file shaped like
-snowmig-config.example.yaml (JSON, on the workspace mount).
+snowmig-config.example.yaml (JSON, on the workspace mount). The config names
+the credential FILES (`key_path`, `password_path`, ...) that `provision
+--source-config` placed beside it; it never holds a credential value.
 """
 from __future__ import annotations
 
 import gzip
 import hashlib
 import json
+import os
 import pathlib
 import re
+import stat
 
 __all__ = ["SOURCE_MODES", "SourceConfigError", "SnowflakeSource",
            "write_step_output", "read_plan_json",
-           "load_source_config"]
+           "load_source_config", "read_secret_file", "WORKSPACE_MOUNT"]
 
 SOURCE_MODES = ("connector", "external-catalog")
 
 AIDP_FORMAT = "aidataplatform"
+
+# Where the workspace is mounted on a cluster. A file there reports the
+# mode bits the MOUNT gives it, not ones the operator set, and who can read
+# it is decided by workspace membership -- so the owner-only check below
+# does not apply to it. Anywhere else (a laptop running these helpers, a
+# path outside the mount) the check holds.
+WORKSPACE_MOUNT = "/Workspace/"
 
 
 # The verbs this transport may send. Deliberately narrower than the
@@ -302,6 +313,38 @@ def read_report_json(path: pathlib.Path) -> dict:
                      f"overwritten -- inspect it before re-running")
 
 
+def read_secret_file(path: str | pathlib.Path, field: str) -> str:
+    """The stripped text of a credential file the config names.
+
+    Off the workspace mount, on POSIX, a file that its group or others can
+    read (mode & 0o077) is refused with the chmod that fixes it. On the
+    mount the mode is the mount's (see WORKSPACE_MOUNT), and on Windows
+    `st_mode` says nothing about who can read a file, so neither is
+    checked. Only the file's basename reaches an error.
+    """
+    p = pathlib.Path(str(path)).expanduser()
+    try:
+        st = p.stat()
+    except OSError as exc:
+        raise SourceConfigError(
+            f"`{field}` points at {p.name}, which is not readable: "
+            f"{exc.strerror}") from exc
+    on_mount = p.as_posix().startswith(WORKSPACE_MOUNT)
+    if os.name != "nt" and not on_mount:
+        mode = stat.S_IMODE(st.st_mode)
+        if mode & 0o077:
+            raise SourceConfigError(
+                f"`{field}` {p.name} is readable by others (mode "
+                f"{mode:04o}); a credential file must be owner-only. Fix: "
+                f"chmod 600 {p.name}")
+    try:
+        return p.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise SourceConfigError(
+            f"`{field}` points at {p.name}, which is not readable: "
+            f"{exc.strerror}") from exc
+
+
 def load_source_config(path: str | pathlib.Path) -> dict:
     """Read the Snowflake connection config (JSON) from the workspace."""
     p = pathlib.Path(path).expanduser()
@@ -405,16 +448,21 @@ class SnowflakeSource:
         if cfg.get("role"):
             opts["role"] = str(cfg["role"]).strip()
 
-        # A secret may be inline in the one config file, or in a file the
-        # config points at. On a cluster the inline form is usually the only
-        # one available, since the workspace mount carries the config but not
-        # the operator's home directory.
+        # A credential is a FILE the config names (`key_path`,
+        # `password_path`, `key_passphrase_path`); `provision
+        # --source-config` places those files on the workspace mount beside
+        # the config and rewrites the paths to the mount's. An inline value
+        # is refused: the config travels, and a secret in it travels with
+        # it (SEC-AIDP-SAMPLES-001).
         def secret(inline, path_field):
             if cfg.get(inline):
-                return str(cfg[inline])
+                raise SourceConfigError(
+                    f"`{inline}` may not be set inline in the source config; "
+                    f"put the value in its own file and name it with "
+                    f"`{path_field}` instead. `provision --source-config` "
+                    f"places that file on the mount with the config.")
             if cfg.get(path_field):
-                return pathlib.Path(
-                    str(cfg[path_field])).expanduser().read_text(encoding="utf-8").strip()
+                return read_secret_file(cfg[path_field], path_field)
             return None
 
         auth = str(cfg["auth"]).strip().lower()
@@ -422,7 +470,7 @@ class SnowflakeSource:
             key = secret("private_key", "key_path")
             if not key:
                 raise SourceConfigError(
-                    "auth: keypair needs `private_key` (inline) or `key_path`")
+                    "auth: keypair needs `key_path` (a file holding the PEM)")
             opts["authentication.method"] = "KeyPair"
             opts["private.key.content"] = key
             passphrase = secret("key_passphrase", "key_passphrase_path")
@@ -432,8 +480,8 @@ class SnowflakeSource:
             password = secret("password", "password_path")
             if not password:
                 raise SourceConfigError(
-                    "auth: password needs `password` (inline) or "
-                    "`password_path`")
+                    "auth: password needs `password_path` (a file holding "
+                    "the password)")
             opts["authentication.method"] = "Basic"
             opts["password"] = password
         else:

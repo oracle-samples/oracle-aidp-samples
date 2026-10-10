@@ -384,9 +384,10 @@ def test_the_docs_say_where_each_credential_lives():
     """"Where do I put the URL, the user and the password?" is the question
     users actually ask, and answering it wrong once costs a leaked secret.
 
-    Two places: the Snowflake coordinates AND the Snowflake secret in the
-    one config file (inline is the documented default since 0.19; a `*_path`
-    variant is the opt-in), and AIDP auth in the user's own OCI config.
+    Three places: the Snowflake coordinates in the one config file, the
+    Snowflake secret in its OWN owner-only file that the config names by
+    `*_path` (an inline value is refused since 0.29 -- SEC-AIDP-SAMPLES-001),
+    and AIDP auth in the user's own OCI config.
     """
     for path in ("README.md",
                  "skills/snowflake-migrator-bootstrap/SKILL.md",
@@ -406,23 +407,63 @@ def test_the_docs_say_where_each_credential_lives():
         "medallion-clone: must say a secret is never asked for in chat"
 
 
-def test_no_skill_or_command_claims_the_config_carries_no_secret():
-    # The pre-0.19 contract (credential = a path, so the file is safe to
-    # read and show) survived in one skill after inline became the default.
+def test_no_skill_or_command_claims_the_secret_lives_inline_in_the_config():
+    """SEC-AIDP-SAMPLES-001 inverted the 0.19 contract: the credential is a
+    `*_path` to an owner-only file again, and an inline value is refused.
+    The 0.19-0.28 wording that told users (and agents) to paste it into the
+    config must be gone from every operator surface."""
     paths = sorted((ROOT / "skills").glob("*/SKILL.md")) + \
         sorted((ROOT / "commands").glob("*.md")) + \
-        [ROOT / "README.md", ROOT / "ARCHITECTURE.md"]
+        [ROOT / "README.md", ROOT / "ARCHITECTURE.md", ROOT / "PRIVACY.md",
+         ROOT / "snowmig-config.example.yaml"]
     for path in paths:
-        flat = " ".join(path.read_text(encoding="utf-8").lower()
-                        .replace("*", "").split())
-        assert "carries no secret" not in flat, path.name
-        assert "credential itself is a path" not in flat, path.name
+        text = path.read_text(encoding="utf-8")
+        flat = " ".join(text.lower().replace("*", "").replace("`", "").split())
+        for stale in ("inline is the default", "inline is the documented",
+                      "paste the pem inline", "pem can be pasted inline",
+                      "into the same config file", "everything goes in this file",
+                      "put-the-password-here", "password: the-password",
+                      "private_key: |", "a _path variant is an opt-in",
+                      "_path variants exist but are not what you propose"):
+            assert stale not in flat, f"{path.name}: {stale!r}"
+        # And no surface shows a credential VALUE on a config line: a YAML
+        # `password:` / `token:` / `key_passphrase:` key with a value, in a
+        # code block or an example. Prose that names the key is not that.
+        for line in text.splitlines():
+            assert not re.match(
+                r"^\s*(?:#\s*)?(?:password|token|key_passphrase):\s+\S",
+                line), f"{path.name}: shows an inline credential value: {line!r}"
 
 
-def test_clone_skill_carries_the_inline_secret_rules():
+def test_the_docs_name_the_path_fields_and_the_refusal():
+    for rel in ("README.md", "snowmig-config.example.yaml", "PRIVACY.md",
+                "skills/snowflake-migrator-bootstrap/SKILL.md"):
+        flat = " ".join((ROOT / rel).read_text(encoding="utf-8").lower()
+                        .replace("`", "").split())
+        assert "password_path" in flat and "key_path" in flat, rel
+        assert "refused" in flat, f"{rel}: must say an inline value is refused"
+        assert "600" in flat or "owner" in flat, \
+            f"{rel}: must say the file is readable by its owner alone"
+
+
+def test_the_docs_describe_the_read_only_role_gate_and_account_hygiene():
+    """The Jira acceptance for SEC-AIDP-SAMPLES-001: document the read-only
+    role, SSO/MFA, network policy, key rotation and query-history review,
+    and the preflight that reads the grants back."""
+    flat = " ".join((ROOT / "README.md").read_text(encoding="utf-8").lower()
+                    .replace("`", "").split())
+    for needle in ("show grants to role", "read-only role", "sso/mfa",
+                   "network policy", "rotate", "query history"):
+        assert needle in flat, f"README: {needle!r}"
+    for verb in ("create", "alter", "drop", "insert", "update", "delete",
+                 "merge"):
+        assert verb in flat
+
+
+def test_clone_skill_carries_the_credential_rules():
     low = (ROOT / "skills/snowflake-medallion-clone/SKILL.md").read_text(encoding="utf-8").lower()
     flat = " ".join(low.split())
-    assert "inline" in flat
+    assert "not inline" in flat and "_path" in flat
     assert "ask the user before reading" in flat
     assert "never print" in flat or "never quote" in flat
     assert "redact" in flat
@@ -545,8 +586,15 @@ def test_privacy_doc_describes_the_current_credential_and_data_flows():
     assert "write-probe --execute" in flat, \
         "the writers table must show the --execute gate on the probe"
     assert "notebook --upload` is not a writer" in flat
+    # SEC-AIDP-SAMPLES-001: the credential is a separate owner-only file the
+    # config names, never a value in it, and the role is proven read-only.
+    assert "refused" in flat and "password_path" in flat
+    assert "owner alone" in flat or "0600" in flat or "chmod 600" in flat
+    assert "show grants to role" in flat
+    assert "plan/snowmig-config.key_path" in flat, \
+        "name where the credential FILE lands on the mount"
     # The stale claims must be gone, verbatim.
-    for stale in ("never accepted as inline",
+    for stale in ("(inline, or as `key_path:`",
                   "written into any artifact",
                   "not persisted by the plugin",
                   "table data is never read",
