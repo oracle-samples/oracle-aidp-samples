@@ -31,6 +31,7 @@ import snowmig
 from target import provisioning
 from target.provisioning import PLAN_FOLDER, SCRIPTS_FOLDER
 from test_teardown_provenance import World
+from secret_files import write_secret
 
 OCID = "ocid1.aidataplatform.oc1.iad.aaaafake"
 OTHER_OCID = "ocid1.aidataplatform.oc1.iad.bbbbfake"
@@ -46,7 +47,8 @@ def _cfg(tmp_path, stem):
     path = tmp_path / f"{stem}.yaml"
     path.write_text(yaml.safe_dump({"snowflake": {
         "account": "ACME-TEST", "user": "READER", "warehouse": "WH",
-        "database": "DB", "auth": "password", "password": _FAKE_PASSWORD}}),
+        "database": "DB", "auth": "password",
+        "password_path": write_secret(tmp_path / "pw", _FAKE_PASSWORD)}}),
         encoding="utf-8")
     return path
 
@@ -82,9 +84,14 @@ def test_a_rotated_credential_keeps_the_old_object_on_the_record(
                "--source-config", str(_cfg(tmp_path, "b"))) == 0
     rec = _record(tmp_path)
     old, new = f"{PLAN_FOLDER}/a.json", f"{PLAN_FOLDER}/b.json"
+    # The credential FILES each push placed beside its block are tracked
+    # too: the old one still holds the previous credential's value.
+    old_file = f"{PLAN_FOLDER}/a.password_path"
+    new_file = f"{PLAN_FOLDER}/b.password_path"
     assert old in world.contents, "the old copy is still on the mount"
-    assert set(rec["credential_objects"]) == {old, new}
-    assert rec["credential_superseded"] == [old]
+    assert old_file in world.contents
+    assert set(rec["credential_objects"]) == {old, new, old_file, new_file}
+    assert set(rec["credential_superseded"]) == {old, old_file}
     md = (tmp_path / "out" / "PROVISION.md").read_text(encoding="utf-8")
     assert old in md and new in md
     assert "still holds the previous credential" in md
@@ -105,15 +112,16 @@ def test_a_failed_credential_upload_is_not_inherited_as_if_it_landed(
     run = _cli(tmp_path, monkeypatch, world)
     assert run("--source-config", str(_cfg(tmp_path, "a"))) == 1
     first = _record(tmp_path)
-    assert first["credential_objects"] == [], \
-        "a failed upload does not hold the credential as far as anyone knows"
+    placed_file = f"{PLAN_FOLDER}/a.password_path"
+    assert first["credential_objects"] == [placed_file], \
+        "only the credential file landed, and it IS tracked; the block is not"
     assert first["credential_unconfirmed"] == [f"{PLAN_FOLDER}/a.json"]
     capsys.readouterr()
 
     rc = run("--reuse-existing", "--refresh-notebooks")
     err = capsys.readouterr().err
     assert rc == 1, "the re-push names the missing credential and fails"
-    assert "holds the Snowflake" not in err
+    assert f"{PLAN_FOLDER}/a.json holds" not in err
     assert "source-config': '/Workspace" not in _params(world)
     rec = _record(tmp_path)
     step = next(s for s in rec["steps"] if s["step"] == "credential")
@@ -121,8 +129,9 @@ def test_a_failed_credential_upload_is_not_inherited_as_if_it_landed(
     assert "--source-config" in step["detail"]
     assert rec["credential_missing"] == [f"{PLAN_FOLDER}/a.json"], \
         "the re-push records that the object it was told of is not there"
-    assert rec["credential_objects"] == [] and not rec.get(
-        "credential_unconfirmed"), "the listing settled it: not there"
+    assert rec["credential_objects"] == [placed_file] and not rec.get(
+        "credential_unconfirmed"), ("the listing settled it: the block is "
+                                    "not there; the file it placed still is")
 
 
 def test_an_inherited_credential_that_is_there_is_used_and_recorded(
@@ -136,7 +145,8 @@ def test_an_inherited_credential_that_is_there_is_used_and_recorded(
     err = capsys.readouterr().err
     assert "holds" in err
     rec = _record(tmp_path)
-    assert rec["credential_objects"] == [f"{PLAN_FOLDER}/a.json"]
+    assert set(rec["credential_objects"]) == {
+        f"{PLAN_FOLDER}/a.json", f"{PLAN_FOLDER}/a.password_path"}
     assert rec["target_catalog"] == "lake_dev"
     assert f"'source-config': '/Workspace/{PLAN_FOLDER}/a.json'" in \
         _params(world)

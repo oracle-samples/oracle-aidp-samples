@@ -72,7 +72,7 @@ report upload after each stage.
 
 | | |
 |---|---|
-| Snowflake | a **read-only** role and a service user, authenticated by password or key pair. Both go in the one config file (a PEM can be pasted inline under `private_key:`). No write grant is needed: the transport refuses any statement not led by a read verb, and the read-only role is what prevents writes |
+| Snowflake | a **read-only** role and a service user, authenticated by password or key pair. The connection goes in the one config file; the password or PEM goes in its **own file, readable by you alone**, which the config names (`password_path:` / `key_path:`). No write grant is needed: the transport refuses any statement not led by a read verb, and `preflight` reads the role's grants back and **fails if the role can CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, MERGE or own** anything in the source database. See *Snowflake account hygiene* below |
 | AIDP | the `oci` CLI configured, the `aidp` CLI (`pip install aidp-python-client aidp-cli`) for workspace files, and the **aiDataPlatform OCID** |
 | Local | Python 3.10+ and `pip install -r engine/requirements.txt` (`bin/snowmig` does this for you when needed) |
 
@@ -87,7 +87,8 @@ readable by you alone (`0600` on POSIX; on Windows the file inherits your
 profile's ACL), and refuses to overwrite an existing one. Copying the
 template by hand works too — `chmod 600` it. **The Snowflake connection and
 the AIDP destination both live in this file**, so nothing is repeated on the
-command line:
+command line. **The credential does not**: it lives in its own file, which
+the config names:
 
 ```yaml
 snowflake:
@@ -99,7 +100,7 @@ snowflake:
   role: MIGRATION_READER_ROLE
   schema: PUBLIC
   auth: password
-  password: the-password            # or: auth: keypair + `private_key: |` inline
+  password_path: ~/.snowflake/migration.pw   # or: auth: keypair + key_path: ~/.snowflake/migration_rsa_key.p8
 
 aidp:
   datalake_ocid: ocid1.aidataplatform.oc1.<region>.<unique-id>
@@ -132,19 +133,48 @@ Any field can be overridden per run with a flag (`--role`, `--warehouse`,
 
 The config names which AIDP resources to use, never a credential for them.
 
-**Rules for the inline secret.** The file holds live credentials in plain
-text:
+**Rules for the credential.** A migration config travels — between a laptop,
+a workspace mount, a ticket and a report directory — so a secret inside it
+would outlive the migration wherever a copy landed. Therefore:
 
-- It is **gitignored only inside this plugin's own folder**, and the file
+- **No credential value is accepted in the config.** `password:`,
+  `private_key:`, `key_passphrase:` and `token:` are refused by every stage
+  with the `*_path` field to use instead; the value itself is never echoed,
+  not even in that error. Put each secret in its own file and point at it:
+  `password_path:`, `key_path:`, `key_passphrase_path:` or `pat_path:`.
+- **Each credential file must be readable by you alone.** `chmod 600` it: a
+  file its group or others can read is refused on POSIX. On Windows the
+  mode bits do not describe who can read a file, so the check is skipped
+  and the report says so — keep the file under your own profile.
+- **Reports name the credential's source, never its value**: `preflight`
+  and every stage print the file's basename and whether it is owner-only,
+  and the directory is not shown either.
+- The config is **gitignored only inside this plugin's own folder**, and it
   belongs in your working directory — so add `snowmig-config.yaml` (and
-  `.yml`, `.json`) to your own `.gitignore` before filling it in. Keep it out
-  of commits, tickets and chat.
-- **Secrets are never echoed**: `preflight` and every report render the
-  config through a redactor.
-- **An agent asks before reading it**, and never asks you to paste a secret
-  into the conversation. If one ends up there, rotate it.
-- A destination read from the file is **announced** before anything acts on
-  it, and writing still needs `--execute`.
+  `.yml`, `.json`) and your credential files to your own `.gitignore`. Keep
+  them out of commits, tickets and chat.
+- **An agent asks before reading either file**, and never asks you to paste a
+  secret into the conversation. If one ends up there, rotate it.
+- A destination read from the config is **announced** before anything acts
+  on it, and writing still needs `--execute`.
+
+**Snowflake account hygiene.** The tool enforces what it can see; the account
+owner decides the rest. Before the first run:
+
+- Create a **dedicated read-only role** for the migration (USAGE on the
+  database, schemas and warehouse; SELECT on the tables and views; nothing
+  else) and a service user that holds only that role. `preflight` and every
+  Snowflake-reading stage read the role's grants back with `SHOW GRANTS TO
+  ROLE` and **stop if it can write the source** — or if the grants cannot be
+  read at all.
+- Enforce **SSO/MFA** for human users and a **network policy** that limits
+  where the service user may connect from.
+- Prefer a **key pair** (`auth: keypair`) and **rotate** the key or password
+  when the migration is done; `teardown --scope credential` removes the
+  copies the migration placed on the workspace.
+- **Review the query history** of the migration user afterwards (`SNOWFLAKE.
+  ACCOUNT_USAGE.QUERY_HISTORY`): every statement this plugin sends is a
+  read, so anything else is someone else holding the credential.
 
 ### 2. Confirm the config and test the source
 
@@ -152,13 +182,18 @@ text:
 bin/snowmig preflight --test-source
 ```
 
-`PREFLIGHT_CONFIG.md` lists every field with what it is for, secrets masked
-(an inline secret reads as *inline*, a `*_path` shows the path), then the
-checks. Review it with the account owner before going further: a wrong host
-or role is cheapest to fix here.
+`PREFLIGHT_CONFIG.md` lists every field with what it is for, each credential
+by its **source** (the file's basename and whether it is owner-only — never
+its value, never its directory; an inline value is reported as refused), then
+the checks. Review it with the account owner before going further: a wrong
+host or role is cheapest to fix here.
 
 - `--test-source` connects to Snowflake; it is opt-in because it resumes the
-  warehouse.
+  warehouse. It also reads the session role's grants back and **fails the
+  preflight if the role holds any write privilege on the source database**
+  (CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, MERGE, TRUNCATE, OWNERSHIP)
+  or if the grants cannot be read. The grants it found are listed in the
+  report so the account owner can confirm the role.
 - The AIDP end is checked when the config carries both `datalake_ocid` and
   `catalog`: the report says whether that catalog exists and whether it is
   `INTERNAL` or `EXTERNAL`.
@@ -249,15 +284,19 @@ destination it resolved and whether each value came from a flag or from the
 config file.
 
 **The Snowflake credential on the workspace.** `--source-config` places the
-config's `snowflake:` block — only that block, as JSON — at
+**credential file(s)** the config names at
+`backup-snowflake-migration/plan/<config stem>.<field>` (for example
+`plan/snowmig-config.key_path`) and the config's `snowflake:` block — only
+that block, as JSON, its `*_path` fields rewritten to those mount paths — at
 `backup-snowflake-migration/plan/<config stem>.json`, so the in-AIDP
-notebooks can reach Snowflake. It carries the credential, so it is uploaded
-only when you pass the flag. The `aidp:` block is not copied, and a config
-whose secret is a `*_path` is refused before anything is uploaded, because
-that path does not exist on the cluster. The copy is recorded as holding the
-credential once it is read back on the workspace. A re-push with a different
-`--source-config` keeps the earlier object on the record, flagged as holding
-the previous credential, until you remove it. Remove the credential with
+notebooks can reach Snowflake. They carry the credential, so they are
+uploaded only when you pass the flag, and each file is checked first: it
+must exist and be readable by you alone, or nothing is uploaded. The `aidp:`
+block is not copied. Each object is recorded as holding the credential once
+it is read back on the workspace, and a notebook is pointed at the config
+only when every object it depends on was. A re-push with a different
+`--source-config` keeps the earlier objects on the record, flagged as holding
+the previous credential, until you remove them. Remove them with
 `teardown --scope credential` once the copies are done (step 10).
 
 ### 5. Register the source as an EXTERNAL catalog, then create the INTERNAL target (S3, S4)

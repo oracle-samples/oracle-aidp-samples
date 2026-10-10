@@ -2,10 +2,12 @@
 import json
 import pathlib
 import sys
+import tempfile
 
 import pytest
 
 from snowmig import main
+from secret_files import temp_secret, write_secret
 
 INV = {"probed_at": "t", "session": {}, "databases_in_scope": ["D"],
        "object_count": 1, "counts_by_type": {"TABLE": 1},
@@ -202,12 +204,12 @@ def test_run_sql_from_args_builds_a_snowflake_callable(tmp_path, monkeypatch):
     monkeypatch.setattr(snowmig, "build_connect_kwargs",
                         lambda *a, **k: {"account": "a"})
     monkeypatch.setattr(snowmig, "connect", lambda **kw: captured.setdefault("kw", kw))
-    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: "CALLABLE")
+    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: _read_only_session)
 
     args = snowmig.build_parser().parse_args(
         ["assess", "--out-dir", str(tmp_path), "--account", "a", "--user", "u",
          "--auth", "keypair", "--key-path", "/k"])
-    assert snowmig._run_sql_from_args(args) == "CALLABLE"
+    assert snowmig._run_sql_from_args(args) is _read_only_session
     assert captured["kw"] == {"account": "a"}
 
 
@@ -1096,6 +1098,18 @@ def test_the_removed_passphrase_flag_is_refused_and_names_the_config_keys(
     assert "NOT-A-REAL-PASSPHRASE" not in capsys.readouterr().err
 
 
+def _read_only_session(sql, params=None):
+    """A `run_sql` double for a session whose role holds nothing but reads:
+    what the role gate in `_run_sql_from_args` asks, answered."""
+    low = " ".join(sql.split()).lower()
+    if "current_role()" in low:
+        return [{"R": "READER", "S": '{"roles":"","value":""}'}]
+    if low.startswith("show grants to role"):
+        return [{"privilege": "SELECT", "granted_on": "TABLE",
+                 "name": "D.S.T"}]
+    return []
+
+
 def _capture_connect_kwargs(monkeypatch):
     import snowmig
     captured = {}
@@ -1105,7 +1119,8 @@ def _capture_connect_kwargs(monkeypatch):
         return {}
     monkeypatch.setattr(snowmig, "build_connect_kwargs", fake_build)
     monkeypatch.setattr(snowmig, "connect", lambda **kw: "CONN")
-    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: "CALLABLE")
+    monkeypatch.setattr(snowmig, "make_run_sql",
+                        lambda conn: _read_only_session)
     return captured
 
 
@@ -1118,14 +1133,19 @@ def _keypair_config(tmp_path, *extra_lines):
     return str(cfg)
 
 
-def test_key_passphrase_is_read_from_the_config_inline(tmp_path, monkeypatch):
+def test_an_inline_key_passphrase_is_refused_with_the_path_to_use(
+        tmp_path, monkeypatch, capsys):
+    """SEC-AIDP-SAMPLES-001: a credential value in the config is refused
+    before anything connects, the fix is in the message, the value is not."""
     import snowmig
     captured = _capture_connect_kwargs(monkeypatch)
     cfg = _keypair_config(tmp_path, "key_passphrase: from-config")
-    args = snowmig.build_parser().parse_args(
-        ["assess", "--out-dir", str(tmp_path), "--config", cfg])
-    assert snowmig._run_sql_from_args(args) == "CALLABLE"
-    assert captured["key_passphrase"] == "from-config"
+    rc = snowmig.main(["assess", "--out-dir", str(tmp_path), "--config", cfg])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "key_passphrase_path" in err and "inline" in err
+    assert "from-config" not in err, "the value itself is never echoed"
+    assert captured == {}, "nothing was built, let alone connected"
 
 
 def test_key_passphrase_is_read_from_the_file_the_config_names(
@@ -1133,7 +1153,7 @@ def test_key_passphrase_is_read_from_the_file_the_config_names(
     import snowmig
     captured = _capture_connect_kwargs(monkeypatch)
     pp = tmp_path / "pp"
-    pp.write_text("  from-file\n", encoding="utf-8")
+    write_secret(pp, "  from-file\n")
     cfg = _keypair_config(tmp_path, f"key_passphrase_path: {pp}")
     args = snowmig.build_parser().parse_args(
         ["assess", "--out-dir", str(tmp_path), "--config", cfg])
@@ -1156,7 +1176,8 @@ def test_run_sql_from_args_threads_host_from_config(tmp_path, monkeypatch):
     cfg = tmp_path / "cfg.yaml"
     cfg.write_text(f"snowflake:\n  account: ORG-ACC\n  host: {host}\n"
                    "  user: SVC\n  warehouse: WH\n  database: SALES_DB\n"
-                   "  auth: password\n  password: not-a-real-password\n",
+                   "  auth: password\n"
+                   f"  password_path: {write_secret(tmp_path / 'pw')}\n",
                    encoding="utf-8")
     args = snowmig.build_parser().parse_args(
         ["preflight", "--test-source", "--config", str(cfg),
@@ -1174,7 +1195,8 @@ def test_run_sql_from_args_leaves_host_unset_when_the_config_has_none(
     captured = _capture_connect_kwargs(monkeypatch)
     cfg = tmp_path / "cfg.yaml"
     cfg.write_text("snowflake:\n  account: ORG-ACC\n  user: SVC\n"
-                   "  auth: password\n  password: not-a-real-password\n",
+                   "  auth: password\n"
+                   f"  password_path: {write_secret(tmp_path / 'pw')}\n",
                    encoding="utf-8")
     args = snowmig.build_parser().parse_args(
         ["assess", "--out-dir", str(tmp_path), "--config", str(cfg)])
@@ -1240,11 +1262,12 @@ def test_security_console_stays_quiet_when_nothing_is_defined(
 
 # --------------------------- an inline PAT, like an inline password or key
 #
-# `_snowflake_coords` resolved
-# `password` and `private_key` from either an inline value or a path, but a
-# PAT only from `pat_path`. The config already lists `token` as a secret
-# field, so an inline one was accepted, validated and redacted -- and then
-# ignored at connect time, which reads to the operator as "the PAT is wrong".
+# SEC-AIDP-SAMPLES-001. `_snowflake_coords` used to resolve `password`,
+# `private_key` and `token` from an inline value and spool each to a temp
+# file for conn.py. A migration config travels -- laptop, mount, ticket,
+# report -- and a secret in it travels with it, so an inline value of ANY
+# credential field is refused with the `*_path` that replaces it, nothing is
+# spooled, and only a path reaches the connector.
 
 _PAT_CONFIG = (
     "snowflake:\n"
@@ -1256,20 +1279,24 @@ _PAT_CONFIG = (
 )
 
 
-def test_an_inline_token_is_resolved_like_any_other_secret(tmp_path):
+def test_an_inline_token_is_refused_like_any_other_secret(tmp_path):
     import snowmig
+    from migration_config import ConfigError
     cfg = tmp_path / "c.yaml"
     cfg.write_text(_PAT_CONFIG, encoding="utf-8")
     args = snowmig.build_parser().parse_args(
         ["assess", "--config", str(cfg)])
-    coords = snowmig._snowflake_coords(args)
-    assert coords["token"] == "the-pat-value"
+    with pytest.raises(ConfigError) as caught:
+        snowmig._snowflake_coords(args)
+    message = str(caught.value)
+    assert "`token`" in message and "`pat_path`" in message
+    assert "the-pat-value" not in message
 
 
-def test_an_inline_token_reaches_the_connector(tmp_path, monkeypatch):
-    """conn.py reads credentials from paths by design, so an inline secret
-    is spooled to a temp file for the life of the call -- exactly the
-    treatment an inline password already gets."""
+def test_an_inline_token_never_reaches_the_connector(tmp_path, monkeypatch,
+                                                     capsys):
+    """Refused at the parser: nothing is built, nothing connects, and no
+    temp file is spooled anywhere."""
     import snowmig
     seen = {}
 
@@ -1280,51 +1307,46 @@ def test_an_inline_token_reaches_the_connector(tmp_path, monkeypatch):
 
     monkeypatch.setattr(snowmig, "build_connect_kwargs", fake_build)
     monkeypatch.setattr(snowmig, "connect", lambda **kw: object())
-    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: (lambda *a, **k: []))
+    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: _read_only_session)
     cfg = tmp_path / "c.yaml"
     cfg.write_text(_PAT_CONFIG, encoding="utf-8")
-    args = snowmig.build_parser().parse_args(
-        ["assess", "--config", str(cfg)])
-    snowmig._run_sql_from_args(args)
-    assert seen["auth"] == "pat"
-    assert seen["pat_path"], "an inline token has to reach the connector"
-    assert pathlib.Path(seen["pat_path"]).name.startswith("snowmig_secret_")
+    rc = snowmig.main(["assess", "--config", str(cfg),
+                       "--out-dir", str(tmp_path / "out")])
+    assert rc == 1
+    assert seen == {}, "the connector was never handed anything"
+    err = capsys.readouterr().err
+    assert "pat_path" in err and "the-pat-value" not in err
 
 
-def test_the_spooled_token_file_is_removed_after_the_call(tmp_path,
-                                                          monkeypatch):
+def test_a_pat_path_is_passed_through_as_a_path_and_nothing_is_spooled(
+        tmp_path, monkeypatch):
+    """conn.py reads the PAT from the file the config names; the engine no
+    longer writes a `snowmig_secret_*` copy of anything."""
     import snowmig
     seen = {}
 
     def fake_build(auth, **kw):
         seen.update(kw)
+        seen["auth"] = auth
         return {}
 
     monkeypatch.setattr(snowmig, "build_connect_kwargs", fake_build)
     monkeypatch.setattr(snowmig, "connect", lambda **kw: object())
-    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: (lambda *a, **k: []))
-    cfg = tmp_path / "c.yaml"
-    cfg.write_text(_PAT_CONFIG, encoding="utf-8")
-    args = snowmig.build_parser().parse_args(
-        ["assess", "--config", str(cfg)])
-    snowmig._run_sql_from_args(args)
-    assert not pathlib.Path(seen["pat_path"]).exists(), \
-        "a spooled secret may not outlive the call"
-
-
-def test_a_pat_path_still_works_unchanged(tmp_path):
-    import snowmig
-    pat = tmp_path / "pat.txt"
-    pat.write_text("from-a-file", encoding="utf-8")
+    monkeypatch.setattr(snowmig, "make_run_sql", lambda conn: _read_only_session)
+    pat = write_secret(tmp_path / "pat.txt", "from-a-file")
     cfg = tmp_path / "c.yaml"
     cfg.write_text(
         "snowflake:\n  account: AC\n  user: U\n  auth: pat\n"
-        f"  pat_path: {pat.as_posix()}\n  database: D\n", encoding="utf-8")
+        f"  pat_path: {pat}\n  database: D\n", encoding="utf-8")
     args = snowmig.build_parser().parse_args(
-        ["assess", "--config", str(cfg)])
+        ["assess", "--config", str(cfg), "--out-dir", str(tmp_path / "out")])
     coords = snowmig._snowflake_coords(args)
-    assert coords["pat_path"] == pat.as_posix()
-    assert coords["token"] is None
+    assert coords["pat_path"] == pat
+    assert "token" not in coords, "no credential VALUE lives in the coords"
+    snowmig._run_sql_from_args(args)
+    assert seen["auth"] == "pat" and seen["pat_path"] == pat
+    assert not list(pathlib.Path(tempfile.gettempdir()).glob(
+        "snowmig_secret_*")), "nothing is spooled any more"
 
 
 # ------------- an explicit --auth wins over the config, however it is spelled
@@ -1338,7 +1360,8 @@ def test_a_pat_path_still_works_unchanged(tmp_path):
 # flag below overrides what it says").
 
 _PASSWORD_CONFIG = ("snowflake:\n  account: AC\n  user: U\n  auth: password\n"
-                    "  password: not-a-real-password\n  database: D\n")
+                    f"  password_path: {temp_secret('not-a-real-password')}\n"
+                    "  database: D\n")
 
 
 @pytest.mark.parametrize("spelling", [["--auth", "keypair"],

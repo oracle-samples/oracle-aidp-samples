@@ -8,20 +8,25 @@
 #   python3 engine/snowmig.py preflight --out-dir ./snowmig_out \
 #       --config ./snowmig-config.yaml --test-source
 #
-# `preflight` reads every field back to you with the secrets masked, then
-# actually connects. Do that before anything else.
+# `preflight` reads every field back to you — each credential by the NAME of
+# the file that holds it, never its value — then actually connects and reads
+# the role's grants back. Do that before anything else.
 #
 # ----------------------------------------------------------------------------
 # FOR CLAUDE (or any agent driving this plugin)
 # ----------------------------------------------------------------------------
-# This file contains live credentials in plain text.
+# This file names the credential files; it never holds a credential value.
+# An inline `password:`, `private_key:`, `key_passphrase:` or `token:` is
+# REFUSED by every stage. The files it points at hold live secrets.
 #
-#   * ASK THE USER before reading it, and say why you need it.
-#   * NEVER print, echo, quote or summarise a secret value from it — not in
-#     chat, not in a report, not in a commit message. Render it only through
-#     `migration_config.redact()`, which is what `preflight` uses.
+#   * ASK THE USER before reading this file or any file it points at, and
+#     say why you need it.
+#   * NEVER print, echo, quote or summarise a secret value — not in chat, not
+#     in a report, not in a commit message. Render a config only through
+#     `migration_config.redact()`, which is what `preflight` uses; a
+#     credential file is reported by its basename.
 #   * NEVER ask the user to paste a password or a key into the conversation.
-#     They put it HERE, in this file, on their own machine.
+#     They put it in a file of its own, on their own machine, chmod 600.
 #   * If a secret does end up in the conversation or in a committed file, say
 #     so plainly and tell them to rotate it.
 #
@@ -70,37 +75,45 @@ snowflake:
   schema: A_SCHEMA_THAT_HAS_TABLES
 
   # --- how to authenticate: password OR key pair ---------------------------
-  # Everything goes IN THIS FILE. There is no second file to create.
-  # A read-only role is enough: the Snowflake transport refuses every
-  # non-read verb whatever the credential permits.
+  # The credential is NOT in this file. This file travels — laptop, workspace
+  # mount, ticket, report — so a secret in it would outlive the migration
+  # wherever a copy landed. Each secret lives in its own file, readable by
+  # you alone (chmod 600; on Windows keep it under your own profile), and
+  # this file names it. An inline `password:` / `private_key:` /
+  # `key_passphrase:` / `token:` is refused by every stage, with the `*_path`
+  # to use instead.
+  #
+  # The role must be READ-ONLY on the source. The transport refuses every
+  # non-read verb whatever the credential permits, and `preflight` reads the
+  # role's grants back and fails if it can CREATE, ALTER, DROP, INSERT,
+  # UPDATE, DELETE, MERGE or own anything in the database above.
 
   auth: password
-  password: PUT-THE-PASSWORD-HERE
+  password_path: ~/.snowflake/migration.pw     # a file holding ONLY the password
 
-  # Key pair instead (what AIDP's own Snowflake connector uses) — paste the
-  # PEM inline, indented under `private_key: |`:
+  # Key pair instead (what AIDP's own Snowflake connector uses):
   #
   #   auth: keypair
-  #   private_key: |
-  #     -----BEGIN PRIVATE KEY-----
-  #     ...
-  #     -----END PRIVATE KEY-----
-  #   key_passphrase: only-if-the-key-is-encrypted
+  #   key_path: ~/.snowflake/migration_rsa_key.p8
+  #   key_passphrase_path: ~/.snowflake/migration_rsa_key.pass   # only if encrypted
   #
   # To create one:
+  #   umask 077
   #   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -nocrypt \
-  #     -out ./migrator_rsa_key.p8
-  #   openssl rsa -in ./migrator_rsa_key.p8 -pubout \
+  #     -out ~/.snowflake/migration_rsa_key.p8
+  #   openssl rsa -in ~/.snowflake/migration_rsa_key.p8 -pubout \
   #     | grep -v '^-----' | tr -d '\n'
   #   # then in Snowsight:
   #   #   ALTER USER MIGRATION_READER SET RSA_PUBLIC_KEY='<that string>';
   #
-  # If you would rather keep the key OUT of this file, every secret also
-  # accepts a path instead — `key_path:`, `password_path:`. Set one or the
-  # other, never both.
+  # A programmatic access token works for the engine's own reads
+  # (`auth: pat` + `pat_path:`) but not for the EXTERNAL catalog registration,
+  # whose connection properties have no token field; use password or keypair
+  # for a migration.
   #
-  # The EXTERNAL catalog registration takes password or keypair
-  # authentication; use one of those two for a migration.
+  # `provision --source-config` places these files on the workspace mount
+  # beside the config copy for the in-AIDP notebooks, and rewrites the paths
+  # in that copy; remove them with `teardown --scope credential` afterwards.
 
 aidp:
   # WHICH resources to use. Every one of these can also be passed as a flag,

@@ -2,9 +2,11 @@
 
 Read from the ONE migration config file, never from inline arguments or
 environment variables -- the same rule `snowflake_source/conn.py` applies to
-the source side. The credential itself may be inline in that file (the
-documented default: one file, everything in it) or a path to a separate file.
-Either way it is never rendered: only the FIELD NAMES reach a report.
+the source side. The credential itself is NOT in that file: the config names
+a separate file (`key_path`, `password_path`, `key_passphrase_path`) that only
+its owner can read, and an inline value is refused. The content is read at
+call time for the registration body and never rendered: only the FIELD NAMES
+reach a report.
 
 LIVE-VERIFIED KEY NAMES (2026-09-16). The API itself enumerated the allowed
 `connectionProperties` for SNOWFLAKE when handed a bogus key -- observed
@@ -66,24 +68,25 @@ def load_connection_config(path: str | pathlib.Path) -> dict:
 
 
 def _read_secret_file(path: str, label: str) -> str:
-    p = pathlib.Path(path).expanduser()
+    """The credential file's text, after the owner-only check that every
+    credential file in this plugin passes (`migration_config`)."""
+    from migration_config import ConfigError, read_secret_file
     try:
-        return p.read_text(encoding="utf-8").strip()
-    except OSError as exc:
-        raise ConnectionConfigError(
-            f"{label} not readable at {path}: {exc.strerror}") from exc
+        return read_secret_file(path, field=label)
+    except ConfigError as exc:
+        raise ConnectionConfigError(str(exc)) from None
 
 
 def build_snowflake_connection_details(config: dict) -> dict:
     """`connectionDetails` for a SNOWFLAKE EXTERNAL catalog, from a loaded config.
 
     Required: account, warehouse, database, auth (one of "keypair", "password",
-    "pat"), user. The credential may sit INLINE in the one config file, which
-    is the documented default, or in a file the config points at:
+    "pat"), user. The credential is a FILE the config points at, readable by
+    its owner alone; an inline value is refused:
 
-      keypair  -- private_key   (or key_path,      + optional key_passphrase)
-      password -- password      (or password_path)
-      pat      -- token         (or pat_path)
+      keypair  -- key_path       (+ optional key_passphrase_path)
+      password -- password_path
+      pat      -- pat_path       (refused below: the contract has no token)
 
     `schema` is accepted and ignored: an EXTERNAL catalog registers the whole
     database, and the same file's `schema` belongs to the source side.
@@ -125,11 +128,15 @@ def build_snowflake_connection_details(config: dict) -> dict:
     # allowed keys the live contract enumerates and whose unknown keys it
     # rejects with a 400. The caller reports the omission instead.)
 
-    # A secret may be inline in the one config file, or in a file the config
-    # points at. Both are supported; inline is the documented default.
+    # The credential is read from the file the config names, at call time,
+    # for the registration body. An inline value is refused with the field
+    # that replaces it: the config travels, a secret in it travels with it.
     def secret(inline: str, path_field: str, label: str) -> str | None:
         if config.get(inline):
-            return str(config[inline])
+            raise ConnectionConfigError(
+                f"`{inline}` may not be set inline in the migration config; "
+                f"put the value in its own file readable by you alone and "
+                f"set `{path_field}` to it instead")
         if config.get(path_field):
             return _read_secret_file(config[path_field], label)
         return None
@@ -138,7 +145,7 @@ def build_snowflake_connection_details(config: dict) -> dict:
         key = secret("private_key", "key_path", "private key")
         if not key:
             raise ConnectionConfigError(
-                "auth: keypair needs `private_key` (inline) or `key_path`")
+                "auth: keypair needs `key_path` (a file holding the PEM)")
         details["SNOWFLAKE_AUTHENTICATION_METHOD"] = "KeyPair"
         details["SNOWFLAKE_PRIVATE_KEY_CONTENT"] = key
         passphrase = secret("key_passphrase", "key_passphrase_path",
@@ -149,7 +156,8 @@ def build_snowflake_connection_details(config: dict) -> dict:
         password = secret("password", "password_path", "password")
         if not password:
             raise ConnectionConfigError(
-                "auth: password needs `password` (inline) or `password_path`")
+                "auth: password needs `password_path` (a file holding the "
+                "password)")
         details["SNOWFLAKE_AUTHENTICATION_METHOD"] = "Basic"
         details["SNOWFLAKE_PASSWORD"] = password
     else:  # pat

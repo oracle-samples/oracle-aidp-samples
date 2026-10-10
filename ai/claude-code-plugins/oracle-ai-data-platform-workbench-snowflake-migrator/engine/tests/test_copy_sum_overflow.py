@@ -39,6 +39,7 @@ from dataplane.snowmig_source import assert_pushdown_read_only
 from fake_pushdown import FakeLakeSpark, FakeSnowflake, source_for
 from test_data_migration_scripts import (
     _CatalogSpark, _inject_spark, _load, _manifest, _seeded_copy_report)
+from secret_files import temp_secret
 
 D = decimal.Decimal
 _TGT = "`lake`.`types`.`T`"
@@ -213,7 +214,7 @@ def _files(tmp_path):
     config = tmp_path / "source.json"
     config.write_text(json.dumps({
         "account": "acct", "warehouse": "WH", "database": "SNOWMIG_DB",
-        "user": "svc", "auth": "password", "password": "p",
+        "user": "svc", "auth": "password", "password_path": temp_secret("p"),
         "schema": "TYPES"}), encoding="utf-8")
     return reports, config
 
