@@ -78,14 +78,18 @@ break a script written against a development checkout, and is listed first.
 - MCP server (`fabric-aidp-mcp`, `pip install -e '.[mcp]'`, Python 3.10+).
   The server, not the tool call, contains the CLI it runs (security review
   SEC-AIDP-SAMPLES-004): every path argument resolves under
-  `FABRIC_AIDP_WORK_ROOT` (default: the directory the server started in) and
-  a `..` escape or an absolute path outside it is refused before the CLI
-  runs, naming the resolved root; a bare artifact name goes to a per-session
-  `fabric-aidp-runs/<utc-time>-<pid>/` directory so sessions do not collide,
-  and each result starts with the root and the resolved paths. The CLI runs
-  in the work root with an allowlisted environment — `PATH`, `HOME`, locale,
-  the Python and Windows variables it needs, the `OCI_*` selectors, `AIDP_*`
-  and `FABRIC_*` — so a `GITHUB_TOKEN` or `AWS_SECRET_ACCESS_KEY` in the
+  `FABRIC_AIDP_WORK_ROOT` (default: the directory the server started in,
+  refused when that is a filesystem anchor or the home directory — clients
+  other than Claude Code start servers there) and a `..` escape or an
+  absolute path outside it is refused before the CLI runs, naming the
+  resolved root; a bare artifact name goes to a per-session
+  `fabric-aidp-runs/<utc-time>-<pid>/` directory so sessions do not collide
+  (`./inv.json` names the root itself), and each result starts with the root
+  and the resolved paths. A Windows `\\?\` prefix on a path inside the root
+  is accepted. The CLI runs in the work root with an allowlisted environment
+  — `PATH`, `HOME`, locale, the Python and Windows variables it needs, the
+  `OCI_*` selectors, `AIDP_WORKSPACE_KEY` and `AIDP_CLUSTER_KEY` by name — so
+  a `GITHUB_TOKEN`, `AWS_SECRET_ACCESS_KEY` or `AIDP_SECRET_*` in the
   client's shell never reaches it. `publish` over MCP stays a dry run with no
   `apply`; `--apply` is CLI-only.
 - Claude Code plugin: five commands, one skill, `.mcp.json`.

@@ -103,16 +103,21 @@ climbs out or an absolute path elsewhere is refused before the CLI runs, with
 the resolved root in the message. An artifact named without a directory part
 (`inv.json`, `plan.json`, `migrated`) lands in a per-session directory,
 `<root>/fabric-aidp-runs/<utc-time>-<pid>/`, so two sessions that both accept
-the defaults cannot overwrite each other; every tool result starts with the
-root and the resolved paths it used. The CLI runs in the work root with an
-allowlisted environment — `PATH`, `HOME`, locale, the Python and Windows
-variables it needs to start, the OCI selectors (`OCI_CONFIG_FILE`,
-`OCI_CONFIG_PROFILE`, `OCI_CLI_PROFILE`, `OCI_CLI_AUTH`, `OCI_CLI_REGION`,
-`OCI_NAMESPACE`) and this tool's own `AIDP_*` / `FABRIC_*` settings — and
-nothing else from the shell that started the client: a `GITHUB_TOKEN`,
-`AWS_SECRET_ACCESS_KEY` or npm token sitting in that shell never reaches the
+the defaults cannot overwrite each other (`./inv.json` names the root itself);
+every tool result starts with the root and the resolved paths it used. The CLI
+runs in the work root with an allowlisted environment — `PATH`, `HOME`, locale,
+the Python and Windows variables it needs to start, the OCI selectors
+(`OCI_CONFIG_FILE`, `OCI_CONFIG_PROFILE`, `OCI_CLI_PROFILE`, `OCI_CLI_AUTH`,
+`OCI_CLI_REGION`, `OCI_NAMESPACE`) and the two AIDP settings the CLI reads, by
+name (`AIDP_WORKSPACE_KEY`, `AIDP_CLUSTER_KEY`) — and nothing else from the
+shell that started the client: a `GITHUB_TOKEN`, `AWS_SECRET_ACCESS_KEY`, npm
+token or an `AIDP_SECRET_*` exported for other AIDP tooling never reaches the
 subprocess. Set the root in `.mcp.json` (or the client's server config) with
-`"env": {"FABRIC_AIDP_WORK_ROOT": "/path/to/migration"}`. And `publish`
+`"env": {"FABRIC_AIDP_WORK_ROOT": "/path/to/migration"}`. Claude Code starts
+the server in the project directory, so the default works there; Claude
+Desktop, Cursor and Codex start stdio servers in `/`, the home directory or
+their own install, and the server refuses to run with such a default root
+until the variable is set. And `publish`
 through MCP is a dry run with no `apply` to pass: writing to a workspace is
 `fabric-aidp publish <dir> --prefix <you> --apply`, typed by a person.
 

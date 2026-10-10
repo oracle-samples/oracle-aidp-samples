@@ -13,7 +13,10 @@ argument is not a trustworthy path:
   else the directory the server was started in. A `..` that climbs out, or an
   absolute path elsewhere, is refused before the CLI runs, with the resolved
   root in the message. The CLI runs with the root as its working directory,
-  so the `.env` it reads is the root's.
+  so the `.env` it reads is the root's. A default root that is a filesystem
+  anchor or the home directory is refused: Claude Code starts the server in
+  the project, but other clients start it in `/`, the home directory or
+  their own install, and a root there contains nothing.
 * An artifact named without a directory part (`inv.json`, `plan.json`,
   `migrated`) lives in a per-server-process run directory under the root, so
   two sessions that both accept the defaults cannot overwrite each other.
@@ -22,7 +25,9 @@ argument is not a trustworthy path:
 * The CLI child gets an allowlisted environment (`ENV_ALLOWED_NAMES`,
   `ENV_ALLOWED_PREFIXES`), never the server's whole one. A developer shell
   carries GitHub, AWS, npm, PyPI and Slack credentials that have nothing to
-  do with a migration; none of them reach the subprocess.
+  do with a migration; none of them reach the subprocess. The CLI's own
+  settings pass by exact name, not by prefix, so an `AIDP_SECRET_*` or
+  `FABRIC_PAT` exported for some other tool does not ride along either.
 * `publish` has no `apply`. Writing to a live workspace is `fabric-aidp
   publish --apply`, typed by a person at the CLI.
 
@@ -92,18 +97,60 @@ ENV_ALLOWED_NAMES = frozenset({
     "OCI_CLI_AUTH", "OCI_CLI_REGION",
     # `plan` reads this when neither flag nor manifest names a namespace.
     "OCI_NAMESPACE",
+    # The two AIDP_ variables the CLI reads (`publish`, cli.py). By name, not
+    # as the AIDP_ prefix: a shell that has run other AIDP tooling carries
+    # AIDP_SECRET_*, AIDP_API_TOKEN and the like, none of which this CLI
+    # looks at. Nothing reads a FABRIC_ variable; `.env` loading
+    # (`_env.KEY_PREFIXES`) happens inside the child, from the root's file.
+    "AIDP_WORKSPACE_KEY", "AIDP_CLUSTER_KEY",
 })
 
-#: Prefixes passed whole: locale, and this tool's own settings (the AIDP_ and
-#: FABRIC_ of `_env.KEY_PREFIXES`; its OCI_ members are listed by name above
-#: because that prefix also covers key-file paths and tokens).
-ENV_ALLOWED_PREFIXES = ("LC_", "AIDP_", "FABRIC_")
+#: The one prefix passed whole: locale. Every other variable is named above.
+ENV_ALLOWED_PREFIXES = ("LC_",)
+
+#: Windows extended-length prefixes. `Path.resolve()` keeps them, so a
+#: `\\?\C:\root\x` and the unprefixed root `C:\root` share no common path
+#: and the check would refuse a path that is inside the root.
+_EXTENDED_UNC = "\\\\?\\UNC\\"
+_EXTENDED = "\\\\?\\"
+
+
+def _plain_path(value: str) -> str:
+    r"""`value` without a Windows extended-length prefix (`\\?\`, `\\?\UNC\`)."""
+    if value.startswith(_EXTENDED_UNC):
+        return "\\\\" + value[len(_EXTENDED_UNC):]
+    if value.startswith(_EXTENDED):
+        return value[len(_EXTENDED):]
+    return value
+
+
+def _home() -> Optional[Path]:
+    try:
+        return Path.home().resolve()
+    except (RuntimeError, OSError):  # no HOME / USERPROFILE to speak of
+        return None
 
 
 def work_root() -> Path:
-    """The resolved work root: `$FABRIC_AIDP_WORK_ROOT`, else the server's cwd."""
+    """The resolved work root: `$FABRIC_AIDP_WORK_ROOT`, else the server's cwd.
+
+    The default is refused when it is a filesystem anchor (`/`, `C:\\`) or
+    the home directory. Claude Code starts `.mcp.json` servers in the
+    project, but Claude Desktop, Cursor and Codex start a stdio server in
+    `/`, the home directory or their own install, and a root there would
+    contain every file the user owns. An explicitly configured root is
+    honoured as given: a dedicated drive is a legitimate choice.
+    """
     configured = os.environ.get(WORK_ROOT_VAR)
-    root = Path(configured).resolve() if configured else Path.cwd().resolve()
+    if configured:
+        root = Path(_plain_path(configured) if os.name == "nt" else configured).resolve()
+    else:
+        root = Path.cwd().resolve()
+        if root == Path(root.anchor) or root == _home():
+            raise ValueError(
+                f"the server started in {root}, which would make the whole "
+                f"filesystem or home directory the work root. Set {WORK_ROOT_VAR} "
+                f"to the migration directory in the client's server config.")
     if not root.is_dir():
         raise ValueError(f"{WORK_ROOT_VAR}={configured!r} is not a directory")
     return root
@@ -127,16 +174,26 @@ def resolve_path(value: str, *, label: str, artifact: bool = False) -> Path:
     can climb out. With ``artifact=True`` a bare name -- no directory part --
     lands in this server's run directory, which is what lets the defaults
     `inv.json` -> `plan.json` -> `migrated` chain from one tool to the next
-    without colliding with another session's.
+    without colliding with another session's. "Bare" is decided on the text
+    as given: `./inv.json` and `inv.json/` name a directory, the root, and
+    are honoured there rather than moved into the run directory.
+
+    On Windows an extended-length prefix (`\\\\?\\`) is dropped first, so a
+    tool that emits such paths can name a file inside the root.
 
     Raises ValueError naming the resolved root. Nothing has run yet: every
     tool resolves all of its paths before it calls `_run`.
     """
-    if not str(value).strip():
+    text = str(value)
+    if not text.strip():
         raise ValueError(f"{label}: an empty path is not a path")
+    if os.name == "nt":
+        text = _plain_path(text)
     root = work_root()
-    given = Path(value)
-    if artifact and not given.is_absolute() and len(given.parts) == 1:
+    given = Path(text)
+    bare = (artifact and not given.is_absolute() and not given.drive
+            and "/" not in text and os.sep not in text)
+    if bare:
         candidate = root / RUNS_DIR / RUN_ID / given
     elif given.is_absolute():
         candidate = given

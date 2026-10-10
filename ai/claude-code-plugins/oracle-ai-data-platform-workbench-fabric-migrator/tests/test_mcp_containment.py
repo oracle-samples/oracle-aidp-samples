@@ -48,6 +48,12 @@ PLANTED_SECRETS = {
     "AZURE_CREDENTIALS": "planted",
     "STRIPE_API_KEY": "sk_planted",
     "NODE_OPTIONS": "--require ./x.js",
+    # Under this tool's own prefixes, read by other AIDP tooling and never by
+    # this CLI. A prefix passthrough forwarded all of them.
+    "AIDP_SECRET_PROD_DB_PASSWORD": "hunter2-planted",
+    "AIDP_API_TOKEN": "aidp-planted",
+    "AIDP_SECRETS_FILE": "/opt/aidp/config/secrets.json",
+    "FABRIC_PAT": "fabric-planted",
 }
 
 
@@ -184,6 +190,45 @@ class PathPolicyTests(_WorkRootCase):
         self.assertIn(str(self.root / "export"), argv)
         self.assertIn(str(self.root / "tables.csv"), argv)
 
+    def test_a_dot_slash_or_trailing_slash_names_the_root_not_the_run_directory(self):
+        """`./inv.json` has a directory part -- the root -- even though
+        pathlib collapses it to one component. A caller who writes it to mean
+        "in the work root" must not be sent to the run directory, and
+        `plan(manifest="./inv.json")` must then look in the same place."""
+        cases = ["./inv.json", "inv.json/"]
+        if os.name == "nt":
+            cases.append(r".\inv.json")
+        for value in cases:
+            with self.subTest(value=value):
+                resolved = self.module.resolve_path(value, label="output", artifact=True)
+                self.assertEqual(resolved, self.root / "inv.json")
+        self.assertEqual(
+            self.module.resolve_path("inv.json", label="output", artifact=True),
+            self.root / self.module.RUNS_DIR / self.module.RUN_ID / "inv.json")
+
+    def test_an_extended_length_prefix_is_removed_before_the_root_check(self):
+        """Windows `Path.resolve()` keeps `\\\\?\\`, so without stripping it
+        the prefixed path and the plain root share no common path and a file
+        inside the root is refused. The stripping itself is checked on every
+        platform; the resolution it unblocks is a Windows path form, so that
+        part runs where such paths exist."""
+        plain = self.module._plain_path
+        self.assertEqual(plain("\\\\?\\C:\\work\\x.json"), "C:\\work\\x.json")
+        self.assertEqual(plain("\\\\?\\UNC\\server\\share\\x"), "\\\\server\\share\\x")
+        self.assertEqual(plain("C:\\work\\x.json"), "C:\\work\\x.json")
+        self.assertEqual(plain("\\\\server\\share\\x"), "\\\\server\\share\\x")
+        self.assertEqual(plain("exports/ws"), "exports/ws")
+        if os.name == "nt":
+            target = self.root / "exports" / "ws"
+            target.mkdir(parents=True)
+            resolved = self.module.resolve_path("\\\\?\\" + str(target), label="export_dir")
+            self.assertEqual(resolved, target)
+            with mock.patch.dict(os.environ,
+                                 {"FABRIC_AIDP_WORK_ROOT": "\\\\?\\" + str(self.root)}):
+                self.assertEqual(self.module.work_root(), self.root)
+                self.assertEqual(
+                    self.module.resolve_path(str(target), label="export_dir"), target)
+
     def test_the_result_displays_the_root_and_the_resolved_paths(self):
         with mock.patch("subprocess.run", return_value=_Completed()):
             text = self.module.publish(out_dir="migrated", prefix="me")
@@ -197,6 +242,33 @@ class PathPolicyTests(_WorkRootCase):
         with mock.patch.dict(os.environ):
             del os.environ["FABRIC_AIDP_WORK_ROOT"]
             self.assertEqual(self.module.work_root(), Path.cwd().resolve())
+
+    def test_a_default_root_at_a_filesystem_anchor_or_home_is_refused(self):
+        """Claude Code starts the server in the project; Claude Desktop,
+        Cursor and Codex start a stdio server in `/`, the home directory or
+        their own install. A root there would contain every file the user
+        owns, so the default must refuse rather than contain nothing."""
+        anchor = Path(Path.cwd().resolve().anchor)
+        for where in (anchor, Path.home()):
+            with self.subTest(cwd=str(where)):
+                with mock.patch.dict(os.environ):
+                    del os.environ["FABRIC_AIDP_WORK_ROOT"]
+                    with mock.patch("pathlib.Path.cwd", return_value=where):
+                        with self.assertRaises(ValueError) as ctx:
+                            self.module.work_root()
+                        with mock.patch("subprocess.run") as run:
+                            with self.assertRaises(ValueError):
+                                self.module.inventory(export_dir=str(where / ".ssh"))
+                run.assert_not_called()
+                self.assertIn("FABRIC_AIDP_WORK_ROOT", str(ctx.exception))
+                self.assertIn(str(where.resolve()), str(ctx.exception))
+
+    def test_an_explicitly_configured_root_is_honoured_as_given(self):
+        """A dedicated drive or a home-directory project is a legitimate
+        choice when the user made it; only the silent default is guarded."""
+        home = Path.home().resolve()
+        with mock.patch.dict(os.environ, {"FABRIC_AIDP_WORK_ROOT": str(home)}):
+            self.assertEqual(self.module.work_root(), home)
 
     def test_a_root_that_is_not_a_directory_is_refused_with_its_name(self):
         with mock.patch.dict(os.environ, {"FABRIC_AIDP_WORK_ROOT": str(self.root / "nope")}):
@@ -239,10 +311,26 @@ class EnvironmentPolicyTests(_WorkRootCase):
             "PYTHONPATH": "/plugin", "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1",
             "OCI_CONFIG_FILE": "/home/me/.oci/config", "OCI_CLI_PROFILE": "DEFAULT",
             "OCI_CONFIG_PROFILE": "DEFAULT", "OCI_NAMESPACE": "ns",
-            "AIDP_WORKSPACE_KEY": "ws", "AIDP_CLUSTER_KEY": "ck", "AIDP_INSTANCE_ID": "ocid",
-            "FABRIC_AIDP_WORK_ROOT": "/work",
+            "AIDP_WORKSPACE_KEY": "ws", "AIDP_CLUSTER_KEY": "ck",
         }
         self.assertEqual(self.module.child_env(source), source)
+
+    def test_this_tools_own_prefixes_are_not_a_passthrough(self):
+        """The CLI reads exactly `AIDP_WORKSPACE_KEY` and `AIDP_CLUSTER_KEY`
+        (cli.py) and no `FABRIC_` variable at all. `AIDP_SECRET_*` is the
+        plaintext-secret convention of other AIDP tooling, so a shell that
+        has run both must not hand those to this child. The work-root
+        variable is the server's; the child runs in the root instead."""
+        source = {
+            "PATH": "p", "AIDP_WORKSPACE_KEY": "ws", "AIDP_CLUSTER_KEY": "ck",
+            "AIDP_SECRET_PROD_DB_PASSWORD": "hunter2", "AIDP_API_TOKEN": "tok",
+            "AIDP_SECRETS_FILE": "/opt/aidp/config/secrets.json",
+            "AIDP_ENDPOINT": "https://x", "AIDP_INSTANCE_ID": "ocid",
+            "FABRIC_PAT": "pat", "FABRIC_TOKEN": "t", "FABRIC_AIDP_WORK_ROOT": "/work",
+        }
+        env = self.module.child_env(source)
+        self.assertEqual(set(env), {"PATH", "AIDP_WORKSPACE_KEY", "AIDP_CLUSTER_KEY"})
+        self.assertEqual(self.module.ENV_ALLOWED_PREFIXES, ("LC_",))
 
     def test_names_are_matched_without_regard_to_case(self):
         """Windows hands `SystemRoot` to a process that reads `SYSTEMROOT`."""
