@@ -65,7 +65,10 @@ packaged as a Claude Code plugin.
   Each such name is now reduced to a single safe path component
   (`parsers.security.safe_path_component`: separators, drive colons, NUL and
   `..` runs replaced, no leading dot, never empty, never a Windows device
-  name; legal Informatica names are unchanged), every resolved path is checked
+  name; legal Informatica names are unchanged, including the non-ASCII
+  letters a Unicode-mode repository allows -- names are NFKC-normalised and
+  keep every Unicode word character, so `m_顧客` and `m_注文` stay distinct
+  and unreported), every resolved path is checked
   to lie under the output directory before the write
   (`parsers.security.ensure_within`, also applied to the deployer's workspace
   path), and a notebook that still cannot be written fails that mapping, not

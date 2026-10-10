@@ -12,7 +12,6 @@ import glob
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -563,8 +562,13 @@ def _emit_ddl(mapping, output_dir: str) -> list:
     ddl_dir = os.path.join(output_dir, "ddl")
     os.makedirs(ddl_dir, exist_ok=True)
     for d in ddls:
-        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", d.table or d.target_name)
-        with open(os.path.join(ddl_dir, f"{safe}.sql"), "w") as fh:
+        # Same sanitiser as every other export-named file: one path
+        # component, Unicode-mode table names kept, contained under -o.
+        # UTF-8 explicitly -- the platform default (cp1252 on Windows) cannot
+        # encode a non-ASCII table or mapping name quoted in the DDL.
+        safe = safe_path_component(d.table or d.target_name)
+        path = ensure_within(output_dir, os.path.join(ddl_dir, f"{safe}.sql"))
+        with open(path, "w", encoding="utf-8") as fh:
             fh.write(d.sql)
     return ddls
 
@@ -1161,7 +1165,7 @@ def run_migration(
     if result.broken_notebooks:
         _report_dir = os.path.join(output_dir, "reports")
         os.makedirs(_report_dir, exist_ok=True)
-        with open(os.path.join(_report_dir, "broken_notebooks.md"), "w") as _fh:
+        with open(os.path.join(_report_dir, "broken_notebooks.md"), "w", encoding="utf-8") as _fh:
             _fh.write("# Notebooks that cannot run as written\n\n")
             _fh.write("Found by reading back what this run generated. Each of "
                       "these is a defect in the migrator, not in the export.\n\n")

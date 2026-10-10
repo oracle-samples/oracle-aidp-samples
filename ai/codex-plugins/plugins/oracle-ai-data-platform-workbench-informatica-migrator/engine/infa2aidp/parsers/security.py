@@ -15,6 +15,7 @@ Reference: the Rust reference implementation, src/security.rs
 import logging
 import os
 import re
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -93,10 +94,15 @@ def validate_path(path: str):
 
 
 # Characters an export-supplied name may keep when it becomes a file or
-# directory name. Everything else -- path separators, drive colons, NUL,
-# whitespace, quotes, shell metacharacters -- is replaced. Matches the
-# character class ``_emit_ddl`` already applies to target table names.
-_UNSAFE_PATH_CHARS = re.compile(r"[^A-Za-z0-9_.\-]")
+# directory name: Unicode word characters (letters and digits of any
+# script, underscore), dot and hyphen. Everything else -- path separators,
+# drive colons, NUL and other control characters, whitespace, quotes, shell
+# metacharacters, format characters such as a right-to-left override -- is
+# replaced. ``\w`` rather than ``A-Za-z0-9_``: PowerCenter Unicode-mode
+# repositories and IDMC allow names such as ``m_顧客``, and an ASCII-only
+# class collapsed every such name to ``m___`` -- distinct mappings became
+# NAME CLASH suffixes and spurious RENAMED warnings.
+_UNSAFE_PATH_CHARS = re.compile(r"[^\w.\-]")
 
 # Names Windows refuses as a file name regardless of extension. A FOLDER
 # called "CON" would otherwise make every write under it fail.
@@ -120,12 +126,15 @@ def safe_path_component(name: str, fallback: str = "unnamed") -> str:
     The result never contains a path separator, a drive colon, NUL, or a
     ``..`` run; it never starts with a dot (no hidden files, no relative
     climb); it is never empty; and it is never a Windows device name. Legal
-    Informatica names (``[A-Za-z0-9_]``, the usual ``m_``/``wf_`` forms) come
-    back unchanged, so output layout for real exports is identical.
+    Informatica names (word characters of any script, the usual
+    ``m_``/``wf_`` forms) come back unchanged, so output layout for real
+    exports -- ASCII or Unicode-mode -- is identical. The name is
+    NFKC-normalised first, so a fullwidth solidus (``／``) or a fullwidth
+    ``ＣＯＮ`` is judged as the ``/`` or ``CON`` it is displayed as.
     Callers that care about collisions should compare the result with the
     original and report a change -- see ``run_migration``.
     """
-    cleaned = (name or "").replace("\x00", "")
+    cleaned = unicodedata.normalize("NFKC", name or "")
     cleaned = _UNSAFE_PATH_CHARS.sub("_", cleaned)
     # ".." (and longer dot runs) are the one remaining way to name a parent
     # directory; a single "." is harmless inside a name (m_v1.2).

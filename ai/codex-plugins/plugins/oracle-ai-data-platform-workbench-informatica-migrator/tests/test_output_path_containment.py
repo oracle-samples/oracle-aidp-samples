@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -144,9 +145,63 @@ def _assert_contained(arena: _Arena, expect_suffixes: tuple[str, ...]) -> None:
 @needs_helpers
 @pytest.mark.parametrize("name", [
     "m_ORDERS_TRANSFORM", "wf_SDE_Daily", "SALES", "m_v1.2", "a-b_c", "Migrated",
+    # Unicode-mode repositories and IDMC allow non-ASCII names
+    "m_顧客", "wf_Zahlungen_tägl", "Ventes_Été", "m_заказы",
 ])
 def test_legal_informatica_names_are_unchanged(name):
     assert safe_path_component(name) == name
+
+
+@needs_helpers
+def test_distinct_non_ascii_names_stay_distinct():
+    """An ASCII-only class turned every non-ASCII letter into ``_``, so two
+    different mappings became the same file (``m___``) and a NAME CLASH."""
+    assert safe_path_component("m_顧客") != safe_path_component("m_注文")
+    assert "_" * 3 not in safe_path_component("m_顧客")
+
+
+@needs_helpers
+@pytest.mark.parametrize("name, forbidden", [
+    ("a／b", "/"),            # fullwidth solidus normalises to the separator it looks like
+    ("a＼b", "\\"),
+    ("C：\\x", ":"),
+    ("a\u202eb", "\u202e"),  # right-to-left override
+    ("a\u200bb", "\u200b"),  # zero-width space
+    ("a\x01b", "\x01"),
+])
+def test_unicode_lookalikes_and_format_characters_are_still_replaced(name, forbidden):
+    safe = safe_path_component(name)
+    assert forbidden not in safe and "/" not in safe and ":" not in safe
+    assert os.path.basename(safe) == safe
+
+
+@needs_helpers
+def test_a_fullwidth_device_name_is_still_prefixed():
+    assert safe_path_component("ＣＯＮ").upper() != "CON"
+
+
+def test_unicode_mode_names_are_written_as_is_and_not_reported(tmp_path, caplog):
+    """Two mappings from a Unicode-mode repository keep their names: separate
+    notebooks, no NAME CLASH suffix, no RENAMED line, no sanitised_names.csv.
+    (Also pins that the DDL and report writers do not depend on the platform
+    default encoding -- cp1252 on Windows cannot encode these names.)"""
+    arena = _Arena(tmp_path)
+    for i, (mapping, workflow) in enumerate([("m_顧客", "wf_顧客"), ("m_注文", "wf_注文")]):
+        (arena.inp / f"{i}.xml").write_text(_powercenter_xml("売上", mapping, workflow), encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING, logger="infa2aidp.migrator"):
+        result = run_migration(sorted(str(p) for p in arena.inp.glob("*.xml")), str(arena.out),
+                               use_llm=False, score_confidence=False, skip_lineage=True, skip_optimize=True)
+
+    assert (result.notebooks, result.workflows) == (2, 2)
+    assert (arena.out / "売上" / "nb_m_顧客.ipynb").is_file()
+    assert (arena.out / "売上" / "nb_m_注文.ipynb").is_file()
+    assert result.renamed_paths == []
+    assert "RENAMED" not in format_run_summary(result)
+    assert "NAME CLASH" not in format_run_summary(result)
+    assert "is not a safe file name" not in caplog.text
+    assert not (arena.out / "reports" / "sanitised_names.csv").exists()
+    assert arena.files_outside_out() == []
 
 
 @needs_helpers
@@ -216,10 +271,13 @@ def test_powercenter_export_with_hostile_names_stays_inside_output_dir(tmp_path,
     xml.write_text(_powercenter_xml(arena.hostile_folder, HOSTILE_MAPPING, HOSTILE_WORKFLOW),
                    encoding="utf-8")
 
-    result = run_migration(
-        [str(xml)], str(arena.out), use_llm=False, emit_comparison=True,
-        score_confidence=False, skip_lineage=False, skip_optimize=True,
-    )
+    # at_level, not the bare fixture: it also re-enables logging that an
+    # earlier test module (the golden harness) left disabled for the process.
+    with caplog.at_level(logging.WARNING, logger="infa2aidp.migrator"):
+        result = run_migration(
+            [str(xml)], str(arena.out), use_llm=False, emit_comparison=True,
+            score_confidence=False, skip_lineage=False, skip_optimize=True,
+        )
 
     assert (result.notebooks, result.workflows) == (1, 1), "the run must not abort"
     _assert_contained(arena, (".ipynb", ".json", "_comparison.md", "_comparison.html"))
@@ -343,8 +401,9 @@ def test_a_notebook_that_cannot_be_written_fails_that_mapping_not_the_run(tmp_pa
     bad.write_text(_powercenter_xml("SALES", "BAD", "wf_bad"), encoding="utf-8")
     good.write_text(_powercenter_xml("SALES", "m_GOOD", "wf_good"), encoding="utf-8")
 
-    result = run_migration([str(bad), str(good)], str(arena.out), use_llm=False,
-                           score_confidence=False, skip_lineage=True, skip_optimize=True)
+    with caplog.at_level(logging.WARNING, logger="infa2aidp.migrator"):
+        result = run_migration([str(bad), str(good)], str(arena.out), use_llm=False,
+                               score_confidence=False, skip_lineage=True, skip_optimize=True)
 
     assert result.notebooks == 1
     assert (arena.out / "SALES" / "nb_m_GOOD.ipynb").is_file()
