@@ -76,6 +76,18 @@ break a script written against a development checkout, and is listed first.
 - Bundled demo estate (`--fixture demo`) and a staged 106-asset demo input built
   from it plus 78 permissively-licensed third-party artifacts.
 - MCP server (`fabric-aidp-mcp`, `pip install -e '.[mcp]'`, Python 3.10+).
+  The server, not the tool call, contains the CLI it runs (security review
+  SEC-AIDP-SAMPLES-004): every path argument resolves under
+  `FABRIC_AIDP_WORK_ROOT` (default: the directory the server started in) and
+  a `..` escape or an absolute path outside it is refused before the CLI
+  runs, naming the resolved root; a bare artifact name goes to a per-session
+  `fabric-aidp-runs/<utc-time>-<pid>/` directory so sessions do not collide,
+  and each result starts with the root and the resolved paths. The CLI runs
+  in the work root with an allowlisted environment — `PATH`, `HOME`, locale,
+  the Python and Windows variables it needs, the `OCI_*` selectors, `AIDP_*`
+  and `FABRIC_*` — so a `GITHUB_TOKEN` or `AWS_SECRET_ACCESS_KEY` in the
+  client's shell never reaches it. `publish` over MCP stays a dry run with no
+  `apply`; `--apply` is CLI-only.
 - Claude Code plugin: five commands, one skill, `.mcp.json`.
 - Agent Plugins 1.0.0 manifest for Codex under `.codex-plugin/`, exposing the
   skill only — Codex has no commands concept.

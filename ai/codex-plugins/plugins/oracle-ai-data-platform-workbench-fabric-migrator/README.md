@@ -95,6 +95,27 @@ dependency. Without it the server starts and exits, and the client shows
 else needs the extra — the CLI and the Claude Code slash commands work without
 it.
 
+**Where the MCP server may read and write.** An agent is steered by the files
+it inspects, so the server, not the tool call, decides where paths lead. Every
+path a tool accepts resolves under one work root — `FABRIC_AIDP_WORK_ROOT`, or
+the directory the server was started in when that is unset — and a `..` that
+climbs out or an absolute path elsewhere is refused before the CLI runs, with
+the resolved root in the message. An artifact named without a directory part
+(`inv.json`, `plan.json`, `migrated`) lands in a per-session directory,
+`<root>/fabric-aidp-runs/<utc-time>-<pid>/`, so two sessions that both accept
+the defaults cannot overwrite each other; every tool result starts with the
+root and the resolved paths it used. The CLI runs in the work root with an
+allowlisted environment — `PATH`, `HOME`, locale, the Python and Windows
+variables it needs to start, the OCI selectors (`OCI_CONFIG_FILE`,
+`OCI_CONFIG_PROFILE`, `OCI_CLI_PROFILE`, `OCI_CLI_AUTH`, `OCI_CLI_REGION`,
+`OCI_NAMESPACE`) and this tool's own `AIDP_*` / `FABRIC_*` settings — and
+nothing else from the shell that started the client: a `GITHUB_TOKEN`,
+`AWS_SECRET_ACCESS_KEY` or npm token sitting in that shell never reaches the
+subprocess. Set the root in `.mcp.json` (or the client's server config) with
+`"env": {"FABRIC_AIDP_WORK_ROOT": "/path/to/migration"}`. And `publish`
+through MCP is a dry run with no `apply` to pass: writing to a workspace is
+`fabric-aidp publish <dir> --prefix <you> --apply`, typed by a person.
+
 **Running it against a real workspace?** [docs/RUNBOOK.md](docs/RUNBOOK.md) is
 the end-to-end path — Fabric Git export, through the four offline verbs, to
 jobs published on an AIDP cluster.

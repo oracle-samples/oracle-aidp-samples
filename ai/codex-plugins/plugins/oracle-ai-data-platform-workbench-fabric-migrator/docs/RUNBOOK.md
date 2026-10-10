@@ -450,6 +450,23 @@ redirect the `aidp` CLI or the Node parser. `plan` reads `OCI_NAMESPACE` the
 same way — that is why a namespace set once in `.env` reaches steps 3 and 4
 without a flag.
 
+**Driving steps 2–6 from an MCP client instead of a shell.** The server
+(`fabric-aidp-mcp`, see README) runs the same CLI, with two differences that
+matter here. Every path a tool is given resolves under one work root —
+`FABRIC_AIDP_WORK_ROOT`, or where the client started the server — and a path
+that would leave it is refused before anything runs; set the root in the
+client's server config to the directory holding your export and `out/`. The
+CLI runs *in* that root, so the `.env` it reads is the root's, and it gets
+only an allowlisted environment: `PATH`, `HOME`, locale, what Python needs,
+`OCI_CONFIG_FILE` / `OCI_CONFIG_PROFILE` / `OCI_CLI_PROFILE` / `OCI_CLI_AUTH` /
+`OCI_CLI_REGION` / `OCI_NAMESPACE`, and `AIDP_*` / `FABRIC_*`. Anything else
+exported in the shell the client was launched from — a GitHub or npm token,
+AWS keys — is not passed through. Bare artifact names (`inv.json`,
+`migrated`) go to `<root>/fabric-aidp-runs/<utc-time>-<pid>/`, one directory
+per session; each tool result begins with the root and the resolved paths.
+And the MCP `publish` is this step's **dry run only** — it has no `apply`.
+The `--apply` command above is run by a person at the CLI, never by an agent.
+
 ---
 
 ## Step 7 — run one thing, on purpose
