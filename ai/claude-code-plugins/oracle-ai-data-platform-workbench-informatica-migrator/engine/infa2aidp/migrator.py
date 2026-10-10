@@ -405,18 +405,21 @@ def _validate_generated(output_dir: str) -> list:
     import ast as _ast
     import json as _json
     from .generators.code_validation import (
-        abandoned_dataframes, hardcoded_credentials, unresolved_names,
+        abandoned_dataframes, credential_literals_in_text, hardcoded_credentials,
+        unresolved_names,
     )
+
+    def _cell_text(cell: dict) -> str:
+        return "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
 
     broken = []
     for path in sorted(glob.glob(os.path.join(output_dir, "**", "*.ipynb"),
                                  recursive=True)):
         try:
             nb = _json.load(open(path, encoding="utf-8"))
-            code = "\n".join(
-                "".join(c["source"]) if isinstance(c["source"], list) else c["source"]
-                for c in nb.get("cells", []) if c.get("cell_type") == "code"
-            )
+            cells = nb.get("cells", [])
+            code = "\n".join(_cell_text(c) for c in cells if c.get("cell_type") == "code")
+            prose = [_cell_text(c) for c in cells if c.get("cell_type") == "markdown"]
         except Exception as exc:
             broken.append((path, [f"could not be read back: {exc}"]))
             continue
@@ -431,11 +434,15 @@ def _validate_generated(output_dir: str) -> list:
                             and "raise NotImplementedError" in code)
 
         problems = []
-        leaks: list = []
         try:
             _ast.parse(code)
         except SyntaxError as exc:
             problems.append(f"does not parse: {exc}")
+            # The syntax-tree rule cannot run, but a password beside a typo
+            # is still a password in a deliverable: the text rule needs no
+            # tree. Before this, "does not parse" ended the check and the
+            # credential shipped.
+            leaks = credential_literals_in_text(code)
         else:
             missing = unresolved_names(code)
             if missing:
@@ -456,8 +463,13 @@ def _validate_generated(output_dir: str) -> list:
             # run_migration can fail the run on it. The finding names the
             # line and the shape, never the value.
             leaks = hardcoded_credentials(code)
-            if leaks:
-                problems.append(f"{CREDENTIAL_PROBLEM}: {'; '.join(leaks)}")
+        # Markdown is not code, but it is in the same file that gets
+        # reviewed, committed and deployed -- "connect with password=..."
+        # in a heading cell is the same leak.
+        for n, text in enumerate(prose, 1):
+            leaks.extend(f"markdown cell {n}, {f}" for f in credential_literals_in_text(text))
+        if leaks:
+            problems.append(f"{CREDENTIAL_PROBLEM}: {'; '.join(leaks)}")
         # A declared refusal is exempt from the "cannot run" rules, but not
         # from the credential rule: a REVIEW REQUIRED stub that also embeds
         # a password is still a leaked password.
