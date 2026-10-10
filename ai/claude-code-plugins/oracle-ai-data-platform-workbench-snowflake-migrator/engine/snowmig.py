@@ -457,9 +457,12 @@ def _run_sql_from_args(args, *, role_gate: bool = True):
         # Fail closed, before the first read: a role that can write to the
         # source, or whose grants cannot be read, does not get a session.
         evidence = assert_role_read_only(run_sql, database=coords["database"])
+        walked = (f', {len(evidence["inherited_roles"])} granted role(s) '
+                  f'walked' if evidence["inherited_roles"] else "")
         print(f'  role: {evidence["role"]} is read-only on '
               f'{evidence["database"] or "the account"} '
-              f'({evidence["grants_read"]} grant(s) read)', file=sys.stderr)
+              f'({evidence["grants_read"]} grant(s) read{walked})',
+              file=sys.stderr)
     return run_sql
 
 
@@ -2748,8 +2751,9 @@ def cmd_init_config(args) -> int:
     print(f"  wrote {written}")
     print("  Fill it in — the Snowflake connection and the AIDP destination "
           "both live there.")
-    print("  IT WILL HOLD LIVE CREDENTIALS: keep it out of git, tickets and "
-          "chat.")
+    print("  It names your credential FILES (password_path / key_path): keep "
+          "it and those files out of git, tickets and chat; chmod 600 each "
+          "credential file.")
     print(f"  Then: snowmig.py preflight --out-dir ./snowmig_out "
           f"--config {written} --test-source")
     return 0
@@ -3361,8 +3365,9 @@ def build_parser() -> argparse.ArgumentParser:
     ic.add_argument("--path",
                     help=f"where to write it (default ./{CONFIG_NAMES[0]})")
     ic.add_argument("--force", action="store_true",
-                    help="overwrite an existing config — it holds "
-                         "credentials, so this is never the default")
+                    help="overwrite an existing config — it is the "
+                         "operator's filled-in connection, so this is never "
+                         "the default")
     ic.set_defaults(func=cmd_init_config)
 
     pf = sub.add_parser(

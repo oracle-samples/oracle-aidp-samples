@@ -166,7 +166,13 @@ owner decides the rest. Before the first run:
   else) and a service user that holds only that role. `preflight` and every
   Snowflake-reading stage read the role's grants back with `SHOW GRANTS TO
   ROLE` and **stop if it can write the source** — or if the grants cannot be
-  read at all.
+  read at all. The check **walks the role hierarchy**: a role or database
+  role granted to the migration role (`GRANT ROLE SYSADMIN TO ROLE ...`) is
+  listed in turn, so a write it inherits counts the same as one granted
+  directly, and the refusal names the role that carried it. Do not grant the
+  migration role any other role. With `USE SECONDARY ROLES ALL` in effect
+  every role the user holds is checked too; pass `--only-primary-role` to
+  scope a run to `role:` alone.
 - Enforce **SSO/MFA** for human users and a **network policy** that limits
   where the service user may connect from.
 - Prefer a **key pair** (`auth: keypair`) and **rotate** the key or password

@@ -1060,6 +1060,20 @@ def test_provision_flag_overrides_the_config_catalog(tmp_path, monkeypatch):
     assert res["external_catalog"] == "cfg_external_cat"
 
 
+# --- init-config: the console describes a config that NAMES credential files
+
+def test_init_config_says_the_config_names_credential_files(tmp_path, capsys):
+    """Since 0.29 the config cannot hold a credential (an inline value is
+    refused), so the console must not call it a holder of live credentials:
+    it names the files, and those are what to keep out of git and chat."""
+    rc = main(["init-config", "--path", str(tmp_path / "snowmig-config.yaml")])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "credential FILES" in out and "password_path" in out
+    assert "chmod 600" in out
+    assert "HOLD LIVE CREDENTIALS" not in out
+
+
 # --- no Snowflake secret is ever taken inline on the command line ----------
 
 def _every_option_string():

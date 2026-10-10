@@ -322,16 +322,22 @@ def render_preflight_report(result: dict) -> str:
             f' (+ secondary: {", ".join(grants["secondary_roles"])})'
             if grants.get("secondary_roles") else "")
         scope = grants.get("database") or "every database"
+        names = "`, `".join(grants.get("inherited_roles") or [])
+        walked = (f" and every role granted to it (`{names}`)"
+                  if names else "")
         lines += ["## Source role grants", "",
                   f'Role `{roles}`, {grants["grants_read"]} grant(s) read '
-                  f'with `SHOW GRANTS TO ROLE`; privileges on {scope}:', "",
+                  f'with `SHOW GRANTS TO ROLE` across the role{walked}; '
+                  f'privileges on {scope}:', "",
                   "| Privilege | Grants |", "|---|---|"]
         lines += [f"| `{p}` | {n} |" for p, n in grants["by_privilege"].items()]
         if grants["write_grants"]:
             lines += ["", "**Write privileges on the source — the migration "
-                          "role must not hold these:**", ""]
+                          "role must not hold these, directly or through a "
+                          "role granted to it:**", ""]
             lines += [f'- `{w["privilege"]}` on {w["granted_on"]} '
-                      f'`{w["name"]}` (role `{w["role"]}`)'
+                      f'`{w["name"]}` (role `{w["role"]}`'
+                      + (f', via `{w["via"]}`' if w.get("via") else "") + ")"
                       for w in grants["write_grants"]]
         if grants.get("out_of_scope_writes"):
             lines += ["", f'{grants["out_of_scope_writes"]} write grant(s) '

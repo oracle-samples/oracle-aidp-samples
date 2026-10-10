@@ -57,6 +57,18 @@ def _writer_sql(sql, params=None):
     return _run_sql(sql, params)
 
 
+def _inheriting_sql(sql, params=None):
+    """The role itself holds only reads, but SYSADMIN was granted to it."""
+    low = " ".join(sql.split()).lower()
+    if low.startswith("show grants to role") and '"sysadmin"' in low:
+        return [{"privilege": "OWNERSHIP", "granted_on": "DATABASE",
+                 "name": "SALES_DB"}]
+    if low.startswith("show grants to role"):
+        return READ_ONLY_GRANTS + [{"privilege": "USAGE", "granted_on": "ROLE",
+                                    "name": "SYSADMIN"}]
+    return _run_sql(sql, params)
+
+
 def _call(operation, **kw):
     if operation == "list_catalogs":
         return {"items": [{"displayName": "lake", "catalogType": "INTERNAL"}]}
@@ -149,6 +161,21 @@ def test_a_role_that_can_write_the_source_fails_preflight(tmp_path):
     report = render_preflight_report(result)
     assert "Write privileges on the source" in report
     assert "`INSERT` on TABLE `SALES_DB.PUBLIC.ORDERS`" in report
+
+
+def test_a_write_inherited_through_a_granted_role_fails_preflight(tmp_path):
+    """`GRANT ROLE SYSADMIN TO ROLE READER` leaves READER's own listing
+    clean; the gate follows the grant and the evidence names the carrier."""
+    result = run_preflight(_config(tmp_path), run_sql=_inheriting_sql)
+    check = next(c for c in result["checks"]
+                 if c["name"] == "source role is read-only")
+    assert check["ok"] is False
+    assert "OWNERSHIP" in check["detail"] and "via SYSADMIN" in check["detail"]
+    assert result["ok"] is False
+    report = render_preflight_report(result)
+    assert "`SYSADMIN`" in report, "the walked role is named in the evidence"
+    assert "`OWNERSHIP` on DATABASE `SALES_DB` (role `READER`, via `SYSADMIN`)" \
+        in report
 
 
 def test_unreadable_grants_fail_the_role_check_closed(tmp_path):

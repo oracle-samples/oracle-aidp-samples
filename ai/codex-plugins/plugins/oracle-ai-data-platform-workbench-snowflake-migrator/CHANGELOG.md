@@ -21,6 +21,17 @@ migrator Codex plugin, newest first. The format loosely follows
   holds CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, MERGE, TRUNCATE or
   OWNERSHIP on the source database, or if the grants cannot be read.
   `preflight --test-source` reports the check and lists the grants found.
+- The role check walks the role hierarchy: every role and database role a
+  listing names (`USAGE on ROLE SYSADMIN`, `USAGE on DATABASE_ROLE DB.X`) is
+  listed with `SHOW GRANTS TO ROLE` / `SHOW GRANTS TO DATABASE ROLE` in turn,
+  with a visited set so a cycle terminates, and a write inherited through a
+  granted role refuses the session with the carrying role named (`INSERT on
+  TABLE ... via SYSADMIN`). A `current_secondary_roles()` of `ALL` that names
+  no roles is resolved from `SHOW GRANTS TO USER`, or refused when that
+  cannot be read; a write grant with no object name is judged inside the
+  source rather than out of scope.
+- `init-config` no longer says the config "will hold live credentials": it
+  names the credential files, and those are what to keep out of git and chat.
 - `preflight`, every stage and `PROVISION.md` print the credential's source
   — the file's basename and whether it is owner-only — never its value or
   its directory. Nothing is spooled to a temp file any more.
