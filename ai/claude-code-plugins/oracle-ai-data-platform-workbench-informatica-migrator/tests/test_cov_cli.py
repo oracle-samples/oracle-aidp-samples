@@ -54,13 +54,18 @@ class TestDispatcher:
             with pytest.raises(SystemExit):
                 p.parse_args(argv)
 
-    def test_handler_exception_is_exit_1_unless_verbose(self, monkeypatch):
+    def test_handler_exception_is_exit_1_verbose_adds_the_traceback(self, monkeypatch, caplog):
+        """Verbose mode used to re-raise. The interpreter prints a re-raised
+        exception past every logging filter, including the one that redacts
+        a live password (SEC-AIDP-SAMPLES-002), so verbose now logs the
+        traceback instead and exits 1 like any other failure."""
         def boom(args):
             raise RuntimeError("kaput")
         monkeypatch.setitem(cli.COMMANDS, "version", cli.Command("version", "v", boom))
         assert main(["version"]) == 1
-        with pytest.raises(RuntimeError, match="kaput"):
-            main(["version", "-v"])
+        assert "Traceback" not in caplog.text
+        assert main(["version", "-v"]) == 1
+        assert "kaput" in caplog.text and "Traceback" in caplog.text
 
     def test_keyboard_interrupt_is_130(self, monkeypatch):
         def interrupted(args):

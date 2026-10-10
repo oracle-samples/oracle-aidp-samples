@@ -15,9 +15,18 @@ test_crawler_security.py); these tests pin the ingress to the same posture:
   - `INFA_PASSWORD` in the environment still works.
   - Once the password is in memory it is redacted from every log record,
     verbose or not -- including a library exception that echoes a request
-    URL -- and the connection config's repr never shows it.
-  - A host of the form `user:secret@host` is refused, since it would put
-    the credential into every request URL and exception message.
+    URL or the XML-escaped request body -- and the connection config's
+    repr never shows it. `-v` logs a redacted traceback instead of
+    re-raising (a re-raise is printed by the interpreter past every
+    logging filter), pinned through a real subprocess.
+  - A password file written by Notepad or PowerShell (UTF-8 BOM, UTF-16)
+    is read correctly; a file that is not text is a clear error.
+  - A host of the form `user:secret@host` -- or one carrying a path, query
+    or fragment -- is refused, since it would put the credential into
+    every request URL and exception message.
+  - Option prefixes are not accepted (`--password-fil <secret>` must not
+    become `--password-file`), and the values after an unrecognised option
+    are masked in argparse's error.
   - The SOAP LoginRequest XML-escapes every field, so a password with `&`
     or `<` cannot break or rewrite the request.
 
@@ -28,6 +37,9 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import sys
+import textwrap
 import types
 
 import pytest
@@ -175,6 +187,38 @@ def test_unusable_password_file_is_a_clear_error_without_content(tmp_path, make)
     assert "password file" in str(exc.value)
 
 
+@pytest.mark.parametrize("encoding, newline", [
+    ("utf-8-sig", "\n"),      # Notepad "UTF-8 with BOM", PowerShell 5.1 Out-File -Encoding utf8
+    ("utf-16", "\r\n"),       # PowerShell 5.1 `echo pw > file` (UTF-16 LE with BOM)
+    ("utf-16-be", None),      # big-endian with an explicit BOM
+    ("utf-8", "\r\n"),        # CRLF, no BOM
+])
+def test_password_file_as_windows_tools_write_it_is_read_whole(tmp_path, encoding, newline):
+    """A BOM is not part of the password, and UTF-16 is text: before this a
+    BOM-prefixed file logged in with U+FEFF glued to the password and a
+    UTF-16 file raised an undocumented UnicodeDecodeError."""
+    p = tmp_path / "pw"
+    if encoding == "utf-16-be":
+        p.write_bytes(b"\xfe\xff" + (SECRET + "\nsecond\n").encode("utf-16-be"))
+    else:
+        p.write_bytes((SECRET + newline + "second line" + newline).encode(encoding))
+    assert read_secret_file(str(p), enforce_mode=False) == SECRET
+
+
+@pytest.mark.parametrize("data", [
+    b"\x80\x81\x82\n",                                  # not UTF-8 at all
+    (SECRET + "\n").encode("utf-16-le"),                # UTF-16 without a BOM: NULs, not text
+])
+def test_password_file_that_is_not_text_is_a_value_error_naming_the_path_only(tmp_path, data):
+    p = tmp_path / "pw"
+    p.write_bytes(data)
+    with pytest.raises(ValueError) as exc:
+        read_secret_file(str(p), enforce_mode=False)
+    msg = str(exc.value)
+    assert "password file" in msg and "UTF-8" in msg and str(p) in msg
+    assert SECRET not in msg and "\\x" not in msg
+
+
 # ── permission check: owner-only on POSIX, skipped on Windows ─────────
 
 @POSIX_ONLY
@@ -256,16 +300,79 @@ def test_verbose_diagnostics_redact_the_password(tmp_path, fake_crawler, caplog)
     assert "pc.example" in caplog.text, "host stays visible -- it is the password that is secret"
 
 
-def test_verbose_reraise_path_also_logs_redacted(tmp_path, fake_crawler, caplog):
+def test_verbose_failure_is_exit_1_with_a_redacted_traceback_not_a_reraise(tmp_path, fake_crawler, caplog):
+    """`-v` used to re-raise. A re-raised exception is printed by the
+    interpreter through sys.excepthook, which no logging filter sees, so
+    the traceback carried the raw password. Verbose mode now gets the
+    traceback through logging, where it is redacted, and exits 1."""
     _, FakeCrawler = fake_crawler
     FakeCrawler.connect_error = ConnectionError(f"PMREP connect failed: pmrep connect -x {SECRET}")
     try:
-        with caplog.at_level(logging.DEBUG), pytest.raises(ConnectionError):
-            main(["discover", "-v", "--host", "pc.example", "--password-file", _password_file(tmp_path), "-o", str(tmp_path / "out")])
+        with caplog.at_level(logging.DEBUG):
+            rc = main(["discover", "-v", "--host", "pc.example", "--password-file", _password_file(tmp_path), "-o", str(tmp_path / "out")])
     finally:
         FakeCrawler.connect_error = None
+    assert rc == 1
+    assert "Traceback" in caplog.text and "ConnectionError" in caplog.text, "verbose still gets the traceback"
     assert SECRET not in caplog.text
     assert REDACTED in caplog.text
+
+
+def test_verbose_failure_stderr_of_a_real_process_carries_no_password(tmp_path):
+    """Through a real interpreter, because that is where the leak was: the
+    in-process test above only sees what logging captured, while a re-raise
+    reaches stderr through a path logging never touches."""
+    import infa2aidp
+    engine = os.path.dirname(os.path.dirname(os.path.abspath(infa2aidp.__file__)))
+    out = str(tmp_path / "out")
+    code = textwrap.dedent("""
+        import os, sys
+        import infa2aidp.crawlers.informatica_crawler as m
+        from infa2aidp.cli import main
+        class Fake:
+            def __init__(self, cfg): pass
+            def connect(self, method):
+                raise ConnectionError("login failed: body=<Password>" + os.environ["INFA_PASSWORD"] + "</Password>")
+        m.InformaticaCrawler = Fake
+        sys.exit(main(["discover", "-v", "--host", "pc.example", "-o", sys.argv[1]]))
+    """)
+    env = {**os.environ, "PYTHONPATH": engine, "INFA_PASSWORD": SECRET,
+           "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"}
+    proc = subprocess.run([sys.executable, "-c", code, out], capture_output=True, text=True,
+                          env=env, cwd=str(tmp_path), timeout=120)
+    assert proc.returncode == 1, proc.stderr
+    assert SECRET not in proc.stderr and SECRET not in proc.stdout
+    assert REDACTED in proc.stderr
+    assert "Traceback" in proc.stderr, "verbose still shows where it failed"
+
+
+# ── argv near-misses of the refused flag ──────────────────────────────
+
+def test_option_prefixes_are_not_accepted(fake_crawler, capsys):
+    """argparse prefix matching turned `--password-fil <secret>` into
+    `--password-file <secret>`: the secret became a path, the file reader
+    failed, and its error named the path. Exact spellings only."""
+    with pytest.raises(SystemExit) as exc:
+        main(["discover", "--host", "pc.example", "--password-fil", SECRET])
+    assert exc.value.code == 2
+    assert SECRET not in capsys.readouterr().err
+    assert "cfg" not in fake_crawler[0]
+
+
+@pytest.mark.parametrize("argv_tail", [
+    ["--pasword", SECRET],                 # typo of the refused flag
+    [f"--pasword={SECRET}"],
+    ["--passwo", SECRET],                  # would have been "ambiguous", now plainly unknown
+    ["--", "--password", SECRET],
+])
+def test_values_after_an_unrecognised_option_are_masked(argv_tail, capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["discover", "--host", "pc.example", *argv_tail])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "unrecognized arguments" in err
+    assert SECRET not in err
+    assert REDACTED in err
 
 
 def test_successful_discovery_logs_the_source_not_the_secret(tmp_path, fake_crawler, caplog, monkeypatch):
@@ -293,6 +400,44 @@ def test_redacting_filter_covers_message_args_and_exceptions():
     assert RedactingFilter([""]).filter(rec2), "an empty secret must not redact everything"
 
 
+ESCAPABLE = 'p&ss<w0rd>"/+ é'   # every character some transport re-spells
+
+
+def test_redaction_covers_the_escaped_spellings_of_the_password():
+    """The crawler XML-escapes the password into the LoginRequest, so a hub
+    or proxy that echoes the rejected body shows `p&amp;ss&lt;w0rd&gt;`;
+    a URL carries it percent-encoded and a JSON payload backslash-escaped.
+    Redacting only the raw form left each of those readable."""
+    from json import dumps
+    from urllib.parse import quote, quote_plus
+    from xml.sax.saxutils import escape
+
+    flt = RedactingFilter([ESCAPABLE])
+    for spelled in (ESCAPABLE, escape(ESCAPABLE), escape(ESCAPABLE, {'"': "&quot;"}),
+                    quote(ESCAPABLE, safe=""), quote_plus(ESCAPABLE), dumps(ESCAPABLE)[1:-1]):
+        assert spelled, "a spelling must not be empty"
+        redacted = flt.redact(f"body=<Password>{spelled}</Password>")
+        assert spelled not in redacted and REDACTED in redacted, spelled
+    # the ordinary text around it survives
+    assert flt.redact("pc.example rejected the login") == "pc.example rejected the login"
+
+
+def test_an_error_echoing_the_escaped_request_body_is_redacted(tmp_path, fake_crawler, caplog, monkeypatch):
+    from xml.sax.saxutils import escape
+    _, FakeCrawler = fake_crawler
+    monkeypatch.setenv("INFA_PASSWORD", ESCAPABLE)
+    FakeCrawler.connect_error = ConnectionError(
+        f"WSH rejected body: <Password>{escape(ESCAPABLE)}</Password>")
+    try:
+        with caplog.at_level(logging.DEBUG):
+            rc = main(["discover", "--host", "pc.example", "-o", str(tmp_path / "out")])
+    finally:
+        FakeCrawler.connect_error = None
+    assert rc == 1
+    assert ESCAPABLE not in caplog.text and escape(ESCAPABLE) not in caplog.text
+    assert "<Password>***</Password>" in caplog.text
+
+
 def test_connection_config_repr_hides_the_password():
     cfg = InfaConnectionConfig(host="h", username="u", password=SECRET, repository="r")
     assert SECRET not in repr(cfg)
@@ -308,6 +453,25 @@ def test_credentials_in_the_host_are_refused_and_not_echoed(host):
         InfaConnectionConfig(host=host)
     assert SECRET not in str(exc.value)
     assert PASSWORD_ARGV_REFUSAL in str(exc.value)
+
+
+@pytest.mark.parametrize("host", [
+    f"pc.example?u=admin:{SECRET}",     # would become the URL's query string
+    f"pc.example#admin:{SECRET}",       # ... or its fragment
+    f"pc.example\\{SECRET}",
+    f"pc.example {SECRET}",
+])
+def test_a_host_that_is_not_a_bare_name_is_refused(host):
+    """`--host` is interpolated straight into `http://<host>:<port>/wsh/...`;
+    a `?` or `#` smuggles the rest of the value into every request URL."""
+    with pytest.raises(ValueError) as exc:
+        InfaConnectionConfig(host=host)
+    assert SECRET not in str(exc.value)
+
+
+@pytest.mark.parametrize("host", ["pc.example", "10.0.0.7", "[::1]", "pc.example:7333", "pc-01.corp.example"])
+def test_bare_hosts_and_addresses_are_accepted(host):
+    assert InfaConnectionConfig(host=host).host == host
 
 
 def test_credentials_in_an_explicit_wsh_url_are_refused():

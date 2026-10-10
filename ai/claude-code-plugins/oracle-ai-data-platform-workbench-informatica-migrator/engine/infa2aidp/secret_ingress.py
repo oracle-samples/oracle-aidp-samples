@@ -19,6 +19,10 @@ posture here:
   debug note rather than refusing every file.
 - ``INFA_PASSWORD`` in the environment remains supported (it is what the
   skills recommend, and what ``.env`` loading provides).
+- :class:`CredentialSafeParser` is the argparse class the CLI is built
+  from: no option-prefix matching (so ``--password-fil <secret>`` is not
+  quietly accepted as a file path) and the values after an unrecognised
+  option are masked in the error message.
 
 The second half of the module keeps the secret out of diagnostics once it
 is in memory: :func:`install_redaction` puts a filter on every logging
@@ -26,16 +30,24 @@ handler that replaces the secret with ``***`` in anything logged, which
 covers the crawler's own messages as well as the CLI's catch-all
 ``"<command> failed: <exc>"`` -- a library exception that happens to echo a
 request body or connection string is redacted before it reaches a terminal
-or a log file. This lives beside, not in, ``cli.py`` so the CLI stays the
-thin dispatcher the release gate holds under 500 lines.
+or a log file. The CLI never re-raises for the same reason: a traceback
+printed by the interpreter goes through no logging filter. This lives
+beside, not in, ``cli.py`` so the CLI stays the thin dispatcher the release
+gate holds under 500 lines.
 """
 from __future__ import annotations
 
 import argparse
+import codecs
+import html
+import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote, quote_plus
+from xml.sax.saxutils import escape as _xml_escape
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +61,15 @@ REDACTED = "***"
 #: Permission bits a secret file must NOT have on POSIX: anything that
 #: lets the group or the world read, write or execute it.
 _GROUP_OR_WORLD = 0o077
+
+#: A password file is a line of text; anything beyond this is not one.
+_MAX_SECRET_FILE_BYTES = 64 * 1024
+
+#: Characters a bare hostname or address never contains. ``@`` and ``/``
+#: carry credentials and paths; ``?`` and ``#`` would smuggle a query or
+#: fragment into the URL the host is interpolated into; ``\`` and
+#: whitespace are never part of a host.
+_NOT_A_BARE_HOST = re.compile(r"[@/\\?#\s]")
 
 
 class RejectPasswordArgv(argparse.Action):
@@ -71,10 +92,71 @@ class RejectPasswordArgv(argparse.Action):
         parser.error(PASSWORD_ARGV_REFUSAL)
 
 
+class CredentialSafeParser(argparse.ArgumentParser):
+    """``argparse.ArgumentParser`` with two credential-hygiene changes.
+
+    No prefix matching: with it, ``--password-fil <secret>`` resolves to
+    ``--password-file`` and hands the secret to the file reader, whose
+    "not found" error then names it. Only the exact option spellings are
+    accepted -- and ``add_subparsers`` builds the sub-parsers from the
+    parent's class, so the rule holds for every command.
+
+    Masked echo: the token after a mistyped ``--pasword`` is the password,
+    and argparse's ``unrecognized arguments: ...`` would print it. Every
+    value following an unrecognised option is replaced with
+    :data:`REDACTED` before the message is written.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
+
+    def error(self, message: str):
+        prefix = "unrecognized arguments: "
+        if message.startswith(prefix):
+            masked = []
+            for tok in message[len(prefix):].split():
+                if not tok.startswith("-"):
+                    tok = REDACTED
+                elif "=" in tok:
+                    tok = tok.split("=", 1)[0] + "=" + REDACTED
+                masked.append(tok)
+            message = prefix + " ".join(masked)
+        super().error(message)
+
+
 def _file_mode(path: Path) -> int:
     """Permission bits of *path*; split out so tests can pin the POSIX rule
     on a platform whose filesystem cannot express it."""
     return path.stat().st_mode & 0o777
+
+
+def _decode_secret_file(data: bytes, path: Path) -> str:
+    """The text of a password file as the usual editors write it.
+
+    UTF-8 with or without a byte-order mark (Notepad's "UTF-8 with BOM",
+    PowerShell 5.1's ``Out-File -Encoding utf8``) and UTF-16 with a BOM
+    (what PowerShell 5.1's ``>`` redirection writes) are all accepted: a
+    BOM left in the text would be passed to the repository as part of the
+    password and the login would fail with no hint why. Anything else --
+    including BOM-less UTF-16, which ``utf-8`` would silently decode into
+    a password full of NULs -- is a ``ValueError`` naming the path, never
+    the bytes.
+    """
+    if data.startswith(codecs.BOM_UTF8):
+        encoding = "utf-8-sig"
+    elif data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        encoding = "utf-16"
+    else:
+        encoding = "utf-8"
+    try:
+        if encoding == "utf-8" and b"\x00" in data:
+            raise ValueError("NUL byte in a text file")
+        return data.decode(encoding)
+    except ValueError:   # UnicodeDecodeError is one
+        raise ValueError(
+            f"password file {path} is not UTF-8 text (save it as UTF-8, or UTF-16 with a BOM)"
+        ) from None
 
 
 def read_secret_file(path: Optional[str], *, enforce_mode: Optional[bool] = None) -> str:
@@ -86,8 +168,9 @@ def read_secret_file(path: Optional[str], *, enforce_mode: Optional[bool] = None
     in a different place. *enforce_mode* defaults to "on POSIX only":
     Windows reports 0666 for every ordinary file regardless of its ACL, so
     the check would refuse every file there and is skipped with a debug
-    note instead. A missing or unreadable file raises ``ValueError`` naming
-    the path, never the content.
+    note instead. The file may be UTF-8 (with or without a BOM) or UTF-16
+    with a BOM -- see :func:`_decode_secret_file`. A missing, unreadable or
+    non-text file raises ``ValueError`` naming the path, never the content.
     """
     if not path:
         return ""
@@ -104,12 +187,13 @@ def read_secret_file(path: Optional[str], *, enforce_mode: Optional[bool] = None
                 )
         else:
             logger.debug("password file %s: permission check skipped on this platform", p)
-        with open(p, encoding="utf-8") as fh:
-            first_line = fh.readline()
+        with open(p, "rb") as fh:
+            data = fh.read(_MAX_SECRET_FILE_BYTES)
     except FileNotFoundError:
         raise ValueError(f"password file not found: {p}") from None
     except (IsADirectoryError, PermissionError) as exc:
         raise ValueError(f"password file {p} could not be read: {type(exc).__name__}") from None
+    first_line = _decode_secret_file(data, p).split("\n", 1)[0]
     secret = first_line.strip()
     if not secret:
         raise ValueError(f"password file {p} is empty")
@@ -138,10 +222,13 @@ def reject_url_credentials(host: str, url: str = "") -> None:
     The CLI has no URL flag, but ``--host`` is interpolated straight into
     ``http://<host>:<port>/wsh/services`` and a host of the form
     ``user:secret@pc.example`` would put the credential in every request
-    URL, every requests exception message and every proxy log. The message
-    deliberately does not echo the offending value.
+    URL, every requests exception message and every proxy log -- and so
+    would ``pc.example?u=admin:secret`` or ``pc.example#...``, as a query
+    or fragment of the same URL. Only a bare hostname or address (an
+    optional ``:port`` included) is accepted. The message deliberately
+    does not echo the offending value.
     """
-    if "@" in (host or "") or "/" in (host or ""):
+    if host and _NOT_A_BARE_HOST.search(host):
         raise ValueError(
             "the PowerCenter host must be a bare hostname or address -- "
             "credentials in the host/URL are not accepted. " + PASSWORD_ARGV_REFUSAL
@@ -155,15 +242,38 @@ def reject_url_credentials(host: str, url: str = "") -> None:
             )
 
 
+def _secret_spellings(secret: str) -> "set[str]":
+    """Every spelling of *secret* a request or its error might carry.
+
+    The crawler XML-escapes the password into the SOAP LoginRequest, so a
+    Web Services Hub or proxy that echoes the rejected body shows
+    ``p&amp;ss&lt;w0rd&gt;``, not ``p&ss<w0rd>``; a URL carries it
+    percent-encoded, a JSON payload backslash-escaped. Redacting only the
+    raw form would leave each of those readable.
+    """
+    spellings = {
+        secret,
+        _xml_escape(secret),
+        _xml_escape(secret, {'"': "&quot;", "'": "&apos;"}),
+        html.escape(secret),              # &#x27; for the apostrophe
+        quote(secret, safe=""),
+        quote_plus(secret),
+        json.dumps(secret)[1:-1],
+    }
+    return {s for s in spellings if s}
+
+
 class RedactingFilter(logging.Filter):
     """Replace every occurrence of the configured secrets in a log record
     with :data:`REDACTED` -- in the message, its arguments and any attached
-    exception text -- before a handler formats it."""
+    exception text -- before a handler formats it. Each secret is redacted
+    in every spelling :func:`_secret_spellings` lists."""
 
     def __init__(self, secrets) -> None:
         super().__init__()
+        spellings = {v for s in secrets if s for v in _secret_spellings(s)}
         # Longest first, so a secret that contains another is redacted whole.
-        self._secrets = sorted({s for s in secrets if s}, key=len, reverse=True)
+        self._secrets = sorted(spellings, key=len, reverse=True)
 
     def redact(self, text: str) -> str:
         for s in self._secrets:

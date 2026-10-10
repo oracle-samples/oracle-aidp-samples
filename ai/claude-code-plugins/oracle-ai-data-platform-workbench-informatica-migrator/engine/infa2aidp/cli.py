@@ -19,7 +19,7 @@ from typing import Callable, NamedTuple
 # ANTHROPIC_API_KEY, etc).
 from . import config as _config  # noqa: F401
 from . import __version__
-from .secret_ingress import RejectPasswordArgv, prepare_live_credentials
+from .secret_ingress import CredentialSafeParser, RejectPasswordArgv, prepare_live_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -463,7 +463,7 @@ def _configure(name: str, p: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = CredentialSafeParser(  # exact option spellings only; unrecognised-option values masked
         prog="infa2aidp",
         description="Migrate Informatica PowerCenter ETL to Spark on Oracle AI Data Platform.",
     )
@@ -489,9 +489,9 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        logger.error("%s failed: %s", args.command, exc)
-        if getattr(args, "verbose", False):
-            raise
+        # Never re-raise: sys.excepthook bypasses the logging filters that redact a live
+        # password. Verbose mode gets the traceback through logging -- redacted -- instead.
+        logger.error("%s failed: %s", args.command, exc, exc_info=exc if getattr(args, "verbose", False) else None)
         return 1
 
 
