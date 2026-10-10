@@ -75,6 +75,28 @@ packaged as a Claude Code plugin.
   the existing NAME CLASH handling (`nb_X__2`) instead of one overwriting the
   other. Pinned by `tests/test_output_path_containment.py` for PowerCenter
   XML and IICS JSON, the serial, batch and `lineage` paths.
+- **A `.env` in the current directory is no longer read, and no `.env` can
+  steer where the API key goes (SEC-AIDP-SAMPLES-INFA-H2).** `config.py`
+  loaded `./.env` on import and copied every key into the process
+  environment; the Anthropic SDK reads `ANTHROPIC_BASE_URL`, and httpx reads
+  `HTTPS_PROXY` / `SSL_CERT_FILE`, from exactly there. A `.env` planted in a
+  customer export bundle therefore sent the operator's real key -- exported
+  in the shell, as documented -- and the customer's mapping metadata to a
+  host of the bundle's choosing on the first `--use-llm` call, with nothing
+  on the terminal (the import-time INFO was emitted before logging was
+  configured). Now only `~/.infa2aidp/.env` and a file named explicitly by
+  `INFA2AIDP_ENV_FILE` are read; a `.env` found in the current directory is
+  reported with a WARNING naming it and the opt-in, and no longer shadows the
+  home file. A `.env` may only set the keys `env.template` documents (by name
+  or by the `INFA_` / `AIDP_` / `LLM_` / `CLAUDE_` / `OPENAI_` prefixes);
+  unknown keys are ignored and named, and `*_BASE_URL`, `*_PROXY`,
+  `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `OCI_CONFIG_FILE`, `OCI_CLI_*` and
+  `PYTHON*` are refused from any `.env`, trusted or not -- values are never
+  echoed. The Anthropic client is constructed with an explicit `base_url`
+  (the vendor endpoint unless the shell exports `ANTHROPIC_BASE_URL`), and
+  `AIDP_REGION`, which is interpolated into the deploy hostname, must be a
+  single DNS label. Pinned by `tests/test_env_file_ingress.py`, including the
+  hunter's end-to-end repro against the real SDK when it is installed.
 - **The repository password no longer travels on the command line
   (SEC-AIDP-SAMPLES-002).** `discover --password <value>` is refused with
   exit code 2 and the message "Do not pass passwords in argv. Use

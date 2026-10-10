@@ -30,6 +30,12 @@ from .. import config as _cfg
 
 DEFAULT_OPENAI_MODEL = getattr(_cfg, "OPENAI_MODEL", "gpt-4o")
 
+# Where the key goes. Passed explicitly rather than left to the SDK's own
+# environment lookup, so the only thing that can move the endpoint is a
+# value deliberately exported in the shell -- never a .env file, which the
+# config loader refuses *_BASE_URL from (SEC-AIDP-SAMPLES-INFA-H2).
+OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
+
 _SYSTEM_PROMPT = (
     "You are an expert Informatica PowerCenter to PySpark migration specialist. "
     "Convert the given Informatica expression/code to equivalent PySpark code. "
@@ -62,6 +68,7 @@ class OpenAIHandler:
             self._client = _openai_mod.OpenAI(
                 api_key=api_key, timeout=self.timeout,
                 max_retries=self.max_retries,
+                base_url=os.environ.get("OPENAI_BASE_URL") or OPENAI_DEFAULT_BASE_URL,
             )
 
     def is_available(self) -> bool:

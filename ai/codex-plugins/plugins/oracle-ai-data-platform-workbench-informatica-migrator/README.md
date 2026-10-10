@@ -331,6 +331,22 @@ connection string and does not trip it. Usernames and hostnames are
 configuration, not secrets, and are deliberately not a failing rule. Generated
 code reads credentials at runtime from the environment, never from source.
 
+### Where `.env` is read from
+
+Settings come from the shell environment first, then `~/.infa2aidp/.env`, then a
+file named explicitly with `INFA2AIDP_ENV_FILE=/path/to/.env`. A `.env` in the
+**current directory is not read**: the CLI is run from inside customer export
+bundles, and a `.env` planted in one could point the LLM SDK
+(`OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`), the HTTPS proxy or the CA bundle at
+a host of its choosing and receive the operator's real API key on the first
+`--use-llm` call. One found there is reported with a WARNING and the opt-in. A
+`.env` may only set the keys `env.template` documents (`LLM_PROVIDER`,
+`OPENAI_*`, `ANTHROPIC_API_KEY`, `INFA_*`, `AIDP_*`...); `*_BASE_URL`,
+`*_PROXY`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `OCI_CONFIG_FILE` and
+`PYTHON*` are never taken from a `.env` -- export them in the shell if you mean
+them. Both SDK clients are always constructed with an explicit endpoint (the
+vendor's unless the shell exports `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`).
+
 ### Deploying to AIDP
 
 `deploy` authenticates with the OCI SDK (Resource Principal, Instance Principal,
