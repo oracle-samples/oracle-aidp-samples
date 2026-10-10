@@ -204,12 +204,33 @@ def test_steering_and_unknown_keys_are_not_allowed(key):
 @needs_allowlist
 def test_every_key_env_template_documents_is_allowed():
     """The allow-list is only honest if the template cannot document a key
-    the loader then throws away."""
-    keys = re.findall(r"^\s*#?\s*([A-Z][A-Z0-9_]+)=", (ROOT / "env.template").read_text(encoding="utf-8"),
-                      re.MULTILINE)
+    the loader then throws away.
+
+    Only lines that ARE a key assignment count (``KEY=value``, possibly
+    commented out, at most a ``# comment`` after the value): the template's
+    shell example ``INFA2AIDP_ENV_FILE=./project.env python3 -m infa2aidp.cli
+    ...`` is a process variable that names the file, not a key read from
+    one, and ``_parse_env_file`` would take the whole ``./project.env
+    python3 ...`` as its value anyway.
+    """
+    keys = re.findall(r"^[ \t]*#?[ \t]*([A-Z][A-Z0-9_]+)=\S*(?:[ \t]+#.*)?[ \t]*$",
+                      (ROOT / "env.template").read_text(encoding="utf-8"), re.MULTILINE)
     assert keys, "env.template lists no keys?"
-    refused = [k for k in keys if not cfg.env_key_allowed(k)]
+    assert {"ANTHROPIC_API_KEY", "INFA_WSH_ALLOW_HTTP"} <= set(keys), \
+        "the key-line regex no longer matches real (or inline-commented) key lines"
+    refused = [k for k in keys if not cfg.env_key_allowed(k) and k != cfg.ENV_FILE_VAR]
     assert refused == []
+
+
+def test_the_readme_states_the_precedence_the_loader_implements():
+    """config.py reads the INFA2AIDP_ENV_FILE file before ~/.infa2aidp/.env and
+    never overwrites a key already set, so the explicit file wins on a
+    repeated key. The README said the opposite order."""
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    start = text.index("### Where `.env` is read from")
+    section = text[start:text.index("###", start + 10)]
+    assert section.index(cfg.ENV_FILE_VAR) < section.index("~/.infa2aidp/.env")
+    assert "never overwritten" in section
 
 
 # ── the SDK clients are pinned to the vendor endpoint ─────────────────

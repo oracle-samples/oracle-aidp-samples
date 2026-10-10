@@ -344,8 +344,9 @@ downgrade a later `discover` against a production hub.
 
 ### Where `.env` is read from
 
-Settings come from the shell environment first, then `~/.infa2aidp/.env`, then a
-file named explicitly with `INFA2AIDP_ENV_FILE=/path/to/.env`. A `.env` in the
+Settings come from the shell environment first, then the file named by
+`INFA2AIDP_ENV_FILE=/path/to/.env` (if set), then `~/.infa2aidp/.env`; a value
+from an earlier source is never overwritten by a later one. A `.env` in the
 **current directory is not read**: the CLI is run from inside customer export
 bundles, and a `.env` planted in one could point the LLM SDK
 (`OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`), the HTTPS proxy or the CA bundle at
