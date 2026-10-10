@@ -12,6 +12,7 @@ import subprocess
 import pytest
 
 import snowmig
+from secret_files import write_secret
 
 OCID = "ocid1.aidataplatform.oc1.iad.fakefakefakefake"
 
@@ -23,7 +24,9 @@ AIDP = {"datalake_ocid": OCID, "workspace": "ws-fake",
 def _cfg(tmp_path, aidp: dict) -> str:
     lines = ["snowflake:", "  account: ORG-ACC", "  user: SVC",
              "  warehouse: WH", "  database: SALES_DB", "  role: READER",
-             "  auth: password", "  password: not-a-real-password", "aidp:"]
+             "  auth: password",
+             f"  password_path: {write_secret(tmp_path / 'pw', 'not-a-real-password')}",
+             "aidp:"]
     lines += [f"  {k}: {v}" for k, v in aidp.items()]
     p = tmp_path / "cfg.yaml"
     p.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -23,6 +23,7 @@ import re
 import os
 
 from .aidp_client import AIDPClient
+from ..parsers.security import safe_path_component
 from ..spark_target import parse_spark_version
 from .models import (
     DeployConfig,
@@ -324,7 +325,12 @@ class AIDPDeployer:
         # (PowerCenter <FOLDER>, IDMC project/folder) -- any name is valid.
         # An unfoldered mapping's notebook lands directly under notebooks_dir.
         parent_dir = os.path.basename(os.path.dirname(local_path))
-        folder = parent_dir or "Migrated"
+        # Both come off the local disk, so neither can carry a separator,
+        # but the workspace path is built by string formatting and is the
+        # last place an export-supplied name is turned into a path -- hold
+        # it to the same one-component rule as the local writes.
+        folder = safe_path_component(parent_dir or "Migrated")
+        filename = safe_path_component(filename)
 
         remote_path = f"{self._remote_dir(folder)}/{filename}"
 

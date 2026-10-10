@@ -1,7 +1,7 @@
 # Privacy Policy
 
 **Plugin:** `oracle-ai-data-platform-workbench-snowflake-migrator`
-**Effective:** 2026-10-01
+**Effective:** 2026-10-10
 
 ## Summary
 
@@ -35,24 +35,37 @@ No bundled credentials, no MCP server, no third-party network calls.
 
 ## Credentials
 
-- The Snowflake connection lives in one local file, `snowmig-config.yaml`
-  (inline, or as `key_path:` / `password_path:`). Secrets are never taken as
-  command-line flags, and every report renders the config through a
-  redactor.
+- The Snowflake connection lives in one local file, `snowmig-config.yaml`.
+  The credential does not: the config names a separate file per secret
+  (`key_path:`, `key_passphrase_path:`, `password_path:`, `pat_path:`), and
+  an inline `password:`, `private_key:`, `key_passphrase:` or `token:` is
+  refused by every stage. Each credential file must be readable by its owner
+  alone (a group- or world-readable file is refused on POSIX; on Windows the
+  mode is not checked and the report says so). Secrets are never taken as
+  command-line flags, and every report names a credential by its file's
+  basename — never its value, never its directory.
+- Before any discovery, the session role's grants are read back with `SHOW
+  GRANTS TO ROLE` and the run stops if the role can write the source database
+  (CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, MERGE, TRUNCATE, OWNERSHIP) or
+  if the grants cannot be read. `preflight` lists the grants it found.
 - The Snowflake credential reaches your AIDP tenancy in two ways, each only
   with `--execute`:
-  1. `provision --execute --source-config <file>` uploads the `snowflake:`
-     block, as JSON, to `backup-snowflake-migration/plan/<config stem>.json`
+  1. `provision --execute --source-config <file>` uploads the credential
+     file(s) the config names to `backup-snowflake-migration/plan/<config
+     stem>.<field>` (`plan/snowmig-config.key_path`, for example) and the
+     `snowflake:` block, as JSON with its paths rewritten to the mount's, to
+     `backup-snowflake-migration/plan/<config stem>.json`
      (`plan/snowmig-config.json` by default) so the data-plane jobs can reach
      Snowflake. The `aidp:` block is not copied. Workspace access controls
-     who can read it.
+     who can read them.
   2. `catalog --execute` registers the EXTERNAL catalog with the credential
      in its `connectionDetails` (`SNOWFLAKE_PASSWORD` or
-     `SNOWFLAKE_PRIVATE_KEY_CONTENT`), sent from a temporary file, never as a
-     command-line argument.
-- Use a dedicated, read-only Snowflake user for the migration, and rotate
-  its credential when the migration is done. `teardown --scope credential
-  --execute` removes the workspace copy.
+     `SNOWFLAKE_PRIVATE_KEY_CONTENT`, read from the file at call time), sent
+     from a temporary file, never as a command-line argument.
+- Use a dedicated, read-only Snowflake user for the migration, behind SSO/MFA
+  and a network policy, and rotate its credential when the migration is
+  done. `teardown --scope credential --execute` removes the workspace copies.
+  Review the user's query history afterwards: this plugin only ever reads.
 
 ## What it writes
 

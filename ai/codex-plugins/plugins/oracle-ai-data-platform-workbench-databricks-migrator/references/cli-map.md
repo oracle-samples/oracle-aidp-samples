@@ -81,7 +81,9 @@ python3 $HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py \
   --out reports/catalog_pack.json
 ```
 
-Requires `DATABRICKS_HOST` + `DATABRICKS_TOKEN`.
+Requires `DATABRICKS_HOST` and a PAT from `DATABRICKS_TOKEN` or `--token-file <path>` (a file
+only its owner can read, `chmod 600`). `--token <value>` is refused with exit code 2 -- never put
+the token on the command line.
 
 ### `$HOME/.aidp-migrator/engine/scripts/migrate_catalog.py` — stage 2 (rewrite + replay)
 

@@ -53,7 +53,6 @@ import os
 import pathlib
 import re
 import sys
-import tempfile
 
 from plan.build import SECURE_VIEW_MODES, TargetCollision, build_plan
 from plan.medallion import SCHEMA_STYLES
@@ -82,6 +81,7 @@ from snowflake_source.conn import (
     AuthError, SourceWriteRefused, build_connect_kwargs, connect,
     drop_secondary_roles, make_run_sql,
 )
+from snowflake_source.role_guard import assert_role_read_only
 from snowflake_source.dialect import lexer
 from snowflake_source.extract.catalog import (
     ROW_COUNT_MODES, build_inventory)
@@ -107,7 +107,8 @@ from target.snowflake_catalog_connection import (
 )
 from migration_config import (
     CONFIG_NAMES, TEMPLATE_NAME, ConfigError, aidp_block, discover_config,
-    compute_block, decisions_block, load_config, mapping_block, redact,
+    compute_block, decisions_block, describe_credential_sources, load_config,
+    mapping_block, redact,
     reporting_block, resolve_secret, retry_block, teardown_block,
     snowflake_block,
     write_template,
@@ -373,7 +374,8 @@ def _snowflake_coords(args) -> dict:
     Snowflake accepts it. An explicit flag still wins -- a one-off run
     against a different role or warehouse should not require editing the
     file -- and the ONLY secret either path carries is a PATH to a
-    credential, read at call time.
+    credential, read at call time by the transport. An inline value in the
+    config is refused by `snowflake_block` before this returns.
     """
     config = snowflake_block(_load_migration_config(args))
 
@@ -392,76 +394,76 @@ def _snowflake_coords(args) -> dict:
             "account": pick("account"), "host": pick("host"),
             "user": pick("user"),
             "role": pick("role"), "warehouse": pick("warehouse"),
+            # Credentials travel as PATHS only. The transport reads each
+            # file at connect time, after refusing one that others can
+            # read; nothing here holds a secret value.
             "key_path": pick("key_path"),
-            # A secret may be inline now, so it is resolved rather than
-            # passed along as a path.
-            "password": (resolve_secret(config, "password", "password_path")
-                         if config else None),
-            "private_key": (resolve_secret(config, "private_key", "key_path")
-                            if config and config.get("private_key") else None),
-            # From the config only (inline, or a file it names): there is no
-            # flag for it, because a passphrase in argv lands in shell
-            # history and the process table.
+            # The passphrase has no flag -- a passphrase in argv lands in
+            # shell history and the process table -- and no inline form:
+            # `resolve_secret` reads it from the owner-only file the config
+            # names, and refuses `key_passphrase:` itself.
             "key_passphrase": (resolve_secret(config, "key_passphrase",
                                               "key_passphrase_path")
                                if config else None),
-            # A PAT may be inline (`token:`) or a path (`pat_path:`),
-            # the same as password and private_key. The config already
-            # treats `token` as a secret; it was validated and redacted and
-            # then never read at connect time.
-            "token": (resolve_secret(config, "token", "pat_path")
-                      if config and config.get("token") else None),
             "pat_path": pick("pat_path"),
             "password_path": pick("password_path"),
             "database": pick("database")}
 
 
-def _run_sql_from_args(args):
+def _announce_credential_source(config: dict) -> None:
+    """Say WHERE the credential comes from -- its file's basename and
+    whether it is owner-only -- never what it is or where the file lives."""
+    for line in describe_credential_sources(config):
+        print(f"  credential: {line}")
+
+
+def _run_sql_from_args(args, *, role_gate: bool = True):
+    """The read-only `run_sql` for this run's Snowflake session.
+
+    Before it is handed back, the session's role is proven read-only on the
+    source (`assert_role_read_only`: its grants are read and a write
+    privilege, or an unreadable grants list, refuses the session). Every
+    stage that reads Snowflake from the laptop -- assess, security, census,
+    maintenance -- passes through here, so none runs on a role that could
+    write. `preflight` runs the same check as a reported step and passes
+    `role_gate=False` to read the grants once.
+    """
     coords = _snowflake_coords(args)
     if not coords["account"]:
         raise MissingTarget(
             "no Snowflake account: pass --config (the documented way) or "
             "--account with the other coordinates")
-
-    # `conn.py` reads credentials from PATHS, by design -- that contract is
-    # tested and worth keeping. An inline secret is therefore spooled to a
-    # 0600 temp file for the life of the call and removed afterwards.
-    spooled: list[str] = []
-
-    def as_path(value: str | None, existing: str | None) -> str | None:
-        if existing or not value:
-            return existing
-        fd, path = tempfile.mkstemp(prefix="snowmig_secret_")
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(value)
-        spooled.append(path)
-        return path
-
-    try:
-        kwargs = build_connect_kwargs(
-            coords["auth"], account=coords["account"], user=coords["user"],
-            host=coords.get("host"),
-            role=coords["role"], warehouse=coords["warehouse"],
-            key_path=as_path(coords.get("private_key"), coords["key_path"]),
-            key_passphrase=coords["key_passphrase"],
-            pat_path=as_path(coords.get("token"), coords["pat_path"]),
-            password_path=as_path(coords.get("password"),
-                                  coords["password_path"]))
-        conn = connect(**kwargs)
-        # Asked for, never assumed: dropping them changes what the whole run
-        # can see, so it is the operator's call and it is said out loud.
-        if getattr(args, "only_primary_role", False):
-            drop_secondary_roles(conn)
-            print("  session scoped to its PRIMARY role only (secondary "
-                  "roles dropped): every count is what THAT role can see",
-                  file=sys.stderr)
-        return make_run_sql(conn)
-    finally:
-        for path in spooled:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+    # `conn.py` reads credentials from PATHS, by design, and refuses a file
+    # others can read. The config names the paths; nothing is spooled.
+    _announce_credential_source(snowflake_block(_load_migration_config(args)))
+    kwargs = build_connect_kwargs(
+        coords["auth"], account=coords["account"], user=coords["user"],
+        host=coords.get("host"),
+        role=coords["role"], warehouse=coords["warehouse"],
+        key_path=coords["key_path"],
+        key_passphrase=coords["key_passphrase"],
+        pat_path=coords["pat_path"],
+        password_path=coords["password_path"])
+    conn = connect(**kwargs)
+    # Asked for, never assumed: dropping them changes what the whole run
+    # can see, so it is the operator's call and it is said out loud.
+    if getattr(args, "only_primary_role", False):
+        drop_secondary_roles(conn)
+        print("  session scoped to its PRIMARY role only (secondary "
+              "roles dropped): every count is what THAT role can see",
+              file=sys.stderr)
+    run_sql = make_run_sql(conn)
+    if role_gate:
+        # Fail closed, before the first read: a role that can write to the
+        # source, or whose grants cannot be read, does not get a session.
+        evidence = assert_role_read_only(run_sql, database=coords["database"])
+        walked = (f', {len(evidence["inherited_roles"])} granted role(s) '
+                  f'walked' if evidence["inherited_roles"] else "")
+        print(f'  role: {evidence["role"]} is read-only on '
+              f'{evidence["database"] or "the account"} '
+              f'({evidence["grants_read"]} grant(s) read{walked})',
+              file=sys.stderr)
+    return run_sql
 
 
 def _mapping_resolution(args) -> dict:
@@ -2749,8 +2751,9 @@ def cmd_init_config(args) -> int:
     print(f"  wrote {written}")
     print("  Fill it in — the Snowflake connection and the AIDP destination "
           "both live there.")
-    print("  IT WILL HOLD LIVE CREDENTIALS: keep it out of git, tickets and "
-          "chat.")
+    print("  It names your credential FILES (password_path / key_path): keep "
+          "it and those files out of git, tickets and chat; chmod 600 each "
+          "credential file.")
     print(f"  Then: snowmig.py preflight --out-dir ./snowmig_out "
           f"--config {written} --test-source")
     return 0
@@ -2772,13 +2775,12 @@ def cmd_preflight(args) -> int:
 
     run_sql = None
     if args.test_source:
-        run_sql = _run_sql_from_args(args) if args.account else None
-        if run_sql is None:
-            # Fall back to the config's own coordinates: the whole point is to
-            # test what the FILE says, not a second set of arguments.
-            # Testing "what the file says" means going through the same
-            # resolution every other stage uses, inline secrets included.
-            run_sql = _run_sql_from_args(args)
+        # The config's own coordinates, through the same resolution every
+        # other stage uses: the whole point is to test what the FILE says.
+        # The role check is a REPORTED step of run_preflight here (its
+        # evidence goes into PREFLIGHT_CONFIG.md), so the connection-time
+        # gate is not run a second time.
+        run_sql = _run_sql_from_args(args, role_gate=False)
 
     # The destination half comes from the same file, so preflight checks
     # what the config SAYS rather than a second set of arguments.
@@ -2844,8 +2846,9 @@ def cmd_provision(args) -> int:
     plan_files, copy_schemas = plan_push_inputs(out)
 
     # In connector mode the in-AIDP scripts need the connection config on the
-    # mount. It carries the credential, so it is uploaded ONLY when the user
-    # passed it explicitly for this purpose.
+    # mount, and the credential FILES it names beside it. They carry the
+    # credential, so they are uploaded ONLY when the user passed the config
+    # explicitly for this purpose.
     # One AIDP cluster per Snowflake warehouse, named after it. The list
     # comes from the `compute` stage's own artifact, so the names are the
     # ones actually observed in the account -- never typed by hand.
@@ -2998,15 +3001,18 @@ def cmd_provision(args) -> int:
     _write(out, "PROVISION.md", render_provision(res))
 
     for obj in res.get("credential_objects") or []:
-        # Said out loud, dry run or not: this is the one object this plugin
-        # places anywhere that holds a secret. Executed, the list holds only
-        # what was read back on the workspace.
+        # Said out loud, dry run or not: these are the only objects this
+        # plugin places anywhere that hold or name a secret -- the
+        # credential FILES the config points at, and the connection block
+        # that names them by their mount paths. Executed, the list holds
+        # only what was read back on the workspace.
         print(f"  CREDENTIAL ON THE WORKSPACE MOUNT: {obj} "
               f"{'would hold' if res['dry_run'] else 'holds'} the Snowflake "
-              f"connection block, credential included -- readable by every "
-              f"member of workspace {res['workspace']['name']} and every "
-              f"cluster in it via /Workspace. Remove it when the migration "
-              f"is done.", file=sys.stderr)
+              f"credential or the connection block that names it -- "
+              f"readable by every member of workspace "
+              f"{res['workspace']['name']} and every cluster in it via "
+              f"/Workspace. Remove it when the migration is done.",
+              file=sys.stderr)
     for obj in res.get("credential_unconfirmed") or []:
         print(f"  CREDENTIAL MAY BE ON THE WORKSPACE MOUNT: {obj} -- its "
               f"upload could not be read back. Check workspace "
@@ -3359,8 +3365,9 @@ def build_parser() -> argparse.ArgumentParser:
     ic.add_argument("--path",
                     help=f"where to write it (default ./{CONFIG_NAMES[0]})")
     ic.add_argument("--force", action="store_true",
-                    help="overwrite an existing config — it holds "
-                         "credentials, so this is never the default")
+                    help="overwrite an existing config — it is the "
+                         "operator's filled-in connection, so this is never "
+                         "the default")
     ic.set_defaults(func=cmd_init_config)
 
     pf = sub.add_parser(
@@ -3866,9 +3873,9 @@ def _refuse_inline_secret(argv: list[str]) -> str | None:
             inline, path_field = _REMOVED_SECRET_FLAGS[flag]
             return (f"{flag} is not accepted: a secret on the command line "
                     f"reaches shell history and the process table. Put it in "
-                    f"the migration config instead, as `{inline}:` (inline; "
-                    f"the file is gitignored) or `{path_field}:` (a file "
-                    f"holding it).")
+                    f"a file readable by you alone and name that file in the "
+                    f"migration config as `{path_field}:` (an inline "
+                    f"`{inline}:` is not accepted either).")
     return None
 
 

@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import builtins as _builtins
+import re
 
 # Names available in every generated notebook without an explicit binding
 # in the script itself: Python builtins, the two dunders the setup cell's
@@ -312,3 +313,293 @@ def abandoned_dataframes(code: str) -> list[str]:
     # reassignment (df = df.filter(...)) reads itself, so it is in `read`
     # already and will not be reported.
     return sorted(n for n in assigned if n not in read)
+
+
+# ── Credential literals ──────────────────────────────────────────────
+
+# The words that make an identifier a credential name, and the words that,
+# FOLLOWING one of them, make it the name of or a fact about a credential
+# instead: ``password_env`` holds the name of a variable, ``token_url`` an
+# address, ``PASSWORD_HASH`` a digest, ``secret_ocid`` a reference. An
+# identifier is split on ``_``, ``.``, ``[``/``"`` and camelCase boundaries,
+# so ``dbPassword``, ``PASSWORD_PROD``, ``os.environ["ADW_PASSWORD"]`` and
+# ``spark.sql.catalog.adw.password`` all count. A first version anchored the
+# match at the END of the name (``..._password$``), which the realistic
+# "make it run" edits -- ``PASSWORD_PROD = "..."``, ``dbPassword = "..."``
+# -- all slipped past.
+_SECRET_WORDS = frozenset({
+    "password", "passwd", "passphrase", "pwd", "secret", "token", "apikey",
+})
+_NOT_A_SECRET_AFTER = frozenset({
+    "env", "envvar", "var", "variable", "name", "file", "path", "url", "uri",
+    "endpoint", "type", "kind", "id", "ocid", "arn", "ref", "reference",
+    "hash", "hashed", "digest", "salt", "len", "length", "min", "max",
+    "hint", "prompt", "label", "column", "col", "field", "header", "scope",
+    "store", "vault", "provider", "source", "lookup", "version", "expiry",
+    "expires", "expiration", "ttl", "lifetime", "count", "attempts",
+    "policy", "required", "enabled", "flag",
+})
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+_NOT_ALNUM = re.compile(r"[^A-Za-z0-9]+")
+
+
+def is_secret_name(name: str) -> bool:
+    """Whether *name* -- a keyword, assignment target, dict key or option
+    key -- names a credential rather than something about one."""
+    segments: list[str] = []
+    for seg in _NOT_ALNUM.split(_CAMEL_BOUNDARY.sub("_", name)):
+        seg = seg.lower()
+        if not seg:
+            continue
+        if seg == "key" and segments and segments[-1] == "api":
+            segments[-1] = "apikey"        # api + key is one word written as two
+        else:
+            segments.append(seg)
+    for i, seg in enumerate(segments):
+        if seg in _SECRET_WORDS:
+            following = segments[i + 1] if i + 1 < len(segments) else None
+            if following is None or following not in _NOT_A_SECRET_AFTER:
+                return True
+    return False
+
+
+# A value that only LOOKS like a literal because the template left a hole
+# in it: ``{...}`` and ``${...}`` placeholders, ``<...>`` prompts, ``%s``.
+_NOT_A_PLACEHOLDER = r"[^\s;&\"'{}$<%]+"
+
+# A "value" that is not a credential however it is keyed: a number, SQL
+# NULL/TRUE/FALSE, a ``?`` or ``:name`` bind, or anything with a call,
+# subscript or placeholder in it (``os.environ[ADW_PASSWORD]``).
+_VALUE_IS_NOT_A_SECRET = re.compile(
+    r"(?is)^(?:\d+(?:\.\d+)?|null|none|true|false|\?|:\w+|.*[\[\(\{<%$].*)$"
+)
+
+# Only a string shaped like a URL or a connection string is read for
+# ``password=`` / ``token=`` pairs. Generated notebooks are full of SQL --
+# a SQL override's ``WHERE TOKEN = 1`` or ``SET pwd=NULL`` is neither, and
+# a first version of this rule failed a whole migration on a column that
+# happened to be called TOKEN.
+_CONNECTION_STRING_SHAPE = re.compile(
+    r"://"                              # a URL
+    r"|^\s*[A-Za-z][A-Za-z0-9+.-]*:\S"  # a scheme, e.g. jdbc:oracle:thin:
+    r"|;\s*[A-Za-z_][\w ]*="            # ;Key=value (ODBC, SQL Server, ADO)
+    r"|[?&]\w+="                        # ?key=value&key=value
+)
+_SQL_STATEMENT = re.compile(
+    r"(?i)^\s*(?:select|with|insert|update|merge|delete|create|alter|drop|truncate)\b"
+)
+
+# Credential shapes that live INSIDE a string literal rather than beside
+# one. Each pattern requires an actual value after the separator, so the
+# constant half of an f-string such as ``"...;password="`` followed by a
+# ``{os.environ[...]}`` hole never matches. The third element says whether
+# the pattern applies only to connection-string-shaped text.
+_CREDENTIAL_IN_STRING: tuple[tuple[str, "re.Pattern[str]", bool], ...] = (
+    ("URL embeds user:password@",
+     re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s/:@\"']+:[^\s/@\"']+@"), False),
+    ("JDBC thin URL embeds user/password@",
+     re.compile(r"(?i)jdbc:oracle:thin:[^@\s/\"']+/[^@\s\"']+@"), False),
+    ("connection string embeds password=",
+     re.compile(r"(?i)(?:^|[;?&,\s])(?:password|passwd|pwd)\s*=\s*(?P<value>"
+                + _NOT_A_PLACEHOLDER + ")"), True),
+    ("URL or connection string embeds token=/api_key=",
+     re.compile(r"(?i)(?:^|[;?&,\s])(?:access_token|auth_token|api_?key|token)\s*=\s*(?P<value>"
+                + _NOT_A_PLACEHOLDER + ")"), True),
+    ("Authorization header literal",
+     re.compile(r"(?i)\bauthorization\b\s*[:=]\s*(?:basic|bearer)\s+[A-Za-z0-9._~+/=-]{8,}"), False),
+)
+_AUTH_HEADER_NAME = re.compile(r"(?i)^authorization$")
+_AUTH_HEADER_VALUE = re.compile(r"(?i)^(?:basic|bearer)\s+\S{8,}")
+
+# ``name = "value"``, ``"name": "value"`` or ``name=value`` in text that is
+# not Python: a markdown cell, or a code cell that does not parse.
+_CREDENTIAL_IN_TEXT = re.compile(
+    r"""(?x)
+    (?<![\w.\]])
+    (?P<name>[A-Za-z_][\w.]*(?:\[\s*["']?\w+["']?\s*\])?)["']?
+    \s*[:=]\s*
+    (?:["'](?P<quoted>[^"'\s{}$<%][^"']*)["']|(?P<bare>[^\s;&"'{}$<%,]+))
+    """
+)
+
+# Methods whose positional ``(key, value)`` pair sets a configuration or
+# header entry. Any other two-literal call is not one: the generators emit
+# ``withColumnRenamed("PWD", "PWD_OLD")`` for a port that happens to be
+# called PWD, and that is a column, not a credential.
+_PAIR_SETTERS = frozenset({
+    "option", "config", "conf", "set", "setdefault", "setProperty", "setopt",
+    "setenv", "putenv", "put", "add_header", "add", "update", "insert",
+})
+
+
+def _str_const(node: ast.AST) -> "str | None":
+    """The text of a non-empty string or bytes literal -- folding adjacent
+    literals joined with ``+`` (``"tig" + "er"``) into one -- else None."""
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, str) and node.value:
+            return node.value
+        if isinstance(node.value, bytes) and node.value:
+            return node.value.decode("latin-1")
+        return None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        left, right = _str_const(node.left), _str_const(node.right)
+        if left is not None and right is not None:
+            return left + right
+    return None
+
+
+def _target_name(node: ast.expr) -> "str | None":
+    """The name an assignment target binds: ``x``, ``obj.attr``, or the
+    string key of ``os.environ["X"]`` / ``props["x"]``."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    if isinstance(node, ast.Subscript):
+        return _str_const(node.slice)
+    return None
+
+
+def _assignment_pairs(target: ast.expr, value: ast.expr) -> "list[tuple[str, ast.expr]]":
+    """``(name, value node)`` pairs an assignment binds. A tuple/list
+    target is unpacked against a tuple/list value element-wise, so
+    ``user, password = "scott", "..."`` pairs ``password`` with its
+    literal; a starred target or a length mismatch is skipped, not
+    guessed."""
+    if isinstance(target, (ast.Tuple, ast.List)):
+        if (isinstance(value, (ast.Tuple, ast.List)) and len(value.elts) == len(target.elts)
+                and not any(isinstance(e, ast.Starred) for e in target.elts)):
+            return [p for t, v in zip(target.elts, value.elts) for p in _assignment_pairs(t, v)]
+        return []
+    name = _target_name(target)
+    return [(name, value)] if name else []
+
+
+def _call_pairs(node: ast.Call) -> "list[tuple[ast.expr, ast.expr]]":
+    """The ``(key, value)`` node pairs a setter-style call carries:
+    positional ``.option("password", v)``, keyword ``.option(key="password",
+    value=v)`` and the mixed ``.option("password", value=v)``."""
+    func = node.func
+    name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+    if name not in _PAIR_SETTERS:
+        return []
+    pairs = list(zip(node.args, node.args[1:]))
+    kw = {k.arg: k.value for k in node.keywords if k.arg}
+    if "value" in kw:
+        if "key" in kw:
+            pairs.append((kw["key"], kw["value"]))
+        elif len(node.args) == 1:
+            pairs.append((node.args[0], kw["value"]))
+    return pairs
+
+
+def _credential_shapes_in_text(text: str) -> "list[str]":
+    """Which of the in-string credential shapes *text* carries."""
+    connection_like = bool(_CONNECTION_STRING_SHAPE.search(text)) and not _SQL_STATEMENT.match(text)
+    found = []
+    for what, pattern, connection_strings_only in _CREDENTIAL_IN_STRING:
+        if connection_strings_only and not connection_like:
+            continue
+        for m in pattern.finditer(text):
+            value = m.groupdict().get("value")
+            if value is not None and _VALUE_IS_NOT_A_SECRET.match(value):
+                continue
+            found.append(what)
+            break
+    return found
+
+
+def hardcoded_credentials(code: str) -> list[str]:
+    """Credential literals in generated code, one line per finding.
+
+    The generators write every credential as a runtime lookup --
+    ``password=os.environ["ADW_PASSWORD"]`` -- and a notebook is reviewed,
+    committed and deployed as a file, so a literal in its place is a secret
+    checked into the migration output. An LLM asked to "make it run" will
+    do exactly that, and nothing downstream would have noticed: the
+    notebook parses, every name resolves, and the write succeeds.
+
+    Flags, by shape:
+
+    - a keyword argument, assignment (plain, annotated, augmented, tuple
+      unpacking, ``os.environ[...]`` / ``props[...]`` subscript), dict
+      entry or setter-style ``.option()``/``.config()``/``.set()`` key pair
+      -- positional or ``key=``/``value=`` -- whose name is a credential
+      name (:func:`is_secret_name`) and whose value is a non-empty string
+      or bytes literal, adjacent-literal concatenation included;
+    - a string literal that embeds credentials in a URL or connection
+      string (``user:pass@``, ``jdbc:oracle:thin:user/pass@``,
+      ``password=``/``pwd=``/``token=`` with a real value in something
+      shaped like a URL or connection string);
+    - an ``Authorization: Basic/Bearer <literal>`` header, as a string, a
+      dict/header pair or a ``headers["Authorization"] = ...`` assignment.
+
+    Runtime lookups (``os.environ[...]``, ``dbutils.secrets.get(...)``,
+    f-string holes) are not literals and are not flagged; an empty string
+    is not a credential either; SQL text is not a connection string.
+    Usernames and hostnames are configuration, not secrets, and are
+    deliberately not a rule here. Findings name the line and the shape --
+    never the value, since a validator that echoes the secret into
+    ``broken_notebooks.md`` has only moved the leak. Code that does not
+    parse, and markdown, go through :func:`credential_literals_in_text`.
+    """
+    tree = ast.parse(code)
+    found: set[tuple[int, str]] = set()
+
+    def flag(node: ast.AST, what: str) -> None:
+        found.add((getattr(node, "lineno", 0), what))
+
+    def key_value(key: "str | None", val: "str | None", val_node: ast.AST, shape: str) -> None:
+        if not (key and val):
+            return
+        if is_secret_name(key):
+            flag(val_node, shape.format(key=key))
+        elif _AUTH_HEADER_NAME.match(key) and _AUTH_HEADER_VALUE.match(val):
+            flag(val_node, "Authorization header literal")
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.keyword):
+            if node.arg:
+                key_value(node.arg, _str_const(node.value), node.value, "{key}= is a string literal")
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if node.value is not None:
+                for t in targets:
+                    for name, val in _assignment_pairs(t, node.value):
+                        key_value(name, _str_const(val), node, "{key} is assigned a string literal")
+        elif isinstance(node, ast.Dict):
+            for k, v in zip(node.keys, node.values):
+                if k is not None:
+                    key_value(_str_const(k), _str_const(v), v, '"{key}" key holds a string literal')
+        elif isinstance(node, ast.Call):
+            for k, v in _call_pairs(node):
+                key_value(_str_const(k), _str_const(v), v, '"{key}" is paired with a string literal')
+        text = _str_const(node)
+        if text:
+            for what in _credential_shapes_in_text(text):
+                flag(node, what)
+    return [f"line {ln}: {what}" for ln, what in sorted(found)]
+
+
+def credential_literals_in_text(text: str) -> list[str]:
+    """The regex half of :func:`hardcoded_credentials`, for text that is not
+    Python: a markdown cell, or a code cell that does not parse.
+
+    A syntax error used to end the credential check -- the notebook was
+    reported as "does not parse" and the password beside the typo shipped
+    -- and markdown cells were never read at all. This pass needs no syntax
+    tree: per line, a ``name = "value"`` / ``"name": "value"`` /
+    ``name=value`` pair whose name is a credential name and whose value is
+    a real one, plus the same URL / connection-string / Authorization
+    shapes as the code rule. Findings name the line and the shape, never
+    the value.
+    """
+    found: set[tuple[int, str]] = set()
+    for ln, line in enumerate(text.splitlines(), 1):
+        for m in _CREDENTIAL_IN_TEXT.finditer(line):
+            value = m.group("quoted") or m.group("bare")
+            if is_secret_name(m.group("name")) and not _VALUE_IS_NOT_A_SECRET.match(value):
+                found.add((ln, f"{m.group('name')} is given a literal value"))
+        for what in _credential_shapes_in_text(line):
+            found.add((ln, what))
+    return [f"line {ln}: {what}" for ln, what in sorted(found)]

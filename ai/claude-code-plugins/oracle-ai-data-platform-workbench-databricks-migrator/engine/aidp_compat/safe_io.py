@@ -10,6 +10,10 @@ Usage in migrated notebooks:
 
 These are also available as:
     from aidp_compat import safe_pickle_dump, safe_pickle_load, safe_write_parquet
+
+Every write helper asserts its target against the declared sandbox
+(``aidp_compat.notebook_policy``): paths must sit under the sandbox prefix
+and tables inside the sandbox catalog.schema, otherwise ``PermissionError``.
 """
 
 import os
@@ -18,6 +22,8 @@ import pickle
 import shutil
 import tempfile
 from typing import Any, Optional
+
+from aidp_compat.notebook_policy import assert_path_in_sandbox, assert_table_in_sandbox
 
 # Default delay after write before read on /Volumes FUSE mount
 FUSE_WRITE_DELAY = 3  # seconds
@@ -37,6 +43,7 @@ def safe_pickle_dump(obj: Any, filepath: str, delay: float = FUSE_WRITE_DELAY) -
     Returns:
         The filepath written to
     """
+    assert_path_in_sandbox(filepath, operation="safe_pickle_dump")
     dirpath = os.path.dirname(filepath)
     os.makedirs(dirpath, exist_ok=True)
 
@@ -115,6 +122,7 @@ def safe_write_parquet(df, path: str, mode: str = "overwrite", **kwargs):
         mode: Write mode ('overwrite', 'append', etc.)
         **kwargs: Additional args passed to df.write.parquet()
     """
+    assert_path_in_sandbox(path, operation="safe_write_parquet")
     if mode == "overwrite":
         tmp_path = path.rstrip("/") + "_aidp_tmp"
 
@@ -151,6 +159,7 @@ def safe_save_as_table(df, table_name: str, mode: str = "overwrite",
         format: Table format (parquet, delta, etc.)
         **kwargs: Additional args
     """
+    assert_table_in_sandbox(table_name, operation="safe_save_as_table")
     if mode == "overwrite":
         # Cache to break read-write dependency
         df = df.cache()
@@ -191,6 +200,8 @@ def safe_read_modify_write_parquet(spark, path: str, transform_fn, **write_kwarg
         **write_kwargs: Additional args for df.write.parquet() (partitionBy, etc.)
     """
     from pyspark import StorageLevel
+
+    assert_path_in_sandbox(path, operation="safe_read_modify_write_parquet")
 
     # Read and cache to break dependency on source files
     df = spark.read.parquet(path)
@@ -295,6 +306,7 @@ def safe_write_parquet_coalesced(
     Returns:
         The path written to.
     """
+    assert_path_in_sandbox(path, operation="safe_write_parquet_coalesced")
     n = _estimate_target_partitions(df, target_mb=target_file_mb)
     out = df.coalesce(n) if n >= 1 else df
 
@@ -329,6 +341,7 @@ def safe_save_as_table_coalesced(
         partition_by: Optional list of partition columns.
         **kwargs: Forwarded to ``saveAsTable``.
     """
+    assert_table_in_sandbox(table_name, operation="safe_save_as_table_coalesced")
     if mode == "overwrite":
         df = df.cache()
         df.count()
@@ -360,6 +373,7 @@ def safe_pandas_to_csv(df_pandas, filepath: str, delay: float = FUSE_WRITE_DELAY
         delay: FUSE consistency delay
         **kwargs: Additional args for df.to_csv()
     """
+    assert_path_in_sandbox(filepath, operation="safe_pandas_to_csv")
     dirpath = os.path.dirname(filepath)
     if dirpath:
         os.makedirs(dirpath, exist_ok=True)
@@ -621,6 +635,7 @@ def safe_joblib_dump(obj: Any, filepath: str, delay: float = FUSE_WRITE_DELAY, *
     if filepath.startswith("/dbfs/"):
         filepath = "/Volumes/default/default/dbfs" + filepath[5:]
 
+    assert_path_in_sandbox(filepath, operation="safe_joblib_dump")
     os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
 
     # Dump to /tmp (local disk, no FUSE), then move to target

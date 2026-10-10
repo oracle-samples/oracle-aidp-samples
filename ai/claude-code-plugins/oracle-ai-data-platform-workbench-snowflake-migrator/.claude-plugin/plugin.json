@@ -1,6 +1,6 @@
 {
   "name": "oracle-ai-data-platform-workbench-snowflake-migrator",
-  "version": "0.28.0",
+  "version": "0.29.0",
   "description": "Migrate a Snowflake database to Oracle AI Data Platform with a fixed, auditable runbook. Provisions a migration workspace and cluster, registers the Snowflake database as an EXTERNAL catalog and creates the INTERNAL target catalog, discovers the estate with an in-AIDP workflow, translates types and names into a reviewed plan, creates the target schemas and empty Delta tables on AIDP compute, and registers one copy job per schema (INSERT-SELECT, verified by row counts) for the customer to run. Inventories what is not a table or a view, security posture and table-maintenance state, and presents the data-movement options without choosing for you. Read-only against Snowflake, dry-run by default against AIDP, every create read back; teardown releases the compute or removes everything the migration created.",
   "author": {
     "name": "Oracle Corporation",

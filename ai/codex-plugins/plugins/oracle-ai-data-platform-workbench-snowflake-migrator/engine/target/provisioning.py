@@ -38,8 +38,9 @@ import time
 from typing import Callable
 
 from retry import is_retryable, retry_call
-from migration_config import ConfigError, load_config, snowflake_block
-from plan.preflight import SECRET_PATH_FIELDS
+from migration_config import (
+    SECRET_PATH_FIELDS, ConfigError, check_secret_file, load_config,
+    snowflake_block)
 
 from .naming import translate_name
 from .runner import is_active, is_conflict
@@ -58,7 +59,8 @@ __all__ = ["JOB_SPECS", "SCRIPTS_FOLDER", "PLAN_FOLDER", "REPORTS_FOLDER",
            "download_ws_file", "carry_forward",
            "ProvisionTransportError",
            "make_provision_call", "provision", "render_provision",
-           "source_config_payload",
+           "source_config_payload", "source_config_objects",
+           "credential_file_object",
            "async_operation_key", "connection_test_outcome"]
 
 
@@ -520,41 +522,69 @@ def _key(item: dict, fallback: str) -> str:
     return str(item.get("key") or item.get("id") or fallback)
 
 
-def source_config_payload(path: pathlib.Path) -> dict:
+def credential_file_object(stem: str, field: str) -> str:
+    """The workspace object a credential FILE is placed as: beside the
+    derived config, named by the config's stem and the field that points
+    at it (`plan/snowmig-config.key_path`). The operator's own file name
+    never travels -- it may say what the secret is for."""
+    return f"{PLAN_FOLDER}/{stem}.{field}"
+
+
+def source_config_objects(path: pathlib.Path
+                          ) -> tuple[dict, list[tuple[pathlib.Path, str]]]:
     """What `--source-config` places on the workspace: the `snowflake:` block
-    of the operator's migration config, and nothing else.
+    of the operator's migration config, and the credential FILES it names.
 
     The in-AIDP scripts read only that block (the data-plane loader unwraps
     it), so the `aidp:` half -- the DataLake OCID and the target
     coordinates -- has no business on the mount and is not copied. The
-    block carries the credential, which is why the upload is opt-in; a
-    copy that carries MORE than the scripts read is exposure for nothing.
-    It is written as JSON, which the loader reads without PyYAML.
+    block is written as JSON, which the loader reads without PyYAML.
 
-    A `*_path` secret is refused here, before anything is uploaded. The
-    path names a file on THIS machine; the copy is read on the cluster from
-    /Workspace/..., where that path does not exist. That failure used to
-    surface five minutes later, as a raw FileNotFoundError in the job log,
-    after `preflight` had called the path "readable" -- on the laptop.
+    The block never holds a credential value (`snowflake_block` refuses an
+    inline one). It names credential files by `*_path`, and those paths
+    name files on THIS machine, which the cluster cannot see: so each file
+    is placed on the mount beside the config, and the path in the copy is
+    rewritten to the mount's. Every file is checked here, before anything
+    -- dry run or not -- is uploaded: it must exist and be readable by its
+    owner alone (`check_secret_file`; the check is skipped and said so on
+    Windows). What is returned is `({"snowflake": block}, [(local file,
+    workspace object), ...])`.
     """
-    block = snowflake_block(load_config(path))
-    laptop_only = [f for f in SECRET_PATH_FIELDS if block.get(f)]
-    if laptop_only:
-        raise ConfigError(
-            f"--source-config {path} carries {', '.join(laptop_only)}: a "
-            f"path to a file on this machine. The copy placed on the "
-            f"workspace is read on the cluster from /Workspace/{PLAN_FOLDER}/, "
-            f"where that path does not exist, so connector mode cannot use "
-            f"it. Inline the secret under `snowflake:` instead (private_key: "
-            f"| for a PEM, password: for a password, token: for a PAT), "
-            f"then re-run.")
-    return {"snowflake": dict(block)}
+    block = dict(snowflake_block(load_config(path)))
+    files: list[tuple[pathlib.Path, str]] = []
+    stem = pathlib.Path(path).stem
+    for field in SECRET_PATH_FIELDS:
+        raw = block.get(field)
+        if not raw:
+            continue
+        local = pathlib.Path(str(raw)).expanduser()
+        try:
+            check_secret_file(local, field=field)
+        except ConfigError as exc:
+            raise ConfigError(
+                f"--source-config {path}: {exc} The file is about to be "
+                f"placed on the workspace mount for the cluster; nothing "
+                f"was uploaded.") from None
+        remote = credential_file_object(stem, field)
+        files.append((local, remote))
+        block[field] = f"/Workspace/{remote}"
+    return {"snowflake": block}, files
 
 
-def _credential_line(source_name: str, remote: str) -> str:
-    return (f"{source_name} -> {remote} — CARRIES THE SNOWFLAKE CREDENTIAL "
-            f"(the snowflake: block only; aidp: is not copied). Readable by "
-            f"every member of the workspace and by every cluster in it via "
+def source_config_payload(path: pathlib.Path) -> dict:
+    """The derived `snowflake:` block alone, its credential paths rewritten
+    to the mount's (see `source_config_objects`)."""
+    return source_config_objects(path)[0]
+
+
+def _credential_line(source_name: str, remote: str,
+                     what: str = "connection") -> str:
+    carries = ("CARRIES THE SNOWFLAKE CREDENTIAL FILE" if what == "file"
+               else "NAMES THE SNOWFLAKE CREDENTIAL FILES ON THE MOUNT (the "
+                    "snowflake: block only, no credential value; aidp: is "
+                    "not copied)")
+    return (f"{source_name} -> {remote} — {carries}. Readable by every "
+            f"member of the workspace and by every cluster in it via "
             f"/Workspace; remove it when the migration is done")
 
 
@@ -805,15 +835,18 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
     ws_name = translate_name(workspace_name, kind="workspace")
     cl_name = translate_name(cluster_name, kind="cluster")
     pypi = _pypi_from_requirements(requirements)
-    # The source config, when given, is the ONE credential-bearing object
-    # this stage places on the workspace. Only its `snowflake:` block goes,
-    # as JSON under the same stem; the operator's file itself never travels,
-    # whoever put it in plan_files. A laptop-only `*_path` secret is refused
-    # here, before anything -- dry run or not -- is written.
+    # The source config, when given, is where the credential-bearing
+    # objects this stage places on the workspace come from: the credential
+    # FILES its `*_path` fields name, and its `snowflake:` block as JSON
+    # under the same stem, with those paths rewritten to the mount's. The
+    # operator's config file itself never travels, whoever put it in
+    # plan_files. A credential file that is missing or that others can
+    # read is refused here, before anything -- dry run or not -- is written.
     source_payload = None
     credential_object = None
+    credential_files: list[tuple[pathlib.Path, str]] = []
     if source_config is not None:
-        source_payload = source_config_payload(source_config)
+        source_payload, credential_files = source_config_objects(source_config)
         credential_object = f"{PLAN_FOLDER}/{source_config.stem}.json"
         plan_files = [p for p in plan_files
                       if pathlib.Path(p).resolve() != source_config.resolve()]
@@ -912,7 +945,8 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
         # back on the workspace (an upload that raised or was not seen is
         # `credential_unconfirmed`: it may have landed).
         "credential_objects": ([] if execute else
-                               [credential_object] if credential_object
+                               [*(r for _, r in credential_files),
+                                credential_object] if credential_object
                                else [inherited_credential]
                                if inherited_credential else []),
         "credential_requested": credential_object,
@@ -1004,6 +1038,9 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
             step("backup", "would upload", None,
                  f"{path.name} -> {BACKUP_FOLDER}/{name}")
         if credential_object:
+            for local, remote in credential_files:
+                step("upload", "would upload", None,
+                     _credential_line(local.name, remote, "file"))
             step("upload", "would upload", None,
                  _credential_line(source_config.name, credential_object))
         for spec in job_specs:
@@ -1316,34 +1353,58 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
         shutil.rmtree(staged, ignore_errors=True)
 
     if credential_object:
-        # The derived `snowflake:` block, written to a temp file for the
-        # CLI to read and removed right after -- the copy on the mount is
-        # the only one meant to outlive this call.
-        name = credential_object.rsplit("/", 1)[-1]
+        # The credential FILES first, straight from the operator's paths,
+        # then the derived `snowflake:` block that names them by their
+        # mount paths -- written to a temp file for the CLI to read and
+        # removed right after; the copies on the mount are the only ones
+        # meant to outlive this call. Every object is read back from ONE
+        # listing of the folder; a notebook is pointed at the config only
+        # when every object it depends on was seen there.
         fd, local = tempfile.mkstemp(prefix="snowmig_source_", suffix=".json")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(source_payload, fh)
+            uploads = [*((str(path), remote, path.name, "file")
+                         for path, remote in credential_files),
+                       (local, credential_object, source_config.name,
+                        "connection")]
+            failed: dict[str, str] = {}
+            for local_path, remote, _shown, _what in uploads:
+                try:
+                    call("upload_ws_file", workspace=ws_key,
+                         path=remote, local_path=local_path)
+                except Exception as exc:
+                    failed[remote] = str(exc)[:200]
             try:
-                call("upload_ws_file", workspace=ws_key,
-                     path=credential_object, local_path=local)
                 items = call("list_ws_objects", workspace=ws_key,
                              path=PLAN_FOLDER).get("items") or []
-                found = any(
-                    str(i.get("path") or "").endswith("/" + name)
-                    or i.get("displayName") == name for i in items)
-                step("upload", "uploaded" if found else "upload_requested",
-                     found,
-                     _credential_line(source_config.name, credential_object)
-                     + ("" if found else "; not visible in listing"))
             except Exception as exc:
-                found = False
-                step("upload", "failed", False,
-                     f"{credential_object}: {str(exc)[:200]} (it carries "
-                     f"the credential; check whether it landed)")
-            credential_ready = found
-            out["credential_objects" if found
-                else "credential_unconfirmed"].append(credential_object)
+                items = None
+                listing_failure = str(exc)[:200]
+            credential_ready = True
+            for _local_path, remote, shown, what in uploads:
+                name = remote.rsplit("/", 1)[-1]
+                if remote in failed:
+                    found = False
+                    step("upload", "failed", False,
+                         f"{remote}: {failed[remote]} (it carries the "
+                         f"credential; check whether it landed)")
+                elif items is None:
+                    found = False
+                    step("upload", "failed", False,
+                         f"{remote}: {listing_failure} (it carries the "
+                         f"credential; check whether it landed)")
+                else:
+                    found = any(
+                        str(i.get("path") or "").endswith("/" + name)
+                        or i.get("displayName") == name for i in items)
+                    step("upload",
+                         "uploaded" if found else "upload_requested", found,
+                         _credential_line(shown, remote, what)
+                         + ("" if found else "; not visible in listing"))
+                credential_ready = credential_ready and found
+                out["credential_objects" if found
+                    else "credential_unconfirmed"].append(remote)
         finally:
             try:
                 os.unlink(local)
@@ -1991,13 +2052,14 @@ def render_provision(res: dict) -> str:
     if res.get("credential_objects"):
         lines += [
             "## Credential placed on the workspace", "",
-            "`--source-config` puts the Snowflake connection -- the "
-            "`snowflake:` block of the migration config, **credential "
-            "included**; the `aidp:` block is not copied -- on the workspace "
-            "mount so the in-AIDP scripts can reach Snowflake themselves. It "
-            "is readable by **every member of this workspace and every "
-            "cluster in it** via `/Workspace`, for as long as it stays "
-            "there:", ""]
+            "`--source-config` puts the Snowflake **credential file(s)** the "
+            "migration config names (`key_path`, `password_path`, ...) and "
+            "the `snowflake:` block of that config -- no credential value in "
+            "it, its paths rewritten to the mount's; the `aidp:` block is "
+            "not copied -- on the workspace mount so the in-AIDP scripts can "
+            "reach Snowflake themselves. They are readable by **every member "
+            "of this workspace and every cluster in it** via `/Workspace`, "
+            "for as long as they stay there:", ""]
         superseded = set(res.get("credential_superseded") or [])
         lines += [f"- `{obj}`" + (" -- superseded by this push's "
                                   "`--source-config`; it still holds the "
@@ -2005,9 +2067,10 @@ def render_provision(res: dict) -> str:
                                   if obj in superseded else "")
                   for obj in res["credential_objects"]]
         lines += ["",
-                  "Remove it from the workspace once the migration is done, "
-                  "and rotate the Snowflake credential if anyone who must "
-                  "not hold it can read this workspace.", ""]
+                  "Remove them from the workspace once the migration is "
+                  "done (`teardown --scope credential`), and rotate the "
+                  "Snowflake credential if anyone who must not hold it can "
+                  "read this workspace.", ""]
     if res.get("credential_unconfirmed"):
         lines += ["## Credential placement NOT confirmed", "",
                   "An upload of the Snowflake credential was attempted and "

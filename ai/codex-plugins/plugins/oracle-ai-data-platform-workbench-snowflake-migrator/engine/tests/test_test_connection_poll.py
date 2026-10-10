@@ -19,6 +19,7 @@ from report.render import render_catalog
 from target import provisioning
 from target.provisioning import (async_operation_key, make_provision_call,
                                  connection_test_outcome)
+from secret_files import write_secret
 
 
 OCID = "ocid1.aidataplatform.oc1.iad.fakefakefakefake"
@@ -183,7 +184,8 @@ def test_the_catalog_command_polls_and_reports_the_verdict(tmp_path,
     cfg.write_text(json.dumps({
         "snowflake": {"account": "ACME-TEST", "user": "READER",
                       "warehouse": "WH", "database": "DB", "auth": "password",
-                      "password": "FAKE-NOT-A-REAL-PASSWORD"},
+                      "password_path": write_secret(
+                          tmp_path / "pw", "FAKE-NOT-A-REAL-PASSWORD")},
         "aidp": {"datalake_ocid": OCID}}), encoding="utf-8")
 
     asked = []

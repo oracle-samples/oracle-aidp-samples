@@ -105,8 +105,9 @@ echo "${INFA_REPO:?not set}"
 
 `infa-discover` is the one command that talks to a live Informatica
 repository (SOAP or `pmrep`). Confirm `--host`, `--user`/`INFA_USER`,
-`--password`/`INFA_PASSWORD`, `--repo`/`INFA_REPO`, `--domain`/`INFA_DOMAIN`
-are set, and that the host is reachable from this workstation.
+`--password-file`/`INFA_PASSWORD` (never `--password` -- it is refused),
+`--repo`/`INFA_REPO`, `--domain`/`INFA_DOMAIN` are set, and that the host is
+reachable from this workstation.
 
 ### 6. The confidence check: `demo.sh`
 

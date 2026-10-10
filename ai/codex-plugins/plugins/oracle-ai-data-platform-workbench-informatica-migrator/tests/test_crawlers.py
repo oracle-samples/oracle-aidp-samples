@@ -18,7 +18,10 @@ class TestInfaConnectionConfig:
     def test_defaults(self):
         config = InfaConnectionConfig(host="infa-server")
         assert config.host == "infa-server"
-        assert config.port == 7333  # WSH default
+        # The HTTPS port. 7333 (HTTP) was the default until SEC-AIDP-SAMPLES-INFA-H3:
+        # the scheme followed the port, so the default sent the password in the clear.
+        assert config.port == 7343  # WSH default (HTTPS)
+        assert config.allow_insecure_http is False
         assert config.security_domain == "Native"
         assert config.pmrep_path == "pmrep"
 

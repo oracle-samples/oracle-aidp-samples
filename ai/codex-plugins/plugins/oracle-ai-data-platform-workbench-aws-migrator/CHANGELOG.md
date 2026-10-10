@@ -3,6 +3,30 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver.
 
+## [Unreleased]
+
+### Security
+- **S3 → OCI transfer script is shell-safe by construction**
+  (`translate/s3_to_oci.py`, SEC-AIDP-SAMPLES-003). Bucket, OCI bucket,
+  namespace, regions, OCI profile and compartment OCID are validated against
+  the strict syntax of each field *before* a script is generated — a value
+  carrying a newline, quote, `$`, backtick, `;` or whitespace is refused and
+  the asset is recorded as `error` with no `.transfer.sh` written. Every value
+  that reaches a bash command line additionally passes through one
+  `shlex.quote` helper, and the temporary rclone config is removed by an
+  `EXIT` trap so a failed or interrupted copy no longer leaves it behind.
+  The verify summary still reports PASS as not execution-verified.
+
+### Fixed
+- **Transfer script keeps LF endings on Windows** (`migrate/runner.py`,
+  SEC-AIDP-SAMPLES-003 follow-up). `migrate` wrote `.transfer.sh` with the
+  platform's default newline, so on Windows the artifact had CRLF endings:
+  a Linux bash rejects `set -euo pipefail\r` and shellcheck reports SC1017 on
+  every line. The script now goes through the same LF-preserving atomic
+  writer as every other artifact, and the stress tests run `bash -n` and
+  `shellcheck` against the file `migrate` actually writes, not only against a
+  rendering the test wrote itself.
+
 ## [0.3.0] — 2026-09-15
 
 ### Changed

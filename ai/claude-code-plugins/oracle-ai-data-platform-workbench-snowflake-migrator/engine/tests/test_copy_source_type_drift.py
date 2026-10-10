@@ -22,6 +22,7 @@ from fake_pushdown import FakeLakeSpark, FakeSnowflake, source_for
 from snowflake_source.dialect.types import copy_expressions, source_type_key
 from test_copy_exact_reads import _column_reads, _main
 from test_data_migration_scripts import _load
+from secret_files import temp_secret
 
 D = decimal.Decimal
 TABLE = "T_AMOUNT"
@@ -145,7 +146,7 @@ def _stage_plan(tmp_path, drift=None):
     config = tmp_path / "source.json"
     config.write_text(json.dumps({"snowflake": {
         "account": "acct", "warehouse": "WH", "database": "SNOWMIG_DB",
-        "user": "svc", "auth": "password", "password": "p",
+        "user": "svc", "auth": "password", "password_path": temp_secret("p"),
         "schema": "TYPES"}}), encoding="utf-8")
     return reports, config
 

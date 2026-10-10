@@ -8,7 +8,7 @@ Walk the user through extracting Unity Catalog / HMS metadata from Databricks, p
 
 ## Workflow
 
-1. **Confirm prereqs** — invoke [`aidp-migrator-bootstrap`](../skills/aidp-migrator-bootstrap/SKILL.md). Especially check `DATABRICKS_HOST` + `DATABRICKS_TOKEN` are set (catalog extract needs them).
+1. **Confirm prereqs** — invoke [`aidp-migrator-bootstrap`](../skills/aidp-migrator-bootstrap/SKILL.md). Especially check `DATABRICKS_HOST` + `DATABRICKS_TOKEN` are set (catalog extract needs them; a `--token-file <path>` may stand in for `DATABRICKS_TOKEN`, but never pass the token on the command line -- `--token <value>` is refused).
 2. **Confirm scope** — ask which catalogs / schemas the user wants to migrate. Default to "everything in this catalog" but accept a filter list.
 3. **Confirm bucket mapping** — if any external tables have `s3://` locations, the bucket-map config must exist. Route to [`aidp-bucket-mapping`](../skills/aidp-bucket-mapping/SKILL.md) if missing.
 4. **Stage 1: extract** — `extract_catalog_databricks.py` → `reports/catalog_pack.json`. Show the table count.

@@ -7,15 +7,17 @@ scoring live in one place instead of being written inline in ``cli.py``.
 """
 from __future__ import annotations
 
+import csv
 import glob
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+from .parsers.security import SecurityError, ensure_within, safe_path_component
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +73,19 @@ class MigrationRunResult:
     # cannot run as written. A migrator defect, reported rather than
     # delivered silently.
     broken_notebooks: list = field(default_factory=list)
+    # [(notebook_path, [finding, ...])] -- the subset of broken_notebooks
+    # that embed a credential literal (password=, token=, user:pass@ in a
+    # URL, Authorization header). A secret in a deliverable, so `migrate`
+    # exits non-zero on it rather than merely reporting it.
+    credential_leaks: list = field(default_factory=list)
     # [(mapping, folder, written_as)] -- same folder AND same mapping name as
     # another in this run. Kept, suffixed, reported; never silently dropped.
     notebook_collisions: list = field(default_factory=list)
+    # [(kind, original, written_as)] -- export-supplied folder / mapping /
+    # workflow names that were not a safe single path component (a "/",
+    # "..", a drive letter...) and were rewritten before becoming a file
+    # name. Also written to reports/sanitised_names.csv.
+    renamed_paths: list = field(default_factory=list)
     # {workflow_name: [review item, ...]} -- everything in a source workflow
     # that could not be translated into the generated job.
     workflow_reviews: dict = field(default_factory=dict)
@@ -154,12 +166,29 @@ def format_run_summary(result: "MigrationRunResult") -> str:
                               if any(p.endswith(f"/{_f}/{_nb}") for p in ps))
                 _pairs.append(f"{', '.join(_who) or '(no job)'} -> {_f}/{_nb}")
             lines.append(f"  {_m}: " + "; ".join(_pairs))
+    if getattr(result, "renamed_paths", None):
+        _r = result.renamed_paths
+        lines.append(
+            f"RENAMED: {len(_r)} export-supplied name(s) were not safe file names "
+            f"and were rewritten ({', '.join(repr(o) for _k, o, _s in _r[:3])}"
+            f"{', ...' if len(_r) > 3 else ''}) -- see "
+            f"{os.path.join('reports', 'sanitised_names.csv')}. A name carrying "
+            f"'/', '..' or a drive letter in an export is not something "
+            f"PowerCenter or IDMC produces; check where this export came from."
+        )
     if getattr(result, "broken_notebooks", None):
         lines.append(
             f"BROKEN: {len(result.broken_notebooks)} generated notebook(s) cannot "
             f"run as written -- see {os.path.join('reports', 'broken_notebooks.md')}. "
             f"This is a defect in the migrator, not in the export; the mapping(s) "
             f"need re-generating once it is fixed."
+        )
+    if getattr(result, "credential_leaks", None):
+        lines.append(
+            f"SECURITY: {len(result.credential_leaks)} generated notebook(s) embed a "
+            f"credential literal -- see {os.path.join('reports', 'broken_notebooks.md')}. "
+            f"Do not deploy them; credentials belong in the environment or a secret "
+            f"store (password=os.environ[...]), never in notebook source."
         )
     if getattr(result, "ddl_warnings", None):
         lines.append(
@@ -187,7 +216,11 @@ def _emit_workflows(parsed, notebook_paths: dict, output_dir: str, result,
             sessions={s.name: s for s in parsed.sessions},
             parameter_file=parameter_file,
         )
-        with open(os.path.join(wf_dir, f"{workflow.name}.json"), "w", encoding="utf-8") as f:
+        # The job file is named after the workflow, and the workflow name is
+        # export-supplied text: "../.." in it used to climb out of -o.
+        wf_name = _safe_component("workflow", workflow.name, result)
+        wf_path = ensure_within(output_dir, os.path.join(wf_dir, f"{wf_name}.json"))
+        with open(wf_path, "w", encoding="utf-8") as f:
             json.dump(tr.job, f, indent=2, default=str)
         result.workflows += 1
         result.workflow_notebooks[workflow.name] = [
@@ -200,7 +233,7 @@ def _emit_workflows(parsed, notebook_paths: dict, output_dir: str, result,
         if tr.needs_review:
             result.workflow_reviews[workflow.name] = list(tr.not_translated)
             result.workflow_assumptions[workflow.name] = list(tr.assumptions)
-            review_path = os.path.join(wf_dir, f"{workflow.name}.review.md")
+            review_path = ensure_within(output_dir, os.path.join(wf_dir, f"{wf_name}.review.md"))
             with open(review_path, "w", encoding="utf-8") as f:
                 f.write(_render_workflow_review(workflow.name, tr))
 
@@ -354,11 +387,16 @@ def _compare_and_score(mapping, transformations, comparison_gen, scorer, all_sco
         comp_dir = os.path.join(output_dir, "comparisons")
         os.makedirs(comp_dir, exist_ok=True)
         entries = comparison_gen.generate(mapping, transformations)
-        comparison_path = os.path.join(comp_dir, f"{mapping.name}_comparison.md")
+        # File names carry the SAFE form of the mapping name; the report's
+        # heading keeps the original.
+        safe = safe_path_component(mapping.name)
+        comparison_path = ensure_within(
+            output_dir, os.path.join(comp_dir, f"{safe}_comparison.md")
+        )
         comparison_gen.export_markdown(entries, mapping.name, comparison_path)
         comparison_gen.export_html(
             entries, mapping.name,
-            os.path.join(comp_dir, f"{mapping.name}_comparison.html"),
+            ensure_within(output_dir, os.path.join(comp_dir, f"{safe}_comparison.html")),
         )
     if scorer is not None:
         all_scores.extend(scorer.score_mapping(mapping, transformations))
@@ -370,7 +408,41 @@ def _emit_lineage(mapping, output_dir: str) -> None:
     lin_gen = LineageGenerator()
     lin_dir = os.path.join(output_dir, "lineage")
     os.makedirs(lin_dir, exist_ok=True)
-    lin_gen.export_lineage_report(lin_gen.generate(mapping), os.path.join(lin_dir, mapping.name))
+    # Sanitises the mapping name and refuses a path outside lin_dir.
+    lin_gen.export_for_mapping(mapping, lin_dir)
+
+
+def _safe_component(kind: str, name: str, result=None) -> str:
+    """``safe_path_component`` plus the bookkeeping that keeps a rename
+    visible: a WARNING naming the object, and an entry in
+    ``result.renamed_paths`` so the run summary and
+    ``reports/sanitised_names.csv`` can list every original -> written-as
+    pair. Two originals that sanitise to the same name then collide in the
+    usual way (``nb_X__2``, NAME CLASH in the summary) instead of one
+    silently replacing the other."""
+    safe = safe_path_component(name)
+    if safe != name:
+        logger.warning(
+            "%s name %r is not a safe file name -- written as %r (see "
+            "reports/sanitised_names.csv)", kind, name, safe,
+        )
+        if result is not None and (kind, name, safe) not in result.renamed_paths:
+            result.renamed_paths.append((kind, name, safe))
+    return safe
+
+
+def _write_renamed_report(result, output_dir: str) -> None:
+    """``reports/sanitised_names.csv``: kind, original, written_as -- one row
+    per export-supplied name that had to change to become a file name."""
+    if not result.renamed_paths:
+        return
+    report_dir = os.path.join(output_dir, "reports")
+    os.makedirs(report_dir, exist_ok=True)
+    with open(os.path.join(report_dir, "sanitised_names.csv"), "w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["kind", "original", "written_as"])
+        for kind, original, safe in result.renamed_paths:
+            writer.writerow([kind, original, safe])
 
 
 def _validate_generated(output_dir: str) -> list:
@@ -392,17 +464,22 @@ def _validate_generated(output_dir: str) -> list:
     """
     import ast as _ast
     import json as _json
-    from .generators.code_validation import abandoned_dataframes, unresolved_names
+    from .generators.code_validation import (
+        abandoned_dataframes, credential_literals_in_text, hardcoded_credentials,
+        unresolved_names,
+    )
+
+    def _cell_text(cell: dict) -> str:
+        return "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
 
     broken = []
     for path in sorted(glob.glob(os.path.join(output_dir, "**", "*.ipynb"),
                                  recursive=True)):
         try:
             nb = _json.load(open(path, encoding="utf-8"))
-            code = "\n".join(
-                "".join(c["source"]) if isinstance(c["source"], list) else c["source"]
-                for c in nb.get("cells", []) if c.get("cell_type") == "code"
-            )
+            cells = nb.get("cells", [])
+            code = "\n".join(_cell_text(c) for c in cells if c.get("cell_type") == "code")
+            prose = [_cell_text(c) for c in cells if c.get("cell_type") == "markdown"]
         except Exception as exc:
             broken.append((path, [f"could not be read back: {exc}"]))
             continue
@@ -421,6 +498,11 @@ def _validate_generated(output_dir: str) -> list:
             _ast.parse(code)
         except SyntaxError as exc:
             problems.append(f"does not parse: {exc}")
+            # The syntax-tree rule cannot run, but a password beside a typo
+            # is still a password in a deliverable: the text rule needs no
+            # tree. Before this, "does not parse" ended the check and the
+            # credential shipped.
+            leaks = credential_literals_in_text(code)
         else:
             missing = unresolved_names(code)
             if missing:
@@ -434,12 +516,34 @@ def _validate_generated(output_dir: str) -> list:
                     "prepared an input copy that is never read, so a join or "
                     f"route was dropped: {', '.join(orphaned)}"
                 )
-        if problems and not declared_refusal:
+            # A credential literal is not a "cannot run" defect -- the
+            # notebook runs fine, which is exactly the problem: a secret
+            # has been written into a deliverable. Reported through the
+            # same channel so it is in broken_notebooks.md, and tagged so
+            # run_migration can fail the run on it. The finding names the
+            # line and the shape, never the value.
+            leaks = hardcoded_credentials(code)
+        # Markdown is not code, but it is in the same file that gets
+        # reviewed, committed and deployed -- "connect with password=..."
+        # in a heading cell is the same leak.
+        for n, text in enumerate(prose, 1):
+            leaks.extend(f"markdown cell {n}, {f}" for f in credential_literals_in_text(text))
+        if leaks:
+            problems.append(f"{CREDENTIAL_PROBLEM}: {'; '.join(leaks)}")
+        # A declared refusal is exempt from the "cannot run" rules, but not
+        # from the credential rule: a REVIEW REQUIRED stub that also embeds
+        # a password is still a leaked password.
+        if problems and (not declared_refusal or leaks):
             broken.append((path, problems))
         elif problems and declared_refusal:
             # Still surfaced, but as what it is.
             pass
     return broken
+
+
+#: Prefix of the broken-notebook problem that reports a credential literal;
+#: run_migration splits those out into ``MigrationRunResult.credential_leaks``.
+CREDENTIAL_PROBLEM = "SECURITY: embeds credential literal(s)"
 
 
 def _emit_ddl(mapping, output_dir: str) -> list:
@@ -458,8 +562,13 @@ def _emit_ddl(mapping, output_dir: str) -> list:
     ddl_dir = os.path.join(output_dir, "ddl")
     os.makedirs(ddl_dir, exist_ok=True)
     for d in ddls:
-        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", d.table or d.target_name)
-        with open(os.path.join(ddl_dir, f"{safe}.sql"), "w") as fh:
+        # Same sanitiser as every other export-named file: one path
+        # component, Unicode-mode table names kept, contained under -o.
+        # UTF-8 explicitly -- the platform default (cp1252 on Windows) cannot
+        # encode a non-ASCII table or mapping name quoted in the DDL.
+        safe = safe_path_component(d.table or d.target_name)
+        path = ensure_within(output_dir, os.path.join(ddl_dir, f"{safe}.sql"))
+        with open(path, "w", encoding="utf-8") as fh:
             fh.write(d.sql)
     return ddls
 
@@ -806,7 +915,8 @@ def run_migration(
             except Exception as exc:
                 logger.warning("Workflow re-parse failed for %s: %s", xml_path, exc)
                 continue
-            folder_of = {m.name: (m.folder or "Migrated") for m in parsed.mappings}
+            # The same safe folder name BatchMigrator wrote the notebook under.
+            folder_of = {m.name: safe_path_component(m.folder or "Migrated") for m in parsed.mappings}
             notebook_paths = {
                 s.name: f"/Workspace/Migrated/{folder_of.get(s.mapping_name, 'Migrated')}/"
                         f"{os.path.basename(nb_by_mapping[s.mapping_name])}"
@@ -930,10 +1040,18 @@ def run_migration(
                         logger.warning("source_fidelity check failed for '%s': %s",
                                        mapping.name, exc)
 
-                folder = mapping.folder or "Migrated"
-                nb_dir = os.path.join(output_dir, folder)
+                # Folder and mapping name are text the export controls. An
+                # absolute FOLDER NAME made os.path.join discard output_dir
+                # and "x/../.." in a MAPPING NAME climbed out of it, so a
+                # tampered export wrote .ipynb / .md / .json files wherever
+                # it pointed (SEC-AIDP-SAMPLES-INFA-H1). Both are reduced to
+                # one safe path component, the rename is reported, and the
+                # resolved path is checked before the write.
+                folder = _safe_component("folder", mapping.folder or "Migrated", result)
+                safe_mapping = _safe_component("mapping", mapping.name, result)
+                nb_dir = ensure_within(output_dir, os.path.join(output_dir, folder))
                 os.makedirs(nb_dir, exist_ok=True)
-                nb_name = f"nb_{mapping.name}.ipynb"
+                nb_name = f"nb_{safe_mapping}.ipynb"
                 nb_path = os.path.join(nb_dir, nb_name)
                 # Two mappings with the same name in the same folder used to
                 # overwrite each other in silence: the run reported one
@@ -950,15 +1068,24 @@ def run_migration(
                 if nb_path in _written_notebooks:
                     _n = 2
                     while True:
-                        alt = os.path.join(nb_dir, f"nb_{mapping.name}__{_n}.ipynb")
+                        alt = os.path.join(nb_dir, f"nb_{safe_mapping}__{_n}.ipynb")
                         if alt not in _written_notebooks:
                             break
                         _n += 1
                     _nb_collisions.append((mapping.name, folder, os.path.basename(alt)))
                     nb_path = alt
                 _written_notebooks.add(nb_path)
-                with open(nb_path, "w", encoding="utf-8") as f:
-                    f.write(notebook_code)
+                # A name the filesystem refuses (or the containment guard
+                # rejects) is this mapping's failure, not the run's: one
+                # uncaught OSError here used to abort every mapping after it,
+                # lineage, DDL and workflows included.
+                try:
+                    with open(ensure_within(output_dir, nb_path), "w", encoding="utf-8") as f:
+                        f.write(notebook_code)
+                except (OSError, SecurityError) as exc:
+                    logger.error("Could not write notebook for mapping %r: %s", mapping.name, exc)
+                    parse_failures.append((xml_file, f"{mapping.name}: {exc}"))
+                    continue
                 result.notebooks += 1
                 # The path the deployer will upload this notebook to under
                 # the AIDP workspace (see deployer.DeployConfig.workspace_path,
@@ -1021,11 +1148,17 @@ def run_migration(
     result.fidelity_summary = _finalize_fidelity(result.outcomes, output_dir)
     result.ddl_warnings = _ddl_warnings
     result.notebook_collisions = _nb_collisions
+    _write_renamed_report(result, output_dir)
     result.broken_notebooks = _validate_generated(output_dir)
+    result.credential_leaks = [
+        (_p, [_pr for _pr in _probs if _pr.startswith(CREDENTIAL_PROBLEM)])
+        for _p, _probs in result.broken_notebooks
+        if any(_pr.startswith(CREDENTIAL_PROBLEM) for _pr in _probs)
+    ]
     if result.broken_notebooks:
         _report_dir = os.path.join(output_dir, "reports")
         os.makedirs(_report_dir, exist_ok=True)
-        with open(os.path.join(_report_dir, "broken_notebooks.md"), "w") as _fh:
+        with open(os.path.join(_report_dir, "broken_notebooks.md"), "w", encoding="utf-8") as _fh:
             _fh.write("# Notebooks that cannot run as written\n\n")
             _fh.write("Found by reading back what this run generated. Each of "
                       "these is a defect in the migrator, not in the export.\n\n")

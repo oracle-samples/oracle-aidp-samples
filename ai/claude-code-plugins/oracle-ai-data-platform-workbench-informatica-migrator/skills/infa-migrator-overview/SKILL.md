@@ -172,8 +172,9 @@ full check. Short version:
    `--agentic`. The rule-based path (what `demo.sh` exercises) needs neither
    this nor a network connection.
 3. For `infa-discover` only: reachability to the PowerCenter repository host
-   plus `--user`/`--password`/`--repo`/`--domain` or the matching
-   `INFA_*` environment variables.
+   plus `--user`/`--repo`/`--domain` or the matching `INFA_*` environment
+   variables, and the password from `INFA_PASSWORD` or `--password-file`
+   (`--password <value>` is refused).
 4. For `infa-deploy` only: an OCI credential in `~/.oci/config` plus
    `AIDP_REGION` / `AIDP_INSTANCE_ID` / `AIDP_WORKSPACE_KEY` /
    `AIDP_CLUSTER_KEY` (or the matching flags), and the `infa_compat` wheel

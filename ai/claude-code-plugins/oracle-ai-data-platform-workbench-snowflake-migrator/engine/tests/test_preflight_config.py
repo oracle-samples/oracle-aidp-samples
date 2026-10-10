@@ -15,11 +15,12 @@ import pytest
 
 from plan.preflight import (
     describe_config, render_preflight_report, run_preflight)
+from secret_files import write_secret
 
 
 def _config(tmp_path, **overrides):
     key = tmp_path / "rsa.p8"
-    key.write_text("-----BEGIN PRIVATE KEY-----\nSUPERSECRET\n", encoding="utf-8")
+    write_secret(key, "-----BEGIN PRIVATE KEY-----\nSUPERSECRET\n")
     base = {"account": "ORG-ACC", "user": "SVC", "warehouse": "WH",
             "database": "SALES_DB", "role": "READER", "auth": "keypair",
             "key_path": str(key)}
@@ -27,13 +28,45 @@ def _config(tmp_path, **overrides):
     return base
 
 
+READ_ONLY_GRANTS = [
+    {"privilege": "USAGE", "granted_on": "DATABASE", "name": "SALES_DB"},
+    {"privilege": "SELECT", "granted_on": "TABLE",
+     "name": "SALES_DB.PUBLIC.ORDERS"},
+]
+
+
 def _run_sql(sql, params=None):
-    low = sql.lower()
+    low = " ".join(sql.split()).lower()
     if "current_user" in low:
         return [{"U": "SVC", "R": "READER", "W": "WH", "D": "SALES_DB"}]
+    if "current_role()" in low:
+        return [{"R": "READER", "S": '{"roles":"","value":""}'}]
+    if low.startswith("show grants to role"):
+        return list(READ_ONLY_GRANTS)
     if "show schemas" in low:
         return [{"name": "A"}, {"name": "B"}]
     raise AssertionError(f"unexpected sql: {sql}")
+
+
+def _writer_sql(sql, params=None):
+    """The same session, but its role can also INSERT into the source."""
+    low = " ".join(sql.split()).lower()
+    if low.startswith("show grants to role"):
+        return READ_ONLY_GRANTS + [{"privilege": "INSERT", "granted_on":
+                                    "TABLE", "name": "SALES_DB.PUBLIC.ORDERS"}]
+    return _run_sql(sql, params)
+
+
+def _inheriting_sql(sql, params=None):
+    """The role itself holds only reads, but SYSADMIN was granted to it."""
+    low = " ".join(sql.split()).lower()
+    if low.startswith("show grants to role") and '"sysadmin"' in low:
+        return [{"privilege": "OWNERSHIP", "granted_on": "DATABASE",
+                 "name": "SALES_DB"}]
+    if low.startswith("show grants to role"):
+        return READ_ONLY_GRANTS + [{"privilege": "USAGE", "granted_on": "ROLE",
+                                    "name": "SYSADMIN"}]
+    return _run_sql(sql, params)
 
 
 def _call(operation, **kw):
@@ -64,13 +97,36 @@ def test_an_explicit_host_is_not_marked_derived(tmp_path):
     assert described["host_effective"] == "h.example.com"
 
 
-def test_the_credential_is_echoed_as_a_path_never_as_content(tmp_path):
+def test_the_credential_is_echoed_by_its_file_name_never_as_content(tmp_path):
+    """SEC-AIDP-SAMPLES-001: the report says the credential's SOURCE -- the
+    file's basename and that it is owner-only -- and neither its content
+    nor its directory, which can name a user, a host or a secret store."""
     config = _config(tmp_path)
     result = run_preflight(config, run_sql=_run_sql)
     report = render_preflight_report(result)
     assert "SUPERSECRET" not in report
     assert "SUPERSECRET" not in repr(result)
-    assert config["key_path"] in report
+    assert "rsa.p8" in report, "the basename is the source the user confirms"
+    assert str(tmp_path) not in report, "the directory is not echoed"
+    assert config["key_path"] not in repr(result)
+    check = next(c for c in result["checks"] if "credential" in c["name"])
+    assert check["ok"] is True
+    if os.name == "nt":
+        assert "mode check skipped on Windows" in check["detail"]
+    else:
+        assert "owner-only" in check["detail"]
+
+
+@pytest.mark.skipif(os.name == "nt",
+                    reason="POSIX mode bits; Windows files inherit the profile ACL")
+def test_a_credential_file_others_can_read_fails_the_check(tmp_path):
+    config = _config(tmp_path)
+    os.chmod(config["key_path"], 0o644)
+    result = run_preflight(config, run_sql=_run_sql)
+    bad = next(c for c in result["checks"] if "credential" in c["name"])
+    assert bad["ok"] is False
+    assert "readable by others" in bad["detail"] and "chmod 600" in bad["detail"]
+    assert result["ok"] is False
 
 
 def test_a_missing_credential_file_fails_the_check(tmp_path):
@@ -78,7 +134,60 @@ def test_a_missing_credential_file_fails_the_check(tmp_path):
                            run_sql=_run_sql)
     bad = next(c for c in result["checks"] if "credential" in c["name"])
     assert bad["ok"] is False
-    assert "NOT FOUND" in bad["detail"]
+    assert "not readable" in bad["detail"]
+    assert result["ok"] is False
+
+
+# --- the role gate: grants read back before anything is discovered ----------
+
+def test_a_read_only_role_passes_and_its_grants_are_the_evidence(tmp_path):
+    result = run_preflight(_config(tmp_path), run_sql=_run_sql)
+    check = next(c for c in result["checks"]
+                 if c["name"] == "source role is read-only")
+    assert check["ok"] is True and "READER" in check["detail"]
+    assert result["role_grants"]["read_only"] is True
+    report = render_preflight_report(result)
+    assert "## Source role grants" in report
+    assert "`SELECT` | 1" in report and "SHOW GRANTS TO ROLE" in report
+
+
+def test_a_role_that_can_write_the_source_fails_preflight(tmp_path):
+    result = run_preflight(_config(tmp_path), run_sql=_writer_sql)
+    check = next(c for c in result["checks"]
+                 if c["name"] == "source role is read-only")
+    assert check["ok"] is False
+    assert "INSERT" in check["detail"] and "SALES_DB.PUBLIC.ORDERS" in check["detail"]
+    assert result["ok"] is False
+    report = render_preflight_report(result)
+    assert "Write privileges on the source" in report
+    assert "`INSERT` on TABLE `SALES_DB.PUBLIC.ORDERS`" in report
+
+
+def test_a_write_inherited_through_a_granted_role_fails_preflight(tmp_path):
+    """`GRANT ROLE SYSADMIN TO ROLE READER` leaves READER's own listing
+    clean; the gate follows the grant and the evidence names the carrier."""
+    result = run_preflight(_config(tmp_path), run_sql=_inheriting_sql)
+    check = next(c for c in result["checks"]
+                 if c["name"] == "source role is read-only")
+    assert check["ok"] is False
+    assert "OWNERSHIP" in check["detail"] and "via SYSADMIN" in check["detail"]
+    assert result["ok"] is False
+    report = render_preflight_report(result)
+    assert "`SYSADMIN`" in report, "the walked role is named in the evidence"
+    assert "`OWNERSHIP` on DATABASE `SALES_DB` (role `READER`, via `SYSADMIN`)" \
+        in report
+
+
+def test_unreadable_grants_fail_the_role_check_closed(tmp_path):
+    def denied(sql, params=None):
+        if sql.lower().startswith("show grants"):
+            raise RuntimeError("Insufficient privileges")
+        return _run_sql(sql, params)
+
+    result = run_preflight(_config(tmp_path), run_sql=denied)
+    check = next(c for c in result["checks"]
+                 if c["name"] == "source role is read-only")
+    assert check["ok"] is False and "could not be read" in check["detail"]
     assert result["ok"] is False
 
 
@@ -139,8 +248,8 @@ def test_unrecognised_keys_are_reported_rather_than_ignored(tmp_path):
 
 
 def test_a_config_with_no_credential_at_all_is_called_out(tmp_path):
-    """Neither inline nor a path: the auth mode cannot work, and the report
-    has to say so. (A credential sitting INLINE is fine -- see below.)"""
+    """No `*_path` at all: the auth mode cannot work, and the report has to
+    say so. (A credential sitting INLINE is refused -- see below.)"""
     config = _config(tmp_path)
     del config["key_path"]
     report = render_preflight_report(run_preflight(config))
@@ -219,17 +328,22 @@ def test_a_secret_is_never_rendered(tmp_path):
     assert shown["aidp"]["datalake_ocid"] == "ocid1.x"
 
 
-def test_inline_and_path_together_are_refused_not_ranked(tmp_path):
+def test_an_inline_secret_is_refused_with_or_without_the_path_beside_it(
+        tmp_path):
+    """SEC-AIDP-SAMPLES-001: `resolve_secret` reads a credential from the
+    owner-only file at `*_path` and from nowhere else."""
     from migration_config import ConfigError, resolve_secret
-    secret = tmp_path / "pw"
-    secret.write_text("from-file", encoding="utf-8")
-    with pytest.raises(ConfigError, match="keep one"):
-        resolve_secret({"password": "inline", "password_path": str(secret)},
+    secret = write_secret(tmp_path / "pw", "from-file")
+    with pytest.raises(ConfigError, match="password_path"):
+        resolve_secret({"password": "inline", "password_path": secret},
                        "password", "password_path")
-    assert resolve_secret({"password": "inline"}, "password",
-                          "password_path") == "inline"
-    assert resolve_secret({"password_path": str(secret)}, "password",
+    with pytest.raises(ConfigError, match="password_path") as caught:
+        resolve_secret({"password": "inline-value"}, "password",
+                       "password_path")
+    assert "inline-value" not in str(caught.value)
+    assert resolve_secret({"password_path": secret}, "password",
                           "password_path") == "from-file"
+    assert resolve_secret({}, "password", "password_path") is None
 
 
 def test_an_unknown_aidp_key_is_reported_not_ignored():
@@ -352,12 +466,12 @@ def test_an_unrecognised_driver_error_still_says_what_to_check(monkeypatch):
         connect(account="A", user="U")
 
 
-# --- inline secrets are the documented default, not an anomaly -------------
+# --- inline secrets are refused, with the path field that replaces them ----
 
-def test_an_inline_secret_is_reported_present_not_unknown():
-    """One file holding everything is the whole design; the report used to
-    call an inline key an unrecognised field and say inline was not
-    accepted."""
+def test_an_inline_secret_is_reported_refused_and_names_the_path_field():
+    """SEC-AIDP-SAMPLES-001. The field is still recognised (not an unknown
+    key), its value is never rendered, and the check FAILS: the config
+    travels, so a credential in it is not accepted."""
     from plan.preflight import describe_config, render_preflight_report, \
         run_preflight
     config = {"account": "ORG-ACCT", "user": "SVC", "warehouse": "WH",
@@ -368,13 +482,34 @@ def test_an_inline_secret_is_reported_present_not_unknown():
     assert described["missing"] == []
     inline = [s for s in described["secrets"] if s["field"] == "private_key"]
     assert inline and inline[0]["inline"] is True
-    assert inline[0]["exists"] is True, "there is no file to be missing"
+    assert inline[0]["exists"] is False, "an inline credential is refused"
+    assert "key_path" in inline[0]["note"]
 
-    report = render_preflight_report(run_preflight(config))
-    assert "does not accept" not in report
-    assert "inline" in report
+    result = run_preflight(config)
+    assert result["ok"] is False
+    check = next(c for c in result["checks"] if "private_key" in c["name"])
+    assert check["ok"] is False and "refused" in check["name"]
+    report = render_preflight_report(result)
+    assert "not accepted" in report and "key_path" in report
     assert "abc" not in report, "the key itself must never be rendered"
     assert "BEGIN PRIVATE KEY" not in report
+
+
+def test_preflight_refuses_an_inline_password_in_the_config_file(tmp_path,
+                                                                 capsys):
+    """Through the CLI: the parser refuses before any check runs, the
+    message names `password_path`, and the value stays out of the output."""
+    from snowmig import main
+    cfg = tmp_path / "snowmig-config.yaml"
+    cfg.write_text("snowflake:\n  account: acme\n  user: u\n  warehouse: w\n"
+                   "  database: d\n  auth: password\n"
+                   "  password: INLINE-SECRET-VALUE\n", encoding="utf-8")
+    rc = main(["preflight", "--config", str(cfg),
+               "--out-dir", str(tmp_path / "out")])
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "error:" in captured.err and "password_path" in captured.err
+    assert "INLINE-SECRET-VALUE" not in captured.err + captured.out
 
 
 def test_no_credential_at_all_is_still_called_out():

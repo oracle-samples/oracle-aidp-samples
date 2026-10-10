@@ -1469,7 +1469,7 @@ OCI_PATH_TOOLS = [
     },
     {
         "name": "get_tool_output",
-        "description": "Retrieve the full untruncated output of a previous tool call that was truncated to save context space. The filename is shown in the truncation notice (e.g. 'tool_003_run_on_cluster.txt'). Use this when you need details that were cut off.",
+        "description": "Retrieve the full untruncated output of a previous tool call that was truncated to save context space. The filename is shown in the truncation notice (e.g. 'tool_003_run_on_cluster.txt'). Use this when you need details that were cut off. Only the exact bare filename from a truncation notice is accepted; directory paths are refused.",
         "strict": True,
         "input_schema": {
             "type": "object",
@@ -1577,11 +1577,24 @@ def _handle_get_tool_output(filename: str, log_fn=None) -> str:
     if not _compactor_history:
         return "No active compactor â€” tool output files not available."
 
+    from context_compactor import NOT_FOUND_PREFIX, REFUSED_PREFIX, validate_output_filename
+
     _log(f"get_tool_output: {filename}")
+    # The filename is model-supplied: accept only a bare tool_<NNN>_<tool>.txt
+    # name, before any compactor touches the filesystem
+    # (SEC-AIDP-SAMPLES-DBX-NEW-01).
+    reason = validate_output_filename(filename)
+    if reason is not None:
+        _log(f"get_tool_output REFUSED {filename!r}: {reason}")
+        return f"{REFUSED_PREFIX}: {reason}"
+
     # Search current first, then walk history in reverse order
     for compactor in reversed(_compactor_history):
         result = compactor.get_saved_output(filename)
-        if not result.startswith("[context_compactor] File not found"):
+        if result.startswith(REFUSED_PREFIX):
+            # Policy refusal is final; do not keep probing older compactors.
+            return result
+        if not result.startswith(NOT_FOUND_PREFIX):
             return result
 
     # All compactors tried â€” return the last "not found" message (lists available files)

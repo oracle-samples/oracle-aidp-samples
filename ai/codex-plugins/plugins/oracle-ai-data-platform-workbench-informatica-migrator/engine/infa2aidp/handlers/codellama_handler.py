@@ -20,6 +20,12 @@ from .. import config as _cfg
 
 DEFAULT_CLAUDE_MODEL = _cfg.CLAUDE_MODEL
 
+# Where the key goes. Passed explicitly rather than left to the SDK's own
+# environment lookup, so the only thing that can move the endpoint is a
+# value deliberately exported in the shell -- never a .env file, which the
+# config loader refuses *_BASE_URL from (SEC-AIDP-SAMPLES-INFA-H2).
+ANTHROPIC_DEFAULT_BASE_URL = "https://api.anthropic.com"
+
 _CLAUDE_SYSTEM_PROMPT = (
     "You are an expert Informatica PowerCenter to PySpark migration specialist. "
     "Convert the given Informatica expression/code to equivalent PySpark code. "
@@ -53,7 +59,10 @@ class LLMHandler:
             return
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if api_key:
-            self._claude_client = _anthropic_mod.Anthropic(api_key=api_key)
+            self._claude_client = _anthropic_mod.Anthropic(
+                api_key=api_key,
+                base_url=os.environ.get("ANTHROPIC_BASE_URL") or ANTHROPIC_DEFAULT_BASE_URL,
+            )
 
     def is_available(self) -> bool:
         return self._claude_client is not None

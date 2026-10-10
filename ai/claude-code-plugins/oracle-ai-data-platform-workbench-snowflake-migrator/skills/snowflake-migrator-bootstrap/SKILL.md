@@ -79,39 +79,51 @@ one file to fill in, and the secret goes *in that file*, not into the chat:
 | What | Where | Note |
 |---|---|---|
 | Snowflake account/host, user, warehouse, database, role, schema | `snowmig-config.yaml`, under `snowflake:` | created from the template; `0600` on POSIX; gitignored only inside the plugin folder — tell the user to add it to their own `.gitignore` when it lives elsewhere |
-| The Snowflake **password or private key** | the same file — `password:` or `private_key: |` inline | inline is the default; `*_path` variants exist but are not what you propose first |
+| The Snowflake **password or private key** | its **own file**, readable by the user alone (`chmod 600`), named in the config as `password_path:` or `key_path:` (`key_passphrase_path:`, `pat_path:`) | an inline `password:` / `private_key:` / `key_passphrase:` / `token:` is **refused** by every stage, with the `*_path` to use; the config travels and a secret in it would travel with it |
 | Which AIDP resources to use (DataLake OCID, workspace, cluster, catalog) | the same file, under `aidp:` | any of them can also be passed as a flag, and a flag wins |
 | AIDP **authentication** | `~/.oci/config` (`oci setup config`) | never a value in the config file. `aidp.oci_profile`, when set, is announced on stdout and passed as `--profile` to every `oci` and `aidp` call; otherwise each CLI uses `OCI_CLI_PROFILE`, else `DEFAULT`. Both CLIs always get an explicit `--auth`: `aidp.oci_auth`, else `OCI_CLI_AUTH`, else `security_token` for a profile with a `security_token_file` and `api_key` for any other. Every `aidp` call also gets `--region <from the OCID>`. On an auth error, check that profile and the mode the run announced |
 
-Rules that come with an inline secret, and they are not optional:
+Rules that come with the credential files, and they are not optional:
 
-- **Ask the user before reading the config**, and say why you need it.
+- **Ask the user before reading the config or any file it points at**, and
+  say why you need it.
 - **Never print, echo, quote or summarise a secret value** — not in chat, not in
   a report, not in a commit message. Render a config only through
-  `migration_config.redact()`, which is what `preflight` uses.
+  `migration_config.redact()`, which is what `preflight` uses; a credential
+  file is reported by its basename only.
 - **Never ask the user to paste a password or a private key into the
-  conversation.** They put it in the file, on their own machine. If one does end
-  up in the chat or in a committed file, say so plainly and tell them to rotate
-  it.
-- The file is gitignored only inside the plugin folder; in the user's working
-  directory nothing ignores it until they add it to that repo's `.gitignore`
-  — say so when you create it. Keep it out of tickets and commits too — an inline
-  secret is a secret that leaks the moment the file travels.
+  conversation.** They put it in a file of its own, on their own machine,
+  `chmod 600`. If one does end up in the chat, in the config or in a committed
+  file, say so plainly and tell them to rotate it.
+- **Never put a value in the config to "make it work".** `preflight` and every
+  other stage refuse an inline `password:` / `private_key:` /
+  `key_passphrase:` / `token:` and name the `*_path` to use; a credential file
+  that others can read is refused too (on POSIX; on Windows the check is
+  skipped and the report says so).
+- The config is gitignored only inside the plugin folder; in the user's
+  working directory nothing ignores it or the credential files until they add
+  them to that repo's `.gitignore` — say so when you create it. Keep them out
+  of tickets and commits too.
+- **The role must be read-only.** `preflight --test-source` reads its grants
+  back and fails if it holds CREATE, ALTER, DROP, INSERT, UPDATE, DELETE,
+  MERGE, TRUNCATE or OWNERSHIP on the source database, or if the grants cannot
+  be read. Tell the user what the report lists and have the account owner fix
+  the role; do not look for a way around it.
 
 Key-pair setup, if the user wants one instead of a password:
 
 ```bash
-openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -nocrypt -out ./sf_key.p8
-openssl rsa -in ./sf_key.p8 -pubout | grep -v '^-----' | tr -d '\n'
+umask 077
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -nocrypt -out ~/.snowflake/sf_key.p8
+openssl rsa -in ~/.snowflake/sf_key.p8 -pubout | grep -v '^-----' | tr -d '\n'
 # then in Snowsight:  ALTER USER <user> SET RSA_PUBLIC_KEY='<that string>';
 ```
 
-Then set `auth: keypair` and paste the PEM **into the same config file**, under
-`private_key: |`. A key pair is also what AIDP's own Snowflake connector uses,
-so it is not throwaway setup. (`key_path:` also works if they would rather keep
-the PEM on disk — but do not send them to a second file by default.) `pat`
-works for the engine but **not** for the EXTERNAL catalog registration, whose
-Snowflake connection properties have no token field.
+Then set `auth: keypair` and `key_path: ~/.snowflake/sf_key.p8` in the config
+(`key_passphrase_path:` too if the key is encrypted). A key pair is also what
+AIDP's own Snowflake connector uses, so it is not throwaway setup. `pat`
+(`pat_path:`) works for the engine but **not** for the EXTERNAL catalog
+registration, whose Snowflake connection properties have no token field.
 
 SSO (`authenticator: externalbrowser`) needs a SAML IdP configured on the
 account; without one, the login fails with `390190`.

@@ -42,7 +42,9 @@ class TestDispatcher:
         d = p.parse_args(["deploy", "-i", "x", "--dry-run"])
         assert d.dry_run and d.output is None and not d.overwrite
         disc = p.parse_args(["discover", "--host", "h"])
-        assert (disc.port, disc.method, disc.output) == (6005, "auto", "./crawl_output")
+        # 7343, the Web Services Hub HTTPS port: 6005 is the domain gateway, and the
+        # old http:// default sent the repository password in the clear (SEC-AIDP-SAMPLES-INFA-H3).
+        assert (disc.port, disc.method, disc.output) == (7343, "auto", "./crawl_output")
         r = p.parse_args(["rag", "stats"])
         assert (r.action, r.output) == ("stats", "rag_export.json")
 
@@ -54,13 +56,18 @@ class TestDispatcher:
             with pytest.raises(SystemExit):
                 p.parse_args(argv)
 
-    def test_handler_exception_is_exit_1_unless_verbose(self, monkeypatch):
+    def test_handler_exception_is_exit_1_verbose_adds_the_traceback(self, monkeypatch, caplog):
+        """Verbose mode used to re-raise. The interpreter prints a re-raised
+        exception past every logging filter, including the one that redacts
+        a live password (SEC-AIDP-SAMPLES-002), so verbose now logs the
+        traceback instead and exits 1 like any other failure."""
         def boom(args):
             raise RuntimeError("kaput")
         monkeypatch.setitem(cli.COMMANDS, "version", cli.Command("version", "v", boom))
         assert main(["version"]) == 1
-        with pytest.raises(RuntimeError, match="kaput"):
-            main(["version", "-v"])
+        assert "Traceback" not in caplog.text
+        assert main(["version", "-v"]) == 1
+        assert "kaput" in caplog.text and "Traceback" in caplog.text
 
     def test_keyboard_interrupt_is_130(self, monkeypatch):
         def interrupted(args):
@@ -444,7 +451,7 @@ class TestLineageAndDiscover:
         assert rc == 1                     # errors and nothing exported
         cfg = seen["cfg"]
         assert (cfg.host, cfg.port, cfg.username, cfg.password, cfg.repository) == (
-            "pc.example", 6005, "admin", "from-env", "REP")
+            "pc.example", 7343, "admin", "from-env", "REP")
         assert seen["method"] == "soap"
         assert seen["crawl"] == (os.path.join(str(tmp_path), "exported_xml"), ["SALES", "HR"], True)
         assert seen["report"] == os.path.join(str(tmp_path), "infa_inventory_report.md")
