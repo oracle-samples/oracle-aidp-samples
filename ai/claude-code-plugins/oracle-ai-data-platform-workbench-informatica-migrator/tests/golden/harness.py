@@ -442,14 +442,19 @@ def run_case(spark, case_dir: Path, tmp_path: Path) -> dict:
     import logging
     from infa2aidp.migrator import run_migration
 
-    logging.disable(logging.CRITICAL)
     case = json.loads((case_dir / "case.json").read_text(encoding="utf-8"))
     seed = json.loads((case_dir / "seed.json").read_text(encoding="utf-8"))
     expected = json.loads((case_dir / "expected.json").read_text(encoding="utf-8"))
 
     out = tmp_path / "out"
-    run_migration([str(case_dir / case["export"])], str(out), use_llm=False,
-                  skip_lineage=True, skip_optimize=True, score_confidence=False)
+    # Quiet the migrator for the run only: leaving logging disabled for the
+    # rest of the process made every later caplog assertion read "".
+    logging.disable(logging.CRITICAL)
+    try:
+        run_migration([str(case_dir / case["export"])], str(out), use_llm=False,
+                      skip_lineage=True, skip_optimize=True, score_confidence=False)
+    finally:
+        logging.disable(logging.NOTSET)
     notebooks = sorted(out.glob("*/*.ipynb"))
     if case.get("mapping"):
         notebooks = [n for n in notebooks if n.stem == f"nb_{case['mapping']}"]

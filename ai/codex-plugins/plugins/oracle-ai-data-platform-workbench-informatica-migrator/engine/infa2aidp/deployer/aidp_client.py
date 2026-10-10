@@ -17,6 +17,7 @@ Config from .env:
 import json
 import logging
 import os
+import re
 import time
 from hashlib import sha256 as _sha256
 from pathlib import Path
@@ -106,6 +107,9 @@ class _OCIRequestAuth:
 
 # ── AIDP Client ───────────────────────────────────────────────────────────────
 
+# An OCI region identifier is a single DNS label (us-ashburn-1, eu-frankfurt-1).
+_REGION_LABEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
+
 
 class AIDPClient:
     """REST client for Oracle AI Data Platform.
@@ -115,6 +119,14 @@ class AIDPClient:
 
     def __init__(self, region: str, aidp_instance_id: str, signer,
                  workspace_key: str = ""):
+        # The region is interpolated into the HOST below. It comes from
+        # --region, the shell, or ~/.infa2aidp/.env; a value carrying "/",
+        # "." or "@" would have sent OCI-signed deploy requests to a host of
+        # its choosing (SEC-AIDP-SAMPLES-INFA-H2). One DNS label, nothing else.
+        if not _REGION_LABEL.fullmatch(region or ""):
+            raise ValueError(
+                f"AIDP_REGION {region!r} is not an OCI region identifier (e.g. us-ashburn-1)"
+            )
         self.region = region
         self.aidp_instance_id = aidp_instance_id
         self.workspace_key = workspace_key

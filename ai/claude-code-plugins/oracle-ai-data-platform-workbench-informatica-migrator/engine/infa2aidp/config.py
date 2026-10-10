@@ -1,47 +1,144 @@
 """Configuration loader for infa2aidp.
 
-Loads settings from .env file automatically on import.
-Searches in order:
-  1. Environment variables (already set via export)
-  2. .env in current directory
+Loads settings from a .env file on import. Sources, in order of precedence:
+  1. Environment variables (already set via export) -- never overwritten
+  2. The file named by INFA2AIDP_ENV_FILE, if set (an explicit opt-in)
   3. ~/.infa2aidp/.env (user home)
+
+A ``.env`` in the CURRENT DIRECTORY is deliberately not read
+(SEC-AIDP-SAMPLES-INFA-H2). The CLI is run from inside customer export
+bundles, and a ``.env`` planted in one used to set ``ANTHROPIC_BASE_URL`` /
+``OPENAI_BASE_URL`` / ``HTTPS_PROXY`` / ``SSL_CERT_FILE`` for the whole
+process -- the first LLM call then sent the operator's real API key, and the
+customer's mapping metadata, wherever the bundle pointed, with nothing on
+the terminal. One found there is now ignored with a WARNING; to use it, name
+it: ``INFA2AIDP_ENV_FILE=./.env``.
+
+A .env file may only set the keys this tool documents (``env.template``):
+anything else is ignored with a WARNING naming the key, and the names that
+decide where HTTP traffic goes or how it is trusted (``*_BASE_URL``,
+``*_PROXY``, ``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``, ``OCI_CONFIG_FILE``,
+``PYTHON*``...) are refused even from a trusted file. Export them in the
+shell if you really mean them.
 
 All settings have sensible defaults. Users only set what they need.
 """
 
 import os
 import logging
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Search paths for .env file
-_ENV_SEARCH_PATHS = [
-    Path.cwd() / ".env",
-    Path.home() / ".infa2aidp" / ".env",
-]
+# Names an explicit .env file: the only way a .env outside ~/.infa2aidp is read.
+ENV_FILE_VAR = "INFA2AIDP_ENV_FILE"
+
+# Keys a .env file may set: everything env.template documents, by name or
+# by this tool's own prefixes. Documented knobs the SDKs and libraries also
+# read from the environment are listed deliberately so a reviewer sees
+# them; they are NOT the transport-steering names refused below.
+ALLOWED_ENV_KEYS = frozenset({
+    "ANTHROPIC_API_KEY", "CLAUDE_MODEL", "CLAUDE_MAX_TOKENS", "CLAUDE_TIMEOUT_SECONDS",
+    "TARGET_SCORE", "MAX_ATTEMPTS", "BATCH_WORKERS",
+    "MAX_CRITICAL", "MAX_WARNINGS", "MAX_ERRORS",
+    "AUTO_RERUN", "MAX_RERUNS", "RULE_BASED_FALLBACK", "TARGET_CATALOG_TYPE",
+    "OCI_PROFILE",
+})
+_ALLOWED_ENV_PREFIXES = ("INFA_", "AIDP_", "LLM_", "CLAUDE_", "OPENAI_")
+
+# Refused from ANY .env file, allow-listed or not. Each of these moves the
+# process's HTTP traffic (or its trust in it, or its code) somewhere else.
+_REFUSED_ENV_KEY = re.compile(
+    r"(_BASE_URL$|_API_BASE$|_PROXY$|^NO_PROXY$|^SSL_CERT_|^REQUESTS_CA_BUNDLE$|^CURL_CA_BUNDLE$"
+    r"|^OCI_CONFIG_FILE$|^OCI_CLI_|^PYTHON|^PATH$|^LD_|^DYLD_|^NODE_OPTIONS$)",
+    re.IGNORECASE,
+)
+
+
+def env_key_allowed(key: str) -> bool:
+    """Whether a .env file may set *key*. The refusal list wins: an
+    ``OPENAI_BASE_URL`` carries an allowed prefix and is still refused."""
+    if not key or _REFUSED_ENV_KEY.search(key):
+        return False
+    return key in ALLOWED_ENV_KEYS or key.startswith(_ALLOWED_ENV_PREFIXES)
+
+
+def _env_search_paths() -> "list[Path]":
+    """The files read, in order: the explicit one (if any), then the home one.
+    Computed per call -- never at import -- so a test or a long-lived
+    process sees the current environment."""
+    paths = []
+    explicit = os.environ.get(ENV_FILE_VAR, "").strip()
+    if explicit:
+        paths.append(Path(explicit).expanduser())
+    paths.append(Path.home() / ".infa2aidp" / ".env")
+    return paths
+
+
+def _parse_env_file(env_path: Path):
+    """Yield ``(key, value)`` for every ``KEY=value`` line. No external deps."""
+    with open(env_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            yield key.strip(), value.strip().strip("'\"")  # Remove quotes
+
+
+def _is_same_file(a: Path, b: Path) -> bool:
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return False
 
 
 def _load_env_file():
-    """Find and load .env file. No external dependencies."""
-    for env_path in _ENV_SEARCH_PATHS:
-        if env_path.is_file():
-            logger.info("Loading config from %s", env_path)
-            with open(env_path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if "=" not in line:
-                        continue
-                    key, _, value = line.partition("=")
-                    key = key.strip()
-                    value = value.strip().strip("'\"")  # Remove quotes
-                    # Don't overwrite existing env vars
-                    if key and key not in os.environ:
-                        os.environ[key] = value
-            return str(env_path)
-    return None
+    """Load the explicit and/or home .env (see the module docstring).
+
+    Returns the path of the first file loaded, or None. Every file found is
+    loaded, the earlier one winning on a repeated key because a value
+    already in the environment is never overwritten. A ``.env`` in the
+    current directory is reported and skipped unless it IS the explicit
+    file.
+    """
+    paths = _env_search_paths()
+    cwd_env = Path.cwd() / ".env"
+    if cwd_env.is_file() and not any(_is_same_file(cwd_env, p) for p in paths):
+        # WARNING, not INFO: emitted before the CLI configures logging, and
+        # logging's last-resort handler shows WARNING and above.
+        logger.warning(
+            "Ignoring %s -- a .env in the current directory is not read, because the "
+            "current directory is often a customer export bundle. To use it, set "
+            "%s=%s", cwd_env, ENV_FILE_VAR, cwd_env,
+        )
+
+    loaded_from = None
+    for env_path in paths:
+        if not env_path.is_file():
+            if env_path is paths[0] and os.environ.get(ENV_FILE_VAR, "").strip():
+                logger.warning("%s names %s, which is not a file -- nothing loaded from it",
+                               ENV_FILE_VAR, env_path)
+            continue
+        logger.info("Loading config from %s", env_path)
+        refused = []
+        for key, value in _parse_env_file(env_path):
+            if not env_key_allowed(key):
+                refused.append(key)
+                continue
+            # Don't overwrite existing env vars
+            if key not in os.environ:
+                os.environ[key] = value
+        if refused:
+            # Names only -- a refused value may be a secret.
+            logger.warning(
+                "%s: ignored %d setting(s) this tool does not read, or does not accept from "
+                "a .env file: %s. Export them in the shell if they are intended.",
+                env_path, len(refused), ", ".join(sorted(set(refused))),
+            )
+        loaded_from = loaded_from or str(env_path)
+    return loaded_from
 
 
 def _get(key: str, default: str = "") -> str:
@@ -144,7 +241,8 @@ def create_default_env_file(path: str = None):
         os.makedirs(env_dir, exist_ok=True)
 
     template = """# infa2aidp Configuration
-# Place this file at ~/.infa2aidp/.env or in your project directory
+# Place this file at ~/.infa2aidp/.env. A .env in the current directory is
+# NOT read; to use one elsewhere, set INFA2AIDP_ENV_FILE=/path/to/.env.
 
 # ── LLM (Anthropic Claude) ──
 # Required for LLM-assisted conversion. Without it, only rule-based conversion runs.

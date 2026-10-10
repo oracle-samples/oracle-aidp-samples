@@ -304,6 +304,61 @@ Read this before you plan a migration around it.
 Run `PYTHONPATH=$INFA_ENGINE python3 -m infa2aidp.cli <command> --help` for flags, or see
 `demo.sh`, which exercises the full discover → migrate → reconcile sequence.
 
+### Repository credentials for `discover`
+
+`discover` is the only command that authenticates to a live system. The
+repository password is read from `--password-file <path>` (a file only its
+owner can read -- `chmod 600`; on Windows the permission check is skipped; UTF-8
+with or without a BOM and UTF-16 with a BOM are all read correctly, so a file
+written by Notepad or PowerShell works as-is) or from `INFA_PASSWORD` in the
+environment / `.env`. `--password <value>` is refused with exit code 2: a
+password on the command line is visible in `ps`, shell history, CI transcripts
+and pasted support commands. Option names must be spelled out in full (no
+`--password-fil` prefix matching), and argparse's "unrecognized arguments"
+error masks the values it would otherwise echo. Diagnostics, verbose included,
+name the host, repository and where the password came from -- never the
+password or a connection string, in any of its spellings (raw, XML-escaped,
+percent-encoded); `-v` logs a redacted traceback rather than re-raising. Only a
+bare hostname or address is accepted for `--host` (`user:pass@host`, a path, a
+query or a fragment are rejected). `migrate` additionally fails (exit 1,
+`SECURITY:` line in the summary) if a generated notebook embeds a credential
+literal -- a string keyed by a credential name in any shape (`password=`,
+`os.environ["ADW_PASSWORD"] = "..."`, `dbPassword`, `.option(key=, value=)`),
+`user:pass@` in a URL, `password=`/`token=` in a connection string, an
+`Authorization` header -- in code, in a cell that does not parse, or in
+markdown. SQL that filters on a column called `TOKEN` or `PWD` is not a
+connection string and does not trip it. Usernames and hostnames are
+configuration, not secrets, and are deliberately not a failing rule. Generated
+code reads credentials at runtime from the environment, never from source.
+
+The Web Services Hub is reached over `https://` on every port (default
+`--port 7343`; `--wsh-url` / `INFA_WSH_URL` for an exact endpoint): the first
+SOAP call is the LoginRequest and its body is the repository password. An
+`http://` hub is refused before anything is sent unless `--insecure-http` /
+`INFA_WSH_ALLOW_HTTP=1` is given, which is logged as a WARNING -- lab hosts only.
+The opt-in permits cleartext rather than forcing it: it accepts an explicit
+`--wsh-url http://...` and builds an `http://` URL for Informatica's HTTP hub
+port `--port 7333`, while the 7343 default and every other port stay
+`https://` -- an opt-in left in `~/.infa2aidp/.env` for a lab host cannot
+downgrade a later `discover` against a production hub.
+
+### Where `.env` is read from
+
+Settings come from the shell environment first, then the file named by
+`INFA2AIDP_ENV_FILE=/path/to/.env` (if set), then `~/.infa2aidp/.env`; a value
+from an earlier source is never overwritten by a later one. A `.env` in the
+**current directory is not read**: the CLI is run from inside customer export
+bundles, and a `.env` planted in one could point the LLM SDK
+(`OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`), the HTTPS proxy or the CA bundle at
+a host of its choosing and receive the operator's real API key on the first
+`--use-llm` call. One found there is reported with a WARNING and the opt-in. A
+`.env` may only set the keys `env.template` documents (`LLM_PROVIDER`,
+`OPENAI_*`, `ANTHROPIC_API_KEY`, `INFA_*`, `AIDP_*`...); `*_BASE_URL`,
+`*_PROXY`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `OCI_CONFIG_FILE` and
+`PYTHON*` are never taken from a `.env` -- export them in the shell if you mean
+them. Both SDK clients are always constructed with an explicit endpoint (the
+vendor's unless the shell exports `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL`).
+
 ### Deploying to AIDP
 
 `deploy` authenticates with the OCI SDK (Resource Principal, Instance Principal,

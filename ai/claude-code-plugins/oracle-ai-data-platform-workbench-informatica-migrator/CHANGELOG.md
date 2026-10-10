@@ -51,6 +51,142 @@ packaged as a Claude Code plugin.
   the last, that the retry is bounded, and that a model which raises does not
   take the migration down.
 
+### Security
+
+- **Export-supplied names can no longer steer where output is written
+  (SEC-AIDP-SAMPLES-INFA-H1).** Every file `migrate`, `lineage` and the
+  parallel batch path write is named after text read out of the export --
+  `<FOLDER NAME>`, `<MAPPING NAME>`, `<WORKFLOW NAME>`, the IICS `project` /
+  `folder` / `name` -- and none of it was sanitised: an absolute folder name
+  made `os.path.join` discard the `-o` directory and a `..` segment climbed out
+  of it, so a tampered export wrote `.ipynb`, `.md` and `.json` files wherever
+  it pointed (a `CLAUDE.md` in the operator's project, another engagement's
+  reviewed notebook), and a name the filesystem refused aborted the whole run.
+  Each such name is now reduced to a single safe path component
+  (`parsers.security.safe_path_component`: separators, drive colons, NUL and
+  `..` runs replaced, no leading dot, never empty, never a Windows device
+  name; legal Informatica names are unchanged, including the non-ASCII
+  letters a Unicode-mode repository allows -- names are NFKC-normalised and
+  keep every Unicode word character, so `m_顧客` and `m_注文` stay distinct
+  and unreported), every resolved path is checked
+  to lie under the output directory before the write
+  (`parsers.security.ensure_within`, also applied to the deployer's workspace
+  path), and a notebook that still cannot be written fails that mapping, not
+  the run. A rename is never silent: a WARNING names the object, the summary
+  gains a `RENAMED:` line, and `reports/sanitised_names.csv` lists every
+  original -> written-as pair; two originals that sanitise alike go through
+  the existing NAME CLASH handling (`nb_X__2`) instead of one overwriting the
+  other. Pinned by `tests/test_output_path_containment.py` for PowerCenter
+  XML and IICS JSON, the serial, batch and `lineage` paths.
+- **A `.env` in the current directory is no longer read, and no `.env` can
+  steer where the API key goes (SEC-AIDP-SAMPLES-INFA-H2).** `config.py`
+  loaded `./.env` on import and copied every key into the process
+  environment; the Anthropic SDK reads `ANTHROPIC_BASE_URL`, and httpx reads
+  `HTTPS_PROXY` / `SSL_CERT_FILE`, from exactly there. A `.env` planted in a
+  customer export bundle therefore sent the operator's real key -- exported
+  in the shell, as documented -- and the customer's mapping metadata to a
+  host of the bundle's choosing on the first `--use-llm` call, with nothing
+  on the terminal (the import-time INFO was emitted before logging was
+  configured). Now only `~/.infa2aidp/.env` and a file named explicitly by
+  `INFA2AIDP_ENV_FILE` are read; a `.env` found in the current directory is
+  reported with a WARNING naming it and the opt-in, and no longer shadows the
+  home file. A `.env` may only set the keys `env.template` documents (by name
+  or by the `INFA_` / `AIDP_` / `LLM_` / `CLAUDE_` / `OPENAI_` prefixes);
+  unknown keys are ignored and named, and `*_BASE_URL`, `*_PROXY`,
+  `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, `OCI_CONFIG_FILE`, `OCI_CLI_*` and
+  `PYTHON*` are refused from any `.env`, trusted or not -- values are never
+  echoed. The Anthropic client is constructed with an explicit `base_url`
+  (the vendor endpoint unless the shell exports `ANTHROPIC_BASE_URL`), and
+  `AIDP_REGION`, which is interpolated into the deploy hostname, must be a
+  single DNS label. Pinned by `tests/test_env_file_ingress.py`, including the
+  hunter's end-to-end repro against the real SDK when it is installed.
+- **`discover` no longer sends the repository password over cleartext HTTP
+  (SEC-AIDP-SAMPLES-INFA-H3).** The Web Services Hub URL took its scheme
+  from the port number -- `https` only when the port was literally 7343 --
+  and the CLI default was `--port 6005` (the domain gateway, not a hub port
+  at all), so every documented invocation POSTed the `LoginRequest`, whose
+  body is the PowerCenter repository password, and every SessionId after it,
+  in the clear; `connect("auto")` then fell through to pmrep with the
+  password already on the wire, and the TLS-verification setting had nothing
+  to verify. The hub is now `https://` on every port, the CLI default is
+  `--port 7343`, `--wsh-url` / `INFA_WSH_URL` names an exact endpoint (any
+  port; an explicit `https://` URL is used as-is), and cleartext is an
+  explicit opt-in -- `--insecure-http` / `INFA_WSH_ALLOW_HTTP=1` -- that is
+  logged as a WARNING naming the host. The opt-in permits cleartext rather
+  than forcing it: it accepts an explicit `http://` URL and builds an
+  `http://` URL only for Informatica's HTTP hub port 7333; the 7343 default
+  and every other port stay `https://`, so an opt-in left in
+  `~/.infa2aidp/.env` for a lab host cannot downgrade a later `discover`
+  against a production hub. Without it an `http://` hub is
+  refused *before* any request is made (`InsecureTransportError`, a
+  `ConnectionError`), and `--method auto` goes on to pmrep having sent
+  nothing, saying so at WARNING level. `skills/infa-discover/SKILL.md` and
+  `env.template` describe the flags. Pinned by `tests/test_wsh_cleartext.py`:
+  default and 7333/6005 configs build `https://` URLs, an `http://` URL
+  without the opt-in makes no request, auto mode still reaches pmrep, the
+  opt-in allows http on 7333 and for an explicit URL with a warning while the
+  default port still logs in over `https://`, and the CLI/env wiring.
+- **The repository password no longer travels on the command line
+  (SEC-AIDP-SAMPLES-002).** `discover --password <value>` is refused with
+  exit code 2 and the message "Do not pass passwords in argv. Use
+  --password-file or INFA_PASSWORD." -- the flag is kept only so an old
+  command fails loudly instead of being re-parsed, and the value is never
+  stored or echoed. `--password-file <path>` is the file-based alternative:
+  on POSIX a group- or world-readable file is refused (mode & 0o077 must be
+  0); on Windows, where `st_mode` carries no such bits, the check is skipped
+  with a debug note rather than refusing every file. The file may be UTF-8
+  with or without a BOM or UTF-16 with a BOM (what Notepad and PowerShell
+  write); a BOM is not read into the password, and a file that is not text
+  is a clear error naming the path. `INFA_PASSWORD` keeps working. Only a
+  bare hostname or address (with an optional `:port`) is accepted for
+  `--host`: `user:pass@host`, a `/` path, a `?` query or a `#` fragment
+  would each put the rest of the value into every request URL and
+  exception message. Option names must be spelled out in full --
+  `--password-fil <value>` is no longer prefix-matched to `--password-file`
+  (which turned the secret into a path and named it in the error) -- and
+  the values after an unrecognised option are masked as `***` in argparse's
+  error.
+- **Diagnostics never carry the password.** Once resolved, the password is
+  redacted (`***`) from every log record -- message, arguments, exception
+  text -- in every spelling a transport gives it (raw, XML-escaped as in
+  the SOAP body, percent-encoded as in a URL, backslash-escaped as in
+  JSON), so a library error that echoes a request body, URL or connection
+  string reaches the terminal without it. Verbose mode no longer re-raises
+  the exception: the interpreter's own traceback printer bypasses every
+  logging filter, so `-v` logs the (redacted) traceback and exits 1
+  instead. The connection config's `repr` hides the password, the SOAP
+  login no longer logs a session-id prefix (a bearer credential), and every
+  LoginRequest field is XML-escaped, so a password containing `&` or `<`
+  can neither break nor rewrite the request. Success is reported as host,
+  repository and the password's *source* (`--password-file` /
+  `INFA_PASSWORD`).
+- **Generated notebooks are gated on credential literals.** The read-back
+  validation that already catches notebooks which cannot run now also fails
+  one that embeds a credential: a string literal keyed by a credential name
+  -- any identifier with a `password`/`passwd`/`passphrase`/`pwd`/`secret`/
+  `token`/`api_key` segment, camelCase and `PASSWORD_PROD` included, unless
+  the next segment says it is a fact *about* a credential (`password_env`,
+  `token_url`, `PASSWORD_HASH`, `secret_ocid`) -- as a keyword, an
+  assignment (plain, annotated, augmented, tuple-unpacked, or through a
+  subscript such as `os.environ["ADW_PASSWORD"] = "..."`), a dict entry or
+  a setter-style `.option()`/`.config()`/`.set()` pair (positional or
+  `key=`/`value=`), adjacent-literal concatenation and bytes included;
+  `user:pass@` or `jdbc:oracle:thin:user/pass@` in a URL; `password=` /
+  `token=` in something shaped like a URL or connection string; an
+  `Authorization: Basic/Bearer` header. Runtime lookups (`os.environ[...]`,
+  f-string holes, secret-store calls) are not flagged, and neither is SQL:
+  a source-qualifier override such as `WHERE TOKEN = 1` is a column, not a
+  connection string, and no longer fails the run. Markdown cells, and code
+  cells that do not parse, go through a text form of the same rule, so a
+  password beside a syntax error or in a heading cell is still reported.
+  Usernames and hostnames are deliberately *not* a failing rule: they are
+  configuration, not secrets, and failing a migration on `user="ADMIN"`
+  would make the gate cry wolf. Such notebooks are listed in
+  `reports/broken_notebooks.md` by line and shape -- never by value --
+  the summary gains a `SECURITY:` line, `migrate` exits 1, and `demo.sh`'s
+  verify step fails. A REVIEW REQUIRED refusal is exempt from the cannot-run
+  rules but not from this one.
+
 ### Fixed
 
 - **The repository crawler verified no TLS certificate.** `requests.Session.verify`
