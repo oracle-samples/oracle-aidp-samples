@@ -18,7 +18,13 @@ Pinned here:
     ``--method soap`` and in ``auto``, where pmrep is still tried and the
     skipped SOAP attempt is said at WARNING level.
   - ``allow_insecure_http`` (``--insecure-http`` / ``INFA_WSH_ALLOW_HTTP=1``)
-    allows http, with a WARNING naming the host.
+    PERMITS http, with a WARNING naming the host: an explicit ``http://``
+    URL is accepted and the auto-built URL is ``http://`` on Informatica's
+    HTTP hub port 7333 only. On the 7343 default and every other port the
+    auto-built URL stays ``https://`` -- the opt-in used to FORCE ``http://``
+    on every port, so an ``INFA_WSH_ALLOW_HTTP=1`` left in ``~/.infa2aidp/.env``
+    for a lab host POSTed the password in the clear to a production hub's
+    TLS port on the next default-port ``discover``.
   - An explicit ``https://`` ``wsh_url`` on any port is used as-is;
     ``--wsh-url`` / ``INFA_WSH_URL`` reach the config from the CLI.
   - The skill and env.template no longer document the cleartext default.
@@ -160,6 +166,33 @@ def test_the_opt_in_does_not_downgrade_an_https_url():
     c, rec = _crawler(wsh_url="https://infa-server:7343/wsh/services", allow_insecure_http=True)
     c._connect_soap()
     assert rec.urls == ["https://infa-server:7343/wsh/services/MetadataService"]
+
+
+def test_the_opt_in_with_the_default_port_still_logs_in_over_https(caplog):
+    """The flag permits cleartext; it must not turn the TLS port into an
+    http:// endpoint and POST the password there."""
+    c, rec = _crawler(allow_insecure_http=True)
+    with caplog.at_level(logging.WARNING):
+        c._connect_soap()
+    assert rec.urls == ["https://pc.customer.local:7343/wsh/services/MetadataService"]
+    assert "cleartext" not in caplog.text.lower(), "nothing went in the clear, so no warning"
+
+
+@pytest.mark.parametrize("port", [6005, 8080, 8443])
+def test_the_opt_in_builds_http_only_for_the_http_hub_port(port):
+    """Any cleartext hub other than :7333 has to be named in full with
+    wsh_url=http://..., so the downgrade is deliberate and visible."""
+    c, rec = _crawler(port=port, allow_insecure_http=True)
+    c._connect_soap()
+    assert rec.urls == [f"https://pc.customer.local:{port}/wsh/services/MetadataService"]
+    assert InfaConnectionConfig(host="h", port=port, allow_insecure_http=True).resolved_wsh_url() \
+        == f"https://h:{port}/wsh/services"
+
+
+def test_the_opt_in_accepts_an_explicit_http_url_on_any_port():
+    c, rec = _crawler(wsh_url="http://lab-hub:8080/wsh/services", allow_insecure_http=True)
+    c._connect_soap()
+    assert rec.urls == ["http://lab-hub:8080/wsh/services/MetadataService"]
 
 
 def test_the_opt_in_is_off_by_default():

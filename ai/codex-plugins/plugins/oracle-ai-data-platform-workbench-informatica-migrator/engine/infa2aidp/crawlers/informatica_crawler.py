@@ -52,11 +52,17 @@ class InsecureTransportError(ConnectionError):
     the LoginRequest, and its body is the repository password."""
 
 
+# Informatica's two Web Services Hub ports. The CLI default is the HTTPS
+# one; the HTTP one is the only port the cleartext opt-in applies to.
+WSH_HTTPS_PORT = 7343
+WSH_HTTP_PORT = 7333
+
+
 @dataclass
 class InfaConnectionConfig:
     """Informatica PowerCenter connection configuration."""
     host: str
-    port: int = 7343                   # WSH default HTTPS port (7333 is the HTTP one -- see allow_insecure_http)
+    port: int = WSH_HTTPS_PORT         # WSH default HTTPS port (7333 is the HTTP one -- see allow_insecure_http)
     username: str = ""
     # repr=False: a config that ends up in a log line, an exception message
     # or a debugger must never print the password.
@@ -79,8 +85,13 @@ class InfaConnectionConfig:
     # the LoginRequest -- the repository password -- is sent. The scheme used
     # to follow the port number (https only for 7343), so the CLI default and
     # every documented invocation sent the password in the clear. On
-    # (--insecure-http / INFA_WSH_ALLOW_HTTP=1): http is allowed, with a
-    # WARNING naming the host. Lab hosts only.
+    # (--insecure-http / INFA_WSH_ALLOW_HTTP=1): http is PERMITTED, not
+    # forced -- an explicit http:// wsh_url is accepted, and the auto-built
+    # URL is http:// only on Informatica's HTTP hub port (7333); on the HTTPS
+    # default and every other port it stays https://, so an opt-in left in
+    # ~/.infa2aidp/.env for one lab host cannot downgrade a later discover
+    # against a production hub. Either way a WARNING names the host. Lab
+    # hosts only.
     allow_insecure_http: bool = False
 
     def __post_init__(self) -> None:
@@ -90,10 +101,13 @@ class InfaConnectionConfig:
 
     def resolved_wsh_url(self) -> str:
         """The Web Services Hub base URL: ``wsh_url`` as given, else built
-        from host and port -- ``https://`` unless cleartext was opted into."""
+        from host and port -- ``https://`` unless cleartext was opted into
+        AND the port is the HTTP hub port. Any other cleartext endpoint must
+        be named in full (``wsh_url=http://...``) so the downgrade is a
+        deliberate, visible act rather than a side effect of a flag."""
         if self.wsh_url:
             return self.wsh_url
-        proto = "http" if self.allow_insecure_http else "https"
+        proto = "http" if self.allow_insecure_http and self.port == WSH_HTTP_PORT else "https"
         return f"{proto}://{self.host}:{self.port}/wsh/services"
 
 

@@ -404,7 +404,7 @@ _ARG_SPECS: list[tuple[str, tuple[str, ...], dict]] = [
     ("discover", ("--host",), dict(required=True, help="Informatica PowerCenter host")),
     ("discover", ("--port",), dict(type=int, default=7343, help="Web Services Hub port: 7343 is the HTTPS default, 7333 the HTTP one (needs --insecure-http)")),
     ("discover", ("--wsh-url",), dict(default=None, metavar="URL", help="Exact Web Services Hub URL, e.g. https://host:8443/wsh/services (INFA_WSH_URL); must be https:// unless --insecure-http")),
-    ("discover", ("--insecure-http",), dict(action="store_true", help="Allow cleartext http:// to the Web Services Hub (INFA_WSH_ALLOW_HTTP=1) -- the repository password travels in the clear; lab hosts only")),
+    ("discover", ("--insecure-http",), dict(action="store_true", help="Permit cleartext http:// to the Web Services Hub (INFA_WSH_ALLOW_HTTP=1): the auto-built URL is http:// only on port 7333, any other cleartext hub must be named in full with --wsh-url http://... -- the repository password travels in the clear; lab hosts only")),
     ("discover", ("--user",), dict(default=None)),
     ("discover", ("--password",), dict(action=RejectPasswordArgv)),  # refused: argv leaks into ps/history/CI logs
     ("discover", ("--password-file",), dict(default=None, metavar="PATH", help="File holding the repository password (owner-only, chmod 600); else INFA_PASSWORD")),

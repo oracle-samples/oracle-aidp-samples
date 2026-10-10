@@ -111,14 +111,20 @@ packaged as a Codex plugin.
   `--port 7343`, `--wsh-url` / `INFA_WSH_URL` names an exact endpoint (any
   port; an explicit `https://` URL is used as-is), and cleartext is an
   explicit opt-in -- `--insecure-http` / `INFA_WSH_ALLOW_HTTP=1` -- that is
-  logged as a WARNING naming the host. Without it an `http://` hub is
+  logged as a WARNING naming the host. The opt-in permits cleartext rather
+  than forcing it: it accepts an explicit `http://` URL and builds an
+  `http://` URL only for Informatica's HTTP hub port 7333; the 7343 default
+  and every other port stay `https://`, so an opt-in left in
+  `~/.infa2aidp/.env` for a lab host cannot downgrade a later `discover`
+  against a production hub. Without it an `http://` hub is
   refused *before* any request is made (`InsecureTransportError`, a
   `ConnectionError`), and `--method auto` goes on to pmrep having sent
   nothing, saying so at WARNING level. `skills/infa-discover/SKILL.md` and
   `env.template` describe the flags. Pinned by `tests/test_wsh_cleartext.py`:
   default and 7333/6005 configs build `https://` URLs, an `http://` URL
   without the opt-in makes no request, auto mode still reaches pmrep, the
-  opt-in allows http with a warning, and the CLI/env wiring.
+  opt-in allows http on 7333 and for an explicit URL with a warning while the
+  default port still logs in over `https://`, and the CLI/env wiring.
 - **The repository password no longer travels on the command line
   (SEC-AIDP-SAMPLES-002).** `discover --password <value>` is refused with
   exit code 2 and the message "Do not pass passwords in argv. Use

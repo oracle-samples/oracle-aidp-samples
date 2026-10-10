@@ -336,6 +336,11 @@ The Web Services Hub is reached over `https://` on every port (default
 SOAP call is the LoginRequest and its body is the repository password. An
 `http://` hub is refused before anything is sent unless `--insecure-http` /
 `INFA_WSH_ALLOW_HTTP=1` is given, which is logged as a WARNING -- lab hosts only.
+The opt-in permits cleartext rather than forcing it: it accepts an explicit
+`--wsh-url http://...` and builds an `http://` URL for Informatica's HTTP hub
+port `--port 7333`, while the 7343 default and every other port stay
+`https://` -- an opt-in left in `~/.infa2aidp/.env` for a lab host cannot
+downgrade a later `discover` against a production hub.
 
 ### Where `.env` is read from
 

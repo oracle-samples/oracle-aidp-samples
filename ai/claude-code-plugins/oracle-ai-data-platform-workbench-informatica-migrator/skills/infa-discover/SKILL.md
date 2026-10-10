@@ -37,7 +37,11 @@ on a non-standard HTTPS port takes `--wsh-url https://host:8443/wsh/services`
 the password over cleartext needs an explicit `--insecure-http` (or
 `INFA_WSH_ALLOW_HTTP=1`) and is logged as a WARNING -- without it the SOAP
 attempt is refused before anything is sent and `--method auto` goes on to
-pmrep. Only agree to `--insecure-http` for a lab host.
+pmrep. The opt-in permits cleartext, it does not force it: with `--port 7333`
+the hub URL becomes `http://`, on the 7343 default and every other port it
+stays `https://`, and any other cleartext hub must be named in full with
+`--wsh-url http://host:port/wsh/services`. Only agree to `--insecure-http`
+for a lab host.
 
 `--user`/`--repo`/`--domain` exist as flags but the environment variables
 are the recommended form; never ask the user to paste a password into chat.
@@ -55,8 +59,8 @@ the password itself.
 |---|---|---|
 | `--host` | required | PowerCenter host |
 | `--port` | `7343` | Web Services Hub HTTPS port. 7333 is Informatica's HTTP port and needs `--insecure-http`. |
-| `--wsh-url` | `INFA_WSH_URL` env var | Exact hub URL (`https://host:8443/wsh/services`) when host:port is not enough. `https://` unless `--insecure-http`. |
-| `--insecure-http` | off (`INFA_WSH_ALLOW_HTTP=1`) | Allow cleartext `http://` to the hub. The repository password travels in the clear; logged as a WARNING. Lab hosts only. |
+| `--wsh-url` | `INFA_WSH_URL` env var | Exact hub URL (`https://host:8443/wsh/services`) when host:port is not enough. `https://` unless `--insecure-http`; the only way to reach a cleartext hub on a port other than 7333. |
+| `--insecure-http` | off (`INFA_WSH_ALLOW_HTTP=1`) | Permit cleartext `http://` to the hub: an `http://` `--wsh-url` is accepted and `--port 7333` builds an `http://` URL; the 7343 default and other ports stay `https://`. The repository password travels in the clear; logged as a WARNING. Lab hosts only. |
 | `--user` | `INFA_USER` env var | |
 | `--password-file` | `INFA_PASSWORD` env var | Path of an owner-only (`chmod 600`) file holding the password; group/world-readable files are refused on POSIX (check skipped on Windows). `--password <value>` is refused outright. |
 | — | `INFA_CA_BUNDLE` / `INFA_TLS_VERIFY` env vars | The hub is always `https://` (above) and the certificate is verified by default. Point `INFA_CA_BUNDLE` at a corporate CA bundle; set `INFA_TLS_VERIFY=0` only for a self-signed lab host. |
