@@ -92,6 +92,14 @@ def _token_file(tmp_path, content=TOKEN + "\n"):
     ["--token=" + TOKEN],
     ["--token"],
     ["--token", TOKEN, "--catalogs", "main"],
+    # mistyped forms: argparse's own "ambiguous option: --tok=<value> could
+    # match ..." / "unrecognized arguments: <value>" diagnostics would echo
+    # the token into stderr and the CI log
+    ["--tok=" + TOKEN],
+    ["--toke", TOKEN],
+    ["-t", TOKEN],
+    [TOKEN],
+    ["--token-fil=" + TOKEN],
 ])
 def test_token_on_argv_is_refused_with_exit_2(argv, monkeypatch, capsys, tmp_path, fake_extract):
     code, text = _run(argv, monkeypatch, capsys, tmp_path)
@@ -99,6 +107,23 @@ def test_token_on_argv_is_refused_with_exit_2(argv, monkeypatch, capsys, tmp_pat
     assert REFUSAL in text
     assert TOKEN not in text
     assert "token" not in fake_extract, "the token was handed to extract()"
+
+
+def test_parser_error_text_is_scrubbed_of_argv_values(monkeypatch, capsys):
+    ap = ex.ArgvSafeParser(prog="x")
+    ap.add_argument("--out")
+    monkeypatch.setattr(sys, "argv", ["x", "--out", "pack.json", "--bogus=" + TOKEN, TOKEN])
+    with pytest.raises(SystemExit) as exc:
+        ap.parse_args()
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert TOKEN not in err
+    assert "2 unrecognized arguments (not shown)" in err and REFUSAL in err
+    # defence in depth: whatever argparse puts in a message, the argv values come out
+    assert ap.redact_argv(f"ambiguous option: --bogus={TOKEN} could match --out") == \
+        f"ambiguous option: {ex.REDACTED} could match --out"
+    assert ap.redact_argv("argument --out: expected one argument") == \
+        "argument --out: expected one argument"
 
 
 def test_help_hides_token_and_offers_token_file(monkeypatch, capsys, tmp_path):

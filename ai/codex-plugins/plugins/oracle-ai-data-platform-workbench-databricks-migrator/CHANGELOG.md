@@ -93,9 +93,14 @@ All notable changes to this plugin are documented here. Format loosely follows [
   `DATABRICKS_TOKEN` keeps working and the file wins when both are present. A `--host` /
   `DATABRICKS_HOST` of the form `https://user:token@workspace` is rejected. Output names the
   token's *source*, never the token, and the token is redacted (`***`) from error text the
-  script prints or stores in the catalog pack. The other `engine/scripts/*.py` entry points
-  take no credential on argv (they read `DATABRICKS_TOKEN` / `OPENAI_API_KEY` from the
-  environment).
+  script prints or stores in the catalog pack. Mistyped forms are not echoed either:
+  abbreviated long options are off and unknown arguments are reported by count, so
+  `--tok=<value>`, `-t <value>` or a bare value exit 2 with the remediation text instead of
+  argparse's own "ambiguous option: ..." / "unrecognized arguments: ..." diagnostics, which
+  repeat the value; every parser error message is also scrubbed of the argv values as defence
+  in depth. `extract_catalog_databricks.py` is the only entry point that talks to Databricks;
+  the other `engine/scripts/*.py` entry points take no credential on argv (they talk to AIDP
+  with the OCI profile, or read the model API key, `OPENAI_API_KEY`, from the environment).
 - Added `engine/tests/` (pytest) covering these controls; `pytest.ini` scopes collection to
   them.
 

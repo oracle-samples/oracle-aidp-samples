@@ -76,6 +76,51 @@ class RejectTokenArgv(argparse.Action):
         parser.error(TOKEN_ARGV_REFUSAL)
 
 
+class ArgvSafeParser(argparse.ArgumentParser):
+    """An ``ArgumentParser`` whose error messages never repeat an argv value.
+
+    argparse echoes the offending text in its own diagnostics -- "ambiguous
+    option: --tok=dapi... could match --token, --token-file", "unrecognized
+    arguments: -t dapi..." -- so a mistyped ``--token`` would put the PAT on
+    stderr and into the CI log after all. Here abbreviated long options are
+    off (no "ambiguous option" path), unknown arguments are reported by count
+    with the remediation text, and as defence in depth every error message
+    is scrubbed of the argv values themselves before it is printed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
+        self._argv_values: list = []
+
+    def parse_args(self, args=None, namespace=None):
+        self._argv_values = list(sys.argv[1:] if args is None else args)
+        namespace, extras = self.parse_known_args(args, namespace)
+        if extras:
+            self.error("%d unrecognized argument%s (not shown). %s"
+                       % (len(extras), "" if len(extras) == 1 else "s", TOKEN_ARGV_REFUSAL))
+        return namespace
+
+    def error(self, message):
+        super().error(self.redact_argv(message))
+
+    def redact_argv(self, message: str) -> str:
+        """*message* with every argv value (and the value half of any
+        ``--opt=value``) replaced by REDACTED, longest first. This parser's
+        own option strings and values shorter than 8 characters are left
+        alone: they are not token-shaped, and replacing them would garble
+        ordinary words of the message."""
+        values = set()
+        for item in self._argv_values:
+            values.add(item)
+            if "=" in item:
+                values.add(item.split("=", 1)[1])
+        for value in sorted(values, key=len, reverse=True):
+            if len(value) >= 8 and value not in self._option_string_actions:
+                message = message.replace(value, REDACTED)
+        return message
+
+
 def _file_mode(path: Path) -> int:
     """Permission bits of *path*; split out so tests can pin the POSIX rule
     on a platform whose filesystem cannot express it."""
@@ -370,11 +415,12 @@ def _parse_schema_filter(s: str | None) -> dict[str, list[str]]:
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--host", default=os.environ.get("DATABRICKS_HOST"))
     # SEC-NEW-DATABRICKS-03: --token <value> is refused (exit 2) before the
-    # value is stored anywhere; the PAT comes from DATABRICKS_TOKEN or an
-    # owner-only --token-file.
+    # value is stored anywhere, mistyped forms (--tok=..., -t ..., a bare
+    # value) are refused without being echoed, and the PAT comes from
+    # DATABRICKS_TOKEN or an owner-only --token-file.
+    ap = ArgvSafeParser()
+    ap.add_argument("--host", default=os.environ.get("DATABRICKS_HOST"))
     ap.add_argument("--token", action=RejectTokenArgv)
     ap.add_argument("--token-file", default=None, metavar="PATH",
                     help="File holding the Databricks PAT (owner-only, chmod 600); "

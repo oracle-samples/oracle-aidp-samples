@@ -185,12 +185,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py --pack reports/c
 
 The skills tell Claude when to call each + how to thread args from the env-coords reference into them.
 
-Scripts that talk to Databricks (`build_dag_from_workflow.py`, `extract_catalog_databricks.py`, ...)
-read the PAT from `DATABRICKS_TOKEN` in the environment; `extract_catalog_databricks.py` also
-accepts `--token-file <path>` (a file only its owner can read -- `chmod 600`; on Windows the
-permission check is skipped). No script takes a credential on the command line: `--token <value>`
-is refused with exit code 2, because argv is visible in `ps`, shell history, CI transcripts and
-pasted support commands. Output names where the token came from, never the token.
+The one script that talks to Databricks, `extract_catalog_databricks.py`, reads the PAT from
+`DATABRICKS_TOKEN` in the environment or from `--token-file <path>` (a file only its owner can
+read -- `chmod 600`; on Windows the permission check is skipped); the other scripts
+(`build_dag_from_workflow.py`, `migrate_catalog.py`, ...) talk to AIDP with your OCI profile, not
+to Databricks. No script takes a credential on the command line: `--token <value>` is refused
+with exit code 2, because argv is visible in `ps`, shell history, CI transcripts and pasted
+support commands, and a mistyped form (`--tok=<value>`, `-t <value>`, a bare value) is refused
+without the value being repeated in the error. Output names where the token came from, never
+the token.
 
 ---
 
