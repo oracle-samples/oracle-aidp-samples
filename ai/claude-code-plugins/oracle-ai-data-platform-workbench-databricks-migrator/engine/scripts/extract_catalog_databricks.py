@@ -9,12 +9,15 @@ migrate_catalog.py to reconstruct AIDP DDL.
 Usage:
     python scripts/extract_catalog_databricks.py \
         --host https://workspace.cloud.databricks.com \
-        --token dapi... \
+        --token-file ~/.databricks/token \
         --catalogs samples,main \
         --schemas-only samples:tpch,samples:nyctaxi \
         --out reports/catalog_pack_$(date +%Y%m%d).json
 
-If --token is omitted, looks up DATABRICKS_TOKEN in the env.
+The PAT is read from DATABRICKS_TOKEN in the env or from --token-file (a
+file only its owner can read, chmod 600). --token <value> is refused with
+exit code 2: a token on the command line is visible in `ps`, shell history
+and CI transcripts (SEC-NEW-DATABRICKS-03).
 If --host is omitted, looks up DATABRICKS_HOST.
 """
 from __future__ import annotations
@@ -29,6 +32,130 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
+
+
+# ---------- credential ingress (SEC-NEW-DATABRICKS-03) ----------
+#
+# The PAT used to be an ordinary ``--token <value>`` flag. argv is the one
+# place a secret must never travel: it is readable by every user on the host
+# in ``ps``, it lands in shell history, CI transcripts, terminal recordings
+# and the support requests a failing command gets pasted into. The flag is
+# kept only so an old command fails loudly (exit 2, remediation text, value
+# never stored); the token now comes from DATABRICKS_TOKEN or from a file
+# that only its owner can read.
+
+TOKEN_ARGV_REFUSAL = "Do not pass tokens in argv. Use DATABRICKS_TOKEN or --token-file."
+
+#: What a redacted secret is replaced with in anything this script prints or stores.
+REDACTED = "***"
+
+#: Permission bits a token file must NOT have on POSIX: anything that lets
+#: the group or the world read, write or execute it.
+_GROUP_OR_WORLD = 0o077
+
+#: Secrets to scrub from error text (filled by main once the token is known).
+_REDACT_SECRETS: list = []
+
+
+class RejectTokenArgv(argparse.Action):
+    """``--token`` is declared only so that it can be refused.
+
+    Declared with ``nargs="?"`` so ``--token dapi...``, ``--token=dapi...``
+    and a bare ``--token`` are all consumed by this action rather than
+    falling through as an unknown argument. The action never stores the
+    value: it calls ``parser.error``, which prints the usage line plus the
+    remediation text to stderr and exits 2 -- the value itself is not echoed.
+    """
+
+    def __init__(self, option_strings, dest, **kwargs):
+        kwargs["nargs"] = "?"
+        kwargs.setdefault("help", argparse.SUPPRESS)
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.error(TOKEN_ARGV_REFUSAL)
+
+
+def _file_mode(path: Path) -> int:
+    """Permission bits of *path*; split out so tests can pin the POSIX rule
+    on a platform whose filesystem cannot express it."""
+    return path.stat().st_mode & 0o777
+
+
+def read_token_file(path: str | None, *, enforce_mode: bool | None = None) -> str:
+    """Return the token held in *path* (first line, stripped), or ``""`` when
+    no path was given.
+
+    Refuses a file that is readable by anyone but its owner (``st_mode &
+    0o077`` must be 0) -- a 0644 token file is the shell-history problem in a
+    different place. *enforce_mode* defaults to "on POSIX only": Windows
+    reports 0666 for every ordinary file regardless of its ACL, so the check
+    would refuse every file there and is skipped with a note instead. A
+    missing or unreadable file raises ``ValueError`` naming the path, never
+    the content.
+    """
+    if not path:
+        return ""
+    p = Path(path).expanduser()
+    if enforce_mode is None:
+        enforce_mode = os.name != "nt"
+    try:
+        if enforce_mode:
+            mode = _file_mode(p)
+            if mode & _GROUP_OR_WORLD:
+                raise ValueError(
+                    f"token file {p} is mode {mode:04o}; it must be readable "
+                    f"by its owner only (chmod 600 {p})"
+                )
+        else:
+            print(f"[extract] token file {p}: permission check skipped on this platform",
+                  file=sys.stderr)
+        with open(p, encoding="utf-8") as fh:
+            first_line = fh.readline()
+    except FileNotFoundError:
+        raise ValueError(f"token file not found: {p}") from None
+    except (IsADirectoryError, PermissionError) as exc:
+        raise ValueError(f"token file {p} could not be read: {type(exc).__name__}") from None
+    token = first_line.strip()
+    if not token:
+        raise ValueError(f"token file {p} is empty")
+    return token
+
+
+def resolve_token(token_file: str | None) -> tuple[str, str]:
+    """The PAT and where it came from.
+
+    Returns ``(token, source)`` where *source* is ``"--token-file"``,
+    ``"DATABRICKS_TOKEN"`` or ``"none"`` -- the source is what diagnostics
+    may print; the token is not.
+    """
+    token = read_token_file(token_file)
+    if token:
+        return token, "--token-file"
+    token = os.environ.get("DATABRICKS_TOKEN", "")
+    if token:
+        return token, "DATABRICKS_TOKEN"
+    return "", "none"
+
+
+def reject_url_credentials(host: str | None) -> None:
+    """Refuse a ``--host`` / ``DATABRICKS_HOST`` of the form
+    ``https://user:token@workspace``: it would put the credential in every
+    request URL, every ``requests`` exception message and every proxy log.
+    The message deliberately does not echo the offending value."""
+    netloc = (host or "").split("://", 1)[-1].split("/", 1)[0]
+    if "@" in netloc:
+        raise ValueError(
+            "credentials in --host / DATABRICKS_HOST are not accepted. " + TOKEN_ARGV_REFUSAL
+        )
+
+
+def _redact(text: str) -> str:
+    """*text* with every known secret replaced by :data:`REDACTED`
+    (longest first, so a secret containing another is redacted whole)."""
+    for secret in sorted({s for s in _REDACT_SECRETS if s}, key=len, reverse=True):
+        text = text.replace(secret, REDACTED)
+    return text
 
 
 def _get(url: str, token: str, *, max_attempts: int = 6, **kwargs) -> dict:
@@ -164,7 +291,7 @@ def extract(
         try:
             schemas = list_schemas(host, token, cat_name)
         except Exception as e:
-            pack["errors"].append({"stage": "list_schemas", "catalog": cat_name, "error": str(e)})
+            pack["errors"].append({"stage": "list_schemas", "catalog": cat_name, "error": _redact(str(e))})
             continue
 
         if schema_filter and cat_name in schema_filter:
@@ -184,7 +311,7 @@ def extract(
                 tables = list_tables_in_schema(host, token, cat_name, sch_name)
             except Exception as e:
                 pack["errors"].append({"stage": "list_tables", "schema": f"{cat_name}.{sch_name}",
-                                       "error": str(e)})
+                                       "error": _redact(str(e))})
                 continue
             pack["stats"]["tables_listed"] += len(tables)
             print(f"[extract]   {cat_name}.{sch_name}: {len(tables)} tables", flush=True)
@@ -210,7 +337,7 @@ def extract(
                         pack["tables"].append(detail)
                     pack["stats"]["tables_detailed"] += 1
                 except Exception as e:
-                    pack["errors"].append({"stage": "get_table", "table": full_name, "error": str(e)})
+                    pack["errors"].append({"stage": "get_table", "table": full_name, "error": _redact(str(e))})
                     pack["stats"]["tables_failed"] += 1
 
             # Volumes (UC only)
@@ -220,7 +347,7 @@ def extract(
                 pack["stats"]["volumes"] += len(vols)
             except Exception as e:
                 pack["errors"].append({"stage": "list_volumes", "schema": f"{cat_name}.{sch_name}",
-                                       "error": str(e)})
+                                       "error": _redact(str(e))})
 
     pack["finished_at"] = datetime.utcnow().isoformat() + "Z"
     return pack
@@ -245,7 +372,13 @@ def _parse_schema_filter(s: str | None) -> dict[str, list[str]]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default=os.environ.get("DATABRICKS_HOST"))
-    ap.add_argument("--token", default=os.environ.get("DATABRICKS_TOKEN"))
+    # SEC-NEW-DATABRICKS-03: --token <value> is refused (exit 2) before the
+    # value is stored anywhere; the PAT comes from DATABRICKS_TOKEN or an
+    # owner-only --token-file.
+    ap.add_argument("--token", action=RejectTokenArgv)
+    ap.add_argument("--token-file", default=None, metavar="PATH",
+                    help="File holding the Databricks PAT (owner-only, chmod 600); "
+                         "else DATABRICKS_TOKEN in the env")
     ap.add_argument("--catalogs", default="", help="Comma-separated catalog names; default = all non-system")
     ap.add_argument("--schemas-only", default="",
                     help="Comma-separated catalog:schema filter (e.g., 'samples:tpch,samples:nyctaxi')")
@@ -254,13 +387,24 @@ def main():
     ap.add_argument("--out", required=True, help="Path to write catalog pack JSON")
     args = ap.parse_args()
 
-    if not args.host or not args.token:
-        sys.exit("ERROR: --host and --token (or DATABRICKS_HOST/DATABRICKS_TOKEN env) are required")
+    try:
+        reject_url_credentials(args.host)
+        token, token_source = resolve_token(args.token_file)
+    except ValueError as exc:
+        sys.exit(f"ERROR: {exc}")
+    if not args.host or not token:
+        sys.exit("ERROR: --host (or DATABRICKS_HOST) and a token are required. "
+                 + TOKEN_ARGV_REFUSAL)
+    _REDACT_SECRETS.append(token)
+    print(f"[extract] token source: {token_source}", flush=True)
 
     cat_filter = [c.strip() for c in args.catalogs.split(",") if c.strip()] or None
     sch_filter = _parse_schema_filter(args.schemas_only)
 
-    pack = extract(args.host, args.token, cat_filter, sch_filter, args.skip_systems)
+    try:
+        pack = extract(args.host, token, cat_filter, sch_filter, args.skip_systems)
+    except Exception as exc:  # a library error must not echo the token
+        sys.exit(f"ERROR: extract failed: {type(exc).__name__}: {_redact(str(exc))}")
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

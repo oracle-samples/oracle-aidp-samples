@@ -67,6 +67,19 @@ All notable changes to this plugin are documented here. Format loosely follows [
   anchored with `\A`/`\Z`, applied with `fullmatch` and restricted to ASCII digits, so a
   newline-terminated name or one spelt with non-ASCII decimal digits is refused before any
   filesystem access instead of reaching `open()`.
+- **The Databricks PAT no longer travels on the command line**
+  (`engine/scripts/extract_catalog_databricks.py`, SEC-NEW-DATABRICKS-03). `--token <value>`
+  is refused with exit code 2 and the message "Do not pass tokens in argv. Use
+  DATABRICKS_TOKEN or --token-file." -- the flag is kept only so an old command fails loudly
+  instead of being re-parsed, and the value is never stored or echoed. `--token-file <path>`
+  reads the PAT from a file only its owner can read (mode & 0o077 must be 0 on POSIX; on
+  Windows, where `st_mode` carries no such bits, the check is skipped with a note).
+  `DATABRICKS_TOKEN` keeps working and the file wins when both are present. A `--host` /
+  `DATABRICKS_HOST` of the form `https://user:token@workspace` is rejected. Output names the
+  token's *source*, never the token, and the token is redacted (`***`) from error text the
+  script prints or stores in the catalog pack. The other `engine/scripts/*.py` entry points
+  take no credential on argv (they read `DATABRICKS_TOKEN` / `ANTHROPIC_API_KEY` from the
+  environment).
 - Added `engine/tests/` (pytest) covering these controls; `pytest.ini` scopes collection to
   them.
 

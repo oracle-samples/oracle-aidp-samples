@@ -39,10 +39,11 @@ python3 $HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py \
 | `--catalogs` | Comma-separated catalog names to extract. Use the source catalog names (e.g. the Unity Catalog you migrate from). |
 | `--schemas-only` | Optional filter — only extract these specific schemas. Format: `<catalog>:<schema>,<catalog>:<schema>`. Without it, ALL schemas in each catalog are extracted. |
 | `--out` | Output JSON path. The next stage reads this. |
+| `--token-file` | Optional. Path to an owner-only file (`chmod 600`) holding the Databricks PAT; otherwise `DATABRICKS_TOKEN` from the env is used. Never pass the token itself -- `--token <value>` is refused (exit 2). |
 
 Env required:
 - `DATABRICKS_HOST` — `https://<workspace>.cloud.databricks.com`
-- `DATABRICKS_TOKEN` — PAT with workspace + catalog read.
+- `DATABRICKS_TOKEN` — PAT with workspace + catalog read (or `--token-file <path>`; the token must never appear on the command line).
 
 The extractor uses Unity Catalog's REST API (`/api/2.1/unity-catalog/tables` with `include_delta_metadata=true`) and includes exponential backoff for rate limits. Expect 1-5 min per catalog depending on table count.
 

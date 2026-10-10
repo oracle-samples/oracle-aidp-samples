@@ -192,6 +192,13 @@ python3 $HOME/.aidp-migrator/engine/scripts/migrate_catalog.py --pack reports/ca
 
 The skills tell Codex when to call each + how to thread args from the env-coords reference into them.
 
+Scripts that talk to Databricks (`build_dag_from_workflow.py`, `extract_catalog_databricks.py`, ...)
+read the PAT from `DATABRICKS_TOKEN` in the environment; `extract_catalog_databricks.py` also
+accepts `--token-file <path>` (a file only its owner can read -- `chmod 600`; on Windows the
+permission check is skipped). No script takes a credential on the command line: `--token <value>`
+is refused with exit code 2, because argv is visible in `ps`, shell history, CI transcripts and
+pasted support commands. Output names where the token came from, never the token.
+
 ---
 
 ## Relationship to the migrator toolkit
