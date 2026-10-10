@@ -23,6 +23,7 @@ import re
 import pytest
 
 from dataplane.snowmig_source import SnowflakeSource
+from secret_files import temp_secret
 
 
 _REF = re.compile(r'as SNOWMIG_N from\s+((?:"(?:[^"]|"")*"|[A-Za-z_][\w$]*)'
@@ -90,7 +91,8 @@ def _source(counts, database="SNOWMIG_DB"):
         read = _NoCurrentSchemaRead(counts)
     return SnowflakeSource(Spark(), config={
         "account": "acct", "warehouse": "WH", "database": database,
-        "user": "svc", "auth": "password", "password": "p", "schema": "TYPES"})
+        "user": "svc", "auth": "password", "password_path": temp_secret("p"),
+        "schema": "TYPES"})
 
 
 def test_batched_counts_name_every_table_with_its_database_and_schema():

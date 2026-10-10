@@ -21,6 +21,7 @@ import pytest
 
 from target.stage_notebooks import (
     DIAGNOSE_NOTEBOOK_NAME, build_diagnose_notebook, write_stage_notebooks)
+from secret_files import temp_secret
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 COMMITTED = ROOT / "data-migration-scripts" / DIAGNOSE_NOTEBOOK_NAME
@@ -33,13 +34,13 @@ PEM = f"-----BEGIN PRIVATE KEY-----\n{PEM_BODY}\n-----END PRIVATE KEY-----"
 # `snowflake:` block as JSON; the notebook reads either form.
 NESTED = {"snowflake": {"account": "ACC", "user": "u", "warehouse": "WH",
                         "database": "DB", "schema": "S1", "auth": "keypair",
-                        "password": SECRET, "private_key": PEM},
+                        "password_path": temp_secret(SECRET),
+                        "key_path": temp_secret(PEM)},
           "aidp": {"datalake_ocid": "ocid1.aidataplatform.oc1..fake"}}
 NESTED_YAML = ("snowflake:\n  account: ACC\n  user: u\n  warehouse: WH\n"
                "  database: DB\n  schema: S1\n  auth: password\n"
-               f"  password: {SECRET}\n  private_key: |\n"
-               "    -----BEGIN PRIVATE KEY-----\n"
-               f"    {PEM_BODY}\n    -----END PRIVATE KEY-----\n"
+               f"  password_path: {NESTED['snowflake']['password_path']}\n"
+               f"  key_path: {NESTED['snowflake']['key_path']}\n"
                "aidp:\n  datalake_ocid: ocid1.aidataplatform.oc1..fake\n")
 
 
@@ -128,7 +129,7 @@ def test_the_notebook_never_echoes_the_secret(tmp_path, monkeypatch, capsys,
     assert "BEGIN PRIVATE KEY" not in out
     assert "[PASS] source config readable" in out
     # The shape IS shown: the operator sees which fields the file carries.
-    assert '"account": "<set>"' in out and '"password": "<set>"' in out
+    assert '"account": "<set>"' in out and '"password_path": "<set>"' in out
     assert "ACC" not in out.split("host to be used")[0], \
         "the echo shows key names only, never a value"
     # What the connector cell hands to SnowflakeSource is the unwrapped block.

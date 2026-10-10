@@ -14,6 +14,7 @@ from report.stages import build_stage_board
 from target import provisioning
 from target.provisioning import provision, render_provision
 from test_provisioning import Fake
+from secret_files import write_secret
 
 OCID = "ocid1.aidataplatform.oc1.iad.fakefakefakefake"
 
@@ -158,7 +159,9 @@ def catalogs(tmp_path, monkeypatch):
     cfg.write_text("\n".join([
         "snowflake:", "  account: ORG-ACC", "  user: SVC", "  warehouse: WH",
         "  database: SALES_DB", "  role: READER", "  schema: PUBLIC",
-        "  auth: password", "  password: not-a-real-password", "aidp:",
+        "  auth: password",
+        f"  password_path: {write_secret(tmp_path / 'pw', 'not-a-real-password')}",
+        "aidp:",
         f"  datalake_ocid: {OCID}", "  workspace: ws", "  cluster_id: cl",
         ""]), encoding="utf-8")
     return str(cfg)

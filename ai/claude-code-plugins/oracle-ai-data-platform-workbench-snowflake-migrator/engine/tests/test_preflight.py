@@ -9,6 +9,7 @@ import pytest
 
 from plan import preflight
 from report.render import render_preflight
+from secret_files import temp_secret
 
 PLAN = {
     "bronze_catalog_prefix": "lake",
@@ -99,7 +100,7 @@ def _sql_for(schema_counts):
 
 
 BASE = {"account": "A", "warehouse": "W", "database": "DB", "user": "u",
-        "auth": "password", "password": "p"}
+        "auth": "password", "password_path": temp_secret("p")}
 
 
 def _named(result, name):

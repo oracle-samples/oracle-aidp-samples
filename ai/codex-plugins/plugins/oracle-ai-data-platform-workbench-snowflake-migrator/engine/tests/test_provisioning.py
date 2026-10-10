@@ -22,6 +22,7 @@ from target.provisioning import (
     ProvisionTransportError, make_provision_call, provision,
     render_provision,
 )
+from secret_files import write_secret
 
 OCID = "ocid1.aidataplatform.oc1.iad.a"
 
@@ -246,11 +247,12 @@ def test_jobs_point_straight_at_the_stage_notebook(scripts):
 def _provisioned_with_config(scripts, tmp_path, fake=None):
     fake = fake or Fake()
     # provision reads the config to derive the snowflake-block copy it
-    # uploads, so the file has to exist; an inline (fake) password keeps it
-    # off the laptop-only *_path refusal.
+    # uploads, so the file -- and the credential file it names -- have
+    # to exist.
     cfg = tmp_path / "snowmig-config.yaml"
     cfg.write_text("snowflake:\n  account: ACC\n  user: u\n  warehouse: WH\n"
-                   "  database: DB\n  auth: password\n  password: not-a-real-one\n",
+                   "  database: DB\n  auth: password\n"
+                   f"  password_path: {write_secret(tmp_path / 'pw', 'not-a-real-one')}\n",
                    encoding="utf-8")
     res = provision(call=fake, workspace_name="acme", scripts=scripts,
                     execute=True, delays=(), external_catalog="ext",
@@ -903,7 +905,8 @@ _FAKE_PEM = "-----BEGIN PRIVATE KEY-----\nFAKE\n-----END PRIVATE KEY-----\n"
 def _config(tmp_path, **snowflake):
     import yaml
     block = {"account": "ACME-TEST", "user": "READER", "warehouse": "WH",
-             "database": "DB", "auth": "password", "password": _FAKE_PASSWORD}
+             "database": "DB", "auth": "password",
+             "password_path": write_secret(tmp_path / "pw", _FAKE_PASSWORD)}
     block.update(snowflake)
     block = {k: v for k, v in block.items() if v is not None}
     cfg = tmp_path / "snowmig-config.yaml"
@@ -928,15 +931,26 @@ def test_the_source_config_upload_carries_only_the_snowflake_block(scripts,
     remote = f"{PLAN_FOLDER}/snowmig-config.json"
     body = json.loads(fake.contents[remote]["body"])
     assert set(body) == {"snowflake"}
-    assert body["snowflake"]["password"] == _FAKE_PASSWORD
+    # SEC-AIDP-SAMPLES-001: the block names the credential FILE by its
+    # mount path; the value is in that file, never in the block.
+    secret_remote = f"{PLAN_FOLDER}/snowmig-config.password_path"
+    assert "password" not in body["snowflake"]
+    assert body["snowflake"]["password_path"] == f"/Workspace/{secret_remote}"
     blob = json.dumps(body)
+    assert _FAKE_PASSWORD not in blob
     assert "aidp" not in blob and "datalake_ocid" not in blob
     assert not pathlib.Path(fake.contents[remote]["local"]).exists(), \
         "the derived copy does not outlive the upload"
-    assert res["credential_objects"] == [remote]
+    assert fake.contents[secret_remote]["body"] == _FAKE_PASSWORD, \
+        "the credential file itself is placed beside the block"
+    assert res["credential_objects"] == [secret_remote, remote]
     step = next(s for s in res["steps"]
                 if s["step"] == "upload" and remote in s["detail"])
     assert step["verified"] is True and "CREDENTIAL" in step["detail"]
+    step = next(s for s in res["steps"]
+                if s["step"] == "upload" and secret_remote in s["detail"])
+    assert step["verified"] is True and "CREDENTIAL FILE" in step["detail"]
+    assert "pw ->" in step["detail"], "the local file is named by basename"
     # The notebooks read the derived copy off the mount.
     nb = json.loads(
         fake.contents[f"{SCRIPTS_FOLDER}/00_discover_snowflake.ipynb"]["body"])
@@ -950,9 +964,12 @@ def test_the_dry_run_names_the_credential_object(scripts, tmp_path):
     res = provision(call=None, workspace_name="acme", scripts=scripts,
                     plan_files=[cfg], source_config=cfg, execute=False)
     remote = f"{PLAN_FOLDER}/snowmig-config.json"
-    assert res["credential_objects"] == [remote]
+    secret_remote = f"{PLAN_FOLDER}/snowmig-config.password_path"
+    assert res["credential_objects"] == [secret_remote, remote]
     details = [s["detail"] for s in res["steps"] if s["step"] == "upload"]
     assert any("CREDENTIAL" in d and remote in d for d in details), details
+    assert any("CREDENTIAL FILE" in d and secret_remote in d
+               for d in details), details
     assert not any(d.endswith("snowmig-config.yaml") for d in details), \
         "the raw file is not previewed as an upload"
     md = render_provision(res)
@@ -971,11 +988,32 @@ def test_a_plan_file_that_is_not_the_source_config_has_no_credential_wording(
     assert "Credential placed" not in render_provision(res)
 
 
-def test_a_path_form_secret_is_refused_before_any_upload(scripts, tmp_path):
+def test_a_path_form_secret_is_placed_on_the_mount_beside_the_config(
+        scripts, tmp_path):
+    """SEC-AIDP-SAMPLES-001. A `*_path` names a file on THIS machine, which
+    the cluster cannot see -- so the file goes up with the config, and the
+    copy on the mount points at the copy on the mount."""
+    pem = write_secret(tmp_path / "rsa_key.p8", _FAKE_PEM)
+    cfg = _config(tmp_path, auth="keypair", key_path=pem, password_path=None)
+    fake = Fake()
+    res = provision(call=fake, workspace_name="acme", scripts=scripts,
+                    source_config=cfg, execute=True, delays=())
+    key_remote = f"{PLAN_FOLDER}/snowmig-config.key_path"
+    assert fake.contents[key_remote]["body"] == _FAKE_PEM
+    body = json.loads(
+        fake.contents[f"{PLAN_FOLDER}/snowmig-config.json"]["body"])
+    assert body["snowflake"]["key_path"] == f"/Workspace/{key_remote}"
+    assert "private_key" not in body["snowflake"]
+    assert res["credential_objects"] == [key_remote,
+                                         f"{PLAN_FOLDER}/snowmig-config.json"]
+    assert any(s["step"] == "job" for s in res["steps"])
+
+
+def test_an_inline_secret_config_is_refused_before_any_upload(scripts,
+                                                              tmp_path):
     from migration_config import ConfigError
-    pem = tmp_path / "rsa_key.p8"
-    pem.write_text(_FAKE_PEM, encoding="utf-8")
-    cfg = _config(tmp_path, auth="keypair", key_path=str(pem), password=None)
+    cfg = _config(tmp_path, auth="keypair", private_key=_FAKE_PEM,
+                  password_path=None)
     fake = Fake()
     for execute in (False, True):
         with pytest.raises(ConfigError) as exc:
@@ -983,21 +1021,49 @@ def test_a_path_form_secret_is_refused_before_any_upload(scripts, tmp_path):
                       scripts=scripts, source_config=cfg, execute=execute,
                       delays=())
         message = str(exc.value)
-        assert "key_path" in message and "inline" in message.lower()
-        assert "/Workspace" in message
+        assert "`private_key`" in message and "`key_path`" in message
+        assert "FAKE" not in message, "the value is never echoed"
     assert fake.ops == [], "refused before anything reached AIDP"
 
 
-def test_an_inline_secret_config_is_accepted(scripts, tmp_path):
-    cfg = _config(tmp_path, auth="keypair", private_key=_FAKE_PEM,
-                  password=None)
+@pytest.mark.skipif(os.name == "nt",
+                    reason="POSIX mode bits; Windows files inherit the profile ACL")
+def test_a_credential_file_others_can_read_is_refused_before_any_upload(
+        scripts, tmp_path):
+    from migration_config import ConfigError
+    pem = write_secret(tmp_path / "rsa_key.p8", _FAKE_PEM)
+    os.chmod(pem, 0o644)
+    cfg = _config(tmp_path, auth="keypair", key_path=pem, password_path=None)
     fake = Fake()
+    with pytest.raises(ConfigError, match="readable by others"):
+        provision(call=fake, workspace_name="acme", scripts=scripts,
+                  source_config=cfg, execute=True, delays=())
+    assert fake.ops == []
+
+
+def test_a_failed_credential_file_upload_keeps_the_notebooks_unpointed(
+        scripts, tmp_path):
+    """The block went up but the file it names did not: pointing a notebook
+    at that config would fail on the cluster, so the config path is not
+    baked and both objects are reported for what they are."""
+    cfg = _config(tmp_path)
+    secret_remote = f"{PLAN_FOLDER}/snowmig-config.password_path"
+
+    class _DropsTheFile(Fake):
+        def __call__(self, operation, **kw):
+            if operation == "upload_ws_file" and kw["path"] == secret_remote:
+                self.ops.append((operation, kw))
+                raise RuntimeError("denied: upload_ws_file")
+            return super().__call__(operation, **kw)
+
+    fake = _DropsTheFile()
     res = provision(call=fake, workspace_name="acme", scripts=scripts,
                     source_config=cfg, execute=True, delays=())
-    assert any(s["step"] == "job" for s in res["steps"])
-    body = json.loads(
-        fake.contents[f"{PLAN_FOLDER}/snowmig-config.json"]["body"])
-    assert body["snowflake"]["private_key"] == _FAKE_PEM
+    assert secret_remote in res["credential_unconfirmed"]
+    assert f"{PLAN_FOLDER}/snowmig-config.json" in res["credential_objects"]
+    nb = json.loads(
+        fake.contents[f"{SCRIPTS_FOLDER}/00_discover_snowflake.ipynb"]["body"])
+    assert "'source-config': '/Workspace" not in "".join(nb["cells"][1]["source"])
 
 
 # --- --reuse-existing keeps the stage notebooks it finds ---------------------

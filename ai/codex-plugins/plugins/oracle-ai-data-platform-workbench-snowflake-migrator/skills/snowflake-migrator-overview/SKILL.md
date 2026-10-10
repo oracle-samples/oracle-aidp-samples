@@ -523,9 +523,10 @@ migration's output and its record.
 ```
 
 - `--scope credential` deletes `backup-snowflake-migration/plan/<stem>.json`
-  (the `snowflake:` block `provision --source-config` placed there) and reads
-  it back gone. Afterwards the copy jobs can no longer read Snowflake — run
-  it once the copies are done.
+  (the `snowflake:` block `provision --source-config` placed there) and the
+  credential file(s) beside it (`plan/<stem>.key_path`, ...), and reads them
+  back gone. Afterwards the copy jobs can no longer read Snowflake — run it
+  once the copies are done.
 - `--scope all` is for a lab, a rehearsal or an abandoned migration: the
   credential, the jobs, the clusters, the catalogs the migration created and
   the workspace, in that order, each only where the record proves this

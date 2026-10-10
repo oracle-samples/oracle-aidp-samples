@@ -25,6 +25,7 @@ import pytest
 from dataplane.snowmig_source import assert_pushdown_read_only
 from fake_pushdown import FakeLakeSpark, FakeSnowflake, source_for
 from test_data_migration_scripts import _inject_spark, _load
+from secret_files import temp_secret
 
 D = decimal.Decimal
 _TINY = D("0.1234567890123456789012345678901234567")
@@ -134,7 +135,7 @@ def test_the_stage_verifies_sums_the_same_in_parallel(monkeypatch, tmp_path):
     config = tmp_path / "source.json"
     config.write_text(json.dumps({
         "account": "acct", "warehouse": "WH", "database": "SNOWMIG_DB",
-        "user": "svc", "auth": "password", "password": "p",
+        "user": "svc", "auth": "password", "password_path": temp_secret("p"),
         "schema": "TYPES"}), encoding="utf-8")
     spark = FakeLakeSpark(FakeSnowflake(_estate(
         [{"ID": D(7), "N": _TINY, "NAME": "a"}])), _LAKE)

@@ -9,40 +9,42 @@ reads like a plugin bug.
 
 So this module does two things, in this order:
 
-  1. **Echo** every field the config carries, with each secret shown as
-     *present* (inline) or as its PATH -- never as its value -- so the user
-     can confirm or correct it before anything runs. The echo is the
-     deliverable even when the tests pass.
+  1. **Echo** every field the config carries, with each credential shown as
+     its SOURCE -- the file's basename and whether it is owner-only -- never
+     as its value or its full path, so the user can confirm or correct it
+     before anything runs. The echo is the deliverable even when the tests
+     pass. A credential set INLINE is reported as refused, with the `*_path`
+     field that replaces it.
   2. **Test** what can be tested cheaply: the source with a read, the
-     destination with a list. Each check captures its own failure so one
-     denial does not hide the rest.
+     destination with a list -- and, before any discovery, the ROLE: its
+     grants are read back and the check fails if it can write to the source
+     (`snowflake_source.role_guard`). Each check captures its own failure so
+     one denial does not hide the rest.
 
 Nothing here writes. `run_sql` and `call` are injected, so the whole thing is
 unit-tested with no environment.
 """
 from __future__ import annotations
 
-import pathlib
 from typing import Callable
 
+from migration_config import (
+    INLINE_SECRET_ALTERNATIVES, SECRET_FIELDS, SECRET_PATH_FIELDS,
+    credential_sources)
 from snowflake_source.dialect import lexer
+from snowflake_source.role_guard import describe_role_grants, read_role_grants
 
 __all__ = ["REQUIRED_FIELDS", "SECRET_PATH_FIELDS", "SECRET_INLINE_FIELDS",
            "describe_config", "run_preflight", "render_preflight_report"]
 
 REQUIRED_FIELDS = ("account", "user", "warehouse", "database", "auth")
 
-# Fields whose VALUE is a path to a credential: echoed as the path, and the
-# path's existence is checked, but the content is never read here.
-SECRET_PATH_FIELDS = ("key_path", "key_passphrase_path", "password_path",
-                      "pat_path")
-
-# Fields whose VALUE *is* the credential, sitting in the one config file. This
-# is the documented default: one file, everything in it. They are reported as
-# present and never rendered -- there is nothing to check on disk, which is
-# precisely the point.
-SECRET_INLINE_FIELDS = ("password", "private_key", "key_content", "token",
-                        "key_passphrase")
+# Fields whose VALUE *would be* the credential. None is accepted: the one
+# config file travels, and a secret in it travels with it. Each is reported
+# as refused, naming the `*_path` field that replaces it, and its value is
+# never rendered. (The tuple is migration_config.SECRET_FIELDS, re-exported
+# under the name this module always had.)
+SECRET_INLINE_FIELDS = SECRET_FIELDS
 
 # What each field is for, in the words a user needs to confirm it.
 _FIELD_HELP = {
@@ -76,26 +78,31 @@ def describe_config(config: dict) -> dict:
                        "purpose": _FIELD_HELP.get(name, ""),
                        "derived": (name == "host" and not value)})
 
+    # Each credential by its SOURCE: the file's basename and whether it is
+    # owner-only (`migration_config.credential_sources` does the stat and
+    # the mode check; on Windows the note says the check was skipped). The
+    # full path is not echoed -- a directory can name a user or a host --
+    # and the content is never read here.
     secrets: list[dict] = []
-    for name in SECRET_PATH_FIELDS:
-        raw = config.get(name)
-        if not raw:
-            continue
-        path = pathlib.Path(str(raw)).expanduser()
-        secrets.append({"field": name, "path": str(raw),
-                        "inline": False,
-                        "exists": path.is_file(),
-                        "note": ("readable" if path.is_file() else
-                                 "NOT FOUND — the credential cannot be read "
-                                 "from here")})
+    for source in credential_sources(config):
+        secrets.append({"field": source["field"], "source": source["source"],
+                        "name": source["name"], "inline": False,
+                        "exists": source["ok"],
+                        "note": source["protection"] if source["ok"] else
+                        f'REFUSED — {source["protection"]}'})
     for name in SECRET_INLINE_FIELDS:
         if not config.get(name):
             continue
-        # No path, nothing to stat, and the value is never touched: present is
-        # the whole report. `exists` is True so a check cannot read as failed.
-        secrets.append({"field": name, "path": None, "inline": True,
-                        "exists": True,
-                        "note": "set inline in this config file (not shown)"})
+        # The value is never touched. It is not accepted either: the check
+        # fails and names the field that replaces it.
+        secrets.append({"field": name, "source": "inline", "name": None,
+                        "inline": True, "exists": False,
+                        "note": (f"REFUSED — an inline credential is not "
+                                 f"accepted (this file travels). Move the "
+                                 f"value to a file readable by you alone "
+                                 f"and set "
+                                 f"`{INLINE_SECRET_ALTERNATIVES[name]}:` "
+                                 f"to it")})
 
     known = ({f["field"] for f in fields} | set(SECRET_PATH_FIELDS)
              | set(SECRET_INLINE_FIELDS) | {"port"})
@@ -136,12 +143,14 @@ def run_preflight(config: dict, *, run_sql: Callable[..., list] | None = None,
 
     for secret in described["secrets"]:
         # An inline credential has no file to find, so calling the check
-        # "credential file" would invite the user to go looking for one.
-        label = ("credential (inline)" if secret.get("inline")
+        # "credential file" would invite the user to go looking for one; it
+        # is refused, and the detail says where the value belongs.
+        label = ("credential (inline, refused)" if secret.get("inline")
                  else "credential file")
         checks.append({"name": f'{label} ({secret["field"]})',
                        "ok": secret["exists"], "detail": secret["note"]})
 
+    role_grants = None
     if run_sql is not None:
         def identity():
             row = run_sql("select current_user() U, current_role() R, "
@@ -150,6 +159,20 @@ def run_preflight(config: dict, *, run_sql: Callable[..., list] | None = None,
                     f'warehouse={row.get("W")} database={row.get("D")}')
 
         checks.append(_check("source identity", identity))
+
+        # BEFORE any discovery: the role's own grants, read back, and a FAIL
+        # when it can write to the source -- or when the grants cannot be
+        # read at all, which proves nothing and is treated the same.
+        def role_read_only():
+            nonlocal role_grants
+            role_grants = read_role_grants(
+                run_sql, database=config.get("database"))
+            detail = describe_role_grants(role_grants)
+            if not role_grants["read_only"]:
+                raise RuntimeError(detail)
+            return detail
+
+        checks.append(_check("source role is read-only", role_read_only))
 
         def visible():
             db = lexer.config_name(config.get("database") or "")
@@ -236,6 +259,9 @@ def run_preflight(config: dict, *, run_sql: Callable[..., list] | None = None,
     failed = [c for c in checks if c["ok"] is False]
     skipped = [c for c in checks if c["ok"] is None]
     return {"config": described, "checks": checks,
+            # The grants evidence, so the report can show WHAT the role
+            # holds, not only that the check passed. No value in it.
+            "role_grants": role_grants,
             "ok": not failed,
             "failed": len(failed), "skipped": len(skipped)}
 
@@ -256,19 +282,21 @@ def render_preflight_report(result: dict) -> str:
     lines.append("")
 
     if cfg["secrets"]:
-        lines += ["Credentials are read from these PATHS at call time; their "
-                  "contents are never echoed:", ""]
+        lines += ["Credentials are read from these FILES at call time, "
+                  "shown by name only; their contents and directories are "
+                  "never echoed:", ""]
         for secret in cfg["secrets"]:
             mark = "✅" if secret["exists"] else "❌"
-            where = ("*inline*" if secret.get("inline")
-                     else f'`{secret["path"]}`')
+            where = ("*inline* — not accepted" if secret.get("inline")
+                     else f'{secret.get("source", "file")} `{secret["name"]}`')
             lines.append(f'- {mark} `{secret["field"]}`: {where} '
                          f'— {secret["note"]}')
         lines.append("")
     else:
-        lines += ["⚠️ **No credential in the config at all** — neither inline "
-                  "(`password:` / `private_key:`) nor as a `*_path`. The auth "
-                  "mode below cannot work until one is set.", ""]
+        lines += ["⚠️ **No credential in the config at all** — no "
+                  "`password_path:`, `key_path:` or `pat_path:`. The auth "
+                  "mode below cannot work until one names a file readable "
+                  "by you alone. (An inline value is not accepted.)", ""]
 
     if cfg["missing"]:
         lines += [f'❌ **Missing required field(s):** '
@@ -285,4 +313,35 @@ def render_preflight_report(result: dict) -> str:
               f'{result["failed"]} failed · {result["skipped"]} skipped. '
               f'A skipped check is not a pass: say which end was not tested.',
               ""]
+
+    grants = result.get("role_grants")
+    if grants:
+        # The evidence behind the role check, so the account owner can
+        # confirm the role is the one they meant and holds only reads.
+        roles = grants["role"] + (
+            f' (+ secondary: {", ".join(grants["secondary_roles"])})'
+            if grants.get("secondary_roles") else "")
+        scope = grants.get("database") or "every database"
+        names = "`, `".join(grants.get("inherited_roles") or [])
+        walked = (f" and every role granted to it (`{names}`)"
+                  if names else "")
+        lines += ["## Source role grants", "",
+                  f'Role `{roles}`, {grants["grants_read"]} grant(s) read '
+                  f'with `SHOW GRANTS TO ROLE` across the role{walked}; '
+                  f'privileges on {scope}:', "",
+                  "| Privilege | Grants |", "|---|---|"]
+        lines += [f"| `{p}` | {n} |" for p, n in grants["by_privilege"].items()]
+        if grants["write_grants"]:
+            lines += ["", "**Write privileges on the source — the migration "
+                          "role must not hold these, directly or through a "
+                          "role granted to it:**", ""]
+            lines += [f'- `{w["privilege"]}` on {w["granted_on"]} '
+                      f'`{w["name"]}` (role `{w["role"]}`'
+                      + (f', via `{w["via"]}`' if w.get("via") else "") + ")"
+                      for w in grants["write_grants"]]
+        if grants.get("out_of_scope_writes"):
+            lines += ["", f'{grants["out_of_scope_writes"]} write grant(s) '
+                          f'on other databases are outside this migration '
+                          f'and were not counted.']
+        lines.append("")
     return "\n".join(lines)

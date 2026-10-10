@@ -87,11 +87,15 @@ API-contract note — and only then, on the user's go-ahead, re-run with
 `--source-mode connector` (the default) has the in-AIDP scripts read
 Snowflake through the AIDP connector on the cluster. It needs no extra cluster
 library and does not depend on the external catalog's metadata crawl. It
-needs `--source-config` so the credential reaches the workspace mount: its `snowflake:` block is uploaded as JSON to
-`plan/<config stem>.json` (the `aidp:` block is not copied), and because that
-block carries a secret it is uploaded only when passed explicitly. A `*_path`
-secret is refused before anything is uploaded — the path is not on the
-cluster.
+needs `--source-config` so the credential reaches the workspace mount: the
+credential file(s) the config names (`key_path:`, `password_path:`, ...) are
+uploaded to `plan/<config stem>.<field>` and its `snowflake:` block is
+uploaded as JSON to `plan/<config stem>.json` with those paths rewritten to
+the mount's (the `aidp:` block is not copied). Because they carry a secret
+they are uploaded only when passed explicitly, and each file is checked
+first: it must exist and be readable by the user alone, or nothing is
+uploaded. A config with an inline secret is refused before anything is
+uploaded.
 
 `--source-mode external-catalog` uses three-part names instead, and needs a
 catalog whose metadata crawl has completed. Check that first — an empty

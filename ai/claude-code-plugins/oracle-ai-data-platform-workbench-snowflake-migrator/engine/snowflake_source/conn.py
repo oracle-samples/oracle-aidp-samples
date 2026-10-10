@@ -1,8 +1,10 @@
 """Snowflake connection and auth. The only module here that opens a socket.
 
 Secrets are read from FILES, never taken as inline arguments, so they cannot end
-up in shell history, process listings, or an artifact. Nothing in this module
-logs or returns a credential.
+up in shell history, process listings, or an artifact. Each file must be
+readable by its owner alone (`migration_config.check_secret_file`: mode & 0o077
+is refused on POSIX; on Windows the check is skipped and says so). Nothing in
+this module logs or returns a credential.
 
 Auth modes:
   keypair          -- key_path (+ key_passphrase). Preferred; also what AIDP's
@@ -109,21 +111,39 @@ def assert_read_only(sql: str) -> None:
                     f"permits. Allowed: {', '.join(READ_ONLY_VERBS)}.")
 
 
+def _owner_only(path: str, label: str) -> None:
+    """Refuse a credential file that others can read (AuthError).
+
+    The check itself lives in migration_config so the parser, this
+    transport and the catalog registration agree on one rule; here its
+    ConfigError becomes the AuthError this module's callers already catch.
+    """
+    from migration_config import ConfigError, check_secret_file
+    try:
+        check_secret_file(path, field=label)
+    except ConfigError as exc:
+        raise AuthError(str(exc)) from None
+
+
 def _read_secret_file(path: str, label: str) -> str:
+    _owner_only(path, label)
     p = pathlib.Path(path).expanduser()
     try:
         return p.read_text(encoding="utf-8").strip()
     except OSError as exc:
-        raise AuthError(f"{label} not readable at {path}: {exc.strerror}") from exc
+        raise AuthError(f"{label} not readable at {p.name}: "
+                        f"{exc.strerror}") from exc
 
 
 def load_private_key_der(path: str, passphrase: str | None = None) -> bytes:
     from cryptography.hazmat.primitives import serialization
+    _owner_only(path, "private key")
     p = pathlib.Path(path).expanduser()
     try:
         raw = p.read_bytes()
     except OSError as exc:
-        raise AuthError(f"private key not readable at {path}: {exc.strerror}") from exc
+        raise AuthError(f"private key not readable at {p.name}: "
+                        f"{exc.strerror}") from exc
     key = serialization.load_pem_private_key(
         raw, password=passphrase.encode() if passphrase else None)
     return key.private_bytes(

@@ -3,6 +3,7 @@ import pytest
 
 from snowflake_source import conn
 from snowflake_source.conn import READ_ONLY_VERBS, SourceWriteRefused, make_run_sql
+from secret_files import temp_secret
 
 
 class FakeConn:
@@ -424,7 +425,7 @@ def test_source_counts_over_crafted_names_is_one_read_or_refused(names):
 
     src = SnowflakeSource(Spark(), config={
         "account": "x", "warehouse": "w", "database": "DB", "user": "u",
-        "auth": "password", "password": "p", "schema": "S"})
+        "auth": "password", "password_path": temp_secret("p"), "schema": "S"})
     try:
         src.source_counts("S", names)
     except PushdownRefused:

@@ -46,10 +46,12 @@ for what is missing, and ask in this turn:**
 
 The Snowflake account, warehouse, database, user and credential come from a
 config **file**, never from inline arguments — see
-`snowmig-config.example.yaml`. The password or private key lives **inline in
-that file** (`password:` / `private_key: |`; a `*_path` variant is an opt-in
-alternative), so the file holds a live credential in plain text. The rules
-that go with that are the bootstrap skill's, and they apply here too:
+`snowmig-config.example.yaml`. The password or private key is **not inline in
+that file**: it lives in its own owner-only file that the config names
+(`password_path:` / `key_path:`), and an inline `password:` / `private_key:`
+is refused. The catalog registration reads that file at call time, so it
+holds a live credential in plain text. The rules that go with that are the
+bootstrap skill's, and they apply here too:
 
 - **Ask the user before reading the config**, and say why you need it.
 - **Never print, echo, quote or summarise a secret value** — not in chat, not
