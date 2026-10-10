@@ -315,8 +315,11 @@ def _migrate_s3_demo(asset: dict, out_dir: Path, ns: str, used_paths: set[Path])
         aws_region=src.get("region"),
     )
     sh_path = _artifact_path(out_dir, "transfer", bucket, ".transfer.sh", asset["id"], used_paths)
-    sh_path.parent.mkdir(parents=True, exist_ok=True)
-    sh_path.write_text(res.translated_sql, encoding="utf-8")
+    # The script is bash: keep the renderer's LF endings on every platform. A
+    # default-newline write on Windows would emit CRLF, which a Linux bash
+    # rejects ("set -euo pipefail\r": invalid option) and shellcheck flags as
+    # SC1017.
+    _write_text_atomic(sh_path, res.translated_sql)
     sh_path.chmod(0o755)
     return {
         "asset_id": asset["id"],

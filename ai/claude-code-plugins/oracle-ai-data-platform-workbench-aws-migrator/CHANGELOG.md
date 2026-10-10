@@ -17,6 +17,16 @@ All notable changes to this project are documented here. Format loosely follows
   `EXIT` trap so a failed or interrupted copy no longer leaves it behind.
   The verify summary still reports PASS as not execution-verified.
 
+### Fixed
+- **Transfer script keeps LF endings on Windows** (`migrate/runner.py`,
+  SEC-AIDP-SAMPLES-003 follow-up). `migrate` wrote `.transfer.sh` with the
+  platform's default newline, so on Windows the artifact had CRLF endings:
+  a Linux bash rejects `set -euo pipefail\r` and shellcheck reports SC1017 on
+  every line. The script now goes through the same LF-preserving atomic
+  writer as every other artifact, and the stress tests run `bash -n` and
+  `shellcheck` against the file `migrate` actually writes, not only against a
+  rendering the test wrote itself.
+
 ## [0.3.0] — 2026-09-15
 
 ### Changed

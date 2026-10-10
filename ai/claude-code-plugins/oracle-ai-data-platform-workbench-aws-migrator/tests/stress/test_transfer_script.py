@@ -7,7 +7,10 @@ Three things are pinned here, end to end through `migrate` and `verify`:
 - a valid transfer still produces a reviewable script whose temp rclone config
   is removed by an EXIT trap, including when rclone fails or the job is
   interrupted (exercised under a real bash when one is available);
-- the verify summary keeps saying that PASS is not execution-verified.
+- the verify summary keeps saying that PASS is not execution-verified;
+- the file `migrate` actually writes has LF endings on every platform, so the
+  syntax and shellcheck checks run against that artifact and not only against
+  a rendering the test wrote itself.
 
 `shellcheck` is run when it is installed and skipped otherwise.
 """
@@ -68,6 +71,13 @@ def _migrate_s3(plan: dict, out: Path) -> dict:
     return migrate(plan, out_dir=out, filter_kind="s3", demo=True)
 
 
+def _migrated_script(directory: Path) -> Path:
+    """Run `migrate` for the default bucket and return the script it wrote."""
+    out = directory / "out"
+    (row,) = _migrate_s3(plan_with(s3_asset()), out)["results"]
+    return out / row["output_path"]
+
+
 class RefusedTransferTests(unittest.TestCase):
     def test_hostile_bucket_name_is_refused_and_no_script_is_written(self):
         for name in HOSTILE_BUCKETS:
@@ -110,6 +120,14 @@ class GeneratedTransferTests(unittest.TestCase):
             self.assertIn("trap 'rm -f \"$CONF\"' EXIT", script)
             self.assertIn("awssrc:acme-raw-data", script)
             self.assertIn("namespace = testns", script)
+
+    def test_written_script_has_lf_endings_on_every_platform(self):
+        # The renderer emits LF; a default-newline write would turn that into
+        # CRLF on Windows and the script would then fail under a Linux bash.
+        with tempfile.TemporaryDirectory() as tmp:
+            data = _migrated_script(Path(tmp)).read_bytes()
+            self.assertNotIn(b"\r", data)
+            self.assertTrue(data.startswith(b"#!/usr/bin/env bash\n"), data[:40])
 
     def test_verify_summary_still_says_pass_is_not_execution_verified(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -169,7 +187,9 @@ class BashBehaviourTests(unittest.TestCase):
     def test_syntax_check_passes_for_generated_and_hostile_renderings(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
-            scripts = [self._write_script(directory)]
+            # The file migrate() writes comes first: it is the artifact a user
+            # actually runs, so its line endings matter as much as its content.
+            scripts = [_migrated_script(directory), self._write_script(directory)]
             for index, name in enumerate(HOSTILE_BUCKETS):
                 if "\n" in name:
                     continue
@@ -191,10 +211,12 @@ class BashBehaviourTests(unittest.TestCase):
         if not shellcheck:
             self.skipTest("shellcheck is not installed")
         with tempfile.TemporaryDirectory() as tmp:
-            script = self._write_script(Path(tmp))
-            proc = subprocess.run([shellcheck, "-s", "bash", str(script)],
-                                  capture_output=True, text=True, timeout=60)
-            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            directory = Path(tmp)
+            for script in (_migrated_script(directory), self._write_script(directory)):
+                with self.subTest(script=script.relative_to(directory).as_posix()):
+                    proc = subprocess.run([shellcheck, "-s", "bash", str(script)],
+                                          capture_output=True, text=True, timeout=60)
+                    self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
 
     def test_trap_removes_config_when_rclone_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
