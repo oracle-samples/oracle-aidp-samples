@@ -48,7 +48,7 @@ All `dbutils.fs.*` methods support **two path types**:
 |---|---|---|
 | `dbutils.fs.*` | ✅ Full | See table above. |
 | `dbutils.widgets.*` | ✅ | Backed by `oidlUtils.parameters` on AIDP. Use `oidlUtils.parameters.getParameter("name", "default")` for new code. |
-| `dbutils.secrets.*` | ✅ | **Vault-only by default**: OCI Vault (API key auth), requires `AIDP_VAULT_OCID` env var + secret named `<scope>/<key>`. Plaintext `AIDP_SECRET_<SCOPE>_<KEY>` env vars and the JSON file named by `AIDP_SECRETS_FILE` are consulted only with `AIDP_ALLOW_PLAINTEXT_SECRETS=1` (file must be `0600` on POSIX; one `insecure plaintext secrets mode active` log line, never values). `AIDP_SECRET_SCOPES=<scope,scope>` restricts `get`/`list`/`listScopes`; list operations return names only. |
+| `dbutils.secrets.*` | ✅ | **Vault-only by default**: OCI Vault (API key auth), requires `AIDP_VAULT_OCID` env var + secret named `<scope>/<key>`. Plaintext `AIDP_SECRET_<SCOPE>_<KEY>` env vars and the JSON file named by `AIDP_SECRETS_FILE` are consulted only with `AIDP_ALLOW_PLAINTEXT_SECRETS=1` (file must be `0600` on POSIX; one `insecure plaintext secrets mode active` log line, never values). `AIDP_SECRET_SCOPES=<scope,scope>` and `AIDP_SECRET_KEYS=<scope/key,scope/*,...>` restrict `get`/`list`/`listScopes` (read per call; `none` = nothing allowed; a refusal is logged as `NBP-RUNTIME-SECRET`); `job_migrate.py` derives both from the `dbutils.secrets.get(scope, key)` literals of the planned notebooks and declares them in the cluster bootstrap (an operator-provided value wins). List operations return names only. |
 | `dbutils.notebook.*` | ✅ | `notebook.run` and `notebook.exit` go to `oidlUtils.notebook.*`. Use `oidlUtils.notebook.run(path, timeout=3600)` for new code (timeout=0 is rejected by AIDP). The compat `notebook.run` passes every non-magic cell through the mandatory sandbox gate (section 8) before `exec`. |
 | `dbutils.library.*` | ⚠️ | No-op shim. Cluster libraries must be installed via cluster libraries API, not at runtime. |
 | `dbutils.credentials.*` | ⚠️ | Stub only. Use API key auth directly. `assumeRole` not supported. |
@@ -140,35 +140,54 @@ Applies CircuitBreaker + retry tuning to mitigate OCI 429 bursts. Profiles: cons
 
 ## 8. `aidp_compat.notebook_policy` — Mandatory Sandbox Gate
 
-Runtime enforcement at the execution sink. `dbutils.notebook.run(...)`, `dbutils.fs.rm/mv/cp/put` and every `safe_io` write helper refuse to run until a sandbox is declared; undeclared = `PermissionError` naming the missing variables (fail closed).
+Runtime enforcement at the execution sink. `dbutils.notebook.run(...)`, `dbutils.fs.rm/mv/cp/put/mkdirs` and every `safe_io` write helper refuse to run until a sandbox is declared; undeclared = `PermissionError` naming the missing variables (fail closed).
 
 | Variable | Meaning |
 |---|---|
-| `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` | Only `catalog.schema` that `saveAsTable` / `insertInto` / `CREATE TABLE` / `INSERT` / `DROP` / `MERGE` / `DELETE` may target (1-part names count as outside) |
-| `AIDP_SANDBOX_PREFIX` | `oci://bucket@ns/path/` that path writes, `dbutils.fs` deletes/moves and absolute `open()` must stay under; comma list to add a `/Volumes/...` staging prefix |
-| `AIDP_SANDBOX_ALLOW_NETWORK` | `1` permits `socket` / `requests` / `urllib` / `http.client` / `paramiko` imports (default off) |
+| `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` | Only `catalog.schema` that `saveAsTable` / `insertInto` / `writeTo` / `CREATE TABLE` / `INSERT` / `DROP` / `MERGE` / `DELETE` may target (1-part names count as outside) |
+| `AIDP_SANDBOX_PREFIX` | Comma list of prefixes that path writes, `dbutils.fs` deletes/moves/mkdirs, `os`/`shutil`/`pathlib` file operations and absolute `open()` must stay under. The first entry is the object-storage prefix (`oci://bucket@ns/path/`); the rest are staging areas. Paths are canonicalised first; a `..` segment is always outside, and on POSIX a symlink inside a prefix pointing outside is outside |
+| `AIDP_SANDBOX_ALLOW_NETWORK` | `1` permits `socket` / `requests` / `urllib` / `urllib3` / `httpx` / `aiohttp` / `http.client` / `paramiko` / `ftplib` / `smtplib` / ... imports (default off) |
 | `AIDP_NOTEBOOK_POLICY_ALLOW` | Comma list of rule ids accepted as a reviewed exception (logged as `allowed_exception`) |
 | `AIDP_NOTEBOOK_POLICY_LOG` | Optional JSONL file mirroring the in-process policy log |
+| `AIDP_SECRET_SCOPES` / `AIDP_SECRET_KEYS` | `dbutils.secrets` allowlist (scopes; `scope/key` or `scope/*`), see `dbutils.secrets.*` above; `none` = nothing allowed |
 
-Or declare programmatically: `from aidp_compat import SandboxPolicy, set_sandbox_policy; set_sandbox_policy(SandboxPolicy(catalog="default", schema="<sandbox>", prefix="oci://<bucket>@<ns>/<sandbox>/"))`. `job_migrate.py` does this on every cluster connect using the write-redirect schema/bucket.
+Or declare programmatically: `from aidp_compat import SandboxPolicy, set_sandbox_policy; set_sandbox_policy(SandboxPolicy(catalog="default", schema="<sandbox>", prefix="oci://<bucket>@<ns>/<sandbox>/", extra_prefixes=("/Volumes/default/default/dbfs/",)))`.
+
+**Declared once, frozen for the kernel.** The first policy resolved (explicit object, or the environment on first use) is a one-shot snapshot: later `AIDP_SANDBOX_*` changes are ignored by every assertion, and `set_sandbox_policy` with a different policy (or `None`) is refused as `NBP-POLICY-TAMPER`. Re-running the same declaration (bootstrap replay on reconnect) is a no-op.
+
+**What `job_migrate.py` declares** on every cluster connect and per task (`build_sandbox_policy_snippet`; an operator-provided variable wins and replaces the whole list):
+
+| Prefix | Why |
+|---|---|
+| `oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/` | the write-redirect bucket; every OCI write the migrator produces lands here |
+| `/Volumes/default/default/dbfs/` | the `/dbfs/` and `dbfs:/` translation target the migration prompt rewrites paths to |
+| `/tmp/` | local-disk staging the prompt prescribes for torch / h5py / sqlite before copying to `/Volumes` |
+| `<output-base>/` | the tool's own output directory (`task_values.json`, `manifest_params.json`, reports) |
+
+Together with catalog `default` / schema `<oci_backup_bucket>_overwrite` and the planned `dbutils.secrets` allowlist (section `dbutils.secrets.*`). Everything else on `/Volumes`, `/Workspace` or in other buckets stays refused.
 
 Before each non-magic cell runs it is `ast.parse`d and refused (`PolicyViolation`, a `PermissionError` with notebook path, cell index, rule id, target and remediation) on:
 
 | Rule | Refuses |
 |---|---|
-| `NBP-IMPORT-PROCESS` | `import subprocess` / `ctypes` / `pty` |
-| `NBP-IMPORT-NETWORK` | `import socket` / `requests` / `urllib` / `http.client` / `paramiko` (unless `AIDP_SANDBOX_ALLOW_NETWORK=1`) |
-| `NBP-OS-ENVIRON` / `NBP-OS-PROCESS` | `os.environ` / `os.getenv` / `os.putenv`; `os.system` / `os.popen` / `os.exec*` / `os.spawn*` |
+| `NBP-IMPORT-PROCESS` | `import subprocess` / `ctypes` / `pty` / `multiprocessing` |
+| `NBP-IMPORT-NETWORK` | `import socket` / `requests` / `urllib` / `urllib3` / `httpx` / `aiohttp` / `http.client` / `paramiko` / `ftplib` / `smtplib` / `pycurl` / `telnetlib` / `poplib` / `imaplib` / `websocket(s)` / `grpc` / `xmlrpc` (unless `AIDP_SANDBOX_ALLOW_NETWORK=1`) |
+| `NBP-OS-ENVIRON` / `NBP-OS-PROCESS` | `os.environ` / `os.getenv` / `os.putenv` / `from os import *` (also through an alias, `import os as o`); `os.system` / `os.popen` / `os.exec*` / `os.spawn*` / `os.fork` / `asyncio.create_subprocess_*` |
 | `NBP-SHUTIL-RMTREE` | `shutil.rmtree` |
 | `NBP-BUILTIN-EXEC` | `eval` / `exec` / `compile` / `__import__` |
-| `NBP-OPEN-PATH` / `NBP-OPEN-DYNAMIC` | `open()` on an absolute literal path outside the prefix; `open()` for writing with a non-literal path |
-| `NBP-DBFS-PATH` / `NBP-DBFS-DYNAMIC` | `*.fs.rm/mv/cp/put` whose literal target is outside the prefix; non-literal target |
-| `NBP-TABLE-TARGET` / `NBP-TABLE-DYNAMIC` | `.write...saveAsTable/insertInto` outside `catalog.schema`; non-literal name |
-| `NBP-SQL-TARGET` / `NBP-SQL-DYNAMIC` | `spark.sql` / `sql` DDL/DML (and `LOCATION`) outside the sandbox; f-string / concatenated DDL/DML |
-| `NBP-PATH-WRITE` / `NBP-PATH-WRITE-DYNAMIC` | `.write...parquet/csv/json/orc/text/save` outside the prefix; non-literal path |
-| `NBP-RUNTIME-PATH` / `NBP-RUNTIME-TABLE` | Runtime assertion inside `dbutils.fs.*` / `safe_io` write helpers |
+| `NBP-INDIRECT` | `import importlib` / `builtins`, `sys.modules`, `getattr()` / `vars()` on `os` / `sys` / `builtins` / the compat shims |
+| `NBP-POLICY-TAMPER` | `import aidp_compat[.x]`, `from aidp_compat[.fs/.safe_io/.secrets/.notebook] import` of the policy API / shim classes / private names, anything from `aidp_compat.notebook_policy`, attribute assignment / `del` / `setattr` on `os` / `sys` / `builtins` / `shutil` / `importlib` / `aidp_compat` / `dbutils` / `spark`, private `dbutils._x` attributes; at runtime, redeclaring or clearing the frozen policy |
+| `NBP-OPEN-PATH` / `NBP-OPEN-DYNAMIC` | `open()` and `Path(...).read_text/read_bytes/write_text/write_bytes/open` on an absolute path outside the prefix; any mode with a path that cannot be resolved statically |
+| `NBP-FS-PATH` / `NBP-FS-DYNAMIC` | `os.remove/unlink/rmdir/removedirs/rename/renames/replace/truncate/mkdir/makedirs/link/symlink`, `shutil.move/copy/copy2/copyfile/copytree` (destination), `Path(...).unlink/rmdir/mkdir/touch/rename/replace/symlink_to` outside the prefix; unresolvable path |
+| `NBP-DBFS-PATH` / `NBP-DBFS-DYNAMIC` | `*.fs.rm/mv/cp/put/mkdirs` (also through `fs = dbutils.fs`) whose target is outside the prefix; unresolvable target |
+| `NBP-TABLE-TARGET` / `NBP-TABLE-DYNAMIC` | `.write...saveAsTable/insertInto`, `.writeTo(...)` outside `catalog.schema`; unresolvable name |
+| `NBP-SQL-TARGET` / `NBP-SQL-DYNAMIC` | `spark.sql` / `sql` DDL/DML (and `LOCATION '..'` / `LOCATION ".."` / `OPTIONS (path ...)`) outside the sandbox; a statement that cannot be resolved statically (f-string / concatenation whose literal head is DDL/DML, a variable, a call) |
+| `NBP-PATH-WRITE` / `NBP-PATH-WRITE-DYNAMIC` | `.write...parquet/csv/json/orc/text/save`, `.write...option("path", ..)` / `.options(path=..)` outside the prefix; unresolvable path |
+| `NBP-RUNTIME-PATH` / `NBP-RUNTIME-TABLE` / `NBP-RUNTIME-SECRET` | Runtime assertion inside `dbutils.fs.*` / `safe_io` write helpers / `dbutils.secrets` |
 
-`CREATE [OR REPLACE] [GLOBAL] TEMP VIEW` and plain `SELECT` are not writes. Every refusal and allowed exception is appended to the policy log (`get_policy_log()`, `policy_log_markdown()`); `job_migrate.py` pulls it into each task's test report as **Notebook Policy Log**.
+**Static resolution.** A target that is a plain name bound exactly once (in this or an earlier cell of the run) to a string literal is checked as that literal; `import x as y`, `from m import n as y` and `y = dbutils.fs` aliases are followed across cells. Anything else that is not a literal is a `*-DYNAMIC` refusal unless its rule id is in `AIDP_NOTEBOOK_POLICY_ALLOW`.
+
+**Scope of the gate.** It is a static check of the forms listed above, not a Python sandbox: the runtime assertions are the enforcement layer for every write that goes through the compat helpers (`dbutils.fs.*`, `safe_io`, `dbutils.secrets`), and Spark writes are covered by the AST rules plus the migrator's write-redirect interceptors. Not covered: direct OCI SDK calls (`import oci` is allowed because migrated notebooks use the API-key init pattern), `spark.read` of production data (reads are intended), and native Spark writers reached through objects the gate cannot see (a `DataFrameWriter` stored in a variable). `CREATE [OR REPLACE] [GLOBAL] TEMP VIEW` and plain `SELECT` are not writes. `dbutils.fs.mount(...)` keeps `extra_configs` in memory only (never in the process environment). Every refusal, allowed exception and sandbox declaration is appended to the policy log (`get_policy_log()`, `policy_log_markdown()`); `job_migrate.py` pulls it into each task's test report as **Notebook Policy Log**.
 
 ---
 

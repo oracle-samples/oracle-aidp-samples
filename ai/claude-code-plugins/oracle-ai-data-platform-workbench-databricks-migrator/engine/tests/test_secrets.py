@@ -187,6 +187,59 @@ def test_unset_or_blank_scope_allowlist_means_unrestricted(monkeypatch):
     assert AIDPSecretsUtils().listScopes() == [{"name": "a"}]
 
 
+def test_none_allowlist_means_nothing_is_allowed(monkeypatch):
+    _no_vault(monkeypatch)
+    monkeypatch.setenv("AIDP_ALLOW_PLAINTEXT_SECRETS", "1")
+    monkeypatch.setenv("AIDP_SECRET_A_K", "v")
+    monkeypatch.setenv("AIDP_SECRET_SCOPES", "none")
+    s = AIDPSecretsUtils()
+    assert s.listScopes() == []
+    with pytest.raises(PermissionError):
+        s.get("a", "k")
+    with pytest.raises(PermissionError):
+        s.list("a")
+
+
+def test_key_allowlist_restricts_get_and_list_with_wildcard(monkeypatch):
+    _no_vault(monkeypatch)
+    monkeypatch.setenv("AIDP_ALLOW_PLAINTEXT_SECRETS", "1")
+    monkeypatch.setenv("AIDP_SECRET_DB_PASSWORD", SECRET_VALUE)
+    monkeypatch.setenv("AIDP_SECRET_DB_OTHER", "other-" + SECRET_VALUE)
+    monkeypatch.setenv("AIDP_SECRET_DYN_ANYKEY", "dyn-" + SECRET_VALUE)
+    monkeypatch.setenv("AIDP_SECRET_SCOPES", "db,dyn")
+    monkeypatch.setenv("AIDP_SECRET_KEYS", "DB/password, dyn/*")
+    s = AIDPSecretsUtils()
+    assert s.get("db", "password") == SECRET_VALUE
+    assert s.get("dyn", "anykey") == "dyn-" + SECRET_VALUE          # scope-wide wildcard
+    assert s.list("db") == [{"key": "password", "lastUpdatedTimestamp": 0}]   # hidden key not listed
+    with pytest.raises(PermissionError) as ei:
+        s.get("db", "other")
+    assert "db/other" in str(ei.value) and SECRET_VALUE not in str(ei.value)
+    # Key allowlist alone (no scope list) still restricts.
+    monkeypatch.delenv("AIDP_SECRET_SCOPES")
+    with pytest.raises(PermissionError):
+        AIDPSecretsUtils().get("db", "other")
+
+
+def test_allowlist_is_read_per_call_and_refusals_are_logged(monkeypatch):
+    from aidp_compat import notebook_policy as npol
+    monkeypatch.setattr(AIDPSecretsUtils, "_get_from_oci_vault",
+                        lambda self, scope, key: f"vault:{scope}/{key}")
+    s = AIDPSecretsUtils()                                   # constructed before the allowlist exists
+    monkeypatch.setenv("AIDP_SECRET_SCOPES", "db")
+    monkeypatch.setenv("AIDP_SECRET_KEYS", "db/password")
+    assert s.get("db", "password") == "vault:db/password"
+    with pytest.raises(PermissionError):
+        s.get("prod", "password")
+    with pytest.raises(PermissionError):
+        s.get("db", "token")
+    monkeypatch.setenv("AIDP_SECRET_KEYS", "db/password,db/token")   # widened later (next task's plan)
+    assert s.get("db", "token") == "vault:db/token"
+    refusals = [e for e in npol.get_policy_log() if e["rule"] == "NBP-RUNTIME-SECRET"]
+    assert [e["target"] for e in refusals] == ["prod", "db/token"]
+    assert "vault:" not in str(refusals)
+
+
 def test_list_operations_never_reveal_values(monkeypatch, capsys):
     _no_vault(monkeypatch)
     monkeypatch.setenv("AIDP_ALLOW_PLAINTEXT_SECRETS", "1")

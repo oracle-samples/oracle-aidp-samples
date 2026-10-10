@@ -19,6 +19,7 @@ from typing import Dict, Any, Optional
 
 from aidp_compat.notebook_policy import (
     SandboxPolicy,
+    ScanContext,
     enforce_cell_policy,
     require_policy,
 )
@@ -166,6 +167,10 @@ class AIDPNotebookUtils:
             except Exception as e:
                 print(f"[notebook.run] warning: could not set widget parameters: {e}")
 
+        # Import / shim aliases and string constants seen so far in this run,
+        # so `import os as o` in one cell still gates `o.environ` in the next.
+        scan_context = ScanContext()
+
         # Execute each code cell in the caller's namespace
         try:
             for cell_index, cell in enumerate(nb.cells):
@@ -188,6 +193,7 @@ class AIDPNotebookUtils:
                         notebook_path=notebook_path,
                         cell_index=cell_index,
                         policy=policy,
+                        context=scan_context,
                     )
                     exec(compile(source, notebook_path, "exec"), caller_globals)
 

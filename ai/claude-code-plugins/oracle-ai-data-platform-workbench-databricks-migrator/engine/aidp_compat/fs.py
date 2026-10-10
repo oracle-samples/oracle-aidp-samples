@@ -142,6 +142,7 @@ class AIDPFileSystemUtils:
     def __init__(self, spark=None):
         self._spark = spark
         self._mounts = {}
+        self._mount_configs = {}   # mount_point -> extra_configs (in memory only, see mount())
         self._mount_config_file = os.environ.get(
             "AIDP_MOUNT_CONFIG",
             "/opt/aidp/config/mounts.json"
@@ -496,8 +497,12 @@ class AIDPFileSystemUtils:
         but AIDP's /Volumes FUSE mount can raise `VolumeFileAlreadyExistsException`
         (non-standard) when the directory exists. We pre-check + tolerate any
         "already exists" style error so the call behaves like dbutils.fs.mkdirs.
+
+        The path must be inside the declared sandbox prefix (it creates a
+        directory marker object / directory); otherwise ``PermissionError``.
         """
         translated = self._translate_path(path)
+        assert_path_in_sandbox(translated, operation="dbutils.fs.mkdirs")
         parsed = _parse_oci_uri(translated)
 
         if parsed is not None:
@@ -574,16 +579,18 @@ class AIDPFileSystemUtils:
 
         On AIDP, this adds a path mapping rather than a real FUSE mount.
         The mapping is stored in memory and optionally persisted to config.
+
+        ``extra_configs`` (Databricks passes credentials here) are kept on
+        this instance only; they are never written to the process
+        environment, which notebook code must not be able to populate or read.
         """
         self._mounts[mount_point] = source
         print(f"[AIDP] Mount registered: {mount_point} -> {source}")
         print(f"[AIDP] Note: This is a path mapping, not a FUSE mount.")
 
         if extra_configs:
-            # Store extra configs for credential reference
-            for key, val in extra_configs.items():
-                env_key = f"AIDP_MOUNT_{mount_point.replace('/', '_')}_{key}".upper()
-                os.environ[env_key] = str(val)
+            # Keep for credential reference, in memory only (keys, not values, are printable).
+            self._mount_configs[mount_point] = {str(k): str(v) for k, v in extra_configs.items()}
 
         return True
 

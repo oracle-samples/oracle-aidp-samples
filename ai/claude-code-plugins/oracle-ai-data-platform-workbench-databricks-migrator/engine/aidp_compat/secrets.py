@@ -6,8 +6,16 @@ Default is Vault-only. Plaintext sources (``AIDP_SECRET_<SCOPE>_<KEY>``
 environment variables and the JSON file named by ``AIDP_SECRETS_FILE``) are a
 demo/development fallback that must be opted into with
 ``AIDP_ALLOW_PLAINTEXT_SECRETS=1``; the JSON file must be owner-only (0600)
-on POSIX. ``AIDP_SECRET_SCOPES`` (comma list) restricts which scopes may be
-read or listed. Values are never printed or returned by the list operations.
+on POSIX.
+
+Scope/key allowlist (read on every call, so the migrator can declare it per
+task): ``AIDP_SECRET_SCOPES`` (comma list of scopes) and ``AIDP_SECRET_KEYS``
+(comma list of ``scope/key``). ``job_migrate.py`` derives both from the
+``dbutils.secrets.get(scope, key)`` literals found while planning the task
+and declares them in the cluster bootstrap; the literal value ``none`` means
+"nothing allowed", unset/blank means unrestricted. Refusals are recorded in
+the notebook policy log as ``NBP-RUNTIME-SECRET``. Values are never printed
+or returned by the list operations.
 """
 
 import logging
@@ -19,6 +27,8 @@ from typing import Dict, List, Optional
 ENV_ALLOW_PLAINTEXT = "AIDP_ALLOW_PLAINTEXT_SECRETS"
 ENV_SECRETS_FILE = "AIDP_SECRETS_FILE"
 ENV_SECRET_SCOPES = "AIDP_SECRET_SCOPES"
+ENV_SECRET_KEYS = "AIDP_SECRET_KEYS"
+ALLOWLIST_NONE = "none"          # explicit "no scope / no key is allowed"
 _ENV_SECRET_PREFIX = "AIDP_SECRET_"
 
 _log = logging.getLogger("aidp_compat.secrets")
@@ -28,12 +38,33 @@ def _plaintext_allowed() -> bool:
     return os.environ.get(ENV_ALLOW_PLAINTEXT, "").strip() == "1"
 
 
-def _allowed_scopes() -> Optional[frozenset]:
-    """Scope allowlist from AIDP_SECRET_SCOPES, or None when unrestricted."""
-    raw = os.environ.get(ENV_SECRET_SCOPES)
+def _allowlist(var: str) -> Optional[frozenset]:
+    """Comma allowlist from ``var``: None when unset/blank (unrestricted),
+    an empty set for the literal ``none``, otherwise the lower-cased entries."""
+    raw = os.environ.get(var)
     if raw is None or not raw.strip():
         return None
+    if raw.strip().lower() == ALLOWLIST_NONE:
+        return frozenset()
     return frozenset(s.strip().lower() for s in raw.split(",") if s.strip())
+
+
+def _allowed_scopes() -> Optional[frozenset]:
+    """Scope allowlist from AIDP_SECRET_SCOPES, or None when unrestricted."""
+    return _allowlist(ENV_SECRET_SCOPES)
+
+
+def _allowed_keys() -> Optional[frozenset]:
+    """``scope/key`` allowlist from AIDP_SECRET_KEYS, or None when unrestricted."""
+    return _allowlist(ENV_SECRET_KEYS)
+
+
+def _record_refusal(target: str, operation: str, remediation: str) -> None:
+    try:
+        from aidp_compat.notebook_policy import record_secret_refusal
+    except ImportError:  # pragma: no cover - partial installs
+        return
+    record_secret_refusal(target, operation=operation, remediation=remediation)
 
 
 def _check_owner_only(path: str) -> None:
@@ -59,7 +90,6 @@ class AIDPSecretsUtils:
     def __init__(self):
         self._cache: Dict[str, Dict[str, str]] = {}
         self._plaintext = _plaintext_allowed()
-        self._scopes = _allowed_scopes()
         if self._plaintext:
             # One line, no values: operators must be able to see that the
             # demo fallback is on, and logs must never carry secret material.
@@ -68,15 +98,33 @@ class AIDPSecretsUtils:
                          ENV_ALLOW_PLAINTEXT, ENV_SECRETS_FILE)
             self._load_env_secrets()
 
-    # ── Scope policy ──────────────────────────────────────────────────
-    def _check_scope(self, scope: str) -> None:
-        if self._scopes is not None and scope.lower() not in self._scopes:
-            raise PermissionError(
-                f"Secret scope not allowlisted: {scope} (set {ENV_SECRET_SCOPES} to allow it)"
-            )
-
+    # ── Scope / key policy (evaluated per call) ───────────────────────
     def _scope_allowed(self, scope: str) -> bool:
-        return self._scopes is None or scope.lower() in self._scopes
+        scopes = _allowed_scopes()
+        return scopes is None or scope.lower() in scopes
+
+    def _key_allowed(self, scope: str, key: str) -> bool:
+        """``scope/key`` or the planned wildcard ``scope/*`` (literal scope, non-literal key)."""
+        keys = _allowed_keys()
+        return keys is None or f"{scope}/{key}".lower() in keys or f"{scope}/*".lower() in keys
+
+    def _check_scope(self, scope: str, key: Optional[str] = None) -> None:
+        """Refuse ``scope`` (and ``scope/key`` when given) unless allowlisted.
+
+        The refusal names the scope/key only, never a value, and is recorded
+        in the notebook policy log so the migration report shows it.
+        """
+        operation = "dbutils.secrets.get" if key is not None else "dbutils.secrets.list"
+        if not self._scope_allowed(scope):
+            remediation = (f"Secret scope not in the allowlist planned for this run; add it to "
+                           f"{ENV_SECRET_SCOPES} after review.")
+            _record_refusal(scope, operation, remediation)
+            raise PermissionError(f"Secret scope not allowlisted: {scope}. Remediation: {remediation}")
+        if key is not None and not self._key_allowed(scope, key):
+            remediation = (f"Secret key not in the allowlist planned for this run; add {scope}/{key} to "
+                           f"{ENV_SECRET_KEYS} after review.")
+            _record_refusal(f"{scope}/{key}", operation, remediation)
+            raise PermissionError(f"Secret key not allowlisted: {scope}/{key}. Remediation: {remediation}")
 
     # ── Plaintext fallbacks (opt-in only) ─────────────────────────────
     def _load_env_secrets(self):
@@ -115,9 +163,9 @@ class AIDPSecretsUtils:
 
         Order: in-process cache (Vault results, plus AIDP_SECRET_* in
         plaintext mode) -> OCI Vault -> plaintext JSON file (plaintext mode
-        only).
+        only). ``scope`` and ``scope/key`` must be allowlisted first.
         """
-        self._check_scope(scope)
+        self._check_scope(scope, key)
 
         if scope in self._cache and key in self._cache[scope]:
             return self._cache[scope][key]
@@ -139,12 +187,13 @@ class AIDPSecretsUtils:
         return self.get(scope, key).encode('utf-8')
 
     def list(self, scope: str) -> List[dict]:
-        """List secrets in a scope (metadata only, never values)."""
+        """List secrets in a scope (metadata only, never values; only allowlisted keys)."""
         self._check_scope(scope)
         results = []
         if scope in self._cache:
             for key in self._cache[scope]:
-                results.append({"key": key, "lastUpdatedTimestamp": 0})
+                if self._key_allowed(scope, key):
+                    results.append({"key": key, "lastUpdatedTimestamp": 0})
         return results
 
     def listScopes(self) -> List[dict]:
@@ -217,4 +266,5 @@ class AIDPSecretsUtils:
         print("  list(scope) - List secret metadata in scope (names only)")
         print("  listScopes() - List available scopes (names only)")
         print(f"  Plaintext env/file fallback is OFF unless {ENV_ALLOW_PLAINTEXT}=1 (demo only)")
-        print(f"  {ENV_SECRET_SCOPES}=<scope,scope> restricts which scopes may be read or listed")
+        print(f"  {ENV_SECRET_SCOPES}=<scope,scope> / {ENV_SECRET_KEYS}=<scope/key,...> restrict what may be "
+              f"read or listed ('{ALLOWLIST_NONE}' = nothing); the migrator declares them from the planned notebooks")

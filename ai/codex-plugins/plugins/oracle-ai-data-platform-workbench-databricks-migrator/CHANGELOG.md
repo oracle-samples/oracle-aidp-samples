@@ -27,13 +27,33 @@ All notable changes to this plugin are documented here. Format loosely follows [
   Refusals and allowed exceptions are recorded in a policy log that `job_migrate.py` renders
   into each task's test report (**Notebook Policy Log**); the cluster bootstrap declares the
   write-redirect schema/bucket as the sandbox automatically.
+- **Sandbox gate hardening** (review of SEC-AIDP-SAMPLES-005 / 006). The bootstrap now also
+  declares the staging areas the migrator itself generates (`/Volumes/default/default/dbfs/`,
+  `/tmp/`) and the output directory as sandbox prefixes, so migrated FUSE / local writes are
+  not refused. The policy is a one-shot snapshot per kernel: later `AIDP_SANDBOX_*` changes are
+  ignored and redeclaring / clearing it is refused (`NBP-POLICY-TAMPER`). `path_in_sandbox`
+  canonicalises paths, refuses `..` segments and (POSIX) symlinks leading outside. The AST gate
+  follows import / shim aliases and single-assignment string constants across cells, refuses
+  `importlib` / `builtins` / `sys.modules` / `getattr(os, ..)` (`NBP-INDIRECT`), imports and
+  attribute rebinding of the compat shims and policy module (`NBP-POLICY-TAMPER`),
+  `os.remove/rename/mkdir...`, `shutil.move/copy*` and `pathlib` file operations
+  (`NBP-FS-PATH` / `NBP-FS-DYNAMIC`), `writeTo`, `option("path")` / `options(path=)`,
+  double-quoted `LOCATION` and `OPTIONS (path ...)`, `dbutils.fs.mkdirs`, `os.fork`,
+  `asyncio` subprocess helpers and more network modules; `open()` with an unresolvable path is
+  refused in any mode and `spark.sql()` with an unresolvable statement is `NBP-SQL-DYNAMIC`.
+  `dbutils.fs.mkdirs` asserts its target at runtime; `dbutils.fs.mount` no longer writes
+  `extra_configs` to the process environment.
 - **Secrets shim is Vault-only by default** (`engine/aidp_compat/secrets.py`,
   SEC-AIDP-SAMPLES-006). `AIDP_SECRET_*` environment scanning and the JSON file fallback
   (now only via an explicit `AIDP_SECRETS_FILE`) happen only with
   `AIDP_ALLOW_PLAINTEXT_SECRETS=1`; the file must be owner-only (`0600`) on POSIX (skipped
   with a note on Windows); plaintext mode logs one `insecure plaintext secrets mode active`
   line without values; `AIDP_SECRET_SCOPES` restricts `get` / `list` / `listScopes` to
-  allowlisted scopes and list operations never reveal values.
+  allowlisted scopes and list operations never reveal values. The allowlist is created during
+  planning: `job_migrate.py` collects the `dbutils.secrets.get(scope, key)` literals of each
+  task and declares `AIDP_SECRET_SCOPES` / `AIDP_SECRET_KEYS` (`scope/key`, `scope/*`) in the
+  cluster bootstrap (`none` before the first task; an operator-provided value wins); the shim
+  reads both per call and logs refusals as `NBP-RUNTIME-SECRET`.
 - Added `engine/tests/` (pytest) covering both controls; `pytest.ini` scopes collection to
   them.
 

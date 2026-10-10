@@ -207,38 +207,55 @@ fail-closed controls at runtime (in addition to the static cell analysis and wri
 the migrator applies while it drives the cluster):
 
 **Notebook sandbox policy** (`aidp_compat.notebook_policy`). `dbutils.notebook.run(...)` and
-the compat write helpers (`dbutils.fs.rm/mv/cp/put`, `safe_io.safe_*` writers) refuse to run
-until a sandbox is declared for the run:
+the compat write helpers (`dbutils.fs.rm/mv/cp/put/mkdirs`, `safe_io.safe_*` writers) refuse to
+run until a sandbox is declared for the run:
 
 | Variable | Meaning |
 |---|---|
 | `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` | The only catalog.schema that table writes may target |
-| `AIDP_SANDBOX_PREFIX` | Object-storage prefix (`oci://bucket@ns/path/`) that path writes, `dbutils.fs` deletes/moves and absolute `open()` calls must stay under; comma list for an extra `/Volumes/...` staging area |
-| `AIDP_SANDBOX_ALLOW_NETWORK` | `1` permits network imports (`requests`, `socket`, `urllib`, `http.client`, `paramiko`); default off |
-| `AIDP_NOTEBOOK_POLICY_ALLOW` | Comma list of rule ids that are a reviewed exception (for example `NBP-TABLE-DYNAMIC` for a non-literal `saveAsTable` target) |
-| `AIDP_NOTEBOOK_POLICY_LOG` | Optional JSONL file that receives every refusal / allowed exception |
+| `AIDP_SANDBOX_PREFIX` | Comma list of prefixes that path writes, `dbutils.fs` deletes/moves, `os` / `shutil` / `pathlib` file operations and absolute `open()` calls must stay under; the first entry is the object-storage prefix (`oci://bucket@ns/path/`), the rest are staging areas. Paths are canonicalised; `..` segments and (on POSIX) symlinks leading outside are always outside |
+| `AIDP_SANDBOX_ALLOW_NETWORK` | `1` permits network imports (`requests`, `socket`, `urllib`, `urllib3`, `httpx`, `aiohttp`, `http.client`, `paramiko`, `ftplib`, `smtplib`, ...); default off |
+| `AIDP_NOTEBOOK_POLICY_ALLOW` | Comma list of rule ids that are a reviewed exception (for example `NBP-TABLE-DYNAMIC` for a `saveAsTable` target that cannot be resolved statically) |
+| `AIDP_NOTEBOOK_POLICY_LOG` | Optional JSONL file that receives every refusal / allowed exception / sandbox declaration |
 
-`job_migrate.py` declares the write-redirect schema and bucket as the sandbox automatically on
-every cluster connect (an operator-provided value wins). Before each non-magic cell runs, the
-cell is parsed and refused with a `PermissionError` naming the notebook path, cell index, rule
-id and remediation if it imports `subprocess` / `socket` / `requests` / `urllib` /
-`http.client` / `ctypes` / `pty` / `paramiko`, touches `os.environ` / `os.getenv` /
-`os.system` / `os.popen` / `os.exec*`, calls `shutil.rmtree`, `eval` / `exec` / `compile` /
-`__import__`, opens an absolute path outside the prefix, or writes (`saveAsTable`,
-`insertInto`, `df.write.*`, `CREATE TABLE` / `INSERT` / `DROP` / `MERGE` / `DELETE` via
-`spark.sql`, `dbutils.fs.rm/mv/cp/put`) to a literal target outside the sandbox. Non-literal
-write targets are refused too unless their rule id is allowlisted. Refusals and allowed
-exceptions are recorded and rendered into each task's test report under
-**Notebook Policy Log**. Scheduled jobs that keep using `aidp_compat` after migration must
-declare the same variables in their environment.
+`job_migrate.py` declares the sandbox automatically on every cluster connect and per task: the
+write-redirect schema and bucket, plus the staging areas its own migration rules steer
+notebooks into (`/Volumes/default/default/dbfs/` for translated `/dbfs/` paths, `/tmp/` for
+torch / h5py / sqlite staging) and the tool's output directory. An operator-provided value wins
+and replaces the whole list. The first declaration is frozen for the kernel: later environment
+changes are ignored by the runtime assertions and a redeclaration from notebook code is refused
+(`NBP-POLICY-TAMPER`). Before each non-magic cell runs, the cell is parsed and refused with a
+`PermissionError` naming the notebook path, cell index, rule id and remediation if it imports
+process / network modules (`subprocess`, `multiprocessing`, `ctypes`, `pty`, `socket`,
+`requests`, `urllib`, ...), touches `os.environ` / `os.getenv` / `os.system` / `os.popen` /
+`os.exec*` / `os.fork` (also through an alias such as `import os as o`), calls `shutil.rmtree`,
+`eval` / `exec` / `compile` / `__import__`, reaches for `importlib` / `builtins` /
+`sys.modules` / `getattr(os, ...)`, imports or rebinds the compat shims or the policy module
+itself, or opens / removes / renames / writes (`open`, `pathlib`, `os.remove`, `shutil.move`,
+`saveAsTable`, `insertInto`, `writeTo`, `df.write.*` including `option("path")`, `CREATE TABLE`
+/ `INSERT` / `DROP` / `MERGE` / `DELETE` / `LOCATION` / `OPTIONS (path ...)` via `spark.sql`,
+`dbutils.fs.rm/mv/cp/put/mkdirs`) a target outside the sandbox. A target that is a name bound
+once to a string literal earlier in the run is checked as that literal; any other non-literal
+target is refused unless its rule id is allowlisted. The gate matches these forms statically
+and is not a Python sandbox; the runtime assertions in `dbutils.fs.*`, `safe_io` and
+`dbutils.secrets` are the enforcement layer for writes that go through the compat helpers (see
+`engine/aidp_compat/SUPPORTED_OPERATIONS.md` section 8 for the rule table and what is not
+covered). Refusals and allowed exceptions are recorded and rendered into each task's test
+report under **Notebook Policy Log**. Scheduled jobs that keep using `aidp_compat` after
+migration must declare the same variables in their environment.
 
 **Secrets** (`dbutils.secrets`). Lookups go to OCI Vault only (`AIDP_VAULT_OCID`, secret named
 `<scope>/<key>`). The plaintext demo fallbacks (`AIDP_SECRET_<SCOPE>_<KEY>` environment
 variables and the JSON file named by `AIDP_SECRETS_FILE`) are consulted only when
 `AIDP_ALLOW_PLAINTEXT_SECRETS=1`; the file must be owner-only (`0600`) on POSIX, and the shim
 logs one line (`insecure plaintext secrets mode active`, never a value) when the mode is on.
-`AIDP_SECRET_SCOPES=<scope,scope>` restricts which scopes `get` / `list` / `listScopes` may
-touch; list operations return names only.
+`AIDP_SECRET_SCOPES=<scope,scope>` and `AIDP_SECRET_KEYS=<scope/key,scope/*,...>` restrict
+what `get` / `list` / `listScopes` may touch (`none` = nothing). `job_migrate.py` derives both
+from the `dbutils.secrets.get(scope, key)` literals it finds while planning each task and
+declares them in the cluster bootstrap (an operator-provided value wins; a scope used with a
+non-literal key is planned as `scope/*`, a non-literal scope must be allowlisted by the
+operator). Refusals name the scope/key only and appear in the Notebook Policy Log as
+`NBP-RUNTIME-SECRET`; list operations return names only.
 
 ---
 

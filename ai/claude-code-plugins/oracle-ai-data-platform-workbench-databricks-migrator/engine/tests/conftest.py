@@ -34,11 +34,13 @@ def _clean_policy_state(monkeypatch, tmp_path):
     # mount mapping leaks into path translation.
     monkeypatch.setenv("AIDP_MOUNT_CONFIG", str(tmp_path / "no-mounts.json"))
     if notebook_policy is not None:
-        notebook_policy.set_sandbox_policy(None)
+        # The policy is a frozen one-shot snapshot per process; only the test
+        # hook may forget it (set_sandbox_policy(None) is refused once declared).
+        notebook_policy._reset_policy_state()
         notebook_policy.clear_policy_log()
     yield
     if notebook_policy is not None:
-        notebook_policy.set_sandbox_policy(None)
+        notebook_policy._reset_policy_state()
         notebook_policy.clear_policy_log()
 
 
