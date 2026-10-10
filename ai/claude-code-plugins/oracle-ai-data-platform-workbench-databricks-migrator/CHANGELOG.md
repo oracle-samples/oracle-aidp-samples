@@ -52,7 +52,19 @@ All notable changes to this plugin are documented here. Format loosely follows [
   task and declares `AIDP_SECRET_SCOPES` / `AIDP_SECRET_KEYS` (`scope/key`, `scope/*`) in the
   cluster bootstrap (`none` before the first task; an operator-provided value wins); the shim
   reads both per call and logs refusals as `NBP-RUNTIME-SECRET`.
-- Added `engine/tests/` (pytest) covering both controls; `pytest.ini` scopes collection to
+- **`get_tool_output` is confined to the tool output directory**
+  (`engine/scripts/context_compactor.py`, `agent_migrate.py`, SEC-AIDP-SAMPLES-DBX-NEW-01).
+  The model-callable tool passed its `filename` argument straight to `os.path.join` + `open`,
+  so an indirect prompt injection in customer notebook content could read any file the
+  consultant's account can read (`../../../oci_api_key.pem`, absolute paths) into model
+  context. `ContextCompactor.get_saved_output` now accepts only the bare
+  `tool_<NNN>_<tool>.txt` names it generates itself, additionally resolves the path with
+  `os.path.realpath` and requires it to be a direct child of the compactor directory (so a
+  planted symlink cannot escape either), logs refusals and returns a
+  `[context_compactor] Refused` string; `_handle_get_tool_output` validates before consulting
+  any compactor and stops walking the compactor history on a refusal. "File not found" and
+  read errors no longer echo the host path or non-output files.
+- Added `engine/tests/` (pytest) covering these controls; `pytest.ini` scopes collection to
   them.
 
 ## [0.2.0] — 2026-06-24

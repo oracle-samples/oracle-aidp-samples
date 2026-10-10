@@ -9,6 +9,33 @@ Tier 3 (~850K tokens): OpenAI summarization â€” replace conversation with a
 """
 
 import os
+import re
+from typing import List, Optional
+
+# The only filenames save_and_truncate ever produces: ``tool_<NNN>_<tool>.txt``
+# (zero-padded counter, tool names are identifiers). get_saved_output accepts
+# nothing else, so the model-supplied argument can never name a path
+# (SEC-AIDP-SAMPLES-DBX-NEW-01).
+SAVED_OUTPUT_NAME = re.compile(r"^tool_\d{3,}_[A-Za-z0-9_]+\.txt$")
+
+# Result prefixes callers can test for. A policy refusal is final: the caller
+# must not keep searching other compactors for the same filename.
+REFUSED_PREFIX = "[context_compactor] Refused"
+NOT_FOUND_PREFIX = "[context_compactor] File not found"
+
+
+def validate_output_filename(filename) -> Optional[str]:
+    """Return None if ``filename`` is a bare saved-output name, else the reason
+    it must be refused. Checked before any filesystem access."""
+    if not isinstance(filename, str) or not filename:
+        return "filename must be a non-empty string"
+    if "/" in filename or "\\" in filename or filename in (".", ".."):
+        return "path separators and relative segments are not allowed"
+    if os.path.basename(filename) != filename or os.path.isabs(filename):
+        return "only a bare filename is allowed"
+    if not SAVED_OUTPUT_NAME.match(filename):
+        return "only tool output files named tool_<NNN>_<tool>.txt can be retrieved"
+    return None
 
 
 class ContextCompactor:
@@ -207,20 +234,47 @@ class ContextCompactor:
     # get_saved_output â€” retrieve a previously-saved tool result
     # ------------------------------------------------------------------
 
+    def list_saved_outputs(self) -> List[str]:
+        """Sorted names of the tool output files saved by this compactor."""
+        try:
+            names = os.listdir(self._base_dir)
+        except OSError:
+            return []
+        return sorted(n for n in names if SAVED_OUTPUT_NAME.match(n))
+
     def get_saved_output(self, filename: str) -> str:
         """
         Read and return the contents of a file previously saved by
         ``save_and_truncate``.  Returns a descriptive error string if the file
         cannot be read.
+
+        ``filename`` is model-supplied. Only a bare ``tool_<NNN>_<tool>.txt``
+        name is accepted (see ``validate_output_filename``) and the resolved
+        path must stay inside this compactor's directory; anything else is
+        refused with a ``REFUSED_PREFIX`` string and logged. Error strings
+        never echo host paths.
         """
-        filepath = os.path.join(self._base_dir, filename)
+        reason = validate_output_filename(filename)
+        if reason is not None:
+            self._log(f"[compaction] REFUSED get_saved_output({filename!r}): {reason}")
+            return f"{REFUSED_PREFIX}: {reason}"
+
+        # Defence in depth: resolve both sides (the base dir mixes separators
+        # on Windows) and require the target to be a direct child of the base
+        # dir, so a planted symlink cannot lead outside either.
+        base_real = os.path.realpath(self._base_dir)
+        filepath = os.path.realpath(os.path.join(base_real, filename))
+        if os.path.dirname(filepath) != base_real:
+            self._log(f"[compaction] REFUSED get_saved_output({filename!r}): resolves outside the tool output directory")
+            return f"{REFUSED_PREFIX}: {filename} resolves outside the tool output directory"
+
         try:
             with open(filepath, "r", encoding="utf-8") as fh:
                 return fh.read()
         except FileNotFoundError:
             return (
-                f"[context_compactor] File not found: {filepath}. "
-                f"Available files: {', '.join(sorted(os.listdir(self._base_dir))) or '(none)'}"
+                f"{NOT_FOUND_PREFIX}: {filename}. "
+                f"Available files: {', '.join(self.list_saved_outputs()) or '(none)'}"
             )
         except OSError as exc:
-            return f"[context_compactor] Could not read {filepath}: {exc}"
+            return f"[context_compactor] Could not read {filename}: {exc.strerror or exc.__class__.__name__}"
