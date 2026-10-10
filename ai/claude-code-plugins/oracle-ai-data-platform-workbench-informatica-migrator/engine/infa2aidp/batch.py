@@ -23,6 +23,7 @@ from typing import Optional
 
 from .models import Session
 from .parsers.format_detector import detect_and_parse_file
+from .parsers.security import ensure_within, safe_path_component
 
 logger = logging.getLogger(__name__)
 
@@ -385,10 +386,18 @@ class BatchMigrator:
 
             # Write notebook
             if notebook_code:
-                folder = mapping.folder or "Migrated"
-                nb_dir = os.path.join(output_dir, folder)
+                # Folder and mapping name are export-supplied text; reduced
+                # to one safe path component each and the resolved path
+                # checked to lie under output_dir (SEC-AIDP-SAMPLES-INFA-H1).
+                # A rename stays visible: migration_mapping.csv lists the
+                # raw mapping_name beside the notebook path actually written.
+                folder = safe_path_component(mapping.folder or "Migrated")
+                nb_dir = ensure_within(output_dir, os.path.join(output_dir, folder))
                 os.makedirs(nb_dir, exist_ok=True)
-                nb_path = os.path.join(nb_dir, f"nb_{mapping.name}.ipynb")
+                nb_path = ensure_within(
+                    output_dir,
+                    os.path.join(nb_dir, f"nb_{safe_path_component(mapping.name)}.ipynb"),
+                )
                 with open(nb_path, "w", encoding="utf-8") as f:
                     f.write(notebook_code)
                 result.notebook_path = nb_path
@@ -459,7 +468,10 @@ class BatchMigrator:
                 "fidelity_has_gaps": r.fidelity_has_gaps,
                 "fidelity_summary": r.fidelity_summary,
             }
-            report_path = os.path.join(reports_dir, f"validation_{r.mapping_name}.json")
+            report_path = ensure_within(
+                output_dir,
+                os.path.join(reports_dir, f"validation_{safe_path_component(r.mapping_name)}.json"),
+            )
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2, default=str)
 

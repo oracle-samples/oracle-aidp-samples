@@ -92,6 +92,24 @@ class LineageGenerator:
         self._export_markdown(lineage, f"{output_path}.md")
         self._export_json(lineage, f"{output_path}.json")
 
+    def export_for_mapping(self, mapping: Mapping, output_dir: str) -> str:
+        """Generate *mapping*'s lineage and write it under *output_dir*.
+
+        The report's base name is the mapping name reduced to a single path
+        component (``safe_path_component``) and the resolved path is checked
+        to lie under *output_dir* before anything is written -- the mapping
+        name comes straight from the export, and ``<out>/lineage/../../x``
+        used to be honoured (SEC-AIDP-SAMPLES-INFA-H1). Returns the base
+        path the ``.md``/``.json`` pair was written to.
+        """
+        from ..parsers.security import ensure_within, safe_path_component
+
+        base = ensure_within(
+            output_dir, os.path.join(output_dir, safe_path_component(mapping.name))
+        )
+        self.export_lineage_report(self.generate(mapping), base)
+        return base
+
     # ------------------------------------------------------------------
     # Markdown export
     # ------------------------------------------------------------------

@@ -371,8 +371,7 @@ def _cmd_lineage(args: argparse.Namespace) -> int:
     count = 0
     for input_file in input_files:
         for mapping in detect_and_parse_file(input_file).mappings:
-            lineage = lin_gen.generate(mapping)
-            lin_gen.export_lineage_report(lineage, os.path.join(args.output, mapping.name))
+            lin_gen.export_for_mapping(mapping, args.output)  # name sanitised, path contained
             count += 1
     print(f"Lineage generated for {count} mapping(s) -> {os.path.abspath(args.output)}")
     return 0

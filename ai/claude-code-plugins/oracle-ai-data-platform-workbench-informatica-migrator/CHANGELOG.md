@@ -53,6 +53,28 @@ packaged as a Claude Code plugin.
 
 ### Security
 
+- **Export-supplied names can no longer steer where output is written
+  (SEC-AIDP-SAMPLES-INFA-H1).** Every file `migrate`, `lineage` and the
+  parallel batch path write is named after text read out of the export --
+  `<FOLDER NAME>`, `<MAPPING NAME>`, `<WORKFLOW NAME>`, the IICS `project` /
+  `folder` / `name` -- and none of it was sanitised: an absolute folder name
+  made `os.path.join` discard the `-o` directory and a `..` segment climbed out
+  of it, so a tampered export wrote `.ipynb`, `.md` and `.json` files wherever
+  it pointed (a `CLAUDE.md` in the operator's project, another engagement's
+  reviewed notebook), and a name the filesystem refused aborted the whole run.
+  Each such name is now reduced to a single safe path component
+  (`parsers.security.safe_path_component`: separators, drive colons, NUL and
+  `..` runs replaced, no leading dot, never empty, never a Windows device
+  name; legal Informatica names are unchanged), every resolved path is checked
+  to lie under the output directory before the write
+  (`parsers.security.ensure_within`, also applied to the deployer's workspace
+  path), and a notebook that still cannot be written fails that mapping, not
+  the run. A rename is never silent: a WARNING names the object, the summary
+  gains a `RENAMED:` line, and `reports/sanitised_names.csv` lists every
+  original -> written-as pair; two originals that sanitise alike go through
+  the existing NAME CLASH handling (`nb_X__2`) instead of one overwriting the
+  other. Pinned by `tests/test_output_path_containment.py` for PowerCenter
+  XML and IICS JSON, the serial, batch and `lineage` paths.
 - **The repository password no longer travels on the command line
   (SEC-AIDP-SAMPLES-002).** `discover --password <value>` is refused with
   exit code 2 and the message "Do not pass passwords in argv. Use
