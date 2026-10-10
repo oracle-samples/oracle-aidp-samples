@@ -32,8 +32,11 @@ import subprocess
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Optional
+from xml.sax.saxutils import escape as _xml_escape
 
 import requests
+
+from ..secret_ingress import reject_url_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +50,9 @@ class InfaConnectionConfig:
     host: str
     port: int = 7333                   # WSH default HTTP port (7343 for HTTPS)
     username: str = ""
-    password: str = ""
+    # repr=False: a config that ends up in a log line, an exception message
+    # or a debugger must never print the password.
+    password: str = field(default="", repr=False)
     domain: str = ""                    # Informatica domain name
     repository: str = ""                # Repository service name
     security_domain: str = "Native"
@@ -61,6 +66,11 @@ class InfaConnectionConfig:
     # TLS verification for the Web Services Hub: True, False, or the path
     # of a CA bundle (PEM) for a corporate CA. Default on.
     verify_tls: "bool | str" = True
+
+    def __post_init__(self) -> None:
+        # A host of the form user:secret@pc.example would put the credential
+        # into every request URL, exception message and proxy log.
+        reject_url_credentials(self.host, self.wsh_url)
 
 
 @dataclass
@@ -174,13 +184,15 @@ class InformaticaCrawler:
             wsh = f"{proto}://{self.config.host}:{self.config.port}/wsh/services"
             self.config.wsh_url = wsh
 
-        # Login via MetadataService
+        # Login via MetadataService. Every field is XML-escaped: a password
+        # containing & or < used to produce a malformed (or, for a crafted
+        # value, a rewritten) LoginRequest.
         body_xml = f"""
             <LoginRequest>
-                <RepositoryDomainName>{self.config.domain}</RepositoryDomainName>
-                <RepositoryName>{self.config.repository}</RepositoryName>
-                <UserName>{self.config.username}</UserName>
-                <Password>{self.config.password}</Password>
+                <RepositoryDomainName>{_xml_escape(self.config.domain)}</RepositoryDomainName>
+                <RepositoryName>{_xml_escape(self.config.repository)}</RepositoryName>
+                <UserName>{_xml_escape(self.config.username)}</UserName>
+                <Password>{_xml_escape(self.config.password)}</Password>
             </LoginRequest>"""
 
         resp_xml = self._soap_raw_call("MetadataService", "Login", body_xml)
@@ -191,7 +203,9 @@ class InformaticaCrawler:
         if session_el is None:
             raise ConnectionError("SOAP login returned no SessionId")
         self._session_id = session_el.text
-        logger.info("SOAP login successful, session: %s...", self._session_id[:16])
+        # The session id is a bearer credential for the rest of the crawl;
+        # it does not belong in a log line, not even a prefix of it.
+        logger.info("SOAP login successful (repository %s)", self.config.repository or "-")
 
     def _soap_raw_call(self, service: str, operation: str, body_xml: str) -> str:
         """Execute a raw SOAP call against a specific WSH service."""

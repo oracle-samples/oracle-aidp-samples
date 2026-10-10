@@ -294,6 +294,21 @@ Read this before you plan a migration around it.
 Run `PYTHONPATH=engine python3 -m infa2aidp.cli <command> --help` for flags, or see
 `demo.sh`, which exercises the full discover → migrate → reconcile sequence.
 
+### Repository credentials for `discover`
+
+`discover` is the only command that authenticates to a live system. The
+repository password is read from `--password-file <path>` (a file only its
+owner can read -- `chmod 600`; on Windows the permission check is skipped) or
+from `INFA_PASSWORD` in the environment / `.env`. `--password <value>` is
+refused with exit code 2: a password on the command line is visible in `ps`,
+shell history, CI transcripts and pasted support commands. Diagnostics, verbose
+included, name the host, repository and where the password came from -- never
+the password or a connection string -- and a host of the form `user:pass@host`
+is rejected. `migrate` additionally fails (exit 1, `SECURITY:` line in the
+summary) if a generated notebook embeds a credential literal (`password=`,
+`token=`, `user:pass@` in a URL, an `Authorization` header); generated code
+reads credentials at runtime from the environment, never from source.
+
 ### Deploying to AIDP
 
 `deploy` authenticates with the OCI SDK (Resource Principal, Instance Principal,

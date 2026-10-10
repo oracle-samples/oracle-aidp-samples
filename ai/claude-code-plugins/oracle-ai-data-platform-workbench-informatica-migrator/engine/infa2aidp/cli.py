@@ -19,6 +19,7 @@ from typing import Callable, NamedTuple
 # ANTHROPIC_API_KEY, etc).
 from . import config as _config  # noqa: F401
 from . import __version__
+from .secret_ingress import RejectPasswordArgv, prepare_live_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -66,24 +67,24 @@ def _cmd_discover(args: argparse.Namespace) -> int:
     """Extract mappings/workflows from a live PowerCenter repository."""
     from .crawlers.informatica_crawler import InformaticaCrawler, InfaConnectionConfig
 
+    password, password_source = prepare_live_credentials(args.host, args.password_file)  # never argv
     cfg = InfaConnectionConfig(
         host=args.host,
         port=args.port,
         username=args.user or os.environ.get("INFA_USER", ""),
-        password=args.password or os.environ.get("INFA_PASSWORD", ""),
+        password=password,
         repository=args.repo or os.environ.get("INFA_REPO", ""),
         domain=args.domain or os.environ.get("INFA_DOMAIN", ""),
         verify_tls=os.environ.get("INFA_CA_BUNDLE") or os.environ.get("INFA_TLS_VERIFY", "1") != "0",
     )
     crawler = InformaticaCrawler(cfg)
     method = crawler.connect(method=args.method)
-    logger.info("Connected via %s", method)
+    # Diagnostics name the host, repository and the password's SOURCE -- never the password or a connection string.
+    logger.info("Connected via %s to %s (repository %s, password from %s)", method, cfg.host, cfg.repository or "-", password_source)
 
     os.makedirs(args.output, exist_ok=True)
     folders = args.folders.split(",") if args.folders else None
-    result = crawler.crawl_repository(
-        os.path.join(args.output, "exported_xml"), folders=folders, export_xml=True
-    )
+    result = crawler.crawl_repository(os.path.join(args.output, "exported_xml"), folders=folders, export_xml=True)
     report_path = os.path.join(args.output, "infa_inventory_report.md")
     crawler.generate_inventory_report(result, report_path)
     crawler.disconnect()
@@ -198,7 +199,7 @@ def _cmd_migrate(args: argparse.Namespace) -> int:
     if result.optimize_suggestions:
         logger.info("%d optimization suggestion(s) -- run 'infa2aidp optimize' for details",
                     result.optimize_suggestions)
-    return 0
+    return 1 if getattr(result, "credential_leaks", None) else 0  # a notebook embedding a credential must not ship
 
 
 def _cmd_deploy(args: argparse.Namespace) -> int:
@@ -405,7 +406,8 @@ _ARG_SPECS: list[tuple[str, tuple[str, ...], dict]] = [
     ("discover", ("--host",), dict(required=True, help="Informatica PowerCenter host")),
     ("discover", ("--port",), dict(type=int, default=6005)),
     ("discover", ("--user",), dict(default=None)),
-    ("discover", ("--password",), dict(default=None)),
+    ("discover", ("--password",), dict(action=RejectPasswordArgv)),  # refused: argv leaks into ps/history/CI logs
+    ("discover", ("--password-file",), dict(default=None, metavar="PATH", help="File holding the repository password (owner-only, chmod 600); else INFA_PASSWORD")),
     ("discover", ("--repo",), dict(default=None, help="Repository name")),
     ("discover", ("--domain",), dict(default=None, help="Informatica domain")),
     ("discover", ("--method",), dict(choices=["auto", "soap", "pmrep"], default="auto")),
@@ -480,10 +482,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 2
 
-    logging.basicConfig(
-        level=logging.DEBUG if getattr(args, "verbose", False) else logging.INFO,
-        format="%(levelname)s %(message)s",
-    )
+    level = logging.DEBUG if getattr(args, "verbose", False) else logging.INFO
+    logging.basicConfig(level=level, format="%(levelname)s %(message)s")
     try:
         return COMMANDS[args.command].handler(args)
     except KeyboardInterrupt:

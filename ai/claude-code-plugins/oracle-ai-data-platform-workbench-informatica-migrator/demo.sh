@@ -39,7 +39,9 @@ if python3 - <<'PYEOF' 2>&1 | tee "$OUT/verify.log"
 import ast, json, os, sys
 from pathlib import Path
 
-from infa2aidp.generators.code_validation import unresolved_names, abandoned_dataframes
+from infa2aidp.generators.code_validation import (
+    unresolved_names, abandoned_dataframes, hardcoded_credentials,
+)
 
 out = Path(os.environ.get("OUT", "/tmp/infa-aidp-demo")) / "notebooks"
 nbs = sorted(out.rglob("*.ipynb"))
@@ -80,6 +82,14 @@ for nb in nbs:
     #    a raw JDBC connection string.
     if "jdbc" in code.lower():
         bad.append(f"{nb.name}: JDBC string found in generated code")
+
+    # 1b. No credential literal -- password=/token= as a string, user:pass@
+    #     in a URL, an Authorization header. Credentials are read at runtime
+    #     (os.environ[...]); a literal is a secret written into a
+    #     deliverable. The finding names the line and shape, not the value.
+    leaks = hardcoded_credentials(code)
+    if leaks:
+        bad.append(f"{nb.name}: credential literal(s) in generated code -- {'; '.join(leaks)}")
 
     # 2. Generated code must actually be valid Python. A silent syntax
     #    error is the sharpest possible form of "hollow" -- worse than an

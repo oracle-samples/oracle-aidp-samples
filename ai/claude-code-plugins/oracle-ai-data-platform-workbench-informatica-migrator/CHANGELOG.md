@@ -51,6 +51,41 @@ packaged as a Claude Code plugin.
   the last, that the retry is bounded, and that a model which raises does not
   take the migration down.
 
+### Security
+
+- **The repository password no longer travels on the command line
+  (SEC-AIDP-SAMPLES-002).** `discover --password <value>` is refused with
+  exit code 2 and the message "Do not pass passwords in argv. Use
+  --password-file or INFA_PASSWORD." -- the flag is kept only so an old
+  command fails loudly instead of being re-parsed, and the value is never
+  stored or echoed. `--password-file <path>` is the file-based alternative:
+  on POSIX a group- or world-readable file is refused (mode & 0o077 must be
+  0); on Windows, where `st_mode` carries no such bits, the check is skipped
+  with a debug note rather than refusing every file. `INFA_PASSWORD` keeps
+  working. A host of the form `user:pass@host` is rejected, since it would
+  put the credential in every request URL and exception message.
+- **Diagnostics never carry the password.** Once resolved, the password is
+  redacted (`***`) from every log record -- message, arguments, exception
+  text -- so a library error that echoes a request URL or connection string
+  reaches the terminal without it, verbose or not. The connection config's
+  `repr` hides the password, the SOAP login no longer logs a session-id
+  prefix (a bearer credential), and every LoginRequest field is XML-escaped,
+  so a password containing `&` or `<` can neither break nor rewrite the
+  request. Success is reported as host, repository and the password's
+  *source* (`--password-file` / `INFA_PASSWORD`).
+- **Generated notebooks are gated on credential literals.** The read-back
+  validation that already catches notebooks which cannot run now also fails
+  one that embeds a credential: `password=`/`pwd=`/`token=`/`secret=`/
+  `api_key=` as a string literal (keyword, assignment, dict entry,
+  `.option()`/`.config()` pair), `user:pass@` or `jdbc:oracle:thin:user/pass@`
+  in a URL, `password=` in a connection string, an `Authorization:
+  Basic/Bearer` header. Runtime lookups (`os.environ[...]`, f-string holes,
+  secret-store calls) are not flagged. Such notebooks are listed in
+  `reports/broken_notebooks.md` by line and shape -- never by value --
+  the summary gains a `SECURITY:` line, `migrate` exits 1, and `demo.sh`'s
+  verify step fails. A REVIEW REQUIRED refusal is exempt from the cannot-run
+  rules but not from this one.
+
 ### Fixed
 
 - **The repository crawler verified no TLS certificate.** `requests.Session.verify`

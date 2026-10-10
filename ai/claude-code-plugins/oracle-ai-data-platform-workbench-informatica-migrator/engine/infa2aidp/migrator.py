@@ -71,6 +71,11 @@ class MigrationRunResult:
     # cannot run as written. A migrator defect, reported rather than
     # delivered silently.
     broken_notebooks: list = field(default_factory=list)
+    # [(notebook_path, [finding, ...])] -- the subset of broken_notebooks
+    # that embed a credential literal (password=, token=, user:pass@ in a
+    # URL, Authorization header). A secret in a deliverable, so `migrate`
+    # exits non-zero on it rather than merely reporting it.
+    credential_leaks: list = field(default_factory=list)
     # [(mapping, folder, written_as)] -- same folder AND same mapping name as
     # another in this run. Kept, suffixed, reported; never silently dropped.
     notebook_collisions: list = field(default_factory=list)
@@ -160,6 +165,13 @@ def format_run_summary(result: "MigrationRunResult") -> str:
             f"run as written -- see {os.path.join('reports', 'broken_notebooks.md')}. "
             f"This is a defect in the migrator, not in the export; the mapping(s) "
             f"need re-generating once it is fixed."
+        )
+    if getattr(result, "credential_leaks", None):
+        lines.append(
+            f"SECURITY: {len(result.credential_leaks)} generated notebook(s) embed a "
+            f"credential literal -- see {os.path.join('reports', 'broken_notebooks.md')}. "
+            f"Do not deploy them; credentials belong in the environment or a secret "
+            f"store (password=os.environ[...]), never in notebook source."
         )
     if getattr(result, "ddl_warnings", None):
         lines.append(
@@ -392,7 +404,9 @@ def _validate_generated(output_dir: str) -> list:
     """
     import ast as _ast
     import json as _json
-    from .generators.code_validation import abandoned_dataframes, unresolved_names
+    from .generators.code_validation import (
+        abandoned_dataframes, hardcoded_credentials, unresolved_names,
+    )
 
     broken = []
     for path in sorted(glob.glob(os.path.join(output_dir, "**", "*.ipynb"),
@@ -417,6 +431,7 @@ def _validate_generated(output_dir: str) -> list:
                             and "raise NotImplementedError" in code)
 
         problems = []
+        leaks: list = []
         try:
             _ast.parse(code)
         except SyntaxError as exc:
@@ -434,12 +449,29 @@ def _validate_generated(output_dir: str) -> list:
                     "prepared an input copy that is never read, so a join or "
                     f"route was dropped: {', '.join(orphaned)}"
                 )
-        if problems and not declared_refusal:
+            # A credential literal is not a "cannot run" defect -- the
+            # notebook runs fine, which is exactly the problem: a secret
+            # has been written into a deliverable. Reported through the
+            # same channel so it is in broken_notebooks.md, and tagged so
+            # run_migration can fail the run on it. The finding names the
+            # line and the shape, never the value.
+            leaks = hardcoded_credentials(code)
+            if leaks:
+                problems.append(f"{CREDENTIAL_PROBLEM}: {'; '.join(leaks)}")
+        # A declared refusal is exempt from the "cannot run" rules, but not
+        # from the credential rule: a REVIEW REQUIRED stub that also embeds
+        # a password is still a leaked password.
+        if problems and (not declared_refusal or leaks):
             broken.append((path, problems))
         elif problems and declared_refusal:
             # Still surfaced, but as what it is.
             pass
     return broken
+
+
+#: Prefix of the broken-notebook problem that reports a credential literal;
+#: run_migration splits those out into ``MigrationRunResult.credential_leaks``.
+CREDENTIAL_PROBLEM = "SECURITY: embeds credential literal(s)"
 
 
 def _emit_ddl(mapping, output_dir: str) -> list:
@@ -1022,6 +1054,11 @@ def run_migration(
     result.ddl_warnings = _ddl_warnings
     result.notebook_collisions = _nb_collisions
     result.broken_notebooks = _validate_generated(output_dir)
+    result.credential_leaks = [
+        (_p, [_pr for _pr in _probs if _pr.startswith(CREDENTIAL_PROBLEM)])
+        for _p, _probs in result.broken_notebooks
+        if any(_pr.startswith(CREDENTIAL_PROBLEM) for _pr in _probs)
+    ]
     if result.broken_notebooks:
         _report_dir = os.path.join(output_dir, "reports")
         os.makedirs(_report_dir, exist_ok=True)

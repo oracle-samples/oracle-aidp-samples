@@ -30,9 +30,15 @@ PYTHONPATH="${INFA_ENGINE:-$HOME/.aidp-infa-migrator/engine}" python3 -m infa2ai
   -o ./crawl_output
 ```
 
-`--user`/`--password`/`--repo`/`--domain` exist as flags but the
-environment variables are the recommended form; never ask the user to paste
-a password into chat.
+`--user`/`--repo`/`--domain` exist as flags but the environment variables
+are the recommended form; never ask the user to paste a password into chat.
+There is deliberately no working `--password` flag: passing one is refused
+with exit code 2 and the message "Do not pass passwords in argv. Use
+--password-file or INFA_PASSWORD." -- argv is visible in `ps`, shell history
+and CI logs. If the password cannot live in the environment, write it to a
+file only its owner can read (`chmod 600`) and pass `--password-file <path>`.
+Verbose output names the host, repository and the password's source, never
+the password itself.
 
 ## Flags
 
@@ -41,7 +47,7 @@ a password into chat.
 | `--host` | required | PowerCenter host |
 | `--port` | `6005` | |
 | `--user` | `INFA_USER` env var | |
-| `--password` | `INFA_PASSWORD` env var | |
+| `--password-file` | `INFA_PASSWORD` env var | Path of an owner-only (`chmod 600`) file holding the password; group/world-readable files are refused on POSIX (check skipped on Windows). `--password <value>` is refused outright. |
 | — | `INFA_CA_BUNDLE` / `INFA_TLS_VERIFY` env vars | TLS verification is on by default. Point `INFA_CA_BUNDLE` at a corporate CA bundle; set `INFA_TLS_VERIFY=0` only for a self-signed lab host. |
 | `--repo` | `INFA_REPO` env var | Repository name |
 | `--domain` | `INFA_DOMAIN` env var | |

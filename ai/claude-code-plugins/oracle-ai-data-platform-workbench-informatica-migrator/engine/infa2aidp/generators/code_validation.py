@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import builtins as _builtins
+import re
 
 # Names available in every generated notebook without an explicit binding
 # in the script itself: Python builtins, the two dunders the setup cell's
@@ -312,3 +313,126 @@ def abandoned_dataframes(code: str) -> list[str]:
     # reassignment (df = df.filter(...)) reads itself, so it is in `read`
     # already and will not be reported.
     return sorted(n for n in assigned if n not in read)
+
+
+# ── Credential literals ──────────────────────────────────────────────
+
+# An identifier -- keyword argument, assignment target, dict key, the key
+# of an .option()/.config()/setdefault() pair -- whose LAST segment names
+# a secret. The anchor is deliberate: ``password_env`` holds the NAME of a
+# variable and ``token_url`` an address, neither of which is a credential,
+# while ``ADW_PASSWORD``, ``client_secret``, ``access_token`` and
+# ``spark.sql.catalog.adw.password`` all are.
+_SECRET_NAME = re.compile(
+    r"(?i)(?:^|[_.])(?:password|passwd|pwd|secret|token|api_?key)$"
+)
+
+# A value that only LOOKS like a literal because the template left a hole
+# in it: ``{...}`` and ``${...}`` placeholders, ``<...>`` prompts, ``%s``.
+_NOT_A_PLACEHOLDER = r"[^\s;&\"'{}$<%]+"
+
+# Credential shapes that live INSIDE a string literal rather than beside
+# one: URLs and connection strings. Each pattern requires an actual value
+# after the separator, so the constant half of an f-string such as
+# ``"...;password="`` followed by a ``{os.environ[...]}`` hole never
+# matches.
+_CREDENTIAL_IN_STRING: tuple[tuple[str, "re.Pattern[str]"], ...] = (
+    ("URL embeds user:password@",
+     re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://[^\s/:@\"']+:[^\s/@\"']+@")),
+    ("JDBC thin URL embeds user/password@",
+     re.compile(r"(?i)jdbc:oracle:thin:[^@\s/\"']+/[^@\s\"']+@")),
+    ("connection string embeds password=",
+     re.compile(r"(?i)(?:^|[;?&,\s])(?:password|passwd|pwd)\s*=\s*" + _NOT_A_PLACEHOLDER)),
+    ("URL or connection string embeds token=/api_key=",
+     re.compile(r"(?i)(?:^|[;?&,\s])(?:access_token|auth_token|api_?key|token)\s*=\s*"
+                + _NOT_A_PLACEHOLDER)),
+    ("Authorization header literal",
+     re.compile(r"(?i)\bauthorization\b\s*[:=]\s*(?:basic|bearer)\s+[A-Za-z0-9._~+/=-]{8,}")),
+)
+_AUTH_HEADER_NAME = re.compile(r"(?i)^authorization$")
+_AUTH_HEADER_VALUE = re.compile(r"(?i)^(?:basic|bearer)\s+\S{8,}")
+
+
+def _str_const(node: ast.AST) -> "str | None":
+    """The value of a non-empty string constant, else None."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value:
+        return node.value
+    return None
+
+
+def _target_name(node: ast.expr) -> "str | None":
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def hardcoded_credentials(code: str) -> list[str]:
+    """Credential literals in generated code, one line per finding.
+
+    The generators write every credential as a runtime lookup --
+    ``password=os.environ["ADW_PASSWORD"]`` -- and a notebook is reviewed,
+    committed and deployed as a file, so a literal in its place is a secret
+    checked into the migration output. An LLM asked to "make it run" will
+    do exactly that, and nothing downstream would have noticed: the
+    notebook parses, every name resolves, and the write succeeds.
+
+    Flags, by shape:
+
+    - a keyword argument, assignment, dict entry or ``.option()``-style key
+      pair whose name ends in password/passwd/pwd/secret/token/api_key and
+      whose value is a non-empty string literal;
+    - a string literal that embeds credentials in a URL or connection
+      string (``user:pass@``, ``jdbc:oracle:thin:user/pass@``,
+      ``password=``/``pwd=``/``token=`` with a real value);
+    - an ``Authorization: Basic/Bearer <literal>`` header, as a string or
+      as a dict/header pair.
+
+    Runtime lookups (``os.environ[...]``, ``dbutils.secrets.get(...)``,
+    f-string holes) are not literals and are not flagged; an empty string
+    is not a credential either. Findings name the line and the shape --
+    never the value, since a validator that echoes the secret into
+    ``broken_notebooks.md`` has only moved the leak.
+    """
+    tree = ast.parse(code)
+    found: set[tuple[int, str]] = set()
+
+    def flag(node: ast.AST, what: str) -> None:
+        found.add((getattr(node, "lineno", 0), what))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.keyword):
+            if node.arg and _SECRET_NAME.search(node.arg) and _str_const(node.value):
+                flag(node.value, f"{node.arg}= is a string literal")
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if node.value is not None and _str_const(node.value):
+                for t in targets:
+                    name = _target_name(t)
+                    if name and _SECRET_NAME.search(name):
+                        flag(node, f"{name} is assigned a string literal")
+        elif isinstance(node, ast.Dict):
+            for k, v in zip(node.keys, node.values):
+                key, val = (_str_const(k) if k is not None else None), _str_const(v)
+                if not (key and val):
+                    continue
+                if _SECRET_NAME.search(key):
+                    flag(v, f'"{key}" key holds a string literal')
+                elif _AUTH_HEADER_NAME.match(key) and _AUTH_HEADER_VALUE.match(val):
+                    flag(v, "Authorization header literal")
+        elif isinstance(node, ast.Call):
+            consts = [_str_const(a) for a in node.args]
+            for key, val, val_node in zip(consts, consts[1:], node.args[1:]):
+                if not (key and val):
+                    continue
+                if _SECRET_NAME.search(key):
+                    flag(val_node, f'"{key}" is paired with a string literal')
+                elif _AUTH_HEADER_NAME.match(key) and _AUTH_HEADER_VALUE.match(val):
+                    flag(val_node, "Authorization header literal")
+        text = _str_const(node)
+        if text:
+            for what, pattern in _CREDENTIAL_IN_STRING:
+                if pattern.search(text):
+                    flag(node, what)
+    return [f"line {ln}: {what}" for ln, what in sorted(found)]
