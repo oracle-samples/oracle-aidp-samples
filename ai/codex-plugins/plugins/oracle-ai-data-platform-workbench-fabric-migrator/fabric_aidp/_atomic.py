@@ -31,6 +31,38 @@ def _temp_path(path: Path) -> Path:
         f".{path.name}.{os.getpid()}.{uuid.uuid4().hex[:_TOKEN_HEX]}.tmp")
 
 
+# Windows' ERROR_INVALID_NAME, and the longest name one path component may
+# have there. See _length_shaped.
+_WINDOWS_ERROR_INVALID_NAME = 123
+_WINDOWS_NAME_MAX = 255
+
+
+def _length_shaped(cause: OSError, temp: Path) -> bool:
+    """Whether `cause` is a length limit the temp name hit and the final clears.
+
+    Three spellings of one problem:
+
+      ENAMETOOLONG   POSIX, a name or path over the limit
+      ENOENT         Windows, the whole path over MAX_PATH (260): winerror 3
+                     or 206, both mapped to ENOENT
+      winerror 123   Windows, ONE name over 255 characters. CPython's
+                     PC/errmap.h does not list ERROR_INVALID_NAME, so it falls
+                     to the default and arrives as EINVAL -- "[Errno 22]
+                     Invalid argument". It is what a machine with long paths
+                     enabled reports, because there MAX_PATH no longer bites
+                     first, and it is why test_types failed on Windows in the
+                     oracle-samples review (#146).
+
+    123 also means an illegal character in a name, which is not a length
+    problem and must not be explained as one, so it counts only when the
+    temp name really is over 255 characters.
+    """
+    if cause.errno in (errno.ENAMETOOLONG, errno.ENOENT):
+        return True
+    return (getattr(cause, "winerror", None) == _WINDOWS_ERROR_INVALID_NAME
+            and len(temp.name) > _WINDOWS_NAME_MAX)
+
+
 def _temp_write_error(path: Path, temp: Path, cause: OSError) -> OSError:
     """Re-word a failure to create the temp file so it names the temp file.
 
@@ -45,7 +77,7 @@ def _temp_write_error(path: Path, temp: Path, cause: OSError) -> OSError:
     # by the time this fires.
     detail = (f"could not create the temporary file that writing "
               f"{path.name!r} goes through")
-    if cause.errno in (errno.ENAMETOOLONG, errno.ENOENT) and path.parent.is_dir():
+    if _length_shaped(cause, temp) and path.parent.is_dir():
         detail += (
             f". Its directory exists, and the temporary name is "
             f"{len(str(temp))} characters against the final path's "

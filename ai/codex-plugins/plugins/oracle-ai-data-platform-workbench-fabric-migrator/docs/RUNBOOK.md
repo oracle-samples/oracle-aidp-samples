@@ -443,12 +443,21 @@ Credentials come from flags, from `AIDP_WORKSPACE_KEY` / `AIDP_CLUSTER_KEY` /
 run in. **None are stored in this repository**, and a `.env` is gitignored —
 keep it that way.
 
-**A `.env` is read by every verb, not just `publish`.** Only keys beginning
-`AIDP_`, `OCI_` or `FABRIC_` are taken from it, and only when the variable is
-not already set, so a stray `PATH=` or `NODE_OPTIONS=` in that file cannot
-redirect the `aidp` CLI or the Node parser. `plan` reads `OCI_NAMESPACE` the
-same way — that is why a namespace set once in `.env` reaches steps 3 and 4
-without a flag.
+**A `.env` is read by every verb, not just `publish`.** It is treated as
+untrusted — it may sit in an export someone sent you — so it can set only
+these keys, and only when the variable is not already set in your shell:
+`AIDP_WORKSPACE_KEY`, `AIDP_CLUSTER_KEY`, `AIDP_INSTANCE_ID`, `OCI_NAMESPACE`,
+`OCI_CLI_PROFILE`, `OCI_CONFIG_PROFILE`.
+They choose among your own targets. Anything that changes where requests or
+credentials go — `AIDP_ENDPOINT`, `OCI_CONFIG_FILE`, `OCI_CLI_AUTH`,
+`OCI_CLI_REGION`, an `AIDP_SECRET_*` — is ignored with a warning naming the
+key, never the value (export it in your shell if you mean it), and a stray
+`PATH=` or `NODE_OPTIONS=` is ignored too. A `.env` that is a symbolic link,
+is owned by another user, or can be written by anyone else is not read at
+all; group-write is fine when the group is yours alone, as on Ubuntu and
+Fedora.
+`plan` reads `OCI_NAMESPACE` this way — that is why a namespace set once in
+`.env` reaches steps 3 and 4 without a flag.
 
 **Driving steps 2–6 from an MCP client instead of a shell.** The server
 (`fabric-aidp-mcp`, see README) runs the same CLI, with two differences that
@@ -458,7 +467,10 @@ that would leave it is refused before anything runs; set the root in the
 client's server config to the directory holding your export and `out/`. Set
 it always for a client other than Claude Code: those start the server in `/`,
 your home directory or their own install, and the server refuses such a
-default root rather than treat your whole home as the migration. The CLI
+default root rather than treat your whole home as the migration. In Codex,
+`export FABRIC_AIDP_WORK_ROOT=<migration dir>` before starting it: the plugin
+forwards that one variable, and nothing else from your shell reaches the
+server. The CLI
 runs *in* that root, so the `.env` it reads is the root's, and it gets only
 an allowlisted environment: `PATH`, `HOME`, locale, what Python needs,
 `OCI_CONFIG_FILE` / `OCI_CONFIG_PROFILE` / `OCI_CLI_PROFILE` / `OCI_CLI_AUTH` /

@@ -27,6 +27,7 @@ recursive-include scripts *.py
 recursive-include commands *.md
 recursive-include skills *.md
 include .mcp.json
+include .codex-mcp.json
 include .claude-plugin/*.json
 include .codex-plugin/*.json
 

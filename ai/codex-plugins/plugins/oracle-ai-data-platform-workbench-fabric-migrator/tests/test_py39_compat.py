@@ -40,7 +40,10 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SKIP_PARTS = {"node_modules", "__pycache__", "build", "dist"}
+# Generated or local, never shipped code: `make demo` writes migrated
+# notebooks (cell magics and all) to demo-output/. .gitignore names each.
+SKIP_PARTS = {"node_modules", "__pycache__", "build", "dist",
+              "demo-input", "demo-output", "out"}
 PY39 = (3, 9)
 
 # Names first available after 3.9, by module. ``from M import N`` and ``M.N``
@@ -435,6 +438,24 @@ class Py39CompatTests(unittest.TestCase):
         problems = _problems(ROOT / "tests" / "_m.py", match_stmt)
         self.assertEqual(len(problems), 1, problems)
         self.assertIn("does not parse as Python 3.9", problems[0])
+
+
+class WalkSkipsGeneratedOutputTests(unittest.TestCase):
+    """`make demo` writes migrated notebooks to `demo-output/`, and those
+    keep cell magics (`%%sql`) that no Python parses. The walk read them,
+    so the guard failed in every checkout that had run the demo -- on every
+    interpreter -- and passed in a fresh one. Every directory .gitignore
+    names is generated or local, never shipped code, so the walk skips it."""
+
+    def test_every_ignored_directory_is_skipped(self):
+        ignored = set()
+        for line in (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines():
+            name = line.strip().rstrip("/")
+            if not name or name.startswith(("#", "!", ".")) or any(c in name for c in "*?[/"):
+                continue
+            ignored.add(name)
+        self.assertIn("demo-output", ignored, "the .gitignore parse found nothing")
+        self.assertEqual(sorted(ignored - SKIP_PARTS), [])
 
 
 if __name__ == "__main__":
