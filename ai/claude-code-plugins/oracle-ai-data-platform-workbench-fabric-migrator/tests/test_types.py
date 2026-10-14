@@ -175,6 +175,48 @@ class TempWriteFailureTests(unittest.TestCase):
             self.assertIn("length limit that the final name clears", message)
             self.assertFalse(path.exists())
 
+    def _windows_invalid_name(self, name):
+        """What Windows raises for ERROR_INVALID_NAME: EINVAL, with the
+        Windows code on `winerror` -- set by hand, because only a Windows
+        build fills it in, and the point is to test this everywhere."""
+        cause = OSError(errno.EINVAL, "Invalid argument")
+        cause.winerror = 123
+        with TemporaryDirectory() as d:
+            path = Path(d) / name
+            with mock.patch.object(Path, "open", side_effect=cause):
+                with self.assertRaises(OSError) as caught:
+                    write_text_atomic(path, "x")
+            self.assertEqual([q.name for q in Path(d).iterdir()], [])
+        return caught.exception
+
+    def test_a_windows_name_over_255_characters_gets_the_explanation(self):
+        """The failure seen on Windows in the oracle-samples review (#146).
+        With long paths enabled MAX_PATH no longer bites first, so a temp
+        name over 255 characters fails as ERROR_INVALID_NAME, which CPython
+        maps to EINVAL -- and arrived as a bare "[Errno 22] Invalid
+        argument". The final name here is 248 characters, which Windows
+        takes; its temp name is not."""
+        error = self._windows_invalid_name("a" * 248)
+        self.assertEqual(error.errno, errno.EINVAL)
+        self.assertIn("length limit that the final name clears", str(error))
+
+    def test_a_windows_invalid_name_that_is_short_is_not_blamed_on_length(self):
+        """ERROR_INVALID_NAME also means an illegal character. A temp name
+        well under 255 characters cannot have hit the length limit."""
+        message = str(self._windows_invalid_name("report.json"))
+        self.assertIn("could not create the temporary file", message)
+        self.assertNotIn("length limit", message)
+
+    def test_a_posix_einval_is_not_blamed_on_length(self):
+        """No `winerror`, so not the Windows case, however long the name."""
+        with TemporaryDirectory() as d:
+            path = Path(d) / ("a" * 248)
+            with mock.patch.object(Path, "open",
+                                   side_effect=OSError(errno.EINVAL, "Invalid argument")):
+                with self.assertRaises(OSError) as caught:
+                    write_text_atomic(path, "x")
+        self.assertNotIn("length limit", str(caught.exception))
+
     def test_a_permission_failure_is_not_blamed_on_the_name_length(self):
         """Every OSError here names the temp file, but only a length-shaped
         one is explained as a length problem. Saying otherwise would move the
