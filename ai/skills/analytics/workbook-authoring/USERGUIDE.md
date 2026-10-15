@@ -22,16 +22,16 @@ This guide is for users who want to create or update Oracle Analytics workbooks 
 
 ## Install and update
 
-From the project where you want to use the skill, install it from the public Oracle Skills repository:
+From the project where you want to use the skill, install it from the published Oracle AIDP samples repository:
 
 ```bash
-npx skills add oracle/skills/analytics/workbook-authoring -a codex -y
+npx skills add oracle-samples/oracle-aidp-samples/ai/skills/analytics/workbook-authoring -a codex -y
 ```
 
 To install the Analytics router, which can route requests to workbook authoring and future Analytics skills, run:
 
 ```bash
-npx skills add oracle/skills/analytics -a codex -y
+npx skills add oracle-samples/oracle-aidp-samples/ai/skills/analytics -a codex -y
 ```
 
 Update a project-scoped installation with:
@@ -41,6 +41,8 @@ npx skills update workbook-authoring -p -y
 ```
 
 If the installation predates automatic skill-path tracking or cannot be updated automatically, rerun the `npx skills add` command. The installed skill includes its tools and compatibility profiles; no ZIP extraction or manual asset copy is required.
+
+The installation commands above use the published AIDP mirror. If an existing installation tracks a different repository, rerun the corresponding `skills add` command to select this source before using `skills update`.
 
 ## Choosing compatibility
 

@@ -27,16 +27,16 @@ End users should start with `USERGUIDE.md` for outcome-focused usage instruction
 
 ## Installation
 
-From the project where you want to use the skill, install it from the public Oracle Skills repository:
+From the project where you want to use the skill, install it from the published Oracle AIDP samples repository:
 
 ```bash
-npx skills add oracle/skills/analytics/workbook-authoring -a codex -y
+npx skills add oracle-samples/oracle-aidp-samples/ai/skills/analytics/workbook-authoring -a codex -y
 ```
 
 To install the Analytics router, which can route requests to workbook authoring and future Analytics skills, run:
 
 ```bash
-npx skills add oracle/skills/analytics -a codex -y
+npx skills add oracle-samples/oracle-aidp-samples/ai/skills/analytics -a codex -y
 ```
 
 Update a project-scoped installation with:
@@ -46,6 +46,8 @@ npx skills update workbook-authoring -p -y
 ```
 
 If the installation predates automatic skill-path tracking or cannot be updated automatically, rerun the `npx skills add` command. The installed skill is self-contained and includes `tools/`, `compatibility-profiles.json`, and every supported profile under `compatibility-profiles/`; no ZIP extraction or manual asset copy is required.
+
+The installation commands above use the published AIDP mirror. If an existing installation tracks a different repository, rerun the corresponding `skills add` command to select this source before using `skills update`.
 
 ### Selecting compatibility after install
 
@@ -105,12 +107,12 @@ If the installation predates automatic skill-path tracking or cannot be updated 
 `tools/score-dv-intelligence.mjs` computes advisory DV Intelligence scoring (`dvIntelligenceSummary`) from workbook evidence and profile-based weighted dimensions.
 Runtime validation check includes a schema-acceptance gate and strips known-safe internal trace keys from workbook payload before save.
 
-The following command examples assume the current directory is the installed workbook-authoring skill root.
+In every command below, replace `<WB_SKILL_ROOT>` with the absolute directory containing the active workbook-authoring `SKILL.md` and its `tools/` directory. Quote paths containing spaces; commands do not require changing the working directory.
 
 Canonical regenerate command:
 
 ```bash
-node tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--output <workbook.json>]
+node <WB_SKILL_ROOT>/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--output <workbook.json>]
 ```
 
 Driver contract files:
@@ -151,13 +153,13 @@ Recommend providing `analysisShape.canvases[].name` during initial generation wh
 Canonicalization + semantic validation check sequence:
 
 ```bash
-node tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"] --apply-known-patches --in-place
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"] --apply-known-patches --in-place
 ```
 
 Then run strict semantic validation:
 
 ```bash
-node tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"]
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"]
 ```
 
 If validation check returns `INPUT_ARTIFACT_NOT_READY`, generation/check ordering was violated or the file was still incomplete. Rerun the validation check after generation completes.
@@ -167,7 +169,7 @@ Pass `--compatibility-target` only for explicit user intent and `--server-projec
 Patch + retry preparation:
 
 ```bash
-node tools/runtime-validation-check.mjs \
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs \
   --input <workbook.json> \
   --target-version "<YY.MM>" \
   --discovery-method "<search_catalog|discover_data>" \
@@ -183,7 +185,7 @@ node tools/runtime-validation-check.mjs \
 Modify-mode deterministic mutation:
 
 ```bash
-node tools/modify-workbook.mjs \
+node <WB_SKILL_ROOT>/tools/modify-workbook.mjs \
   --input <workbook.json> \
   --authoring-mode modify_existing \
   --operation add_filter_bar_filter \

@@ -84,7 +84,7 @@
       "schemaIdPattern": "http://oracle.com/bi/workbook/{VERSION}/viewConfig",
       "versionField": "_version",
       "supportedVersions": [
-        "1.1.87"
+        "1.1.88"
       ]
     },
     {

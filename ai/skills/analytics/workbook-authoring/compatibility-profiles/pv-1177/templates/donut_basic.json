@@ -138,7 +138,7 @@
                 "pluginType": "oracle.bi.tech.chart.donut",
                 "viewName": "view!1",
                 "viewConfig": {
-                    "_version": "1.1.87",
+                    "_version": "1.1.88",
                     "settings": {
                         "oracle.bi.tech.table": {
                             "_version": "1.0.1",

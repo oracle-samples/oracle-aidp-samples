@@ -31,9 +31,7 @@
       "maximumServerProjectVersion": 1176,
       "releaseAliases": [
         "26.09"
-      ],
-      "sourceRevision": "bdca113bc2a55a92ee5f70c9a37fc747b772c9ad",
-      "maintenanceSourceBranch": "version_26_09_50"
+      ]
     },
     {
       "id": "pv-1177",

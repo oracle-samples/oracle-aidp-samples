@@ -6833,7 +6833,7 @@ const requestPathArg = getArg('--request');
 if (!requestPathArg) {
    fail(
       'INVALID_REQUEST_CONTRACT',
-      'Usage: node .workbook-authoring/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target <auto|legacy|standard|baseline|current|pv-N>] [--server-project-version <N>] [--server-info-file <server-info.json>] [--server-info-unavailable-reason <reason>] [--target-version <deprecated YY.MM alias>] [--output <workbook.json>] [--viz-resolution-profiles <file>] [--schema-registry-profile <file>] [--schema-dir <dir>]'
+      'Usage: node <WB_SKILL_ROOT>/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target <auto|legacy|standard|baseline|current|pv-N>] [--server-project-version <N>] [--server-info-file <server-info.json>] [--server-info-unavailable-reason <reason>] [--target-version <deprecated YY.MM alias>] [--output <workbook.json>] [--viz-resolution-profiles <file>] [--schema-registry-profile <file>] [--schema-dir <dir>]'
    );
 }
 

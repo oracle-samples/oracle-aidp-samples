@@ -4,7 +4,9 @@ This guide defines deterministic workbook authoring that targets runtime-valid p
 
 ## 1) Required source artifacts
 
-Resolve `<PROFILE_ROOT>` from `compatibility-profiles.json` as `compatibility-profiles/<PROFILE_ID>`.
+Resolve `<WB_SKILL_ROOT>` as the absolute directory containing the active workbook-authoring `SKILL.md` and its `tools/` directory. Replace that placeholder in command examples and quote paths containing spaces; do not assume a `.workbook-authoring/` directory under the current working directory.
+
+Resolve `<PROFILE_ROOT>` as `<WB_SKILL_ROOT>/compatibility-profiles/<PROFILE_ID>` using `<WB_SKILL_ROOT>/compatibility-profiles.json`.
 
 1. `<PROFILE_ROOT>/model/metadata-to-json-mapping.v1.json`
 2. `<PROFILE_ROOT>/model/filter-profiling-contracts.v1.json`
@@ -58,7 +60,7 @@ Resolve `<PROFILE_ROOT>` from `compatibility-profiles.json` as `compatibility-pr
 Use the bundled canonical regenerate driver as the default implementation path:
 
 ```bash
-node .workbook-authoring/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--output <workbook.json>]
+node <WB_SKILL_ROOT>/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--output <workbook.json>]
 ```
 
 The request payload must satisfy `<PROFILE_ROOT>/model/regenerate-workbook-contract.v1.json`, and `adapterPayload` must satisfy `<PROFILE_ROOT>/model/regenerate-workbook-adapter-contract.v1.json`.
@@ -287,7 +289,7 @@ Use `<PROFILE_ROOT>/templates/bar_with_canvas_filter_control.json` as canonical 
 Canonical regenerate driver (recommended):
 
 ```bash
-node .workbook-authoring/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--output <workbook.json>]
+node <WB_SKILL_ROOT>/tools/regenerate-workbook.mjs --request <request.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--output <workbook.json>]
 ```
 
 Manual runtime-validation-check commands remain available for patch/retry workflows and direct debugging:
@@ -295,19 +297,19 @@ Manual runtime-validation-check commands remain available for patch/retry workfl
 Canonicalization validation check:
 
 ```bash
-node .workbook-authoring/tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--oac-mcp-connected "<true|false>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"] --apply-known-patches --in-place
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--oac-mcp-connected "<true|false>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"] --apply-known-patches --in-place
 ```
 
 Then run strict semantic validation check:
 
 ```bash
-node .workbook-authoring/tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--oac-mcp-connected "<true|false>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"]
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs --input <workbook.json> [--compatibility-target "<auto|legacy|standard|baseline|current|pv-N>"] [--server-project-version "<N>"] [--server-info-file <server-info.json>] [--target-version "<deprecated YY.MM alias>"] [--oac-mcp-connected "<true|false>"] --requested-plugin-type "<pluginType>" --discovery-method "<search_catalog|discover_data>" --save-available "<true|false>" --export-available "<true|false>" [--export-requested "<true|false>"]
 ```
 
 Modify-mode semantic validation check:
 
 ```bash
-node .workbook-authoring/tools/runtime-validation-check.mjs \
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs \
   --input <workbook.json> \
   --server-info-file <server-info.json> \
   --discovery-method "<search_catalog|discover_data>" \
@@ -331,7 +333,7 @@ Validation Check enforces schema-acceptance checks and strips known-safe interna
 Known-error patch prep (after save/runtime error text):
 
 ```bash
-node .workbook-authoring/tools/runtime-validation-check.mjs \
+node <WB_SKILL_ROOT>/tools/runtime-validation-check.mjs \
   --input <workbook.json> \
   --server-info-file <server-info.json> \
   --discovery-method "<search_catalog|discover_data>" \

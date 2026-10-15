@@ -691,6 +691,15 @@ define( function () {
             },
             "allowSameOrigin": {
                "type": "boolean"
+            },
+            "allowDownloads": {
+               "type": "boolean"
+            },
+            "allowPopups": {
+               "type": "boolean"
+            },
+            "allowModals": {
+               "type": "boolean"
             }
          },
          "additionalProperties": false

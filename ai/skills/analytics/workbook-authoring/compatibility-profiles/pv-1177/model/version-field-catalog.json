@@ -42,7 +42,7 @@
             "id": "viewConfig",
             "jsonPathPattern": "^/views/children/\\d+/viewConfig$",
             "versionField": "_version",
-            "defaultValue": "1.1.87"
+            "defaultValue": "1.1.88"
         },
         {
             "id": "logicalDataModel",
@@ -81,7 +81,7 @@
     "defaults": {
         "logicalDataModel": "1.0.0",
         "logicalDataModelSettings": "2.0.0",
-        "viewConfig": "1.1.87",
+        "viewConfig": "1.1.88",
         "canvasConfig": "1.0.6",
         "criteriaConfig": "1.0.2",
         "reportConfig": "1.0.9",

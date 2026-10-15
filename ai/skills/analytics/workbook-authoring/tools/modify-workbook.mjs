@@ -26,7 +26,7 @@ function failUsage(message) {
 const inputPath = getArg('--input');
 if (!inputPath) {
    failUsage(
-      'Usage: node .workbook-authoring/tools/modify-workbook.mjs --input <workbook.json> ' +
+      'Usage: node <WB_SKILL_ROOT>/tools/modify-workbook.mjs --input <workbook.json> ' +
       '--operation <edit_filter_values_or_operator|add_filter_bar_filter|edit_titles> --source-mode <catalog_read|session_fast_path> ' +
       '--resolved-workbook-id <id> --confirmation-state <confirmed|pending> ' +
       '[--authoring-mode <generate_fresh|modify_existing>] [--edit-spec-file <file> | --edit-spec-json "<json>"] ' +

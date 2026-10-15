@@ -86,7 +86,7 @@
                 "pluginType": "oracle.bi.tech.ngperformancetile",
                 "viewName": "view!1",
                 "viewConfig": {
-                    "_version": "1.1.87",
+                    "_version": "1.1.88",
                     "settings": {
                         "viz:common": {
                             "isAutoViewSuggestEnabled": "true"
