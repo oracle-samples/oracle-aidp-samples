@@ -1,0 +1,4 @@
+# Nothing is required on AIDP: the demos run on the cluster's own runtime.
+# This file covers only the local, offline conformance tests in
+# test_medallion_ddl_conformance.py, which parse the notebook JSON and need no Spark.
+pytest
