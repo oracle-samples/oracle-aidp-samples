@@ -14,6 +14,7 @@ The catch-all skill for any DB with a JDBC driver. Skips the AIDP `aidataplatfor
 - Mentioned: "custom JDBC", "JDBC driver", "any JDBC".
 
 ## When NOT to use
+- For Google BigQuery / GBQ on AIDP 5.1+ → [`aidp-google-bigquery`](../aidp-google-bigquery/SKILL.md). Use the built-in read-only connector and its service-account contract rather than loading a separate JDBC driver.
 - For Postgres / MySQL / SQL Server / Oracle → use the dedicated skill. The `aidataplatform` format gives the connector pushdown and connection pooling that this skill doesn't.
 - For Snowflake → [`aidp-snowflake`](../aidp-snowflake/SKILL.md). The Spark connector is much better than raw JDBC.
 
