@@ -1,6 +1,6 @@
 ---
 name: aidp-connectors-overview
-description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 26 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, Db2, SQL Server, Azure SQL, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
+description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 27 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, Db2, SQL Server, Azure SQL, Hive, Snowflake, Google BigQuery, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
 allowed-tools: Read
 ---
 
@@ -16,7 +16,7 @@ allowed-tools: Read
 
 ## How to route
 
-**Before any connector skill works**, the helper package must be uploaded to the user's AIDP workspace. If the user hasn't done this yet (or you see `ModuleNotFoundError: oracle_ai_data_platform_connectors` in any prior cell), invoke [`aidp-connectors-bootstrap`](../aidp-connectors-bootstrap/SKILL.md) first. It uses the AIDP MCP tools to push the package into `/Workspace/Shared/` and runs a sanity-import notebook.
+**For examples that import `oracle_ai_data_platform_connectors`**, the helper package must be uploaded to the user's AIDP workspace. If the user hasn't done this yet (or you see `ModuleNotFoundError: oracle_ai_data_platform_connectors` in any prior cell), invoke [`aidp-connectors-bootstrap`](../aidp-connectors-bootstrap/SKILL.md) first. The bootstrap skill uses the AIDP MCP tools to push the package into `/Workspace/Shared/` and runs a sanity-import notebook. Direct built-in `aidataplatform` examples, including the GBQ public notebook, do not require this helper upload.
 
 Otherwise, pick the right skill from this table and **invoke that skill**. Don't re-write its content here.
 
@@ -60,6 +60,7 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 | User says... | Use skill |
 |---|---|
 | "Snowflake", "sfUrl", "sfWarehouse" | [`aidp-snowflake`](../aidp-snowflake/SKILL.md) |
+| "Google BigQuery", "BigQuery", "GBQ", `type=GOOGLE_BIGQUERY` | [`aidp-google-bigquery`](../aidp-google-bigquery/SKILL.md) — read-only ingestion and external catalogs |
 | "ADLS", "Azure Data Lake", "abfss" | [`aidp-azure-adls`](../aidp-azure-adls/SKILL.md) |
 | "S3", "AWS S3", "s3a" | [`aidp-aws-s3`](../aidp-aws-s3/SKILL.md) |
 | "Generic REST", "manifest URL", "manifest.path", REST endpoint with manifest schema | [`aidp-rest-generic`](../aidp-rest-generic/SKILL.md) |

@@ -1,7 +1,7 @@
 {
   "name": "oracle-ai-data-platform-workbench-spark-connectors",
-  "version": "0.7.0",
-  "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 26 connector skills covering Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including dedicated DB2 and Azure SQL guidance.",
+  "version": "0.8.0",
+  "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 27 connector skills covering Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including dedicated DB2 and Azure SQL guidance. Includes Google BigQuery read-only ingestion and external-catalog guidance.",
   "author": {
     "name": "Oracle AI Data Platform",
     "url": "https://github.com/oracle-samples/oracle-aidp-samples"
@@ -42,6 +42,8 @@
     "salesforce",
     "hive",
     "pushdown",
-    "catalog"
+    "catalog",
+    "bigquery",
+    "google-bigquery"
   ]
 }

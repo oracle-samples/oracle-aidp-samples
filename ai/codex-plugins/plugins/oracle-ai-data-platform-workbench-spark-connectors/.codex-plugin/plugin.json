@@ -1,7 +1,7 @@
 {
   "name": "oracle-ai-data-platform-workbench-spark-connectors",
-  "version": "0.7.0",
-  "description": "Oracle AI Data Platform Workbench Spark connectors for Codex. Includes 26 connector skills for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including DB2 guidance.",
+  "version": "0.8.0",
+  "description": "Oracle AI Data Platform Workbench Spark connectors for Codex. Includes 27 connector skills for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including DB2 guidance. Includes Google BigQuery read-only ingestion and external-catalog guidance.",
   "author": {
     "name": "Oracle AI Data Platform",
     "url": "https://github.com/oracle-samples/oracle-aidp-samples"
@@ -42,13 +42,15 @@
     "salesforce",
     "hive",
     "pushdown",
-    "catalog"
+    "catalog",
+    "bigquery",
+    "google-bigquery"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Oracle AIDP Spark Connectors",
     "shortDescription": "Spark connector skills for Oracle AI Data Platform Workbench.",
-    "longDescription": "Connect Oracle AI Data Platform Workbench Spark notebooks to Oracle Autonomous Database, ExaCS, Fusion, BICC, EPM, Essbase, OCI Streaming, Object Storage, Iceberg, PostgreSQL, MySQL, SQL Server, Hive, Salesforce, Snowflake, Azure ADLS Gen2, AWS S3, generic REST, custom JDBC, Excel, and related sources. The plugin provides model-invokable skills, helper code, examples, and tests for producing notebook-ready Spark, JDBC, REST, streaming, and file access snippets.",
+    "longDescription": "Connect Oracle AI Data Platform Workbench Spark notebooks to Oracle Autonomous Database, ExaCS, Fusion, BICC, EPM, Essbase, OCI Streaming, Object Storage, Iceberg, PostgreSQL, MySQL, SQL Server, Hive, Salesforce, Snowflake, Google BigQuery, Azure ADLS Gen2, AWS S3, generic REST, custom JDBC, Excel, and related sources. The plugin provides model-invokable skills, helper code, examples, and tests for producing notebook-ready Spark, JDBC, REST, streaming, and file access snippets.",
     "developerName": "Oracle AI Data Platform",
     "category": "Data",
     "capabilities": [

@@ -14,6 +14,11 @@ All notable changes to this plugin are documented here. The format follows [Keep
 - Security: the `aidp-aws-s3` and `aidp-postgresql` skills verify the SHA-256 of the
   runtime-loaded JARs.
 
+## [0.8.0] — 2026-10-19
+
+- Added `aidp-google-bigquery` for read-only AIDP 5.1 ingestion and external-catalog access with the Progress driver, service-account secrets, SQL pushdown and `catalog.id`.
+- Updated connector routing, helper supported-type documentation, plugin metadata and README discovery. Shared skills are synchronized across Codex and Claude Code.
+
 ## [0.7.0] — 2026-08-21
 
 - Added `aidp-db2` for the dedicated `DB2` AIDP connector, with ingestion read/write and `pushdown.sql` patterns. DB2 external-catalog access is explicitly excluded from the 4.1 release.

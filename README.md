@@ -80,7 +80,7 @@ Patterns for connecting to and loading data from a wide range of sources.
 |---|---|
 | [Read/Write Oracle Ecosystem Connectors](data-engineering/ingestion/Read_Write_Oracle_Ecosystem_Connectors.ipynb) | Connect to Oracle Database, Oracle Exadata, ALH, and ATP with external catalog support and SQL pushdown. |
 | [Read/Write External Ecosystem Connectors](data-engineering/ingestion/Read_Write_External_Ecosystem_Connectors/) | Per-database read/write ingestion notebooks — Apache Hive Metastore, Microsoft SQL Server, Azure SQL, PostgreSQL, MySQL, and IBM Db2 (4.1) — each with SQL pushdown and a connector-options reference. |
-| [Read-Only Ingestion Connectors](data-engineering/ingestion/Read_Only_Ingestion_Connectors.ipynb) | Use read-only connectors for MySQL HeatWave, REST APIs, Oracle Fusion BICC, Apache Kafka, and other sources. |
+| [Read-Only Ingestion Connectors](data-engineering/ingestion/Read_Only_Ingestion_Connectors/) | Use read-only connectors for Google BigQuery, MySQL HeatWave, REST APIs, Oracle Fusion BICC, Apache Kafka, and other sources. |
 | [Google BigQuery](data-engineering/ingestion/Read_Only_Ingestion_Connectors/Google_BigQuery.ipynb) | Read BigQuery tables and views using service-account authentication, SQL pushdown, partitioned reads, and external catalogs. |
 | [Connect Using Custom JDBC Driver](data-engineering/ingestion/Connect_Using_Custom_JDBC_Driver.ipynb) | Integrate custom JDBC drivers (e.g., SQLite, Snowflake) with Spark for connecting to databases not bundled by default. |
 | [Execute Oracle ALH SQL](data-engineering/ingestion/Execute%20Oracle%20ALH%20SQL.ipynb) | Execute SQL statements directly against Oracle ALH using the `oracledb` Python package. |

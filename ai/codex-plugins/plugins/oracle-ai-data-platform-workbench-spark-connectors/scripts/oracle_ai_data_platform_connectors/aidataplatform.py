@@ -23,6 +23,7 @@ oracle-aidp-samples repo):
 * ``SQLSERVER``          — Microsoft SQL Server
 * ``AZURE_SQLSERVER``    — Azure SQL Database
 * ``DB2``                — IBM DB2 (read-write ingestion)
+* ``GOOGLE_BIGQUERY``    — Google BigQuery (read-only ingestion / external catalog)
 * ``SNOWFLAKE``          — Snowflake (read-only)
 * ``KAFKA``              — Kafka via the format-handler shape
 * ``FUSION_BICC``        — Fusion BICC bulk extracts

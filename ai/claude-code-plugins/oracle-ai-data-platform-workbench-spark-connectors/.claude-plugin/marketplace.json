@@ -5,14 +5,14 @@
     "url": "https://github.com/oracle-samples/oracle-aidp-samples"
   },
   "metadata": {
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "Single-plugin marketplace for the Oracle AI Data Platform Workbench Spark Connectors Claude Code plugin."
   },
   "plugins": [
     {
       "name": "oracle-ai-data-platform-workbench-spark-connectors",
-      "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 26 connector skills covering Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including dedicated DB2 and Azure SQL guidance.",
-      "version": "0.7.0",
+      "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 27 connector skills covering Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including dedicated DB2 and Azure SQL guidance. Includes Google BigQuery read-only ingestion and external-catalog guidance.",
+      "version": "0.8.0",
       "source": "./",
       "category": "data",
       "keywords": [
@@ -48,7 +48,9 @@
         "salesforce",
         "hive",
         "pushdown",
-        "catalog"
+        "catalog",
+        "bigquery",
+        "google-bigquery"
       ]
     }
   ]
