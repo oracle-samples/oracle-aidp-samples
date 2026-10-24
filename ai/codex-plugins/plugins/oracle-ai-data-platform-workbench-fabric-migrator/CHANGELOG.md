@@ -1,6 +1,74 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.1 — 2026-10-21
+
+Security and launcher fixes on top of the 0.1.0 plugins published to
+oracle-samples. No verb gains, loses or renames an argument.
+
+### Security
+
+- **The MCP server contains the CLI it runs** (security review
+  SEC-AIDP-SAMPLES-004): every path argument resolves under
+  `FABRIC_AIDP_WORK_ROOT` (default: the directory the server started in,
+  refused when that is a filesystem anchor or the home directory — clients
+  other than Claude Code start servers there) and a `..` escape or an
+  absolute path outside it is refused before the CLI runs, naming the
+  resolved root; a bare artifact name goes to a per-session
+  `fabric-aidp-runs/<utc-time>-<pid>/` directory so sessions do not collide
+  (`./inv.json` names the root itself), and each result starts with the root
+  and the resolved paths. A Windows `\\?\` prefix on a path inside the root
+  is accepted. The CLI runs in the work root with an allowlisted environment
+  — `PATH`, `HOME`, locale, the Python and Windows variables it needs, the
+  `OCI_*` selectors, `AIDP_WORKSPACE_KEY` and `AIDP_CLUSTER_KEY` by name — so
+  a `GITHUB_TOKEN`, `AWS_SECRET_ACCESS_KEY` or `AIDP_SECRET_*` in the
+  client's shell never reaches it. `publish` over MCP stays a dry run with no
+  `apply`; `--apply` is CLI-only.
+
+### Fixed
+
+- **A `.env` could redirect where requests and credentials go.** The loader
+  took any `AIDP_`/`OCI_`/`FABRIC_` key from the `.env` in the working
+  directory, and those values also reach the `aidp` CLI `publish` runs, so a
+  planted `AIDP_ENDPOINT` or `OCI_CONFIG_FILE` -- in an export someone sent
+  you -- would have been honoured (flagged, unfixed, in the oracle-samples
+  security review #146). A `.env` may now set only `AIDP_WORKSPACE_KEY`,
+  `AIDP_CLUSTER_KEY`, `AIDP_INSTANCE_ID`, `OCI_NAMESPACE`, `OCI_CLI_PROFILE`
+  and `OCI_CONFIG_PROFILE`; other keys of ours are ignored with a warning
+  naming the key, never its value. `OCI_CLI_AUTH` and `OCI_CLI_REGION` are
+  among them: a planted `OCI_CLI_AUTH=instance_principal` would make
+  `publish --apply` act as an OCI host's own identity. On Linux and macOS a
+  `.env` that is a symbolic link, is owned by another user, or can be
+  written by anyone else is not read; group-write is accepted when the group
+  is the user's alone, so the `-rw-rw-r--` files Ubuntu and Fedora create
+  are read. The check judges the file it reads, opened once. A shell value
+  is still never overridden.
+
+- **The Codex plugin's MCP server never started.** Its `.mcp.json` set
+  `PYTHONPATH` to `${CLAUDE_PLUGIN_ROOT}` (later `${PLUGIN_ROOT}`), and Codex
+  expands neither: the server got the literal text and could not find the
+  package. Codex now has its own config, `.codex-mcp.json`, named by
+  `.codex-plugin/plugin.json`, which starts the server inside the plugin
+  folder and forwards `FABRIC_AIDP_WORK_ROOT`. Claude Code keeps `.mcp.json`.
+  Launched by Codex with no work root, the server refuses rather than use its
+  own install folder: set `FABRIC_AIDP_WORK_ROOT` before starting Codex.
+
+- **A Windows name over 255 characters was not explained.** Windows reports
+  it as `EINVAL` (error 123), not `ENAMETOOLONG`, so the "name too long"
+  message never fired and the bare OS error was shown. It is now explained
+  when the name is over 255 characters; a short invalid name is not blamed
+  on length.
+
+### Changed
+
+- Trademark notices and wording follow the vendors' published guidelines
+  (oracle-samples #137, #138): NOTICE ends with a Trademarks block, the
+  vendored Microsoft fixtures carry Microsoft's trademark sentence, and the
+  marketplace entry is named "Oracle AIDP Migrator for Microsoft Fabric".
+
+## 0.1.0 — 2026-10-02
+
+Published as the Claude Code and Codex plugins in oracle-samples
+(oracle-aidp-samples #124, #125).
 
 First release. Nothing has been published to an index yet, so there is no
 upgrade note for an installed copy: everything below is new. One change does
@@ -76,22 +144,6 @@ break a script written against a development checkout, and is listed first.
 - Bundled demo estate (`--fixture demo`) and a staged 106-asset demo input built
   from it plus 78 permissively-licensed third-party artifacts.
 - MCP server (`fabric-aidp-mcp`, `pip install -e '.[mcp]'`, Python 3.10+).
-  The server, not the tool call, contains the CLI it runs (security review
-  SEC-AIDP-SAMPLES-004): every path argument resolves under
-  `FABRIC_AIDP_WORK_ROOT` (default: the directory the server started in,
-  refused when that is a filesystem anchor or the home directory — clients
-  other than Claude Code start servers there) and a `..` escape or an
-  absolute path outside it is refused before the CLI runs, naming the
-  resolved root; a bare artifact name goes to a per-session
-  `fabric-aidp-runs/<utc-time>-<pid>/` directory so sessions do not collide
-  (`./inv.json` names the root itself), and each result starts with the root
-  and the resolved paths. A Windows `\\?\` prefix on a path inside the root
-  is accepted. The CLI runs in the work root with an allowlisted environment
-  — `PATH`, `HOME`, locale, the Python and Windows variables it needs, the
-  `OCI_*` selectors, `AIDP_WORKSPACE_KEY` and `AIDP_CLUSTER_KEY` by name — so
-  a `GITHUB_TOKEN`, `AWS_SECRET_ACCESS_KEY` or `AIDP_SECRET_*` in the
-  client's shell never reaches it. `publish` over MCP stays a dry run with no
-  `apply`; `--apply` is CLI-only.
 - Claude Code plugin: five commands, one skill, `.mcp.json`.
 - Agent Plugins 1.0.0 manifest for Codex under `.codex-plugin/`, exposing the
   skill only — Codex has no commands concept.
