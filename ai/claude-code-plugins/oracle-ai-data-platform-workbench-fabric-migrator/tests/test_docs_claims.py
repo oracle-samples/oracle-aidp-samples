@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import fabric_aidp
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -156,10 +158,69 @@ class SkillClaimTests(unittest.TestCase):
         self.assertIn("control flow outside the list reads as clean",
                       self.lower)
 
+class InstallUpgradesPipFirstTests(unittest.TestCase):
+    """MEASURED 2026-10-13: this project is configured only by
+    pyproject.toml, and pip 21.2.4 -- what macOS's built-in Python 3.9.6
+    ships, and what a venv made from it starts with -- refuses `pip install
+    -e .` ("File setup.py or setup.cfg not found"). pip 21.3 installs it.
+    `make setup` upgrades pip first; every other documented editable
+    install has to as well, or it fails on a stock Mac."""
+
+    def _assert_upgrade_precedes_editable(self, text, where):
+        # Flags may sit between `install` and the part that matters:
+        # the Makefile says `pip install --quiet -e .`.
+        editable = re.search(r"pip install (?:--\S+ )*-e ", text)
+        self.assertIsNotNone(editable, f"no editable install in {where}")
+        upgrade = re.search(r"pip install (?:--\S+ )*--upgrade pip", text)
+        self.assertIsNotNone(upgrade, f"{where} never upgrades pip")
+        self.assertLess(upgrade.start(), editable.start(),
+                        f"{where} upgrades pip only after the editable install")
+
+    def test_the_skill_upgrades_pip_before_installing(self):
+        text = (ROOT / "skills" / "fabric-aidp-migrator" / "SKILL.md").read_text(encoding="utf-8")
+        self._assert_upgrade_precedes_editable(text, "SKILL.md")
+        self.assertIn("21.3", text)
+
+    def test_the_readme_windows_steps_upgrade_pip_before_installing(self):
+        # The whole fenced block holding the Windows steps. A fixed-length
+        # slice broke on any README edit that lengthened a line above the
+        # install (review of oracle-samples #152).
+        text = (ROOT / "README.md").read_text(encoding="utf-8")
+        venv = text.index("py -m venv .venv")
+        block = text[text.rindex("```", 0, venv):text.index("```", venv)]
+        self._assert_upgrade_precedes_editable(block, "the README's Windows steps")
+
+    def test_the_windows_check_reads_the_block_not_a_slice(self):
+        source = (ROOT / "tests" / "test_docs_claims.py").read_text(encoding="utf-8")
+        start = source.index("def test_the_readme_windows_steps_upgrade_pip_before_installing")
+        body = source[start:source.index("def test_the_windows_check_reads", start)]
+        self.assertNotRegex(body, r"\+ ?\d{2,}\]")
+
+    def test_the_skill_names_the_python_dash_m_fallback(self):
+        """The fallback exists (fabric_aidp/__main__.py) only if an agent
+        that hits "command not found" is told about it."""
+        text = (ROOT / "skills" / "fabric-aidp-migrator" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("python3 -m fabric_aidp", text)
+        self.assertTrue((ROOT / "fabric_aidp" / "__main__.py").is_file())
+
+    def test_make_setup_upgrades_pip_before_installing(self):
+        text = (ROOT / "Makefile").read_text(encoding="utf-8")
+        self._assert_upgrade_precedes_editable(text[text.index("\nsetup:"):],
+                                               "make setup")
+
+
 class SupportingDocTests(unittest.TestCase):
     def test_changelog_exists_and_names_the_version(self):
+        """The top section is the version the package and both plugin
+        manifests declare, so a bump cannot miss one of them."""
         text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("0.1.0", text)
+        top = re.search(r"^## (\S+)", text, re.M).group(1)
+        self.assertEqual(top, fabric_aidp.__version__)
+        for manifest in (".claude-plugin/plugin.json",
+                         ".codex-plugin/plugin.json"):
+            with self.subTest(manifest=manifest):
+                data = json.loads((ROOT / manifest).read_text(encoding="utf-8"))
+                self.assertEqual(data["version"], top)
 
     def test_notice_and_privacy_exist(self):
         self.assertTrue((ROOT / "NOTICE").is_file())
@@ -707,13 +768,20 @@ class PrivacyClaimTests(unittest.TestCase):
         self.assertIn(".env", self.text)
         self.assertIn("every verb", self.flat)
 
-    def test_it_names_the_key_prefixes_the_dotenv_loader_accepts(self):
-        """The prefix filter is a security property, not a detail: an
-        unfiltered .env could set PATH or NODE_OPTIONS."""
-        from fabric_aidp._env import KEY_PREFIXES
-        for prefix in KEY_PREFIXES:
-            with self.subTest(prefix=prefix):
-                self.assertIn(prefix, self.text)
+    def test_it_names_every_key_the_dotenv_loader_accepts(self):
+        """The filter is a security property, not a detail: an unfiltered
+        .env could set PATH or NODE_OPTIONS, and a prefix filter still let a
+        planted AIDP_ENDPOINT or OCI_CONFIG_FILE through. So the RUNBOOK names
+        the allowlist itself, key by key."""
+        from fabric_aidp._env import ALLOWED_KEYS
+        for key in sorted(ALLOWED_KEYS):
+            with self.subTest(key=key):
+                self.assertIn(key, self.text)
+
+    def test_it_says_which_keys_a_dotenv_may_not_set(self):
+        for key in ("AIDP_ENDPOINT", "OCI_CONFIG_FILE"):
+            with self.subTest(key=key):
+                self.assertIn(key, self.text)
 
     def test_it_does_not_claim_no_credentials_are_read(self):
         self.assertNotIn("none are required or read", self.flat)
