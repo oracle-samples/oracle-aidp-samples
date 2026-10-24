@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="450" viewBox="0 0 920 450" font-family="Helvetica, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3a3a3a"/>
+    </marker>
+  </defs>
+  <rect width="920" height="450" fill="#ffffff"/>
+
+  <!-- Object Storage bucket, outside AIDP -->
+  <rect x="20" y="130" width="210" height="250" rx="10" fill="#fdf1e4" stroke="#c7772a" stroke-width="1.5"/>
+  <text x="125" y="156" text-anchor="middle" font-weight="bold">OCI Object Storage</text>
+  <text x="125" y="174" text-anchor="middle" fill="#555">your bucket</text>
+  <g font-family="Menlo, Consolas, monospace" font-size="12">
+    <text x="36" y="204">landing/</text>
+    <text x="48" y="224">sales/sale_date=…/</text>
+    <text x="48" y="244">customers/</text>
+    <text x="48" y="264">products/</text>
+    <text x="48" y="284">Web-Events/</text>
+    <text x="48" y="304">returns/ <tspan fill="#777">(later)</tspan></text>
+    <text x="48" y="330" fill="#999">_staging/ (hidden)</text>
+    <text x="48" y="350" fill="#999">docs/ (no Parquet)</text>
+  </g>
+  <text x="125" y="372" text-anchor="middle" font-size="11" fill="#777">one folder = one table</text>
+
+  <!-- AIDP boundary -->
+  <rect x="255" y="20" width="645" height="414" rx="14" fill="#f6f8fa" stroke="#8a96a3" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="275" y="44" font-weight="bold" fill="#4a5560">Oracle AI Data Platform</text>
+
+  <!-- Workflow 1 -->
+  <rect x="470" y="56" width="250" height="68" rx="8" fill="#e3edfb" stroke="#3b6fb6" stroke-width="1.5"/>
+  <text x="595" y="80" text-anchor="middle" font-weight="bold">Workflow 1 · setup</text>
+  <text x="595" y="98" text-anchor="middle" font-size="12" fill="#444">01_setup_landing_zone.ipynb</text>
+  <text x="595" y="114" text-anchor="middle" font-size="11" fill="#666">run again when a folder is added</text>
+
+  <!-- External catalog -->
+  <rect x="330" y="196" width="230" height="120" rx="8" fill="#e6f4ef" stroke="#2f8a6a" stroke-width="1.5"/>
+  <text x="445" y="220" text-anchor="middle" font-weight="bold">EXTERNAL_CATALOG.SCHEMA</text>
+  <text x="445" y="240" text-anchor="middle">external tables (Parquet)</text>
+  <text x="445" y="260" text-anchor="middle" font-size="12" fill="#444">sales · customers · web_events …</text>
+  <text x="445" y="282" text-anchor="middle" font-size="12" fill="#444">point at the folders</text>
+  <text x="445" y="300" text-anchor="middle" font-size="12" fill="#444">nothing is copied, read-only</text>
+
+  <!-- Managed catalog -->
+  <rect x="640" y="196" width="240" height="120" rx="8" fill="#e6f4ef" stroke="#2f8a6a" stroke-width="1.5"/>
+  <text x="760" y="220" text-anchor="middle" font-weight="bold">MANAGED_CATALOG.SCHEMA</text>
+  <text x="760" y="240" text-anchor="middle">managed Delta tables</text>
+  <text x="760" y="260" text-anchor="middle" font-size="12" fill="#444">same columns, plus</text>
+  <text x="760" y="278" text-anchor="middle" font-size="12" fill="#444">_source_file, _ingested_at</text>
+  <text x="760" y="300" text-anchor="middle" font-size="12" fill="#444">property landing_zone.source</text>
+
+  <!-- Workflow 2 -->
+  <rect x="470" y="346" width="250" height="68" rx="8" fill="#e3edfb" stroke="#3b6fb6" stroke-width="1.5"/>
+  <text x="595" y="370" text-anchor="middle" font-weight="bold">Workflow 2 · ingest</text>
+  <text x="595" y="388" text-anchor="middle" font-size="12" fill="#444">02_ingest_landing_zone.ipynb</text>
+  <text x="595" y="404" text-anchor="middle" font-size="11" fill="#666">run on a schedule</text>
+
+  <!-- Arrows -->
+  <g stroke="#3a3a3a" stroke-width="1.5" fill="none">
+    <path d="M470,90 L232,150" marker-end="url(#arrow)"/>
+    <path d="M520,124 L470,194" marker-end="url(#arrow)"/>
+    <path d="M670,124 L720,194" marker-end="url(#arrow)"/>
+    <path d="M330,256 L232,256" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+    <path d="M470,316 L520,344" marker-end="url(#arrow)"/>
+    <path d="M670,344 L720,318" marker-end="url(#arrow)"/>
+  </g>
+  <g font-size="11" fill="#333">
+    <text x="282" y="156">lists the folders,</text>
+    <text x="282" y="170">reads their schemas</text>
+    <text x="420" y="160">creates</text>
+    <text x="705" y="160">creates</text>
+    <text x="293" y="248" text-anchor="middle">points at</text>
+    <text x="396" y="342">reads new files</text>
+    <text x="704" y="342">inserts new rows</text>
+  </g>
+</svg>

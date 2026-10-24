@@ -19,6 +19,7 @@ oracle-aidp-samples/
 │   └── migration/            # Migrating workloads to AIDP
 ├── data-engineering/
 │   ├── ingestion/            # Connectors and data loading patterns
+│   │   └── landing-zone-auto-ingestion/
 │   ├── lineage/              # Reading and visualizing AIDP data lineage
 │   └── transformation/       # Pipeline architectures and table formats
 │       ├── delta-clone-metadata/
@@ -89,6 +90,7 @@ Patterns for connecting to and loading data from a wide range of sources.
 | [Ingest Data Using YAML](data-engineering/ingestion/Ingest_data_using_yaml/Ingest_data_using_YAML.ipynb) | Config-driven ingestion from cloud storage (CSV, JSON) and JDBC sources with schema validation and data quality checks. |
 | [Ingest from Multi-Cloud](data-engineering/ingestion/Ingest_from_Multi_Cloud.ipynb) | Ingest data from Azure Data Lake Storage (ADLS) and Amazon S3 with proper JAR configuration and credential management. |
 | [Apache Iceberg with an OCI Hadoop Catalog](data-engineering/ingestion/Ingest_into_iceberg_hadoop_catalog_oci_native.ipynb) | Register a Spark Hadoop catalog on OCI Object Storage, then create, query, and evolve an Iceberg table. |
+| [Landing Zone Auto-Ingestion](data-engineering/ingestion/landing-zone-auto-ingestion/README.md) | Turn every folder of Parquet files in an Object Storage landing zone into an external table plus a managed Delta table, and load new files incrementally with two rerunnable workflows - no table list to maintain. |
 | [Pipe-Delimited File Ingestion](data-engineering/ingestion/PipeDelimited.ipynb) | Read pipe-delimited (`\|`) files from OCI Object Storage and register them as external tables. |
 | [Read Excel Files](data-engineering/ingestion/Read_excel_data/read_excel.ipynb) | Read Excel (`.xlsx`) files using the Spark Excel connector and convert them to Spark DataFrames or CSV. |
 | [Streaming from OCI Streaming Service](data-engineering/ingestion/Streaming/StreamingFromOCIStreamingService.ipynb) | Consume messages from OCI Streaming (Kafka-compatible) using Spark Structured Streaming with SASL/OAUTHBearer authentication. |
