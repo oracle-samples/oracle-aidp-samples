@@ -238,11 +238,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # `--demo` was here, accepted and ignored. Removed rather than kept
     # forever, for the same reason `inventory --catalog` above was renamed
-    # rather than aliased: nothing is released (CHANGELOG: "0.1.0 --
+    # rather than aliased: nothing was released yet (CHANGELOG: "0.1.0 --
     # unreleased ... Nothing has been published to an index yet"), so the
     # only callers passing it were in this repository. It costs any script
     # that still does an exit 2 -- "unrecognized arguments: --demo" -- and
-    # 0.1.0 is the last moment that cost is this small.
+    # it went before 0.1.0 shipped, while that cost was small.
     migrate = sub.add_parser(
         "migrate", help="translate a plan into artifacts, written locally")
     migrate.add_argument("plan")
