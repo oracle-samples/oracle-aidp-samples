@@ -16,10 +16,17 @@ this tool talks to anything.
   `--fixture demo`.
 - The `--tables-csv` file, if you pass one.
 - The migrate output directory, for `verify` and `publish`.
-- **A `.env` file in the current working directory, on every verb.** Only keys
-  beginning `AIDP_`, `OCI_` or `FABRIC_` are taken from it, and only when the
-  variable is not already set in the environment. The prefix filter is deliberate:
-  an arbitrary key there could set `PATH` or `NODE_OPTIONS` and run code.
+- **A `.env` file in the current working directory, on every verb.** It is
+  treated as untrusted, and only these keys are taken from it, each only when the
+  variable is not already set: `AIDP_WORKSPACE_KEY`, `AIDP_CLUSTER_KEY`,
+  `AIDP_INSTANCE_ID`, `OCI_NAMESPACE`, `OCI_CLI_PROFILE`, `OCI_CONFIG_PROFILE`.
+  Keys that change where requests or credentials go — `AIDP_ENDPOINT`,
+  `OCI_CONFIG_FILE`, `OCI_CLI_AUTH`, `OCI_CLI_REGION`, an `AIDP_SECRET_*` — are
+  ignored with a warning naming the key, never its value, and an arbitrary key
+  such as `PATH` or `NODE_OPTIONS`, which could run code, is ignored too. On
+  Linux and macOS a `.env` that is a symbolic link, is owned by another user,
+  or can be written by anyone else is not read at all; group-write is fine
+  when the group is the user's alone.
 - The matching environment variables — `OCI_NAMESPACE`, `AIDP_WORKSPACE_KEY`,
   `AIDP_CLUSTER_KEY`, `AIDP_INSTANCE_ID`.
 - For `publish --apply` only, whatever OCI configuration the `aidp` CLI reads for

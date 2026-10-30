@@ -1,6 +1,6 @@
 {
   "name": "oracle-ai-data-platform-workbench-fabric-migrator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Migrate a Microsoft Fabric workspace (notebooks, Warehouse T-SQL, OneLake shortcuts) to Oracle AI Data Platform: inventory, plan, translate deterministically, and verify.",
   "author": {
     "name": "Oracle AI Data Platform",
