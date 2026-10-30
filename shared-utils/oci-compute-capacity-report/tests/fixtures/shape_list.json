@@ -1,0 +1,191 @@
+{
+ "data": [
+  {
+   "shape": "VM.Standard.A1.Flex",
+   "processor-description": "3.0 GHz Ampere® Altra™",
+   "is-flexible": true,
+   "ocpus": 1.0,
+   "memory-in-gbs": 6.0,
+   "ocpu-options": {
+    "max": 80.0,
+    "max-per-numa-node": 80.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": 6.0,
+    "max-in-g-bs": 512.0,
+    "max-per-numa-node-in-gbs": 512.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard.A2.Flex",
+   "processor-description": "3.0 GHz Ampere® AmpereOne™ (Siryn™)",
+   "is-flexible": true,
+   "ocpus": 0.5,
+   "memory-in-gbs": 6.0,
+   "ocpu-options": {
+    "max": 78.0,
+    "max-per-numa-node": 78.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": 6.0,
+    "max-in-g-bs": 946.0,
+    "max-per-numa-node-in-gbs": 946.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard.A4.Flex",
+   "processor-description": "3.6 GHz Ampere® AmpereOne-M™ (Banshee 12™)",
+   "is-flexible": true,
+   "ocpus": 0.5,
+   "memory-in-gbs": 7.0,
+   "ocpu-options": {
+    "max": 45.0,
+    "max-per-numa-node": 45.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": 7.0,
+    "max-in-g-bs": 700.0,
+    "max-per-numa-node-in-gbs": 700.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard.A4.Ax.Flex",
+   "processor-description": "AmpereOne-M",
+   "is-flexible": true,
+   "ocpus": 0.5,
+   "memory-in-gbs": 7.0,
+   "ocpu-options": {
+    "max": 45.0,
+    "max-per-numa-node": 45.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": 7.0,
+    "max-in-g-bs": 700.0,
+    "max-per-numa-node-in-gbs": 700.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard.E5.Flex",
+   "processor-description": "2.3 GHz AMD EPYC™ 9J14 (Genoa)",
+   "is-flexible": true,
+   "ocpus": 1.0,
+   "memory-in-gbs": 12.0,
+   "ocpu-options": {
+    "max": 126.0,
+    "max-per-numa-node": 94.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": 12.0,
+    "max-in-g-bs": 2098.0,
+    "max-per-numa-node-in-gbs": 1049.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard.E2.1",
+   "processor-description": "2.0 GHz AMD EPYC™ 7551 (Naples)",
+   "is-flexible": false,
+   "ocpus": 1.0,
+   "memory-in-gbs": 8.0,
+   "ocpu-options": null,
+   "memory-options": null,
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard3.Flex",
+   "processor-description": "2.6 GHz Intel® Xeon® Platinum 8358 (Ice Lake)",
+   "is-flexible": true,
+   "ocpus": 1.0,
+   "memory-in-gbs": 16.0,
+   "ocpu-options": {
+    "max": 56.0,
+    "max-per-numa-node": 32.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": 16.0,
+    "max-in-g-bs": 896.0,
+    "max-per-numa-node-in-gbs": 512.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.GPU.A10.1",
+   "processor-description": "2.6 GHz Intel® Xeon® Platinum 8358 (Ice Lake)",
+   "is-flexible": false,
+   "ocpus": 15.0,
+   "memory-in-gbs": 240.0,
+   "ocpu-options": null,
+   "memory-options": null,
+   "gpus": 1,
+   "gpu-description": "NVIDIA® A10"
+  },
+  {
+   "shape": "BM.DenseIO.E6.Ax.192",
+   "processor-description": "2.7 GHz AMD EPYC™ 9J45 (Turin)",
+   "is-flexible": false,
+   "ocpus": 192.0,
+   "memory-in-gbs": 2304.0,
+   "ocpu-options": null,
+   "memory-options": null,
+   "gpus": 0,
+   "gpu-description": null
+  },
+  {
+   "shape": "VM.Standard.AMD.Generic",
+   "processor-description": "AMD processor. VM.Standard.E3 processor generation or later",
+   "is-flexible": true,
+   "ocpus": 1.0,
+   "memory-in-gbs": 16.0,
+   "ocpu-options": {
+    "max": 64.0,
+    "max-per-numa-node": 64.0,
+    "min": 1.0
+   },
+   "memory-options": {
+    "default-per-ocpu-in-g-bs": null,
+    "max-in-g-bs": 1024.0,
+    "max-per-numa-node-in-gbs": 1024.0,
+    "max-per-ocpu-in-gbs": 64.0,
+    "min-in-g-bs": 1.0,
+    "min-per-ocpu-in-gbs": 1.0
+   },
+   "gpus": null,
+   "gpu-description": null
+  }
+ ]
+}

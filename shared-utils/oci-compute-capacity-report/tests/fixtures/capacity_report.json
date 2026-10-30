@@ -1,0 +1,42 @@
+{
+ "data": {
+  "availability-domain": "EXAMPLE:US-ASHBURN-AD-2",
+  "compartment-id": "TENANCY_PLACEHOLDER",
+  "shape-availabilities": [
+   {
+    "availability-status": "AVAILABLE",
+    "available-count": 120,
+    "fault-domain": null,
+    "instance-shape": "VM.Standard.A1.Flex",
+    "instance-shape-config": {
+     "memory-in-gbs": 64.0,
+     "nvmes": 0,
+     "ocpus": 8.0
+    }
+   },
+   {
+    "availability-status": "AVAILABLE",
+    "available-count": 7,
+    "fault-domain": null,
+    "instance-shape": "VM.Standard.A2.Flex",
+    "instance-shape-config": {
+     "memory-in-gbs": 64.0,
+     "nvmes": 0,
+     "ocpus": 8.0
+    }
+   },
+   {
+    "availability-status": "AVAILABLE",
+    "available-count": 45,
+    "fault-domain": null,
+    "instance-shape": "VM.Standard.E5.Flex",
+    "instance-shape-config": {
+     "memory-in-gbs": 128.0,
+     "nvmes": 0,
+     "ocpus": 8.0
+    }
+   }
+  ],
+  "time-created": "2026-01-01T00:00:00+00:00"
+ }
+}

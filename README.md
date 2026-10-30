@@ -293,6 +293,7 @@ Agent Skills (`SKILL.md` packages) that give AI coding agents product-specific, 
 | [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
 | [AIDP Customer Workbench Usage UI](shared-utils/aidp-customer-admin-ui/README.md) | Browser UI and read-only local proxy for viewing AIDP Workbench workspaces, compute clusters, notebooks, workflows, and cluster libraries from fixture data or live Workbench REST APIs. |
 | [AIDP Workbench Migration Toolkit](shared-utils/aidp-workspace-bundles/README.md) | Parameterized archive and Bundle-based migration process for AIDP Workbench metadata, workspace files, jobs, and agent flows. |
+| [OCI Compute Capacity Report](shared-utils/oci-compute-capacity-report/README.md) | Estimate how many ARM and AMD VM nodes of a given size OCI can launch right now in any region, per availability domain, with correct vCPU sizes per shape family, to plan capacity for Spark clusters on OCI Data Flow, Compute, or AIDP (estimates only). |
 
 ---
 
