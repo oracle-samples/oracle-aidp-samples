@@ -30,9 +30,12 @@ class NotebookChecks(unittest.TestCase):
         exec(''.join(config['source']), env)
         return env
 
-    def test_eight_self_contained_notebooks_with_empty_outputs(self):
+    def test_seven_self_contained_notebooks_with_empty_outputs(self):
         items = list(self.items())
         self.assertEqual({i['case'] for i, _ in items}, set(shared.CASE_NAMES))
+        self.assertEqual(len(items), 7)
+        self.assertEqual({p.name for p in ROOT.glob('V*.ipynb')},
+                         {item['notebook'] for item, _ in items})
         for item, nb in items:
             with self.subTest(case=item['case']):
                 for cell in nb['cells']:

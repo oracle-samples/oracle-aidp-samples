@@ -184,6 +184,12 @@ The destination NSG rule supplements the platform network baseline. Cross-VCN NS
 
 Sources: [ADB user connection privileges](https://docs.oracle.com/en/cloud/paas/autonomous-database/serverless/adbsb/manage-users-create.html), [ADB private endpoint configuration](https://docs.oracle.com/en/cloud/paas/autonomous-database/serverless/adbsb/private-endpoints-autonomous.html), [ADB connection modes](https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/connect-introduction.html).
 
+### Preserve the database during unrelated DNS edits
+
+Reuse the same database login/catalog grants and exact route, NSG rules and private descriptor across all five V04 phases. No new database-management IAM grant is needed for the read-only regression. Prepare unrelated owned A/B hostnames suitable for explicit DNS provisioning, following the V06 pattern below; their routes and permissions remain separate from the database baseline. Respect supported workspace-edit lifecycle prerequisites. V04 checks connectivity after each edit; V07 separately checks the absence of compute restarts.
+
+For an optional historical-support/adoption variant, obtain the original configuration and transition evidence through the existing administrator/evidence-access process. The notebook does not grant access to support records, migrate configuration, or prove legacy adoption from a successful query alone. Preserve original authentication and source restrictions, and test a fresh connection where practical in addition to the existing client.
+
 ## V05 — Service endpoint coverage
 
 Reuse each selected service's existing runtime identity and approved topology. There is no universal IAM policy, listener port or gateway for all six possible service families. For ADB, use the V04 database login and private-route pattern where applicable; for Object Storage, use the V02/V03 bucket-scoped read pattern with the correct endpoint type and source requirement.
@@ -219,12 +225,6 @@ Allow group <IDENTITY_DOMAIN>/<EVIDENCE_REVIEWERS> to read log-content in compar
 This reads available logs; it does not enable logging or guarantee Spark restart events are recorded. The administrator must select an authoritative lifecycle source for the deployment. Capture evidence privately. Any one-time adoption restart is a separate preparation event; do not include it in a passing no-restart sequence.
 
 Source: [OCI Logging permissions](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/loggingpolicyreference.htm).
-
-## V08 — Preserve the original integration
-
-Reuse the existing database login/catalog grants and exact route/NSG/descriptor from the baseline; V04 illustrates private database access. No new database-management IAM grant is needed for the read-only regression. Unrelated A/B test endpoints need their own existing route and reader permissions, as in V06.
-
-For a historical-support/adoption variant, obtain the original configuration and transition evidence through the existing administrator/evidence-access process. The notebook does not grant access to support records, migrate configuration, or prove legacy adoption from a successful query alone. Preserve original authentication and source restrictions, and test a fresh connection where possible in addition to the existing client.
 
 ## Preparation ownership and restoration
 

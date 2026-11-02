@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/.
-"""Build eight independent customer notebooks with embedded network diagrams.
+"""Build seven independent customer notebooks with embedded network diagrams.
 
 Uses only the Python standard library. Generate PNGs with build_diagrams.py
 first if a diagram changes. No cloud calls or customer configuration required.
@@ -30,13 +30,12 @@ CASE_HEADINGS = {
     'V05': 'Service endpoint coverage',
     'V06': 'DNS configuration operations',
     'V07': 'Workload continuity',
-    'V08': 'Preserve the original integration',
 }
 VALIDATION_HEADINGS = {
+    'V04': 'Private database baseline and preservation',
     'V05': 'Endpoint coverage and default resolution',
     'V06': 'Self-service configuration lifecycle',
     'V07': 'Apply changes without a Spark restart',
-    'V08': 'Existing connectivity and legacy adoption',
 }
 
 DOCS = {
@@ -85,16 +84,17 @@ CASES = {
   'acceptance': 'The region B fixture matches the expected rows and the region A control still passes. Configuring a region B endpoint does not by itself prove the client used it.',
   'refs': ['workspaces', 'sgw', 'nat', 'hdfs']},
  'V04': {
-  'title': 'OCI service private endpoint', 'file': 'V04_Service_Private_Endpoint.ipynb', 'kind': 'adb',
-  'purpose': 'Query a private database through default private DNS proxy resolution without adding a test-specific Advanced DNS entry.',
+  'title': 'Private database connectivity before and after DNS edits', 'file': 'V04_Service_Private_Endpoint.ipynb', 'kind': 'adb',
+  'purpose': 'Establish existing private database connectivity, then verify that unrelated Advanced DNS edits preserve the same database connection.',
   'setup': [
    ('Destination', 'Select an existing Autonomous Database private endpoint. Copy its private connection descriptor, hostname, listener port and service name from Database Connection. A regional public hostname protected by an ACL is a different case.'),
    ('Workspace and routing', 'Attach the workspace to the required customer private network. Verify the destination subnet route and return path. For a different VCN, arrange supported local/remote peering or DRG connectivity with non-overlapping ranges and the appropriate route tables.'),
    ('DNS', 'For a private ADB hostname that the service resolver cannot resolve, use default private-endpoint DNS proxy resolution through customer DNS. Do not add an Advanced DNS entry solely because the hostname is private. Verify runtime resolution reaches the intended target. Configure customer resolver/forwarding rules if your topology needs them. Stop on a private/split-DNS mismatch; do not substitute a public descriptor to pass the case.'),
    ('Security', 'Allow the actual listener port through the relevant subnet/NSG/firewall rules and target access configuration, including any service-required workspace rules. NAT/internet routing is not needed for the illustrated private destination path.'),
-   ('Authentication', 'Prefer an existing workspace external catalog connection, or provide an existing supported wallet ZIP/TNS plus a private runtime secret. Preserve certificate/server identity checks. A wallet-configured query or port 1522 alone does not prove client-certificate presentation.')],
-  'steps': ['Capture the verified private descriptor, network path and expected database identity.', 'Capture complete DNS/SCAN settings and override provenance. Run the baseline without adding a test-specific Advanced DNS entry; use a clean approved workspace if existing overrides prevent attribution.', 'Run the read-only identity query with existing authentication and compare the expected instance.', 'Review customer DNS/proxy-path evidence, private target and any mTLS evidence separately. Preserve baseline configuration; classify default-path evidence as incomplete if existing overrides cannot be excluded.'],
-  'acceptance': 'The read reaches the intended private database without a newly added explicit entry. Confirm override provenance and the private DNS proxy path before attributing success to default resolution. Record endpoint-type evidence independently; if claiming mTLS, corroborate actual client-certificate use and effective connection settings.',
+   ('Authentication', 'Prefer an existing workspace external catalog connection, or provide an existing supported wallet ZIP/TNS plus a private runtime secret. Preserve certificate/server identity checks. A wallet-configured query or port 1522 alone does not prove client-certificate presentation.'),
+   ('Unrelated DNS edits', 'Prepare owned A/B hostnames resolvable from the service environment for explicit Advanced DNS provisioning. Follow supported workspace-edit prerequisites. Preserve the database hostname, original DNS/SCAN entries, route, policy and authentication; do not stop another user\'s compute.')],
+  'steps': ['Capture the verified private descriptor, network path, expected database identity and complete original DNS/SCAN configuration. Establish override provenance; use a clean approved workspace if existing overrides prevent default-path attribution.', 'Set PHASE="before" and run the read-only identity query without adding an Advanced DNS entry for the private database. Preserve RESULTS for the rest of the run.', 'Add only unrelated hostname A; reopen the saved settings, set PHASE="after_add" and rerun the same database query. Record its configuration snapshot and operation evidence.', 'Replace only A with B, then remove B. Repeat the query with PHASE="after_edit" and PHASE="after_delete", preserving the original database configuration.', 'Restore the original DNS/SCAN configuration, set PHASE="restored" and repeat the query. Complete the five-phase evidence template with the same expected database identity.', 'Review default DNS proxy, private endpoint and any mTLS evidence separately. Use a fresh connection where practical. This case permits supported lifecycle prerequisites; use V07 for the distinct no-restart objective.'],
+  'acceptance': 'The intended private database is reachable before and after actual unrelated add/edit/delete operations, all five phases return the same expected database identity, and the original DNS/SCAN settings are restored. The database receives no new explicit DNS entry. Default proxy attribution, private endpoint type and mTLS still require separate evidence review.',
   'refs': ['workspaces', 'adb']},
  'V05': {
   'title': 'OCI service hostname coverage', 'file': 'V05_Service_Hostname_Coverage.ipynb', 'kind': None,
@@ -130,17 +130,6 @@ CASES = {
   'steps': ['First verify the capability prerequisite and capture the before phase.', 'For each permitted add/edit/delete operation, keep the same session and record the reader, DNS mapping and application identity.', 'Capture lifecycle events across the entire run, including any stop/start/replacement.', 'Restore the original configuration. If a prerequisite adoption restart is needed, handle it outside this measured run and start a separate test afterward.'],
   'acceptance': 'Actual DNS changes converge, every workload phase passes, the Spark application is unchanged and lifecycle evidence shows no restart. Otherwise record the observed failure or prerequisite.',
   'refs': ['workspaces']},
- 'V08': {
-  'title': 'Preserve an existing database connection', 'file': 'V08_Existing_Connection_Preservation.ipynb', 'kind': 'adb',
-  'purpose': 'Check that unrelated workspace DNS edits preserve an already-working database connection.',
-  'setup': [
-   ('Original connection', 'Choose your existing workspace and record the original ADB hostname, descriptor, route, access policy, authentication and expected identity. The notebook does not prescribe a workspace or database name.'),
-   ('Network baseline', 'Keep the original private, in-region service-gateway or approved public-egress path intact. Verify target listener security and return traffic under the original policy. A private endpoint and public endpoint with ACL are separately documented topologies.'),
-   ('Test hostnames', 'Choose unrelated owned A/B hostnames with an approved existing route. Capture complete original DNS/SCAN configuration and do not replace the original database mapping with a copied address.'),
-   ('Workspace editing and auth', 'Follow supported edit prerequisites and preserve the existing wallet/catalog/secret mechanism. Never weaken mTLS or source restrictions to get a successful regression result.')],
-  'steps': ['Run the original read-only identity query and capture the original configuration.', 'Add unrelated A, replace with B, delete B and restore. Repeat the original query and save configuration evidence for each phase.', 'Compare every result with the expected original instance and review the preserved route/auth settings.', 'Leave existing resource lifecycle and baseline settings as they were before the test.'],
-  'acceptance': 'The original query returns the expected identity throughout actual unrelated configuration changes and final DNS/SCAN matches the baseline. A successful before result alone is insufficient.',
-  'refs': ['workspaces', 'adb']},
 }
 
 UNKNOWN = object()
@@ -179,7 +168,7 @@ def engine(case, title):
             nodes.append(copy.deepcopy(item))
         elif isinstance(item, ast.FunctionDef) and item.name != 'main':
             if item.name in ('run_case', 'fixture_read', 'adb_read') and case in ('V05', 'V06'): continue
-            if item.name == 'evaluate_evidence' and case in ('V01', 'V02', 'V03', 'V04'): continue
+            if item.name == 'evaluate_evidence' and case in ('V01', 'V02', 'V03'): continue
             nodes.append(Specialize(case).visit(copy.deepcopy(item)))
     module = ast.fix_missing_locations(ast.Module(body=nodes, type_ignores=[]))
     return 'CASE_NAMES = ' + repr({case: title}) + '\n\n' + ast.unparse(module) + '\n'
@@ -202,10 +191,10 @@ def evidence(case):
         ev['steps'] += [{'name': name, 'rejected': None, 'actual_snapshot': None, 'ui_evidence_ref': None} for name in ('blank', 'underscore', 'path', 'query', 'fragment', 'malformed')]
         ev['steps'] += [{'name': 'partial', 'performed': False, 'work_request_ref': None, 'work_request_status': None, 'saved_hostnames': [], 'readback_evidence_ref': None}]
         ev['normalization_observations'] = []
-    if case in ('V07', 'V08'):
+    if case in ('V04', 'V07'):
         ev.update(before=None, restored=None, phases=[{'phase': phase, 'functional': None, 'operation_evidence_ref': None, 'application_id': None, 'configuration_snapshot': None, 'instance': None, 'dns_addresses': [], 'expected_dns_addresses': [], 'mapping_evidence_ref': None} for phase in ('before', 'after_add', 'after_edit', 'after_delete', 'restored')])
     if case == 'V07': ev.update(restart_count=None, lifecycle_evidence_ref=None)
-    if case == 'V08': ev['expected_instance'] = ''
+    if case == 'V04': ev['expected_instance'] = ''
     return ev
 
 def md(text, attachments=None):
@@ -227,15 +216,15 @@ def build():
                  md('## Test procedure\n\n' + '\n'.join(f'{i+1}. {step}' for i, step in enumerate(item['steps'])) + '\n\n**Acceptance:** ' + item['acceptance'] + '\n'),
                  md('## Test helpers\n\nRun once to define this case\'s checks. Definitions make no network calls. AIDP uses Spark for the data-operation cells; no separate helper file is required.\n'), code(engine(case, item['title']), True),
                  md('## Your configuration\n\nFill the empty values from your own environment. Labels identify your evidence; they do not attach this notebook to a workspace or compute. The example CSV rows match fixtures/sample.csv. For a different small fixture, supply its known size and exact rows. Copy the database port from its actual descriptor; 1522 below is only a starting value.\n\nUse an existing catalog connection for ADB when available. Otherwise provide an existing supported wallet ZIP/TNS and a private runtime password; a wallet directory is not a ZIP file. Do not put passwords or access keys in CONFIG.\n'),
-                 code('CASE_ID = ' + repr(case) + '\nCONFIG = ' + pprint.pformat(configuration(item['kind']), sort_dicts=False) + '\nRUN_LIVE = False\nRUN_EVIDENCE_CHECKS = False\nPHASE = "baseline"\nRESULTS = []\n')]
+                 code('CASE_ID = ' + repr(case) + '\nCONFIG = ' + pprint.pformat(configuration(item['kind']), sort_dicts=False) + '\nRUN_LIVE = False\nRUN_EVIDENCE_CHECKS = False\nPHASE = "' + ('before' if case == 'V04' else 'baseline') + '"\nRESULTS = []\n')]
         preparation = ('## IAM and network examples\n\n'
                        'Preparation templates only: replace every angle-bracket placeholder privately. '
                        'An administrator prepares the approved resources; this notebook applies no policies or network changes.\n\n'
                        + documentation_section('network-and-iam-examples.md', 'Shared prerequisites')
                        + '\n' + documentation_section('network-and-iam-examples.md', case + ' — ' + CASE_HEADINGS[case]))
         # Include referenced preparation patterns in notebooks imported on their own.
-        related = {'V05': ('V02', 'V03', 'V04'), 'V06': ('V02',),
-                   'V07': ('V02', 'V03'), 'V08': ('V04', 'V06', 'V02')}
+        related = {'V04': ('V06',), 'V05': ('V02', 'V03', 'V04'),
+                   'V06': ('V02',), 'V07': ('V02', 'V03')}
         for reference in related.get(case, ()):
             preparation += ('\n### Supporting pattern: ' + reference + '\n\n'
                             + documentation_section('network-and-iam-examples.md',
@@ -256,7 +245,7 @@ def build():
             cells += [md('### Service observation format\n\nSelect your own required_services labels. Add one service record per selected resource using this shape. A missing fixture is blocked coverage. Accepted DNS configuration is not an authenticated read.\n'),
                       code('SERVICE_RECORD_EXAMPLE = {"service": "", "hostname": "", "configuration_accepted": None, "saved_config_ref": None, "functional": None, "operation_evidence_ref": None, "additional_configuration_notes": ""}\n')]
         cells += [md('## Evidence and review\n\nKeep each earlier phase and its UTC timestamp. Reference saved configuration, work requests, mappings and independent source/lifecycle records. Evidence snapshots contain the complete dns_zones, scan and workspace_label fields. Do not share credentials, signed URLs, wallet contents or customer identifiers in repository issues. Raw connector exception messages are omitted because they can contain secrets.\n\nDNS, TCP, authenticated access, private endpoint type, source path, mTLS and application continuity are separate results. A successful wallet-configured query does not independently establish client-certificate presentation. Review the applicable external evidence before accepting the complete case.\n'), code('EVIDENCE = ' + pprint.pformat(evidence(case), sort_dicts=False) + '\n')]
-        if case in ('V05', 'V06', 'V07', 'V08'):
+        if case in ('V04', 'V05', 'V06', 'V07'):
             cells += [code('if RUN_EVIDENCE_CHECKS:\n    observed = evaluate_evidence(CASE_ID, EVIDENCE)\n    observed["acceptance"] = summarize(observed)\n    RESULTS.append(observed)\n    print(json.dumps(observed, indent=2))\nelse:\n    print("Evidence assertions NOT_RUN; capture real observations first.")\n')]
         cells += [md('## Restore and export\n\nRestore only settings introduced by this run, reopen the saved baseline and repeat the original control operation. Preserve original routes, security policies, wallet/authentication and unrelated DNS/SCAN entries. Manage resource lifecycle according to your own test plan; do not stop compute that was already in use.\n\nExport the JSON below under a new run-specific name and review it privately. No automatic overall PASS is produced: a successful check does not replace the remaining case evidence.\n'),
                   code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS}, indent=2))\n'),
@@ -266,7 +255,7 @@ def build():
         (ROOT / item['file']).write_text(json.dumps(nb, indent=2) + '\n')
         index.append({'case': case, 'title': item['title'], 'notebook': item['file'], 'objective': item['purpose'], 'kind': item['kind']})
     (ROOT / 'case-index.json').write_text(json.dumps(index, indent=2) + '\n')
-    print('Built eight customer notebooks with embedded network diagrams.')
+    print('Built seven customer notebooks with embedded network diagrams.')
 
 if __name__ == '__main__':
     build()

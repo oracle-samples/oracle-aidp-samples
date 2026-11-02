@@ -18,9 +18,9 @@ from urllib.parse import urlsplit
 
 CASE_NAMES = {
     'V01': 'Amazon S3', 'V02': 'Customer Network Source / service gateway',
-    'V03': 'Cross-region OCI Object Storage', 'V04': 'Service private endpoint',
+    'V03': 'Cross-region OCI Object Storage', 'V04': 'Private database baseline and preservation',
     'V05': 'OCI service hostname coverage', 'V06': 'DNS CRUD and validation',
-    'V07': 'DNS changes without Spark restart', 'V08': 'Existing connection preservation',
+    'V07': 'DNS changes without Spark restart',
 }
 
 
@@ -226,7 +226,7 @@ def evaluate_evidence(case, evidence):
         else:
             checks['partial_observation'] = {'status': 'NOT_RUN',
                 'reason': 'Optional partial-provisioning observation not performed'}
-    elif case in ('V07', 'V08'):
+    elif case in ('V04', 'V07'):
         phases = evidence.get('phases', [])
         expected_phases = {'before', 'after_add', 'after_edit', 'after_delete', 'restored'}
         test('complete_phases', {p.get('phase') for p in phases} == expected_phases and len(phases) == 5)
@@ -249,7 +249,7 @@ def evaluate_evidence(case, evidence):
                  p.get('expected_dns_addresses') and p.get('mapping_evidence_ref') and
                  set(p['dns_addresses']) == set(p['expected_dns_addresses']) for p in phases))
         else:
-            test('legacy_identity', bool(evidence.get('expected_instance')) and bool(phases) and
+            test('same_database_identity', bool(evidence.get('expected_instance')) and bool(phases) and
                  all(p.get('instance') == evidence['expected_instance'] for p in phases))
     elif case == 'V05':
         services = evidence.get('services', [])

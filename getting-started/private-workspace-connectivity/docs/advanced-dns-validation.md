@@ -1,15 +1,33 @@
 # Advanced DNS validation scope
 
-V01–V03 demonstrate explicit Advanced DNS scenarios: S3, customer Network Source and cross-region Object Storage. V04 is a companion private-endpoint baseline using default private DNS proxy resolution without a test-specific entry. V05–V08 examine additional behavior needed to operate Advanced DNS. A working connection in V01–V04 does not establish that these other behaviors work.
+V01–V03 demonstrate explicit Advanced DNS scenarios: S3, customer Network Source and cross-region Object Storage. V04 combines the existing private-endpoint baseline and preservation across unrelated DNS edits. V05–V07 examine endpoint coverage, configuration and Spark continuity. A successful baseline alone does not establish compatibility after changes.
 
 | Case | Additional behavior | Customer value | Current notebook coverage |
 | --- | --- | --- | --- |
+| V04 | Preserve existing private database connectivity across unrelated DNS edits | Keep established integrations working. | Before/add/edit/delete/restored database identity and configuration checks; default proxy and legacy adoption claims require additional evidence. |
 | V05 | Distinguish default resolution, service-zone allowances and explicit mappings | Avoid unnecessary entries and identify the actual DNS mechanism. | Selected endpoint configuration and authenticated access; attributing a default mechanism needs the additional evidence below. |
 | V06 | Self-service DNS CRUD, validation and cancellation | Maintain scoped configuration and reject invalid input. | Manual UI operations with supplied save/readback and validation observations. |
 | V07 | Apply supported Advanced DNS edits without restarting existing Spark workloads | Change connectivity while workloads continue running. | DNS convergence, functional phases, application identity and independent lifecycle evidence; deployment prerequisites apply. |
-| V08 | Preserve existing configuration and connectivity, including historical support-configured entries | Adopt self-service management without breaking existing integrations. | Existing database connection regression; legacy adoption needs the additional evidence below. |
 
 These are test objectives, not statements that every deployment implements them. No notebook performs workspace edits or automatically certifies the complete requirement. Keep external evidence private and record the deployed capability/version with your run. The customer examples deliberately avoid internal implementation details and rollout controls.
+
+## V04 — Private database baseline and preservation
+
+**Why run it:** Establish the pre-existing private ADB connection, then repeat the same read-only database identity query after unrelated Advanced DNS changes. The former V08 preservation check is now part of this notebook. The database's private descriptor, route and authentication stay unchanged throughout.
+
+**Five phases:** Run `before` without adding a database DNS entry. Add unrelated owned hostname A and run `after_add`; replace A with B and run `after_edit`; delete B and run `after_delete`; restore the complete original DNS/SCAN settings and run `restored`. Capture an authenticated query and complete configuration snapshot in every phase. Keep earlier `RESULTS` and compare the same expected database identity. The evaluator rejects a baseline-only run, unchanged DNS snapshots, missing phases and a different database identity.
+
+**Scope:** Private ADB names unresolved by the service resolver use the default private DNS proxy and customer DNS context. Verify existing overrides and the actual private path before attributing the baseline to that mechanism. This test adds no explicit entry for the private database and does not demonstrate a new private-database capability. Follow supported edit/lifecycle prerequisites; V07 separately tests changes without a Spark restart. V04 does not establish live DNS propagation to AI compute.
+
+Use a fresh authenticated connection where practical so cached addresses or long-lived connections do not conceal a regression. The checker evaluates supplied observations and requires human review of private endpoint, DNS path and transport evidence. It does not establish the historical origin of an entry or perform platform rollout/migration. A previously working database is not necessarily support-configured.
+
+**Optional manual acceptance for legacy adoption:**
+
+1. Identify a confirmed historical support-configured endpoint and privately reference its original change record. Capture a fresh baseline with the original authentication and restrictions. If an override supplies connectivity, keep the default-proxy attribution separate.
+2. Have the administrator identify the supported adoption transition. Record deployment state, existing configuration and any prerequisite lifecycle action. Without an observed transition, label this a **connection regression** run only.
+3. Capture configuration and repeat the original operation after adoption, before adding new entries. Confirm that no replacement allowlisting request or manual re-entry was needed.
+4. Complete V04's unrelated add/edit/delete/restored sequence, preserving original DNS/SCAN entries, target identity, routes and authentication.
+5. Review provenance, transition, retained settings and operations together. Missing provenance/transition evidence leaves legacy adoption **INCOMPLETE**, regardless of the general regression result.
 
 ## V05 — Endpoint coverage and default resolution
 
@@ -46,22 +64,6 @@ For each saved operation, capture both its operation result and reopened setting
 **Current scope:** Run before/add/edit/delete/restored phases against real DNS changes. Retain DNS/mapping evidence, authenticated workload results, Spark application identity and independent lifecycle records throughout. Continued `SELECT 1` alone does not prove that the new destination became usable; an unchanged application display name alone does not exclude a restart.
 
 Verify deployment support before starting. General workspace network-edit documentation says most network changes require stopped compute; this test applies only to the Advanced DNS operation your deployment supports live. If the UI requires a stop, record **BLOCKED** and do not bypass it. Older deployments/clusters can have an adoption prerequisite: confirm any one-time restart with the administrator, record it separately, then begin a fresh measured run. A restart during the measured change sequence fails the no-restart objective. Subsequent adoption does not retroactively turn a failed run into a pass.
-
-## V08 — Existing connectivity and legacy adoption
-
-**Why run it:** Detect regressions when unrelated Advanced DNS entries change, while preserving an integration's destination, route and authentication. A legacy variant also checks that previously support-configured connectivity survives adoption of self-service management without another support request.
-
-**Current scope:** The notebook repeats a read-only database identity query around unrelated DNS edits and compares saved configuration. It does not establish the historical origin of the original entry or perform a platform rollout/migration. A previously working database is not necessarily a support-configured database.
-
-**Additional manual acceptance for legacy adoption:**
-
-1. Identify a confirmed historical support-configured endpoint and privately reference the original change record/configuration. Capture a fresh functional baseline with the original authentication and network restrictions.
-2. Have the administrator identify the actual supported adoption transition to be tested. Record deployment state, the existing configuration and any prerequisite lifecycle action. If no transition can be observed, label this a **connection regression** run only.
-3. Capture configuration and repeat the original operation after adoption, before adding any new entries. Confirm no replacement allowlisting request or manual re-entry was needed.
-4. Run the notebook's unrelated add/edit/delete/restored sequence, preserving original DNS/SCAN entries, target identity, routes and authentication.
-5. Review original provenance, transition, retained settings and operation evidence. If provenance/transition evidence is missing, report legacy adoption as **INCOMPLETE** regardless of the general regression result.
-
-Use a fresh authenticated connection/query as well as the existing client where practical, so a cached address or long-lived connection cannot conceal a broken mapping. These manual checks supplement the current evaluator; they do not change its automatic acceptance scope.
 
 ## Public product reference
 

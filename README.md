@@ -2,7 +2,7 @@
 
 This repository contains a curated collection of sample notebooks demonstrating how to build data pipelines, run machine learning workloads, and integrate AI capabilities using **Oracle AI Data Platform (AIDP) Workbench** — a unified, governed workspace for data engineering, ML, and AI development powered by Apache Spark.
 
-For private workspace network testing, start with the [Private Workspace Connectivity guide](getting-started/private-workspace-connectivity/README.md). It helps you choose among eight standalone use-case notebooks, each with customer network prerequisites, a routing diagram, and validation steps. See the [connectivity sample catalog](#private-workspace-connectivity) below.
+For private workspace network testing, start with the [Private Workspace Connectivity guide](getting-started/private-workspace-connectivity/README.md). It helps you choose among seven standalone use-case notebooks, each with customer network prerequisites, a routing diagram, and validation steps. See the [connectivity sample catalog](#private-workspace-connectivity) below.
 
 ## What is Oracle AI Data Platform Workbench?
 
@@ -63,20 +63,19 @@ The native Iceberg sample uses an existing AIDP Standard catalog. The Hadoop cat
 
 Use the [customer connectivity guide](getting-started/private-workspace-connectivity/README.md) as the entry point: choose a use case, prepare your network and service resources, then import its notebook into AIDP Workbench. Each notebook is self-contained and includes network setup, a routing diagram, customer-supplied configuration, expected outcomes, and independent evidence checks.
 
-V01–V03 cover explicit Advanced DNS connectivity scenarios; V04 covers default private DNS proxy connectivity without a test-specific entry. V05–V08 cover endpoint coverage, DNS configuration, and connection continuity. Live checks are disabled by default; enable them only after completing the selected notebook's prerequisites. The samples use resources you provide and do not provision cloud infrastructure. Record DNS resolution, connectivity, and application results separately when assessing a run.
+V01–V03 cover explicit Advanced DNS connectivity scenarios. V04 establishes existing private database connectivity without adding a database DNS entry, then repeats the same query across unrelated DNS edits. V05–V07 cover endpoint coverage, DNS configuration, and Spark continuity. Live checks are disabled by default; enable them only after completing the selected notebook's prerequisites. The samples use resources you provide and do not provision cloud infrastructure. Record DNS resolution, connectivity, and application results separately when assessing a run.
 
-The guide distinguishes [DNS resolution paths](getting-started/private-workspace-connectivity/docs/dns-resolution-paths.md) and explains [what V05–V08 validate and their coverage limits](getting-started/private-workspace-connectivity/docs/advanced-dns-validation.md), with [example IAM policies, routes, and security rules](getting-started/private-workspace-connectivity/docs/network-and-iam-examples.md) for preparing your environment. These details are also embedded in the applicable notebooks.
+The guide distinguishes [DNS resolution paths](getting-started/private-workspace-connectivity/docs/dns-resolution-paths.md) and explains [the supporting validation cases and their coverage limits](getting-started/private-workspace-connectivity/docs/advanced-dns-validation.md), with [example IAM policies, routes, and security rules](getting-started/private-workspace-connectivity/docs/network-and-iam-examples.md) for preparing your environment. These details are also embedded in the applicable notebooks.
 
 | Connectivity notebook | Description |
 |---|---|
 | [V01 — Amazon S3 through customer egress](getting-started/private-workspace-connectivity/V01_Amazon_S3.ipynb) | Read a small private S3 object from an AIDP workspace through your approved outbound network path. |
 | [V02 — Customer Network Source and service gateway](getting-started/private-workspace-connectivity/V02_Customer_Network_Source.ipynb) | Access an in-region OCI service without broadening its customer source-network restriction. |
 | [V03 — Cross-region OCI Object Storage](getting-started/private-workspace-connectivity/V03_Cross_Region_Object_Storage.ipynb) | Read a dataset in one OCI region while your AIDP workspace runs in another. |
-| [V04 — OCI service private endpoint](getting-started/private-workspace-connectivity/V04_Service_Private_Endpoint.ipynb) | Query a private database through default private DNS proxy resolution without adding a test-specific Advanced DNS entry. |
+| [V04 — Private database before and after DNS edits](getting-started/private-workspace-connectivity/V04_Service_Private_Endpoint.ipynb) | Establish private database connectivity, then verify that unrelated Advanced DNS edits preserve the same database connection. |
 | [V05 — OCI service hostname coverage](getting-started/private-workspace-connectivity/V05_Service_Hostname_Coverage.ipynb) | Record which of your selected OCI service endpoints can be configured and accessed through the workspace. |
 | [V06 — DNS edits and input validation](getting-started/private-workspace-connectivity/V06_DNS_CRUD_And_Validation.ipynb) | Validate scoped add/edit/delete/cancel behavior and record input-validation outcomes. |
 | [V07 — DNS changes without a Spark restart](getting-started/private-workspace-connectivity/V07_DNS_Without_Restart.ipynb) | Measure workload continuity for a DNS edit that your deployment explicitly supports while compute is running. |
-| [V08 — Preserve an existing database connection](getting-started/private-workspace-connectivity/V08_Existing_Connection_Preservation.ipynb) | Check that unrelated workspace DNS edits preserve an already-working database connection. |
 
 #### Delta Lake
 

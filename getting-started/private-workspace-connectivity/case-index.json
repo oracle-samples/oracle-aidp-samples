@@ -22,9 +22,9 @@
   },
   {
     "case": "V04",
-    "title": "OCI service private endpoint",
+    "title": "Private database connectivity before and after DNS edits",
     "notebook": "V04_Service_Private_Endpoint.ipynb",
-    "objective": "Query a private database through default private DNS proxy resolution without adding a test-specific Advanced DNS entry.",
+    "objective": "Establish existing private database connectivity, then verify that unrelated Advanced DNS edits preserve the same database connection.",
     "kind": "adb"
   },
   {
@@ -47,12 +47,5 @@
     "notebook": "V07_DNS_Without_Restart.ipynb",
     "objective": "Measure workload continuity for a DNS edit that your deployment explicitly supports while compute is running.",
     "kind": "csv"
-  },
-  {
-    "case": "V08",
-    "title": "Preserve an existing database connection",
-    "notebook": "V08_Existing_Connection_Preservation.ipynb",
-    "objective": "Check that unrelated workspace DNS edits preserve an already-working database connection.",
-    "kind": "adb"
   }
 ]

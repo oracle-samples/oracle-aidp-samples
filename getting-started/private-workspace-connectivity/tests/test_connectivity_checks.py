@@ -120,6 +120,36 @@ class AcceptanceRegressions(unittest.TestCase):
         r = h.evaluate_evidence('V07', e)
         self.assertEqual(r['checks']['dns_each_phase']['status'], 'FAIL')
 
+    def test_private_database_preserved_across_dns_edits(self):
+        e = self.continuity()
+        e['expected_instance'] = 'original-database'
+        for phase in e['phases']:
+            phase['instance'] = 'original-database'
+        r = h.evaluate_evidence('V04', e)
+        self.assertTrue(all(v['status'] == 'PASS' for v in r['checks'].values()))
+        self.assertNotIn('no_restart_events', r['checks'])
+        self.assertEqual(h.summarize(r), 'REVIEW_REQUIRED')
+        e['phases'][2]['instance'] = 'different-database'
+        self.assertEqual(h.evaluate_evidence('V04', e)['checks']['same_database_identity']['status'], 'FAIL')
+
+    def test_private_database_baseline_alone_is_incomplete(self):
+        e = self.continuity()
+        e['expected_instance'] = 'original-database'
+        e['phases'] = e['phases'][:1]
+        e['phases'][0]['instance'] = 'original-database'
+        r = h.evaluate_evidence('V04', e)
+        self.assertEqual(r['checks']['complete_phases']['status'], 'FAIL')
+        self.assertEqual(r['checks']['configuration_change_exercised']['status'], 'FAIL')
+
+    def test_private_database_unchanged_dns_does_not_validate_preservation(self):
+        e = self.continuity()
+        e['expected_instance'] = 'original-database'
+        for phase in e['phases']:
+            phase['instance'] = 'original-database'
+            phase['configuration_snapshot'] = e['before']
+        r = h.evaluate_evidence('V04', e)
+        self.assertEqual(r['checks']['configuration_change_exercised']['status'], 'FAIL')
+
     def test_partial_operation_requires_readback(self):
         e = {'evidence_ref': 'capture.json', 'before': {}, 'restored': {},
              'steps': [{'name': 'partial', 'performed': True, 'work_request_status': 'FAILED',
