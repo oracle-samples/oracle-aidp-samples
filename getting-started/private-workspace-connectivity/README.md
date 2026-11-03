@@ -2,6 +2,8 @@
 
 Use this guide to choose a connectivity scenario, prepare your own network, and open the notebook for that scenario. The samples are independent: each includes its own configuration, network setup, diagram, procedure, checks, evidence template, and restoration steps.
 
+For a guided first run, open [00_START_HERE.ipynb](00_START_HERE.ipynb). It leads to V01-V04 with numbered customer actions, configuration-field examples, expected results and cleanup. The same instructions are available as a [customer walkthrough](docs/customer-walkthrough.md). V03 includes an executable, independently configured in-region control. Use **Choose phase** to repeat a check without clearing earlier results.
+
 The notebooks do not provision resources, edit workspace DNS, change permissions, install libraries, or start/stop compute. Start with existing resources and your approved change plan. All distributed notebooks have empty outputs and live execution disabled.
 
 ## Choose your use case

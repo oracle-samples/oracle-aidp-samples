@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -131,6 +132,41 @@ class NotebookChecks(unittest.TestCase):
         self.assertEqual(shared.summarize(result), 'REVIEW_REQUIRED')
         ev['services'][0]['functional'] = 'FAIL'
         self.assertEqual(shared.evaluate_evidence('V05', ev)['checks']['selected-service']['status'], 'FAIL')
+
+    def test_cross_region_local_control_uses_its_own_fixture(self):
+        class Spark:
+            class Context:
+                applicationId = 'test-application'
+            sparkContext = Context()
+            def sql(self, query): return self
+            def collect(self): return [(1,)]
+        cfg = {'workspace_label': 'test', 'compute_label': 'test', 'kind': 'csv',
+               'region': 'region-a', 'workspace_region': 'region-a', 'uri': 'oci://local@ns/sample.csv'}
+        with patch.object(shared, 'fixture_read', return_value={'rows': 2}) as read:
+            result = shared.run_case('V03', cfg, spark=Spark(), live=True, fixture_role='local_control')
+            self.assertEqual(result['checks']['functional']['status'], 'PASS')
+            self.assertEqual(result['fixture_role'], 'local_control')
+            self.assertIs(read.call_args.args[1], cfg)
+            read.reset_mock()
+            result = shared.run_case('V03', {**cfg, 'region': 'region-b'},
+                                     spark=Spark(), live=True, fixture_role='local_control')
+            self.assertEqual(result['checks']['fixture_region']['status'], 'BLOCKED')
+            read.assert_not_called()
+
+    def test_walkthrough_cells_run_safely_without_compute(self):
+        for item, nb in self.items():
+            if item['case'] not in ('V01', 'V02', 'V03', 'V04'): continue
+            env = {}
+            for cell in nb['cells']:
+                if cell['cell_type'] == 'code':
+                    with patch('builtins.print'):
+                        exec(''.join(cell['source']), env)
+            self.assertTrue(env['RESULTS'])
+            for result in env['RESULTS']:
+                self.assertEqual(result['checks']['execution']['status'], 'NOT_RUN')
+            if item['case'] == 'V03':
+                self.assertEqual(len(env['RESULTS']), 2)
+                self.assertTrue(env['RESULTS'][1]['phase'].endswith('_local_control'))
 
 
 if __name__ == '__main__':

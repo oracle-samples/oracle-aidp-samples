@@ -125,9 +125,11 @@ def adb_read(spark, cfg, runtime):
             'transport_claim': 'Authenticated query; mTLS not independently established'}
 
 
-def run_case(case, cfg, spark=None, runtime=None, live=False, phase='baseline'):
+def run_case(case, cfg, spark=None, runtime=None, live=False, phase='baseline', fixture_role='primary'):
     if case not in CASE_NAMES:
         raise ValueError('Unknown case')
+    if fixture_role not in ('primary', 'local_control') or (fixture_role == 'local_control' and case != 'V03'):
+        raise ValueError('Local control is supported only for V03')
     result = {'case': case, 'name': CASE_NAMES[case], 'utc': utc(), 'phase': phase,
               'workspace_label': cfg.get('workspace_label'), 'compute_label': cfg.get('compute_label'),
               'checks': {}, 'origin': 'harness'}
@@ -159,10 +161,15 @@ def run_case(case, cfg, spark=None, runtime=None, live=False, phase='baseline'):
     if case in ('V05', 'V06'):
         checks['configuration'] = {'status': 'BLOCKED', 'reason': 'Supply Workbench evidence for evaluate_evidence()'}
         return result
-    if case == 'V03' and (not cfg.get('region') or not cfg.get('workspace_region') or
-                          cfg['region'] == cfg['workspace_region']):
-        checks['fixture_region'] = {'status': 'BLOCKED', 'reason': 'Select verified fixture in a different region'}
-        return result
+    if case == 'V03':
+        result['fixture_role'] = fixture_role
+        local = fixture_role == 'local_control'
+        if (not cfg.get('region') or not cfg.get('workspace_region') or
+                (cfg['region'] == cfg['workspace_region']) != local):
+            checks['fixture_region'] = {'status': 'BLOCKED', 'reason':
+                'Select a verified fixture in the workspace region' if local else
+                'Select verified fixture in a different region'}
+            return result
     host = cfg.get('hostname') or endpoint_host(cfg.get('endpoint', ''))
     if not host:
         checks['dns'] = {'status': 'BLOCKED', 'reason': 'Missing exact hostname'}

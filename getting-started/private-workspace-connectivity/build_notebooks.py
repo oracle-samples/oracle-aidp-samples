@@ -205,6 +205,68 @@ def md(text, attachments=None):
 def code(text, hidden=False):
     return {'cell_type': 'code', 'execution_count': None, 'outputs': [], 'metadata': {'jupyter': {'source_hidden': True}} if hidden else {}, 'source': text.splitlines(True)}
 
+def customer_walkthrough(case, cells):
+    """Put customer actions and executable cells before reference appendices."""
+    headings = {
+        'V01': 'V01 - Amazon S3',
+        'V02': 'V02 - Customer Network Source',
+        'V03': 'V03 - Cross-region Object Storage',
+        'V04': 'V04 - Private database baseline and preservation',
+    }
+    if case not in headings:
+        return cells
+    source = lambda c: ''.join(c['source'])
+    title = cells[0]
+    title['source'] = (source(title).replace('[Choose another use case](README.md)',
+                                            '[Start here](00_START_HERE.ipynb)')).splitlines(True)
+    # Keep setup/reference material available, without interrupting cell execution.
+    appendix, executable = [], []
+    for cell in cells[1:]:
+        text = source(cell)
+        if text.startswith(('## Advanced DNS objective', '## When do you need',
+                            '## Network setup', '## IAM and network examples')):
+            appendix.append(cell)
+        elif not text.startswith('## Test procedure'):
+            executable.append(cell)
+    diagram = next(c for c in executable if 'network.png' in c.get('attachments', {}))
+    executable.remove(diagram)
+    procedure = md('## Customer steps\n\n' + documentation_section(
+        'customer-walkthrough.md', headings[case]))
+    common = md('## Workbench actions and output\n\n' + documentation_section(
+        'customer-walkthrough.md', 'Common Workbench actions'))
+    # Phase changes must not reset the accumulated observations.
+    run_index = next(i for i, c in enumerate(executable)
+                     if source(c).startswith('## Run a workload phase'))
+    phase = [md('## Choose phase\n\nRun this cell before each workload attempt. '
+                'Change only the phase and live flag here; keep earlier RESULTS. '
+                'Do not use Run all across manual workspace changes.\n'),
+             code('RUN_LIVE = False  # Set True only after completing the prerequisites.\n'
+                  'PHASE = "before"  # Follow the phase sequence in Customer steps.\n')]
+    if case == 'V03':
+        phase = [md('## In-region control configuration\n\nFill this independent fixture once. '
+                    'Its region must equal the workspace region. Do not reuse the remote URI.\n'),
+                 code('CONTROL_CONFIG = ' + pprint.pformat(configuration('csv'), sort_dicts=False) + '\n')] + phase
+    executable[run_index:run_index] = phase
+    if case == 'V03':
+        run_index = next(i for i, c in enumerate(executable)
+                         if source(c).startswith('import os\nRUNTIME'))
+        executable[run_index + 1:run_index + 1] = [
+            md('## Run the in-region control\n\nRun after the remote workload for every phase. '
+               'This is an independent V03 control read, '
+               'not a claim that an IAM Network Source was tested.\n'),
+            code('if RUN_LIVE and (not CONTROL_CONFIG.get("region") or\n'
+                 '                 CONTROL_CONFIG["region"] != CONFIG.get("workspace_region") or\n'
+                 '                 CONTROL_CONFIG.get("workspace_region") != CONFIG.get("workspace_region") or\n'
+                 '                 CONTROL_CONFIG["uri"] == CONFIG.get("uri")):\n'
+                 '    raise ValueError("Choose a separate fixture in the workspace region")\n'
+                 'control = run_case(CASE_ID, CONTROL_CONFIG, spark=globals().get("spark"),\n'
+                 '                   live=RUN_LIVE, phase=PHASE + "_local_control", fixture_role="local_control")\n'
+                 'control["acceptance"] = summarize(control)\n'
+                 'RESULTS.append(control)\n'
+                 'print(json.dumps(control, indent=2))\n')]
+    return [title, procedure, diagram, common] + executable + [
+        md('## Reference appendix\n\nUse the following network, IAM and DNS details when preparing the environment.\n')] + appendix
+
 def build():
     index = []
     for case, item in CASES.items():
@@ -250,11 +312,19 @@ def build():
         cells += [md('## Restore and export\n\nRestore only settings introduced by this run, reopen the saved baseline and repeat the original control operation. Preserve original routes, security policies, wallet/authentication and unrelated DNS/SCAN entries. Manage resource lifecycle according to your own test plan; do not stop compute that was already in use.\n\nExport the JSON below under a new run-specific name and review it privately. No automatic overall PASS is produced: a successful check does not replace the remaining case evidence.\n'),
                   code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS}, indent=2))\n'),
                   md('## Public references\n\n' + '\n'.join('- [' + key + '](' + DOCS[key] + ')' for key in item['refs']) + '\n\nCopyright (c) 2026 Oracle and/or its affiliates. Licensed under the [Universal Permissive License](../../LICENSE.txt), Version 1.0.\n')]
+        cells = customer_walkthrough(case, cells)
         for i, cell in enumerate(cells): cell['id'] = case.lower() + '-' + str(i)
         nb = {'cells': cells, 'metadata': {'kernelspec': {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'}, 'language_info': {'name': 'python'}}, 'nbformat': 4, 'nbformat_minor': 5}
         (ROOT / item['file']).write_text(json.dumps(nb, indent=2) + '\n')
         index.append({'case': case, 'title': item['title'], 'notebook': item['file'], 'objective': item['purpose'], 'kind': item['kind']})
     (ROOT / 'case-index.json').write_text(json.dumps(index, indent=2) + '\n')
+    intro = (ROOT / 'docs' / 'customer-walkthrough.md').read_text().split('\n## V01 -', 1)[0]
+    for item in index[:4]:
+        intro = intro.replace('| ' + item['notebook'] + ' |', '| [' + item['notebook'] + '](' + item['notebook'] + ') |')
+    guide = {'cells': [md(intro + '\n\n[Full tester guide](README.md).\n')],
+             'metadata': {'language_info': {'name': 'python'}}, 'nbformat': 4, 'nbformat_minor': 5}
+    guide['cells'][0]['id'] = 'start-here'
+    (ROOT / '00_START_HERE.ipynb').write_text(json.dumps(guide, indent=2) + '\n')
     print('Built seven customer notebooks with embedded network diagrams.')
 
 if __name__ == '__main__':

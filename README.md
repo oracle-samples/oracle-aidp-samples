@@ -63,12 +63,15 @@ The native Iceberg sample uses an existing AIDP Standard catalog. The Hadoop cat
 
 Use the [customer connectivity guide](getting-started/private-workspace-connectivity/README.md) as the entry point: choose a use case, prepare your network and service resources, then import its notebook into AIDP Workbench. Each notebook is self-contained and includes network setup, a routing diagram, customer-supplied configuration, expected outcomes, and independent evidence checks.
 
+For the four customer connectivity scenarios, open [Start here](getting-started/private-workspace-connectivity/00_START_HERE.ipynb) for numbered actions, configuration examples, expected results and restoration steps.
+
 V01–V03 cover explicit Advanced DNS connectivity scenarios. V04 establishes existing private database connectivity without adding a database DNS entry, then repeats the same query across unrelated DNS edits. V05–V07 cover endpoint coverage, DNS configuration, and Spark continuity. Live checks are disabled by default; enable them only after completing the selected notebook's prerequisites. The samples use resources you provide and do not provision cloud infrastructure. Record DNS resolution, connectivity, and application results separately when assessing a run.
 
 The guide distinguishes [DNS resolution paths](getting-started/private-workspace-connectivity/docs/dns-resolution-paths.md) and explains [the supporting validation cases and their coverage limits](getting-started/private-workspace-connectivity/docs/advanced-dns-validation.md), with [example IAM policies, routes, and security rules](getting-started/private-workspace-connectivity/docs/network-and-iam-examples.md) for preparing your environment. These details are also embedded in the applicable notebooks.
 
 | Connectivity notebook | Description |
 |---|---|
+| [Start here - customer DNS walkthroughs](getting-started/private-workspace-connectivity/00_START_HERE.ipynb) | Choose V01-V04 and follow the customer setup, execution, expected-result and restoration steps. |
 | [V01 — Amazon S3 through customer egress](getting-started/private-workspace-connectivity/V01_Amazon_S3.ipynb) | Read a small private S3 object from an AIDP workspace through your approved outbound network path. |
 | [V02 — Customer Network Source and service gateway](getting-started/private-workspace-connectivity/V02_Customer_Network_Source.ipynb) | Access an in-region OCI service without broadening its customer source-network restriction. |
 | [V03 — Cross-region OCI Object Storage](getting-started/private-workspace-connectivity/V03_Cross_Region_Object_Storage.ipynb) | Read a dataset in one OCI region while your AIDP workspace runs in another. |
