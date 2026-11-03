@@ -68,14 +68,22 @@ Keep the time, phase and operation result. A DNS answer or open TCP port is not 
 
 ## V02 - Customer Network Source
 
-**Customer outcome:** access an in-region OCI bucket while its IAM policy continues to require the customer VCN source.
+**Customer outcome:** read an Object Storage bucket in the workspace's region while IAM permits that read only from the selected customer VCN. **Set up IAM first; then change only DNS during the comparison.**
 
-1. **Select an in-region fixture.** In OCI Console, choose a test bucket in the same region as the workspace. Record its namespace, object key, region, endpoint, byte size and exact expected rows. Use a private object no larger than 64 KiB.
-2. **Prepare the service-gateway path.** Verify the workspace subnet route for the regional Oracle Services Network label points to an enabled service gateway. Permit stateful TCP 443 to that regional service label. The public service endpoint is reached through the service gateway in this case.
-3. **Verify the source restriction.** Have the IAM administrator identify the actual Spark connector signer. In the tenancy's home region, inspect the Network Source containing the selected VCN and workspace subnet range. Verify the bucket-scoped read policies include `request.networkSource.name`. Check that no other unconditional grant bypasses this restriction. Copy the matching policy example from the appendix if setup is needed; do not widen the policy during the test.
-4. **Run before the change.** Set the configuration below; run helpers/configuration once. Set `RUN_LIVE=True`, `PHASE="before"`; run the workload. If the exact DNS entry already exists, keep it and record that this is an existing-configuration baseline.
-5. **Apply DNS and repeat.** Add the exact in-region endpoint FQDN using the common actions. Reopen settings and record the operation. Set `PHASE="after_add"`; rerun with the same identity and unchanged restriction. Expect `functional: PASS`. Correlate the request with target/network records supporting the intended customer path.
-6. **Restore.** Remove only this run's entry, repeat with `PHASE="restored"`, and export the results. Keep existing service-gateway and IAM configuration in place. Restore behavior should match the original baseline.
+1. **IAM administrator: prepare authorization.** Complete the V02 IAM setup: identify the Spark reader's principal, create the VCN Network Source, and apply the bucket-scoped read policy with `request.networkSource.name`. Confirm no broader grant bypasses the restriction. The notebook includes the policy statements before its executable cells; in the repository, use [V02 IAM setup](network-and-iam-examples.md#v02--customer-network-source-and-service-gateway).
+2. **Network administrator: prepare routing.** Verify the workspace's customer subnet has a route to Object Storage through the **same-region service gateway**, plus TCP 443 egress. Retain the complete original workspace DNS/SCAN configuration and existing route/security settings.
+3. **Tester: prepare the read.** Fill CONFIG with the private test bucket, known CSV object and actual regional endpoint. Set both region fields to the workspace region. Run helpers and configuration once. Start the approved test compute only after IAM and network setup are complete.
+4. **Run `before`.** In **Choose phase**, set `RUN_LIVE=True` and `PHASE="before"`, then run **Run a workload phase**. Keep the result and UTC time. If the exact Advanced DNS entry already exists, preserve it and record an existing-configuration baseline.
+5. **Run `after_add`.** Add the exact regional Object Storage hostname to workspace Advanced DNS, following the supported save/lifecycle steps. Reopen the saved settings. Keep the same policy, Network Source, identity, object and route; set `PHASE="after_add"` and rerun. Expect the two fixture rows. Review the matching service request and effective policy before declaring the source restriction demonstrated.
+6. **Run `restored`.** Remove only the entry introduced by this test, verify the original DNS/SCAN configuration, and rerun with `PHASE="restored"`. Export the observations before stopping compute that you started. Reuse existing IAM/network resources; remove temporary test grants only after evidence collection and according to the agreed cleanup plan.
+
+| Phase | Expected observation |
+| --- | --- |
+| `before` | A request arriving outside the allowed VCN is denied by the effective source-restricted policy. A DNS failure, timeout or wrong credential alone does not prove IAM denial. An already-working customer path can succeed. |
+| `after_add` | Exact fixture rows returned; same runtime principal, bucket and effective source restriction; request and route records support the customer VCN/service-gateway path. |
+| `restored` | Original DNS/SCAN configuration and baseline behavior restored. |
+
+If all phases succeed because the route was already configured, report **existing-configuration validation**, not a demonstrated deny-to-allow transition. If IAM setup or source evidence is missing, the Network Source demonstration remains incomplete even when the CSV read succeeds.
 
 | CONFIG field | Value to supply |
 | --- | --- |
@@ -86,7 +94,7 @@ Keep the time, phase and operation result. A DNS answer or open TCP port is not 
 | `fixture_size_bytes`, `expected_rows` | Verified size and known rows of that exact object. |
 | `workspace_label`, `compute_label` | The selected workspace and test compute names. |
 
-**Completion:** exact object contents, unchanged effective Network Source restriction, saved DNS evidence and reviewed source/path evidence. An ADB ACL is a different control and cannot substitute for this IAM test.
+**Completion:** exact object contents, unchanged effective Network Source restriction, saved DNS evidence and reviewed source/path evidence. V03 covers the remote bucket; V04 covers ADB. Their authorization differences and policy examples are explained in [Object Storage and ADB authorization](network-and-iam-examples.md#object-storage-and-adb-authorization).
 
 ## V03 - Cross-region Object Storage
 

@@ -10,7 +10,7 @@
     "case": "V02",
     "title": "Customer Network Source and service gateway",
     "notebook": "V02_Customer_Network_Source.ipynb",
-    "objective": "Access an in-region OCI service without broadening its customer source-network restriction.",
+    "objective": "Prepare a bucket-scoped IAM grant with a VCN Network Source, then demonstrate the same-region Object Storage read through the customer network.",
     "kind": "csv"
   },
   {

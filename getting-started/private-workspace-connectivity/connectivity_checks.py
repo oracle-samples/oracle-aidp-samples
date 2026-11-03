@@ -153,6 +153,12 @@ def run_case(case, cfg, spark=None, runtime=None, live=False, phase='baseline', 
     if not cfg.get('workspace_label') or not cfg.get('compute_label'):
         checks['execution'] = {'status': 'BLOCKED', 'reason': 'Record workspace and compute labels'}
         return result
+    if case == 'V02':
+        if (not cfg.get('region') or not cfg.get('workspace_region') or
+                cfg['region'] != cfg['workspace_region']):
+            checks['fixture_region'] = {'status': 'BLOCKED', 'reason':
+                'V02 requires a bucket in the workspace region; use V03 for a remote bucket'}
+            return result
     def spark_control():
         value = spark.sql('SELECT 1').collect()[0][0]
         assert value == 1, 'Spark control query returned unexpected result'

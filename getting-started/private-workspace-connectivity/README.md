@@ -67,6 +67,16 @@ The illustrated S3 design uses customer NAT internet egress. No AWS VPC is requi
 
 A service gateway can reach supported Oracle services **in the same region** over the Oracle network. Verify the customer subnet's service-CIDR route, gateway configuration and security rules. An unchanged source restriction plus correlated request/network evidence is needed to establish the intended source/path. OCI IAM Network Sources and database ACLs are different controls. See [service gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm) and [Network Sources](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/managingnetworksources.htm).
 
+**V02 starts with IAM setup.** Create the VCN Network Source, grant the actual Spark reader bucket-scoped read access with `request.networkSource.name`, and rule out broader grants before testing DNS. The notebook places [these setup steps and policy statements](docs/network-and-iam-examples.md#v02--customer-network-source-and-service-gateway) before execution. Keep the policy fixed across `before`, `after_add` and `restored`.
+
+| Target | Authorization to prepare |
+| --- | --- |
+| Same-region bucket, V02 | Read access to that bucket, conditioned on the customer VCN Network Source; service-gateway route. |
+| Remote bucket, V03 | Read access covering the remote bucket and its compartment. If restricting the illustrated NAT path, use a separate public-IP Network Source for the NAT address. |
+| ADB password connection, V04 | Database login and SQL privileges, plus ADB ACL or private-endpoint security rules. OCI database-management IAM does not authorize the SQL query. |
+
+See [Object Storage and ADB authorization](docs/network-and-iam-examples.md#object-storage-and-adb-authorization) for remote-bucket policies, the ADB SQL grant, and the separate optional IAM-token policy.
+
 ### Cross-region public Object Storage
 
 ![Region A customer egress to a region B Object Storage endpoint](assets/v03-network.png)

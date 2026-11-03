@@ -153,6 +153,18 @@ class NotebookChecks(unittest.TestCase):
             self.assertEqual(result['checks']['fixture_region']['status'], 'BLOCKED')
             read.assert_not_called()
 
+    def test_v02_rejects_missing_or_remote_region_before_network_calls(self):
+        cfg = {'workspace_label': 'test', 'compute_label': 'test', 'kind': 'csv',
+               'region': 'region-b', 'workspace_region': 'region-a'}
+        with patch.object(shared.socket, 'getaddrinfo') as dns, \
+             patch.object(shared, 'fixture_read') as read:
+            for values in (cfg, {**cfg, 'region': ''}, {**cfg, 'workspace_region': ''}):
+                result = shared.run_case('V02', values, spark=object(), live=True)
+                self.assertEqual(result['checks']['fixture_region']['status'], 'BLOCKED')
+                self.assertNotIn('spark_control', result['checks'])
+            dns.assert_not_called()
+            read.assert_not_called()
+
     def test_walkthrough_cells_run_safely_without_compute(self):
         for item, nb in self.items():
             if item['case'] not in ('V01', 'V02', 'V03', 'V04'): continue

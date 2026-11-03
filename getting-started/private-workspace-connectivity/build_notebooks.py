@@ -61,12 +61,12 @@ CASES = {
   'refs': ['workspaces', 'nat']},
  'V02': {
   'title': 'Customer Network Source and service gateway', 'file': 'V02_Customer_Network_Source.ipynb', 'kind': 'csv',
-  'purpose': 'Access an in-region OCI service without broadening its customer source-network restriction.',
+  'purpose': 'Prepare a bucket-scoped IAM grant with a VCN Network Source, then demonstrate the same-region Object Storage read through the customer network.',
   'setup': [
    ('Workspace', 'Attach the private-network-enabled workspace to the VCN/subnet intended by the source restriction.'),
    ('Route', 'Use an existing service gateway in that VCN and enable the supported regional service. Add/verify the regional service-CIDR route in the customer subnet route table and the applicable security rules. A more specific service route must take precedence over unrelated default egress.'),
    ('DNS', 'Use the exact service endpoint your client calls. Configure advanced DNS for the destination when customer-VCN source context is required; verify the saved result and runtime resolution.'),
-   ('Security and identity', 'Use an identity already authorized by an unchanged IAM policy referencing your Network Source. Confirm the selected VCN and subnet ranges are in that source. Database network ACLs and OCI IAM Network Sources are different controls.'),
+   ('IAM first', 'Identify the actual Spark reader, create the VCN Network Source and grant read access to the test bucket with request.networkSource.name before executing. Confirm no broader grant bypasses the condition. Keep the policy fixed during DNS comparisons.'),
    ('Evidence', 'Arrange access to policy/route records and correlated target request or network telemetry before testing. A successful read, translated destination IP, or public egress-IP check does not independently establish the service-gateway path.')],
   'steps': ['Capture the existing restriction, intended source network, route and identity label.', 'Read the known small in-region Object Storage CSV before and after the scoped FQDN change, keeping identity and client unchanged.', 'Correlate the operation with source/network evidence while the restriction remains unchanged.', 'Restore the saved DNS baseline and repeat the original control.'],
   'acceptance': 'The fixture read passes under the unchanged restriction AND reviewed independent evidence establishes the intended customer source/path. Keep an ADB ACL variant separately labeled.',
@@ -184,6 +184,12 @@ def configuration(kind):
 
 def evidence(case):
     ev = {'evidence_ref': None}
+    if case == 'V02':
+        ev.update(runtime_principal_id='', network_source_name='',
+                  network_source_snapshot_ref='', bucket_policy_snapshot_ref='',
+                  effective_grants_review_ref='', route_snapshot_ref='',
+                  dns_before_ref='', dns_after_ref='', dns_restored_ref='',
+                  read_request_refs=[])
     if case == 'V05':
         ev.update(required_services=[], services=[])
     if case == 'V06':
@@ -234,6 +240,60 @@ def customer_walkthrough(case, cells):
         'customer-walkthrough.md', headings[case]))
     common = md('## Workbench actions and output\n\n' + documentation_section(
         'customer-walkthrough.md', 'Common Workbench actions'))
+    setup = []
+    if case == 'V02':
+        instructions = [line for line in procedure['source']
+                        if not line.startswith(('1. **IAM administrator:', '2. **Network administrator:'))]
+        procedure['source'] = ''.join(instructions).replace(
+            '[Object Storage and ADB authorization](network-and-iam-examples.md#object-storage-and-adb-authorization)',
+            'the **Object Storage and ADB authorization** reference section below').splitlines(True)
+        for old, new in (('3. **Tester:', '1. **Tester:'), ('4. **Run', '2. **Run'),
+                         ('5. **Run', '3. **Run'), ('6. **Run', '4. **Run')):
+            procedure['source'] = source(procedure).replace(old, new).splitlines(True)
+        setup = [md('## IAM setup before execution\n\n' + documentation_section(
+            'network-and-iam-examples.md', 'V02 — Customer Network Source and service gateway'))]
+        appendix.insert(0, md('## Object Storage and ADB authorization\n\n' + documentation_section(
+            'network-and-iam-examples.md', 'Object Storage and ADB authorization')))
+        common = md('## Workbench DNS edit\n\n'
+            '1. Select the test workspace and open its edit form. Record its complete Advanced DNS and SCAN settings.\n'
+            '2. In **Advanced options**, add the exact hostname from CONFIG, such as '
+            '`objectstorage.us-ashburn-1.oraclecloud.com`. Enter no scheme, path, port or wildcard. '
+            'Preserve existing entries; if the hostname already exists, record that fact and keep it.\n'
+            '3. Follow any compute-stop requirement shown by the deployment. Save, inspect the operation result, '
+            'and reopen the form to confirm the entry. A saved entry alone does not prove the runtime path.\n'
+            '4. Return to the same notebook and compute. Use **Choose phase** for each attempt. '
+            'Do not rerun CONFIG and clear RESULTS. If a required restart resets the session, '
+            'export results first and initialize a new session after restarting. Use a fresh connection '
+            'as needed for DNS caches to expire.\n\n'
+            'Expected output: `functional: PASS` means the exact CSV rows were read. '
+            '`source_path: BLOCKED` requires the separate policy and request review described below.\n')
+        for cell in executable:
+            text = source(cell)
+            if text.startswith('## Your configuration'):
+                cell['source'] = ('## Your configuration\n\nComplete IAM setup first. Copy the bucket, namespace, '
+                    'object key and regional endpoint into CONFIG. Both region fields must be the workspace region. '
+                    'The sample expects the two rows in fixtures/sample.csv; supply the exact size and rows for your fixture. '
+                    'Labels identify evidence and do not attach compute. Native oci:// authentication uses the configured '
+                    'runtime identity; do not put API keys in CONFIG.\n').splitlines(True)
+            elif text.startswith('## Run a workload phase'):
+                cell['source'] = ('## Run a workload phase\n\nAfter IAM and routing are ready, run the same read for '
+                    'before, after_add and restored. Change only the DNS entry between phases. Keep the same principal, '
+                    'bucket, object, policy and Network Source. The cell does not create IAM resources.\n').splitlines(True)
+            elif text.startswith('import os\nRUNTIME'):
+                cell['source'] = ('result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), '
+                    'live=RUN_LIVE, phase=PHASE)\nresult["acceptance"] = summarize(result)\n'
+                    'RESULTS.append(result)\nprint(json.dumps(result, indent=2))\n').splitlines(True)
+            elif text.startswith('## Evidence and review'):
+                cell['source'] = ('## Evidence and review\n\nFill the references below after reviewing the effective '
+                    'bucket grant, Network Source, route and saved DNS states. Match each service request by object, '
+                    'UTC time and principal; retain its request ID and response status. Record a denial only when '
+                    'the service evidence establishes authorization failure. Keep exported evidence private.\n\n'
+                    'These fields record human-reviewed evidence; they do not query IAM or automatically prove a '
+                    'source path. A successful CSV read can leave source_path BLOCKED until that review is complete. '
+                    'The export includes both workload results and these evidence references.\n').splitlines(True)
+            elif text.startswith('print(json.dumps({"case": CASE_ID'):
+                cell['source'] = ('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), '
+                    '"results": RESULTS, "evidence": EVIDENCE}, indent=2))\n').splitlines(True)
     # Phase changes must not reset the accumulated observations.
     run_index = next(i for i, c in enumerate(executable)
                      if source(c).startswith('## Run a workload phase'))
@@ -264,7 +324,8 @@ def customer_walkthrough(case, cells):
                  'control["acceptance"] = summarize(control)\n'
                  'RESULTS.append(control)\n'
                  'print(json.dumps(control, indent=2))\n')]
-    return [title, procedure, diagram, common] + executable + [
+    opening = [title] + setup + [diagram, procedure, common] if case == 'V02' else [title, procedure, diagram, common]
+    return opening + executable + [
         md('## Reference appendix\n\nUse the following network, IAM and DNS details when preparing the environment.\n')] + appendix
 
 def build():
@@ -283,7 +344,8 @@ def build():
                        'Preparation templates only: replace every angle-bracket placeholder privately. '
                        'An administrator prepares the approved resources; this notebook applies no policies or network changes.\n\n'
                        + documentation_section('network-and-iam-examples.md', 'Shared prerequisites')
-                       + '\n' + documentation_section('network-and-iam-examples.md', case + ' — ' + CASE_HEADINGS[case]))
+                       + ('' if case == 'V02' else '\n' + documentation_section(
+                           'network-and-iam-examples.md', case + ' — ' + CASE_HEADINGS[case])))
         # Include referenced preparation patterns in notebooks imported on their own.
         related = {'V04': ('V06',), 'V05': ('V02', 'V03', 'V04'),
                    'V06': ('V02',), 'V07': ('V02', 'V03')}
