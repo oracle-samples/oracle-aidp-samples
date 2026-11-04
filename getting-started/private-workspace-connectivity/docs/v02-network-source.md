@@ -110,13 +110,17 @@ Application paths:
 ## Customer steps
 
 1. **Prepare and record.** Complete IAM, bucket, ADB and network setup. Record all existing DNS/SCAN entries. If a target hostname is already present, preserve it and label that target as an existing-configuration validation.
-2. **Configure both targets.** Run **Test helpers** and **Your configuration** once. Fill `CONFIG` for the CSV and `ADB_CONFIG` for the database. Verify the catalog/wallet public descriptor; set its exact hostname, port and service, then set `public_endpoint_confirmed=True`.
-3. **Run the baseline.** Attach the approved compute. In **Choose phase**, set `RUN_LIVE=True` and `PHASE="before"`. Run **Read the bucket object** and **Query the database**. Save both results; their outcomes may differ.
+2. **Initialize and configure.** Attach the approved compute. Run the code cell under **Initialize V02** and wait for **V02 initialized**. Fill `CONFIG` for the CSV and `ADB_CONFIG` for the database. Verify the catalog/wallet public descriptor; set its exact hostname, port and service, then set `public_endpoint_confirmed=True`. Run **Your configuration**.
+3. **Run the baseline.** In **Choose phase**, set `RUN_LIVE=True` and `PHASE="before"` and run that cell. Run **Read the bucket object** and **Query the database**. Save both results; their outcomes may differ.
 4. **Apply the missing hostname entries.** Edit the workspace's **Advanced options** and add only the two exact client hostnames that are missing. Preserve all existing entries. Follow any required compute-stop action, save, and reopen to verify. Keep IAM, ACLs, identities and routes unchanged.
 5. **Repeat both operations.** Set `PHASE="after_add"` and rerun both read cells. Expect the exact CSV rows and the expected database service. Refresh connections after DNS caching as needed. Export earlier results before any required session restart.
 6. **Restore and compare.** Remove only entries introduced by this test. Set `PHASE="restored"`, repeat both reads, and export. Leave pre-existing entries intact. Stop compute if you started it solely for this test.
 
 Use **Choose phase** between attempts; rerunning the configuration cell clears results. Keep the test bucket until evidence is reviewed, then have its owner remove the fixture and bucket. Preserve the reused database and catalog.
+
+**After a session restart or compute reattachment:** rerun **Initialize V02**, **Your configuration**, and **Choose phase** before either read cell. Restore your intended phase and live flag. Earlier in-memory results are lost after a session restart, so export them beforehand.
+
+**If a read reports that V02 is not initialized:** run the code cell under **Initialize V02**, wait for its confirmation, and retry the read. Initialization alone preserves any configuration and results still in the current session. This is a notebook execution-order issue; the read has not reached Object Storage or ADB.
 
 ## Review the result
 

@@ -180,6 +180,47 @@ class NotebookChecks(unittest.TestCase):
                 self.assertEqual(len(env['RESULTS']), 2)
                 self.assertTrue(env['RESULTS'][1]['phase'].endswith('_local_control'))
 
+    def test_v02_recovers_from_skipped_initialization_without_losing_configuration(self):
+        nb = json.loads((ROOT / 'V02_Customer_Network_Source.ipynb').read_text())
+        sources = [''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code']
+        config = next(s for s in sources if s.startswith('CASE_ID = '))
+        reads = [s for s in sources if 'result = run_case(' in s or 'adb_result = run_adb_check(' in s]
+        helper = next(c for c in nb['cells'] if c['cell_type'] == 'code' and
+                      ''.join(c['source']).startswith('CASE_NAMES = '))
+        self.assertFalse(helper['metadata'].get('jupyter', {}).get('source_hidden', False))
+        self.assertEqual(len(reads), 2)
+        env = {}
+        exec(config, env)
+        for read in reads:
+            with self.assertRaisesRegex(RuntimeError, 'Run the code cell under "Initialize V02"'):
+                exec(read, env)
+        cfg = env['CONFIG']
+        adb_cfg = env['ADB_CONFIG']
+        prior = {'saved': 'previous attempt'}
+        env['RESULTS'].append(prior)
+        with patch('builtins.print') as printed:
+            exec(''.join(helper['source']), env)
+            self.assertIn('V02 initialized', printed.call_args.args[0])
+            for read in reads:
+                exec(read, env)
+        self.assertIs(env['CONFIG'], cfg)
+        self.assertIs(env['ADB_CONFIG'], adb_cfg)
+        self.assertIs(env['RESULTS'][0], prior)
+        self.assertEqual(len(env['RESULTS']), 3)
+        for result in env['RESULTS'][1:]:
+            self.assertEqual(result['checks']['execution']['status'], 'NOT_RUN')
+        self.assertEqual({r['target'] for r in env['RESULTS'][1:]}, {'bucket', 'adb'})
+
+    def test_v02_missing_configuration_has_actionable_message(self):
+        nb = json.loads((ROOT / 'V02_Customer_Network_Source.ipynb').read_text())
+        sources = [''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code']
+        env = {}
+        with patch('builtins.print'):
+            exec(next(s for s in sources if s.startswith('CASE_NAMES = ')), env)
+        for read in (s for s in sources if 'result = run_case(' in s or 'adb_result = run_adb_check(' in s):
+            with self.assertRaisesRegex(RuntimeError, 'Complete and run "Your configuration"'):
+                exec(read, env)
+
 
 if __name__ == '__main__':
     unittest.main()

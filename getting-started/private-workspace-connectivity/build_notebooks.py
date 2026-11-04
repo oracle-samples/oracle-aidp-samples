@@ -244,6 +244,18 @@ def md(text, attachments=None):
 def code(text, hidden=False):
     return {'cell_type': 'code', 'execution_count': None, 'outputs': [], 'metadata': {'jupyter': {'source_hidden': True}} if hidden else {}, 'source': text.splitlines(True)}
 
+def v02_session_guard(helper, config):
+    """Explain how to recover when cells run out of order or the session restarts."""
+    return (
+        'if not all(callable(globals().get(name)) for name in ' + repr((helper, 'summarize')) + '):\n'
+        '    raise RuntimeError(\'V02 is not initialized in this session. Run the code cell under '
+        '"Initialize V02" and wait for "V02 initialized". Then rerun this cell. '
+        'After a session restart, also rerun "Your configuration" and "Choose phase".\')\n'
+        'if any(name not in globals() for name in ' + repr(('CASE_ID', config, 'RUN_LIVE', 'PHASE', 'RESULTS')) + '):\n'
+        '    raise RuntimeError(\'V02 configuration is missing. Complete and run "Your configuration", '
+        'then "Choose phase", before running this cell.\')\n\n'
+    )
+
 def v02_walkthrough(diagram):
     """Build this use case without the multi-case reference appendices."""
     guide = 'v02-network-source.md'
@@ -253,8 +265,13 @@ def v02_walkthrough(diagram):
     for heading in ('How the source restrictions work', 'Before you begin', 'IAM and database setup', 'Network setup'):
         cells.append(md('## ' + heading + '\n\n' + section(heading)))
     cells += [diagram, md('## Customer steps\n\n' + section('Customer steps')),
-        md('## Test helpers\n\nRun once. These definitions make no network calls.\n'),
-        code(engine('V02', CASES['V02']['title']) + '\n' + (ROOT / 'v02_adb_check.py').read_text(), True),
+        md('## Initialize V02\n\n**Required:** attach your compute and run the code cell immediately below. '
+           'Wait for **V02 initialized** before continuing to **Your configuration**. '
+           'This cell defines the bucket and database checks; it makes no network calls. '
+           'Run it again after a session restart or compute reattachment. '
+           'Rerunning initialization preserves your configuration and collected results.\n'),
+        code(engine('V02', CASES['V02']['title']) + '\n' + (ROOT / 'v02_adb_check.py').read_text() + '\n'
+             'print("V02 initialized. Next: Your configuration, Choose phase, then the bucket and database cells.")\n'),
         md('## Your configuration\n\nComplete the setup first. CONFIG selects the new bucket fixture; '
            'ADB_CONFIG selects the existing database public-endpoint connection. Set each target region '
            'to the workspace region. The expected CSV rows match sample.csv. Copy expected_service '
@@ -270,14 +287,15 @@ def v02_walkthrough(diagram):
              'PHASE = "before"  # Then after_add and restored, following Customer steps.\n'),
         md('## Read the bucket object\n\nRun this cell once per phase. The same configured runtime identity '
            'must read the same object under the unchanged policy and Network Source.\n'),
-        code('result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), live=RUN_LIVE, phase=PHASE)\n'
+        code(v02_session_guard('run_case', 'CONFIG') +
+             'result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), live=RUN_LIVE, phase=PHASE)\n'
              'result["target"] = "bucket"\n'
              'result["acceptance"] = summarize(result)\nRESULTS.append(result)\nprint(json.dumps(result, indent=2))\n'),
         md('## Query the database\n\nRun once per phase using the same approved public-endpoint connection. '
            'The query reads DUAL and returns service, database user and the client address observed by ADB. '
            'A catalog supplies its own credentials; the wallet alternative reads ADB_PASSWORD privately '
            'from the runtime environment. This checks the ADB VCN ACL path, not an IAM Network Source condition.\n'),
-        code('import os\n'
+        code(v02_session_guard('run_adb_check', 'ADB_CONFIG') + 'import os\n'
              'adb_result = run_adb_check(ADB_CONFIG, spark=globals().get("spark"), '
              'runtime={"adb_password": os.environ.get("ADB_PASSWORD")}, live=RUN_LIVE, phase=PHASE)\n'
              'adb_result["acceptance"] = summarize(adb_result)\nRESULTS.append(adb_result)\n'
