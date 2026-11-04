@@ -273,11 +273,13 @@ def v02_walkthrough(diagram):
         code(engine('V02', CASES['V02']['title']) + '\n' + (ROOT / 'v02_adb_check.py').read_text() + '\n'
              + (ROOT / 'v02_route_check.py').read_text() + '\n'
              + (ROOT / 'v02_control_tests.py').read_text() + '\n'
+             + (ROOT / 'v02_adb_diagnostics.py').read_text() + '\n'
              'print("V02 initialized. Next: Your configuration, Choose phase, then the bucket and database cells.")\n'),
         md('## Your configuration\n\nComplete the setup first. CONFIG selects the new bucket fixture; '
            'ADB_CONFIG selects the existing database public-endpoint connection. Set each target region '
            'to the workspace region. The expected CSV rows match sample.csv. Copy expected_service '
-           'from the selected ADB descriptor. Keep credentials out of both dictionaries.\n'),
+           'from the selected ADB descriptor. Keep credentials out of both dictionaries.\n\n'
+           + section('Which ADB name belongs in the configuration?')),
         code("CASE_ID = 'V02'\nCONFIG = " + pprint.pformat(configuration('csv'), sort_dicts=False) + '\n'
              'ADB_CONFIG = ' + pprint.pformat(dict(workspace_label='', compute_label='',
                  hostname='', port=1522, region='', workspace_region='', catalog_id='',
@@ -313,7 +315,7 @@ def v02_walkthrough(diagram):
         code('EVIDENCE = ' + pprint.pformat(evidence('V02'), sort_dicts=False) + '\n'),
         md('## Export\n\nSave this output privately with your configuration snapshots and request records.\n'),
         code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS, '
-             '"evidence": EVIDENCE, "route_reports": globals().get("ROUTE_REPORTS", []), "control_tests": globals().get("CONTROL_RESULTS", [])}, indent=2))\n'),
+             '"evidence": EVIDENCE, "route_reports": globals().get("ROUTE_REPORTS", []), "control_tests": globals().get("CONTROL_RESULTS", []), "adb_diagnostics": globals().get("ADB_DIAGNOSTICS", [])}, indent=2))\n'),
         md('## References\n\n' + section('References').replace('../../../LICENSE.txt', '../../LICENSE.txt'))]
     route_guide = md('## Verify the customer VCN path\n\n' + section('Verify the customer VCN path'))
     route_guide['id'] = 'v02-route-guide'
@@ -391,7 +393,19 @@ def v02_walkthrough(diagram):
         'else:\n'
         '    print("Recovery disabled; no changes made")\n')
     recovery_cell['id'] = 'v02-recovery'
-    cells[position:position] = [control_guide, control_setup, bucket_guide, bucket_cell,
+    diagnostic_guide = md('## Troubleshoot ADB\n\n' + section('Troubleshoot the ADB connection'))
+    diagnostic_guide['id'] = 'v02-adb-diagnostic-guide'
+    diagnostic_cell = code(v02_session_guard('v02_adb_diagnose', 'ADB_CONFIG') +
+        'RUN_ADB_DIAGNOSTIC_QUERY = False  # Enable after verifying the public catalog/wallet descriptor.\n'
+        'ADB_WORKSPACE_SNAPSHOT_FILE = ""  # Optional private v02-route-snapshot.json path.\n'
+        'adb_snapshot = json.loads(Path(ADB_WORKSPACE_SNAPSHOT_FILE).read_text()) if ADB_WORKSPACE_SNAPSHOT_FILE else {}\n'
+        'adb_diagnostic = v02_adb_diagnose(ADB_CONFIG, spark=globals().get("spark"),\n'
+        '    runtime={"adb_password": os.environ.get("ADB_PASSWORD")}, live=RUN_LIVE,\n'
+        '    query=RUN_ADB_DIAGNOSTIC_QUERY, workspace_snapshot=adb_snapshot, adb_reader=run_adb_check)\n'
+        'ADB_DIAGNOSTICS = globals().get("ADB_DIAGNOSTICS", [])\nADB_DIAGNOSTICS.append(adb_diagnostic)\n'
+        'print_v02_adb_diagnostic(adb_diagnostic)\n')
+    diagnostic_cell['id'] = 'v02-adb-diagnostic'
+    cells[position:position] = [diagnostic_guide, diagnostic_cell, control_guide, control_setup, bucket_guide, bucket_cell,
         adb_guide, adb_cell, recovery_guide, recovery_cell, route_guide, route_cell]
     return cells
 

@@ -30,6 +30,22 @@ Record the following before starting compute:
 
 Keep secrets out of notebook cells and outputs. Prefer an existing catalog. If using a wallet, supply the password through a private runtime `ADB_PASSWORD` environment variable. Do not download credentials into the test bucket.
 
+## Which ADB name belongs in the configuration?
+
+**Use the exact `HOST` from the selected database connection descriptor.** FQDN means the full DNS hostname; “ADB DNS” alone does not distinguish a listener hostname from a DNS zone or a database service name.
+
+| Connection value | Example | Where it belongs |
+| --- | --- | --- |
+| Public listener `HOST` | `adb.<region>.oraclecloud.com` | `ADB_CONFIG["hostname"]`; this is the exact name whose public-endpoint route V02 checks. |
+| Private listener `HOST` | `<private-label>.adb.<region>.oraclecloud.com` | A private-endpoint connection. It selects a different path and does not test the public VCN ACL. |
+| TNS alias | `<database>_public_high` in a refreshed dual-access wallet | Selects a descriptor from `tnsnames.ora`; it is not a DNS hostname. Existing catalogs may retain an older alias: inspect its descriptor. |
+| `SERVICE_NAME` | `<service-id>_<database>_high.adb.oraclecloud.com` | `ADB_CONFIG["expected_service"]`; it selects the database service after connecting to HOST/PORT. Do not resolve it as the listener hostname. |
+| DNS zone / wildcard | `*.adb.<region>.oraclecloud.com` | Resolver-policy scope, not the single HOST value for this test. Do not broaden the workspace configuration to this wildcard. |
+
+In **Autonomous Database > Database connection**, select **Public endpoint** and the desired connection profile. Copy its `HOST`, `PORT` and `SERVICE_NAME` separately. Verify the catalog or selected wallet alias uses that descriptor, then set `public_endpoint_confirmed=True`. The diagnostic cannot inspect the descriptor stored inside a managed catalog or verify that checkbox independently. Do not paste passwords, wallet contents or a complete credential-bearing JDBC URL into cells.
+
+For the workspace DNS entry, use the plain exact HOST, without `https://`, a port, a path or a wildcard. An existing service-zone allowance does not by itself make public traffic originate in the customer VCN. Check the **completed** workspace configuration and runtime result. An entry that is omitted after an update needs AIDP administrator review; adding it as a SCAN proxy entry is not an equivalent fix.
+
 ## IAM and database setup
 
 Complete these steps before the reads. The optional permission-test cells temporarily change an existing bucket grant or database ACL, then restore it; they do not create resources.
@@ -123,6 +139,29 @@ Use **Choose phase** between attempts; rerunning the configuration cell clears r
 **After a session restart or compute reattachment:** rerun **Initialize V02**, **Your configuration**, and **Choose phase** before either read cell. Restore your intended phase and live flag. Earlier in-memory results are lost after a session restart, so export them beforehand.
 
 **If a read reports that V02 is not initialized:** run the code cell under **Initialize V02**, wait for its confirmation, and retry the read. Initialization alone preserves any configuration and results still in the current session. This is a notebook execution-order issue; the read has not reached Object Storage or ADB.
+
+## Troubleshoot the ADB connection
+
+Run **Troubleshoot ADB** after setting the exact HOST and PORT and `RUN_LIVE=True`. It changes no DNS, IAM or ACL settings and needs no OCI administrator credentials.
+
+1. **Check DNS and TCP first.** Leave `RUN_ADB_DIAGNOSTIC_QUERY=False`. The cell compares Python and Spark JVM DNS answers and attempts TCP handshakes to up to four resolved addresses with a three-second connection timeout each. JDBC uses the JVM; different answers can also result from DNS rotation or caching.
+2. **Optionally compare saved settings.** Set `ADB_WORKSPACE_SNAPSHOT_FILE` to the private JSON produced by `collect_v02_route_snapshot.py`. The report states whether the exact hostname appears and shows the capture time. This is a snapshot, not a live read or proof of the running resolver configuration. Refresh it after a workspace update.
+3. **Test SQL with the existing connection.** Verify the public catalog/wallet descriptor, set `public_endpoint_confirmed=True`, then set `RUN_ADB_DIAGNOSTIC_QUERY=True`. The cell runs the bounded identity query and reports Oracle error codes without raw credential-bearing exception text. A password is never requested or printed by this diagnostic.
+4. **Follow the reported next action.** Export the diagnostic with the UTC time, compute identity, hostname/port and sanitized configuration for the administrator investigating the failure. Keep the existing source restriction while diagnosing it.
+
+| Observation | What it tells you | Customer action |
+| --- | --- | --- |
+| Host missing, URL, alias or SERVICE_NAME used as HOST | Connection fields need correction. | Copy HOST and PORT from the selected public descriptor. |
+| DNS lookup fails | That runtime could not resolve the configured name. | Check spelling and have the administrator inspect effective workspace DNS forwarding. |
+| Python/JVM answers differ | The runtimes observed different address sets. | Compare repeated lookups and caching; this alone does not prove stale DNS or require a restart. |
+| DNS resolves but TCP fails | The listener was not reached at the tested address/port. | Check the descriptor port, egress rules, Service Gateway route and workspace private connection. |
+| TCP succeeds; `ORA-12529` / `ORA-12506` | A connection filter rejected the SQL request. | Verify the actual descriptor, ADB VCN ACL and effective customer-VCN path with the AIDP administrator. The code alone does not identify the source VCN. |
+| `ORA-01017`, `ORA-28000`, `ORA-28001` | Login/account problem. | Have the database owner check the credential and account state. |
+| `ORA-29024`, `ORA-28759`, `ORA-28860` | Certificate, wallet or TLS problem. | Check the selected descriptor and approved wallet; retain certificate validation. |
+| `ORA-12514` / `ORA-12505` | Listener/service selection problem. | Check the TNS alias and SERVICE_NAME against current connection information. |
+| SQL returns the expected service | The selected SQL connection works. | Run the separate source-control comparison before claiming customer-VCN enforcement. |
+
+DNS answers identify destinations. A public address or a mapped `255.x.x.x` address alone does not identify the connection source. A TCP handshake does not prove TLS, mTLS, SQL login or the customer VCN route. The diagnostic is scoped to the driver; executor and AI compute paths require their own observations.
 
 ## Test the source controls: allow, deny, restore
 
@@ -242,6 +281,8 @@ A normal read reports `ACCESS_SUCCEEDED_SOURCE_NOT_VERIFIED`; that is an incompl
 - [Object Storage permissions](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/objectstoragepolicyreference.htm)
 - [Object Storage request log fields](https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/details_for_object_storage.htm)
 - [ADB administration IAM permissions and ACL-only action](https://docs.oracle.com/en/cloud/paas/autonomous-database/serverless/adbsb/autonomous-database-iam-policies.html)
+- [ADB public/private descriptors and TNS aliases](https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/private-endpoints-autonomous.html)
+- [ORA-12529 filtering rejection](https://docs.oracle.com/en/error-help/db/ora-12529/)
 - [ADB VCN access-control rules](https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/access-control-rules-autonomous.html)
 - [Service gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm)
 
