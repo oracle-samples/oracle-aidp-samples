@@ -98,77 +98,85 @@ Sources: [AWS S3 identity policy examples](https://docs.aws.amazon.com/AmazonS3/
 
 ## V02 — Customer Network Source and service gateway
 
-**Complete this setup before running V02.** The test has two independent requirements: the runtime identity can read the test bucket, and that grant applies only to requests from the selected customer VCN. Advanced DNS supplies neither permission.
+### How the IAM restriction works
 
-### 1. Record the bucket and the identity that reads it
+| IAM element | What it checks | This example |
+| --- | --- | --- |
+| Resource principal | **Who signed the request?** | The AIDP instance resource identity. |
+| Dynamic group | **Is that resource a member?** | `aidp_v02_reader` contains the selected AIDP instance. |
+| Network Source | **Where did the request originate?** | `aidp_v02_vcn` contains the customer VCN and allowed subnet range. |
+| Policy | **What may this caller do, from that source?** | Read the named bucket only when the Network Source matches. |
 
-Use a private test bucket in the **same region as the workspace** and a known CSV object no larger than 64 KiB. Have the bucket owner upload the fixture with their existing permissions. The test reader needs no write access.
+The dynamic group and Network Source are independent IAM objects. The policy connects them. Neither object grants access by itself. Putting an AIDP resource in the dynamic group does not put its requests in the allowed network.
 
-| Input | Where to obtain it |
+For this grant, **caller is a group member AND bucket matches AND source matches** must all be true. IAM evaluates the source condition when Object Storage authorizes the request. It uses the request's VCN/source-address context through the service gateway; the notebook does not send a Network Source name as a credential.
+
+A dynamic group is the identity mechanism chosen for this walkthrough. A policy that directly matches a resource principal can also authorize it without a dynamic group; do not add that alternative grant alongside this test policy.
+
+### Before you begin
+
+Use an existing private-network workspace and a small private test bucket. Have the AIDP administrator confirm that the native `oci://` reader uses the AIDP instance resource principal. A dynamic group does not change the reader's authentication mode. If the reader uses a user credential, stop and resolve that setup before using this resource-principal walkthrough.
+
+Record:
+
+| Value | Obtain from |
 | --- | --- |
-| `<DATA_COMPARTMENT>`, `<TEST_BUCKET>`, namespace, object key and region | OCI Console > Object Storage > bucket details. The compartment is the bucket's compartment. |
-| `<CUSTOMER_VCN_ID>`, `<WORKSPACE_SUBNET_CIDR>` | Workspace private network configuration and the selected OCI subnet. Use the actual customer-side source range for this topology. |
-| Runtime principal type and ID | AIDP administrator's connector configuration; confirm with the requestor in Object Storage Read Access Events when available. |
+| `<AIDP_RESOURCE_ID>` | AIDP instance details: its resource OCID, not the workspace or cluster UUID. |
+| `<IAM_DOMAIN>` | Identity domain where the dynamic group will be created. |
+| `<BUCKET_COMPARTMENT_ID>`, `<BUCKET_NAME>`, namespace | Object Storage bucket details. |
+| `<CUSTOMER_VCN_ID>`, `<SOURCE_SUBNET_CIDR>` | The VCN and customer-side source subnet used by the workspace private connection. |
+| Object key, size and expected rows | An existing CSV fixture of at most 64 KiB, uploaded by the bucket owner. |
 
-The policy must match the identity used by Spark's `oci://` reader. Your browser login or local CLI profile does not establish that identity. For request verification, the bucket owner can use **bucket > Monitoring > Logs > Read Access Events** and correlate the object name and UTC time; retain `principalId`, `opcRequestId` and `statusCode`. Existing logs can be reused; enabling logs is an administrator action subject to logging charges. Never copy the log's credentials field into evidence.
+### IAM setup
 
-### 2. Create the VCN Network Source
+An existing IAM administrator completes these three steps before the tester runs the notebook.
 
-An IAM administrator opens **Identity & Security > Network Sources** in the tenancy's **home region**, then selects **Create Network Source**:
+#### 1. Create the dynamic group: who may read
 
-| Field | Set to |
-| --- | --- |
-| Name | `aidp_v02_vcn`, or your own unique name used in the policies below. |
-| Network type | **Virtual Cloud Network**. |
-| VCN OCID | `<CUSTOMER_VCN_ID>`. |
-| IP address/CIDR | `<WORKSPACE_SUBNET_CIDR>`, for example `10.20.1.0/24` in an illustrative customer network. |
-| Public sources | None for this VCN/service-gateway test. |
-
-The Network Source is a tenancy-level IAM object. Enter the allowed **source** subnet, not an IP returned by the destination's DNS lookup. Creating it does not grant bucket access; the policy in step 3 references it. This example does not change console sign-in restrictions.
-
-If a delegated administrator needs permission to manage Network Sources, an existing tenancy administrator can grant:
+In **Identity & Security > Domains > your domain > Dynamic groups**, create `aidp_v02_reader`. In a tenancy without identity domains, open **Identity & Security > Dynamic Groups**. Enter this matching rule, replacing the placeholder:
 
 ```text
-Allow group <IDENTITY_DOMAIN>/<NETWORK_SOURCE_ADMINS> to manage network-sources in tenancy
+ALL {resource.id = '<AIDP_RESOURCE_ID>'}
 ```
 
-Use the existing IAM policy administrator to create the bucket grants. The notebook runner does not need permission to administer IAM.
+Use `resource.id` for the AIDP resource, not a Compute instance matching rule. This selects one resource; it does not include every resource in the compartment.
 
-### 3. Grant read access with the Network Source condition
+#### 2. Create the Network Source: where requests may originate
 
-Open **Identity & Security > Policies**, select the bucket compartment or an authorized ancestor, and use **Create Policy > Show manual editor**. Replace the placeholders and select **one** identity variant.
+In the tenancy's **home region**, open **Identity & Security > Network Sources > Create Network Source**:
 
-**AIDP instance principal:** use this example when the verified caller is the named AIDP instance with principal type `aidataplatform`:
-
-```text
-Allow any-user to read objects in compartment <DATA_COMPARTMENT> where all {request.principal.type='aidataplatform', request.principal.id='<AIDP_INSTANCE_ID>', target.bucket.name='<TEST_BUCKET>', request.networkSource.name='aidp_v02_vcn'}
-Allow any-user to read buckets in compartment <DATA_COMPARTMENT> where all {request.principal.type='aidataplatform', request.principal.id='<AIDP_INSTANCE_ID>', target.bucket.name='<TEST_BUCKET>', request.networkSource.name='aidp_v02_vcn'}
-```
-
-**User principal:** if the connector instead uses a user identity, place that user in the approved reader group and use:
-
-```text
-Allow group <IDENTITY_DOMAIN>/<FIXTURE_READERS> to read objects in compartment <DATA_COMPARTMENT> where all {target.bucket.name='<TEST_BUCKET>', request.networkSource.name='aidp_v02_vcn'}
-Allow group <IDENTITY_DOMAIN>/<FIXTURE_READERS> to read buckets in compartment <DATA_COMPARTMENT> where all {target.bucket.name='<TEST_BUCKET>', request.networkSource.name='aidp_v02_vcn'}
-```
-
-For an already verified resource principal covered by a dynamic group, replace the user subject in both lines with `dynamic-group <IDENTITY_DOMAIN>/<RUNTIME_DYNAMIC_GROUP>`. Its matching rule must include the actual caller. Do not invent a cluster principal or apply every variant.
-
-`read objects` permits the object read and listing required by the CSV reader. `read buckets` covers bucket metadata checks. The bucket-name condition deliberately excludes listing every bucket in a compartment; supply the bucket and namespace explicitly. No `manage object-family` grant is needed for this test.
-
-**Before proceeding:** have the IAM administrator check effective grants, including inherited policies and all groups covering the caller. OCI allows are additive: an unrestricted grant to this same bucket would bypass the source condition. Use an isolated test bucket/identity when necessary; do not remove shared production grants. Save the policy and Network Source definitions and allow IAM changes to propagate before taking the DNS baseline. Keep them fixed for every test phase.
-
-### 4. Prepare the same-region network path
-
-| Control | Required setting |
+| Field | Value |
 | --- | --- |
-| Workspace | Private network attached to the VCN/subnet recorded in step 1; existing AIDP service permissions and platform network prerequisites satisfied. |
-| Service gateway | Enabled regional Object Storage service label, or the regional All Services label that includes it. |
-| Subnet route | Destination type **Service**, matching regional service label, target the service gateway. |
-| Egress | Stateful TCP 443 to that regional service label in the applicable subnet/NSG/firewall controls. |
-| Advanced DNS | The exact in-region hostname used by the reader, such as `objectstorage.us-ashburn-1.oraclecloud.com`. Record the original entry state before editing. |
+| Name | `aidp_v02_vcn` |
+| Network type | **Virtual Cloud Network** |
+| VCN OCID | `<CUSTOMER_VCN_ID>` |
+| IP address/CIDR | `<SOURCE_SUBNET_CIDR>`, such as `10.20.1.0/24` in an illustrative network |
 
-This makes the intended application path **AIDP -> workspace private connection -> customer subnet -> same-region service gateway -> Object Storage**. The Network Source condition is evaluated by IAM when Object Storage authorizes the request.
+Add no public IP range for this test. The VCN ID and source range form a pair: the same IP range in a different VCN does not match. Do not enter the Object Storage destination IP.
+
+#### 3. Create the policy: permission plus source restriction
+
+Open **Identity & Security > Policies** in the bucket compartment or an authorized ancestor. Create a policy using the manual editor:
+
+```text
+Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read objects in compartment id <BUCKET_COMPARTMENT_ID> where all {target.bucket.name='<BUCKET_NAME>', request.networkSource.name='aidp_v02_vcn'}
+Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read buckets in compartment id <BUCKET_COMPARTMENT_ID> where all {target.bucket.name='<BUCKET_NAME>', request.networkSource.name='aidp_v02_vcn'}
+```
+
+For a tenancy without identity domains, use `dynamic-group aidp_v02_reader`. The first statement permits object reads/listing; the second permits bucket metadata checks. No write grant is needed.
+
+Review all effective grants for this resource and bucket, including inherited policies and other dynamic-group memberships. An additional unconditional allow can bypass this restriction. Choose an isolated test bucket if existing grants cannot be safely scoped. Allow IAM and dynamic-group membership changes to propagate, then keep these definitions unchanged throughout the test.
+
+### Network setup
+
+| Component | Required configuration |
+| --- | --- |
+| Workspace | Existing private connection to the customer VCN/subnet recorded above; platform private-network prerequisites already satisfied. |
+| Service gateway | Enabled Object Storage service, or All Services label including Object Storage, in this same region. |
+| Source subnet route | Destination type **Service**, matching regional service label, target the service gateway. |
+| Egress controls | Stateful TCP 443 to the regional service label through the applicable subnet/NSG/firewall rules. |
+
+Expected application path: **AIDP -> workspace private connection -> customer subnet -> service gateway -> Object Storage**. The service-gateway path supplies the customer VCN source context needed by this policy.
 
 ## Object Storage and ADB authorization
 
@@ -187,9 +195,9 @@ Allow group <IDENTITY_DOMAIN>/<FIXTURE_READERS> to read objects in compartment <
 Allow group <IDENTITY_DOMAIN>/<FIXTURE_READERS> to read buckets in compartment <REMOTE_DATA_COMPARTMENT> where target.bucket.name='<REMOTE_TEST_BUCKET>'
 ```
 
-Use the same verified principal variant as in step 3. For an AIDP instance, retain both `request.principal.type` and `request.principal.id` conditions. IAM resource grants apply across subscribed regions unless their conditions restrict the region; they do not create cross-region routes. These examples assume one tenancy. Cross-tenancy access needs a separate endorsement/admission setup.
+Use the same verified principal variant as in step 3. For the resource-principal setup in V02, use `dynamic-group <IAM_DOMAIN>/aidp_v02_reader` as the subject in both lines. IAM resource grants apply across subscribed regions unless their conditions restrict the region; they do not create cross-region routes. These examples assume one tenancy. Cross-tenancy access needs a separate endorsement/admission setup.
 
-If the remote test must also restrict source, create a **separate** Network Source, `aidp_v03_nat`, with **Public Network** equal to the customer's NAT public IP `/32`. Replace each remote policy's `where target.bucket.name=...` with `where all {target.bucket.name='<REMOTE_TEST_BUCKET>', request.networkSource.name='aidp_v03_nat'}`. Retain the principal conditions for an AIDP caller. Do not keep the unconditional remote grant alongside its restricted replacement. V03's local control bucket also needs its own read grant.
+If the remote test must also restrict source, create a **separate** Network Source, `aidp_v03_nat`, with **Public Network** equal to the customer's NAT public IP `/32`. Replace each remote policy's `where target.bucket.name=...` with `where all {target.bucket.name='<REMOTE_TEST_BUCKET>', request.networkSource.name='aidp_v03_nat'}`. Retain the same dynamic-group subject for the AIDP caller. Do not keep the unconditional remote grant alongside its restricted replacement. V03's local control bucket also needs its own read grant.
 
 **ADB password connection used by V04:** a DBA provisions the login securely and grants the following to an existing dedicated test user:
 

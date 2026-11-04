@@ -68,33 +68,16 @@ Keep the time, phase and operation result. A DNS answer or open TCP port is not 
 
 ## V02 - Customer Network Source
 
-**Customer outcome:** read an Object Storage bucket in the workspace's region while IAM permits that read only from the selected customer VCN. **Set up IAM first; then change only DNS during the comparison.**
+Read one private Object Storage fixture through the customer VCN under a source-restricted IAM policy. The [standalone V02 walkthrough](v02-network-source.md) explains the dynamic group, Network Source and policy, with the complete setup.
 
-1. **IAM administrator: prepare authorization.** Complete the V02 IAM setup: identify the Spark reader's principal, create the VCN Network Source, and apply the bucket-scoped read policy with `request.networkSource.name`. Confirm no broader grant bypasses the restriction. The notebook includes the policy statements before its executable cells; in the repository, use [V02 IAM setup](network-and-iam-examples.md#v02--customer-network-source-and-service-gateway).
-2. **Network administrator: prepare routing.** Verify the workspace's customer subnet has a route to Object Storage through the **same-region service gateway**, plus TCP 443 egress. Retain the complete original workspace DNS/SCAN configuration and existing route/security settings.
-3. **Tester: prepare the read.** Fill CONFIG with the private test bucket, known CSV object and actual regional endpoint. Set both region fields to the workspace region. Run helpers and configuration once. Start the approved test compute only after IAM and network setup are complete.
-4. **Run `before`.** In **Choose phase**, set `RUN_LIVE=True` and `PHASE="before"`, then run **Run a workload phase**. Keep the result and UTC time. If the exact Advanced DNS entry already exists, preserve it and record an existing-configuration baseline.
-5. **Run `after_add`.** Add the exact regional Object Storage hostname to workspace Advanced DNS, following the supported save/lifecycle steps. Reopen the saved settings. Keep the same policy, Network Source, identity, object and route; set `PHASE="after_add"` and rerun. Expect the two fixture rows. Review the matching service request and effective policy before declaring the source restriction demonstrated.
-6. **Run `restored`.** Remove only the entry introduced by this test, verify the original DNS/SCAN configuration, and rerun with `PHASE="restored"`. Export the observations before stopping compute that you started. Reuse existing IAM/network resources; remove temporary test grants only after evidence collection and according to the agreed cleanup plan.
+1. **Record the baseline.** Save the dynamic-group rule, Network Source, effective policies, route and full workspace DNS/SCAN settings. If the Object Storage hostname is already configured, preserve it and label the run as validation of an existing setup.
+2. **Configure the read.** Attach the approved test compute. Run **Test helpers** and **Your configuration** once. Set the fixture URI, endpoint and expected rows. Both region fields must match the workspace region.
+3. **Run before.** Set `RUN_LIVE=True` and `PHASE="before"` in **Choose phase**, then run the read cell. Retain the result.
+4. **Apply the hostname setting.** Edit the workspace, open **Advanced options**, and add the exact Object Storage hostname used by the reader, for example `objectstorage.us-ashburn-1.oraclecloud.com`. Preserve all other entries. Follow any required compute-stop action, save, and reopen the settings to confirm. Keep IAM and routes unchanged.
+5. **Run after.** Set `PHASE="after_add"` and repeat the same read with the same identity and object. Expect the exact fixture rows. Use a fresh connection as needed after DNS caches expire. If a required restart resets the session, export the earlier result before restarting.
+6. **Restore.** Remove only the hostname introduced by this run and verify the original DNS/SCAN settings. Run `PHASE="restored"`, then export results. Stop compute only if you started it for this test.
 
-| Phase | Expected observation |
-| --- | --- |
-| `before` | A request arriving outside the allowed VCN is denied by the effective source-restricted policy. A DNS failure, timeout or wrong credential alone does not prove IAM denial. An already-working customer path can succeed. |
-| `after_add` | Exact fixture rows returned; same runtime principal, bucket and effective source restriction; request and route records support the customer VCN/service-gateway path. |
-| `restored` | Original DNS/SCAN configuration and baseline behavior restored. |
-
-If all phases succeed because the route was already configured, report **existing-configuration validation**, not a demonstrated deny-to-allow transition. If IAM setup or source evidence is missing, the Network Source demonstration remains incomplete even when the CSV read succeeds.
-
-| CONFIG field | Value to supply |
-| --- | --- |
-| `uri` | `oci://<bucket>@<namespace>/dns-test/sample.csv` |
-| `endpoint` | Actual in-region endpoint URL, such as `https://objectstorage.us-ashburn-1.oraclecloud.com`. |
-| `hostname` | The endpoint hostname without the `https://` prefix. |
-| `region`, `workspace_region` | The same verified OCI region. |
-| `fixture_size_bytes`, `expected_rows` | Verified size and known rows of that exact object. |
-| `workspace_label`, `compute_label` | The selected workspace and test compute names. |
-
-**Completion:** exact object contents, unchanged effective Network Source restriction, saved DNS evidence and reviewed source/path evidence. V03 covers the remote bucket; V04 covers ADB. Their authorization differences and policy examples are explained in [Object Storage and ADB authorization](network-and-iam-examples.md#object-storage-and-adb-authorization).
+Use **Choose phase** between reads; do not rerun the configuration cell and clear earlier results.
 
 ## V03 - Cross-region Object Storage
 

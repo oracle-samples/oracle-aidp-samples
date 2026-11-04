@@ -160,6 +160,33 @@ class Specialize(ast.NodeTransformer):
         value = static(node.test, self.case)
         return node.body if value is True else node.orelse if value is False else node
 
+class V02Specialize(Specialize):
+    """Keep only the OCI CSV path in the standalone Network Source notebook."""
+    def visit_Name(self, node):
+        if node.id == 'fixture_role' and isinstance(node.ctx, ast.Load):
+            return ast.Constant('primary')
+        return node
+
+    def visit_Call(self, node):
+        node = self.generic_visit(node)
+        if (isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+                and node.args and isinstance(node.args[0], ast.Constant)):
+            if (node.func.value.id, node.func.attr, node.args[0].value) == ('cfg', 'get', 'kind'):
+                return ast.Constant('csv')
+            if (node.func.value.id, node.func.attr, node.args[0].value) == ('uri', 'startswith', 's3a://'):
+                return ast.Constant(False)
+        return node
+
+    def visit_Constant(self, node):
+        replacements = {
+            'Use s3a:// or oci://': 'Use an oci:// bucket@namespace/object URI',
+            'V02 requires a bucket in the workspace region; use V03 for a remote bucket':
+                'The bucket must be in the workspace region',
+        }
+        if isinstance(node.value, str) and node.value in replacements:
+            return ast.Constant(replacements[node.value])
+        return node
+
 def engine(case, title):
     source = ast.parse((ROOT / 'connectivity_checks.py').read_text())
     nodes = []
@@ -167,6 +194,11 @@ def engine(case, title):
         if isinstance(item, (ast.Import, ast.ImportFrom, ast.ClassDef)):
             nodes.append(copy.deepcopy(item))
         elif isinstance(item, ast.FunctionDef) and item.name != 'main':
+            if case == 'V02':
+                if item.name not in ('utc', 'canonical', 'endpoint_host', 'fixture_read', 'run_case', 'summarize'):
+                    continue
+                nodes.append(V02Specialize(case).visit(copy.deepcopy(item)))
+                continue
             if item.name in ('run_case', 'fixture_read', 'adb_read') and case in ('V05', 'V06'): continue
             if item.name == 'evaluate_evidence' and case in ('V01', 'V02', 'V03'): continue
             nodes.append(Specialize(case).visit(copy.deepcopy(item)))
@@ -185,7 +217,7 @@ def configuration(kind):
 def evidence(case):
     ev = {'evidence_ref': None}
     if case == 'V02':
-        ev.update(runtime_principal_id='', network_source_name='',
+        ev.update(runtime_principal_id='', dynamic_group_rule_ref='', network_source_name='',
                   network_source_snapshot_ref='', bucket_policy_snapshot_ref='',
                   effective_grants_review_ref='', route_snapshot_ref='',
                   dns_before_ref='', dns_after_ref='', dns_restored_ref='',
@@ -211,8 +243,45 @@ def md(text, attachments=None):
 def code(text, hidden=False):
     return {'cell_type': 'code', 'execution_count': None, 'outputs': [], 'metadata': {'jupyter': {'source_hidden': True}} if hidden else {}, 'source': text.splitlines(True)}
 
+def v02_walkthrough(diagram):
+    """Build this use case without the multi-case reference appendices."""
+    guide = 'v02-network-source.md'
+    section = lambda heading: documentation_section(guide, heading)
+    intro = (ROOT / 'docs' / guide).read_text().split('\n## ', 1)[0]
+    cells = [md(intro + '\n\nThis notebook is an unexecuted sample.\n')]
+    for heading in ('How the IAM restriction works', 'Before you begin', 'IAM setup', 'Network setup'):
+        cells.append(md('## ' + heading + '\n\n' + section(heading)))
+    cells += [diagram, md('## Customer steps\n\n' + section('Customer steps')),
+        md('## Test helpers\n\nRun once. These definitions make no network calls.\n'),
+        code(engine('V02', CASES['V02']['title']), True),
+        md('## Your configuration\n\nComplete the IAM and network setup first. Use the exact bucket, namespace, '
+           'object and endpoint from the preparation record. Both region fields must match the workspace region. '
+           'The two expected rows below match the supplied sample.csv fixture. Keep credentials out of CONFIG.\n'),
+        code("CASE_ID = 'V02'\nCONFIG = " + pprint.pformat(configuration('csv'), sort_dicts=False) + '\n'
+             'RUN_LIVE = False\nRUN_EVIDENCE_CHECKS = False\nPHASE = "before"\nRESULTS = []\n'),
+        md('## Choose phase\n\nChange only the phase and live flag between attempts. Keep earlier RESULTS.\n'),
+        code('RUN_LIVE = False  # Set True after completing IAM and network setup.\n'
+             'PHASE = "before"  # Then after_add and restored, following Customer steps.\n'),
+        md('## Read the test object\n\nRun this cell once per phase. The same configured runtime identity '
+           'must read the same object under the unchanged policy and Network Source.\n'),
+        code('result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), live=RUN_LIVE, phase=PHASE)\n'
+             'result["acceptance"] = summarize(result)\nRESULTS.append(result)\nprint(json.dumps(result, indent=2))\n'),
+        md('## Review the result\n\n' + section('Review the result') + '\n'
+           '`functional: PASS` confirms the exact CSV rows. `source_path: BLOCKED` means that the policy '
+           'and request evidence still needs human review. The following references document that review; '
+           'they do not automatically query or validate IAM.\n'),
+        code('EVIDENCE = ' + pprint.pformat(evidence('V02'), sort_dicts=False) + '\n'),
+        md('## Export\n\nSave this output privately with your configuration snapshots and request records.\n'),
+        code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS, '
+             '"evidence": EVIDENCE}, indent=2))\n'),
+        md('## References\n\n' + section('References').replace('../../../LICENSE.txt', '../../LICENSE.txt'))]
+    return cells
+
 def customer_walkthrough(case, cells):
     """Put customer actions and executable cells before reference appendices."""
+    if case == 'V02':
+        diagram = next(c for c in cells if 'network.png' in c.get('attachments', {}))
+        return v02_walkthrough(diagram)
     headings = {
         'V01': 'V01 - Amazon S3',
         'V02': 'V02 - Customer Network Source',
@@ -240,60 +309,6 @@ def customer_walkthrough(case, cells):
         'customer-walkthrough.md', headings[case]))
     common = md('## Workbench actions and output\n\n' + documentation_section(
         'customer-walkthrough.md', 'Common Workbench actions'))
-    setup = []
-    if case == 'V02':
-        instructions = [line for line in procedure['source']
-                        if not line.startswith(('1. **IAM administrator:', '2. **Network administrator:'))]
-        procedure['source'] = ''.join(instructions).replace(
-            '[Object Storage and ADB authorization](network-and-iam-examples.md#object-storage-and-adb-authorization)',
-            'the **Object Storage and ADB authorization** reference section below').splitlines(True)
-        for old, new in (('3. **Tester:', '1. **Tester:'), ('4. **Run', '2. **Run'),
-                         ('5. **Run', '3. **Run'), ('6. **Run', '4. **Run')):
-            procedure['source'] = source(procedure).replace(old, new).splitlines(True)
-        setup = [md('## IAM setup before execution\n\n' + documentation_section(
-            'network-and-iam-examples.md', 'V02 — Customer Network Source and service gateway'))]
-        appendix.insert(0, md('## Object Storage and ADB authorization\n\n' + documentation_section(
-            'network-and-iam-examples.md', 'Object Storage and ADB authorization')))
-        common = md('## Workbench DNS edit\n\n'
-            '1. Select the test workspace and open its edit form. Record its complete Advanced DNS and SCAN settings.\n'
-            '2. In **Advanced options**, add the exact hostname from CONFIG, such as '
-            '`objectstorage.us-ashburn-1.oraclecloud.com`. Enter no scheme, path, port or wildcard. '
-            'Preserve existing entries; if the hostname already exists, record that fact and keep it.\n'
-            '3. Follow any compute-stop requirement shown by the deployment. Save, inspect the operation result, '
-            'and reopen the form to confirm the entry. A saved entry alone does not prove the runtime path.\n'
-            '4. Return to the same notebook and compute. Use **Choose phase** for each attempt. '
-            'Do not rerun CONFIG and clear RESULTS. If a required restart resets the session, '
-            'export results first and initialize a new session after restarting. Use a fresh connection '
-            'as needed for DNS caches to expire.\n\n'
-            'Expected output: `functional: PASS` means the exact CSV rows were read. '
-            '`source_path: BLOCKED` requires the separate policy and request review described below.\n')
-        for cell in executable:
-            text = source(cell)
-            if text.startswith('## Your configuration'):
-                cell['source'] = ('## Your configuration\n\nComplete IAM setup first. Copy the bucket, namespace, '
-                    'object key and regional endpoint into CONFIG. Both region fields must be the workspace region. '
-                    'The sample expects the two rows in fixtures/sample.csv; supply the exact size and rows for your fixture. '
-                    'Labels identify evidence and do not attach compute. Native oci:// authentication uses the configured '
-                    'runtime identity; do not put API keys in CONFIG.\n').splitlines(True)
-            elif text.startswith('## Run a workload phase'):
-                cell['source'] = ('## Run a workload phase\n\nAfter IAM and routing are ready, run the same read for '
-                    'before, after_add and restored. Change only the DNS entry between phases. Keep the same principal, '
-                    'bucket, object, policy and Network Source. The cell does not create IAM resources.\n').splitlines(True)
-            elif text.startswith('import os\nRUNTIME'):
-                cell['source'] = ('result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), '
-                    'live=RUN_LIVE, phase=PHASE)\nresult["acceptance"] = summarize(result)\n'
-                    'RESULTS.append(result)\nprint(json.dumps(result, indent=2))\n').splitlines(True)
-            elif text.startswith('## Evidence and review'):
-                cell['source'] = ('## Evidence and review\n\nFill the references below after reviewing the effective '
-                    'bucket grant, Network Source, route and saved DNS states. Match each service request by object, '
-                    'UTC time and principal; retain its request ID and response status. Record a denial only when '
-                    'the service evidence establishes authorization failure. Keep exported evidence private.\n\n'
-                    'These fields record human-reviewed evidence; they do not query IAM or automatically prove a '
-                    'source path. A successful CSV read can leave source_path BLOCKED until that review is complete. '
-                    'The export includes both workload results and these evidence references.\n').splitlines(True)
-            elif text.startswith('print(json.dumps({"case": CASE_ID'):
-                cell['source'] = ('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), '
-                    '"results": RESULTS, "evidence": EVIDENCE}, indent=2))\n').splitlines(True)
     # Phase changes must not reset the accumulated observations.
     run_index = next(i for i, c in enumerate(executable)
                      if source(c).startswith('## Run a workload phase'))
@@ -324,8 +339,7 @@ def customer_walkthrough(case, cells):
                  'control["acceptance"] = summarize(control)\n'
                  'RESULTS.append(control)\n'
                  'print(json.dumps(control, indent=2))\n')]
-    opening = [title] + setup + [diagram, procedure, common] if case == 'V02' else [title, procedure, diagram, common]
-    return opening + executable + [
+    return [title, procedure, diagram, common] + executable + [
         md('## Reference appendix\n\nUse the following network, IAM and DNS details when preparing the environment.\n')] + appendix
 
 def build():
