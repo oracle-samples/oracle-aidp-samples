@@ -69,6 +69,8 @@ A service gateway can reach supported Oracle services **in the same region** ove
 
 **V02 uses a new bucket and an existing ADB.** Select the AIDP resource principal with a dynamic group, combine it with the Network Source in a bucket-read policy, and rule out overlapping grants. Separately verify the ADB public endpoint's VCN ACL and database login. The notebook places [the complete standalone setup](docs/v02-network-source.md) before its two read cells. Keep IAM, the ADB ACL and routes fixed across `before`, `after_add` and `restored`.
 
+V02's **Verify the customer VCN path** cell explains the service-side DNS answers and separates configured routing from request-level confirmation. Use [the read-only configuration collector](collect_v02_route_snapshot.py), a correlated Object Storage read event, and an administrator's review of the source-conditioned grants. DNS resolution alone never confirms customer routing. The [step-by-step instructions](docs/v02-network-source.md#verify-the-customer-vcn-path) include the review permissions.
+
 | Target | Authorization to prepare |
 | --- | --- |
 | Same-region bucket, V02 | Read access to that bucket, conditioned on the customer VCN Network Source; service-gateway route. |

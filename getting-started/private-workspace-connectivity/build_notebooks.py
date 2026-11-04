@@ -271,6 +271,7 @@ def v02_walkthrough(diagram):
            'Run it again after a session restart or compute reattachment. '
            'Rerunning initialization preserves your configuration and collected results.\n'),
         code(engine('V02', CASES['V02']['title']) + '\n' + (ROOT / 'v02_adb_check.py').read_text() + '\n'
+             + (ROOT / 'v02_route_check.py').read_text() + '\n'
              'print("V02 initialized. Next: Your configuration, Choose phase, then the bucket and database cells.")\n'),
         md('## Your configuration\n\nComplete the setup first. CONFIG selects the new bucket fixture; '
            'ADB_CONFIG selects the existing database public-endpoint connection. Set each target region '
@@ -289,6 +290,9 @@ def v02_walkthrough(diagram):
            'must read the same object under the unchanged policy and Network Source.\n'),
         code(v02_session_guard('run_case', 'CONFIG') +
              'result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), live=RUN_LIVE, phase=PHASE)\n'
+             'result["completed_utc"] = utc()\nresult["object_uri"] = CONFIG.get("uri")\n'
+             'if "dns" in result["checks"]:\n'
+             '    result["checks"]["dns"]["scope"] = "Driver hostname resolution only; customer routing is checked separately below."\n'
              'result["target"] = "bucket"\n'
              'result["acceptance"] = summarize(result)\nRESULTS.append(result)\nprint(json.dumps(result, indent=2))\n'),
         md('## Query the database\n\nRun once per phase using the same approved public-endpoint connection. '
@@ -308,8 +312,24 @@ def v02_walkthrough(diagram):
         code('EVIDENCE = ' + pprint.pformat(evidence('V02'), sort_dicts=False) + '\n'),
         md('## Export\n\nSave this output privately with your configuration snapshots and request records.\n'),
         code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS, '
-             '"evidence": EVIDENCE}, indent=2))\n'),
+             '"evidence": EVIDENCE, "route_reports": globals().get("ROUTE_REPORTS", [])}, indent=2))\n'),
         md('## References\n\n' + section('References').replace('../../../LICENSE.txt', '../../LICENSE.txt'))]
+    route_guide = md('## Verify the customer VCN path\n\n' + section('Verify the customer VCN path'))
+    route_guide['id'] = 'v02-route-guide'
+    route_cell = code(v02_session_guard('v02_route_report', 'CONFIG') +
+        '# Optional administrator evidence. Leave empty to see what is still needed.\n'
+        'ROUTE_SNAPSHOT_FILE = ""  # Upload v02-route-snapshot.json and use its /Workspace/... path.\n'
+        'OBJECT_STORAGE_EVENT = {}  # Sanitized Read Access Event; fields are listed above.\n'
+        'SOURCE_REVIEW = {"principal_id": "", "object_uri": CONFIG.get("uri", ""),\n'
+        '                 "network_source_name": "", "no_bypass_grants": False,\n'
+        '                 "reviewed_utc": "", "evidence_ref": ""}\n'
+        'route_snapshot = json.loads(Path(ROUTE_SNAPSHOT_FILE).read_text()) if ROUTE_SNAPSHOT_FILE else {}\n'
+        'route_report = v02_route_report(CONFIG, RESULTS, route_snapshot, OBJECT_STORAGE_EVENT, SOURCE_REVIEW, phase=PHASE)\n'
+        'ROUTE_REPORTS = globals().get("ROUTE_REPORTS", [])\nROUTE_REPORTS.append(route_report)\n'
+        'print_v02_route_report(route_report)\n')
+    route_cell['id'] = 'v02-route-check'
+    position = next(i for i, c in enumerate(cells) if ''.join(c['source']).startswith('## Review the result'))
+    cells[position:position] = [route_guide, route_cell]
     return cells
 
 def customer_walkthrough(case, cells):
@@ -424,7 +444,12 @@ def build():
                   code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS}, indent=2))\n'),
                   md('## Public references\n\n' + '\n'.join('- [' + key + '](' + DOCS[key] + ')' for key in item['refs']) + '\n\nCopyright (c) 2026 Oracle and/or its affiliates. Licensed under the [Universal Permissive License](../../LICENSE.txt), Version 1.0.\n')]
         cells = customer_walkthrough(case, cells)
-        for i, cell in enumerate(cells): cell['id'] = case.lower() + '-' + str(i)
+        # Explicit IDs keep new diagnostic cells from renumbering existing cells.
+        legacy_index = 0
+        for cell in cells:
+            if 'id' not in cell:
+                cell['id'] = case.lower() + '-' + str(legacy_index)
+                legacy_index += 1
         nb = {'cells': cells, 'metadata': {'kernelspec': {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'}, 'language_info': {'name': 'python'}}, 'nbformat': 4, 'nbformat_minor': 5}
         (ROOT / item['file']).write_text(json.dumps(nb, indent=2) + '\n')
         index.append({'case': case, 'title': item['title'], 'notebook': item['file'], 'objective': item['purpose'], 'kind': item['kind']})

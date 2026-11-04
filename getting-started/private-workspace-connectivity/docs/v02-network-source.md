@@ -122,6 +122,54 @@ Use **Choose phase** between attempts; rerunning the configuration cell clears r
 
 **If a read reports that V02 is not initialized:** run the code cell under **Initialize V02**, wait for its confirmation, and retry the read. Initialization alone preserves any configuration and results still in the current session. This is a notebook execution-order issue; the read has not reached Object Storage or ADB.
 
+## Verify the customer VCN path
+
+**A DNS answer is a destination, not the request's source.** AIDP can return translated, service-side destination addresses such as `255.x.x.x` for its managed private connection. You should not expect those answers to be in your customer subnet. The customer subnet is used on the customer side of that connection:
+
+```text
+Notebook -> AIDP mapped destination -> private connection
+         -> customer VCN/subnet -> customer service gateway -> Object Storage
+```
+
+Run **Read the bucket object**, then **Verify the customer VCN path**. The new cell makes no additional network requests. It shows four separate observations: driver DNS answers, the configured customer path, the bucket read, and whether the customer source is confirmed. It never treats `dns: PASS` as route confirmation.
+
+**1. Collect the configuration.** From an administrator's terminal with the OCI Python SDK and `requests` installed, run the sample's read-only collector. Use an existing OCI CLI profile; keep credentials outside the notebook.
+
+```bash
+python collect_v02_route_snapshot.py \
+  --profile <OCI_PROFILE> --region <WORKSPACE_REGION> \
+  --instance-id <AIDP_INSTANCE_ID> --workspace-id <WORKSPACE_ID> \
+  --network-source-id <NETWORK_SOURCE_ID> --output v02-route-snapshot.json
+```
+
+Upload the JSON into your private Workbench folder and set `ROUTE_SNAPSHOT_FILE` to its `/Workspace/...` path. The collector reads the workspace DNS/subnet association, subnet route table, regional service gateway and Network Source. It changes nothing. `CONFIGURED_IN_SNAPSHOT` confirms those recorded settings, not a packet's path. Collect again after changing the workspace or network.
+
+**2. Correlate a real request.** In OCI Logging, find the test bucket's **Read Access Events** for the read's UTC interval and exact object. If read logging is not enabled, the owner must enable it for this bucket and repeat the read; earlier requests cannot be reconstructed. Copy only these fields into `OBJECT_STORAGE_EVENT`, retaining their original values:
+
+```python
+OBJECT_STORAGE_EVENT = {
+    "bucketName": "", "namespace": "", "objectName": "",
+    "requestAction": "GET", "statusCode": 200, "apiType": "native",
+    "isPar": False, "opcRequestId": "", "principalId": "",
+    "clientIpAddress": "", "startTime": ""
+}
+```
+
+Use `namespaceName` if that is the field in your event. Do not copy the log's `credentials` field. A matching successful object GET identifies the actual reader and the source address seen by Object Storage. An address alone does not identify its VCN.
+
+**3. Verify the source restriction.** Have the IAM administrator review all applicable grants and dynamic-group memberships for that logged principal. Only after confirming this principal can read this object solely under the named customer-VCN Network Source, complete `SOURCE_REVIEW`, set `no_bypass_grants=True`, and reference the review record. The Network Source must contain only that VCN, with no public-source alternatives. Keep the policy and route unchanged during the read. The snapshot and review timestamps must be within 15 minutes of the read for this diagnostic.
+
+`CONFIRMED_BY_REVIEWED_SOURCE_CONTROL` requires all three records plus a successful matching read. This establishes the bucket request's customer-VCN source through the service gateway using IAM source enforcement. It is not a packet trace and does not confirm the separate ADB connection. Missing or mismatched evidence leaves `NOT_CONFIRMED` and explains the next action.
+
+The collector needs existing AIDP workspace-view access plus network and Network Source read access. Log reviewers also need access to the selected log compartment. Examples for the administrator to scope to the review team:
+
+```text
+Allow group <IAM_DOMAIN>/<REVIEWERS> to read virtual-network-family in compartment id <NETWORK_COMPARTMENT_ID>
+Allow group <IAM_DOMAIN>/<REVIEWERS> to read network-sources in tenancy
+Allow group <IAM_DOMAIN>/<REVIEWERS> to read log-groups in compartment id <LOG_COMPARTMENT_ID>
+Allow group <IAM_DOMAIN>/<REVIEWERS> to read log-content in compartment id <LOG_COMPARTMENT_ID>
+```
+
 ## Review the result
 
 | Target | From the approved customer source | From a source outside its configured rule |
