@@ -15,7 +15,7 @@ The database check uses a password-authenticated SQL connection. Its VCN ACL is 
 
 ## Before you begin
 
-Have the AIDP administrator confirm the native `oci://` reader's effective identity. This walkthrough selects the AIDP instance resource principal; a dynamic-group rule cannot change a reader that actually uses user credentials.
+Have the AIDP administrator confirm the native `oci://` reader's effective identity. The policy example below assumes the effective Object Storage caller is the AIDP instance resource principal. Verify that assumption with the AIDP administrator and service request evidence before using that matching rule. A runtime signer can be a service compute principal or part of a delegated request chain; its class name alone does not identify the final Object Storage caller. A dynamic-group rule does not change the reader’s identity.
 
 Record the following before starting compute:
 
@@ -32,7 +32,7 @@ Keep secrets out of notebook cells and outputs. Prefer an existing catalog. If u
 
 ## IAM and database setup
 
-Complete these steps before the reads. The notebook does not create policies or change the database.
+Complete these steps before the reads. The optional permission-test cells temporarily change an existing bucket grant or database ACL, then restore it; they do not create resources.
 
 ### 1. Verify the operator's setup permissions
 
@@ -82,7 +82,7 @@ Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read buckets in compartment 
 
 For a tenancy without identity domains, omit `<IAM_DOMAIN>/`. This grants object reads/listing and bucket metadata checks, not writes.
 
-**Check overlapping grants before claiming enforcement.** A new bucket still inherits compartment/tenancy policies. A broad object grant through another dynamic group can authorize reads outside the Network Source. The IAM owner must exclude the test bucket from such grants or provide an otherwise isolated reader. Preserve shared access to other buckets. Until this is resolved, label the restriction test **BLOCKED**, even if the CSV read succeeds. Allow IAM and dynamic-group changes to propagate before testing.
+**Check overlapping grants before claiming enforcement.** A new bucket still inherits compartment/tenancy policies. A broad object grant through another dynamic group can authorize reads outside the Network Source. The IAM owner must exclude the test bucket from such grants or provide an otherwise isolated reader. Preserve shared access to other buckets. Until this is resolved, a successful CSV read means **access succeeded; source not yet verified**. The permission test below detects an overlapping read grant when the read continues to succeed during its deny phase. Allow IAM and dynamic-group changes to propagate before testing.
 
 ### 5. Restrict the ADB public endpoint to the customer VCN
 
@@ -102,6 +102,8 @@ If the database has both public and private access, select **Public endpoint** e
 | Egress | Stateful TCP 443 for Object Storage and the ADB descriptor's TCP port, commonly 1521 for TLS or 1522 for mTLS. Retain applicable workspace prerequisites and return traffic. |
 | Workspace hostnames | Exact Object Storage hostname and ADB **public** hostname used by the clients. Retain the original hostnames for TLS identity verification. |
 
+Verify the effective connection after applying the hostname entries. An accepted entry alone does not establish that the deployed AIDP configuration routes a regional public ADB endpoint through the customer VCN. If a valid public connection still returns `ORA-12529`, retain the ACL and resolve the source-path prerequisite before the switching test. Do not substitute the private endpoint for this public-ACL test.
+
 Application paths:
 
 - AIDP -> workspace private connection -> customer subnet -> service gateway -> Object Storage -> IAM Network Source check.
@@ -112,7 +114,7 @@ Application paths:
 1. **Prepare and record.** Complete IAM, bucket, ADB and network setup. Record all existing DNS/SCAN entries. If a target hostname is already present, preserve it and label that target as an existing-configuration validation.
 2. **Initialize and configure.** Attach the approved compute. Run the code cell under **Initialize V02** and wait for **V02 initialized**. Fill `CONFIG` for the CSV and `ADB_CONFIG` for the database. Verify the catalog/wallet public descriptor; set its exact hostname, port and service, then set `public_endpoint_confirmed=True`. Run **Your configuration**.
 3. **Run the baseline.** In **Choose phase**, set `RUN_LIVE=True` and `PHASE="before"` and run that cell. Run **Read the bucket object** and **Query the database**. Save both results; their outcomes may differ.
-4. **Apply the missing hostname entries.** Edit the workspace's **Advanced options** and add only the two exact client hostnames that are missing. Preserve all existing entries. Follow any required compute-stop action, save, and reopen to verify. Keep IAM, ACLs, identities and routes unchanged.
+4. **Apply the missing hostname entries.** Edit the workspace's **Advanced options** and add only the two exact client hostnames that are missing. Preserve all existing entries. Follow any required compute-stop action, save, and reopen to verify **the completed configuration**, not just the initial update response. If the ADB hostname is omitted, stop that target’s DNS comparison and have the administrator establish a supported customer-VCN public-endpoint path. Keep IAM, ACLs, identities and routes unchanged.
 5. **Repeat both operations.** Set `PHASE="after_add"` and rerun both read cells. Expect the exact CSV rows and the expected database service. Refresh connections after DNS caching as needed. Export earlier results before any required session restart.
 6. **Restore and compare.** Remove only entries introduced by this test. Set `PHASE="restored"`, repeat both reads, and export. Leave pre-existing entries intact. Stop compute if you started it solely for this test.
 
@@ -121,6 +123,56 @@ Use **Choose phase** between attempts; rerunning the configuration cell clears r
 **After a session restart or compute reattachment:** rerun **Initialize V02**, **Your configuration**, and **Choose phase** before either read cell. Restore your intended phase and live flag. Earlier in-memory results are lost after a session restart, so export them beforehand.
 
 **If a read reports that V02 is not initialized:** run the code cell under **Initialize V02**, wait for its confirmation, and retry the read. Initialization alone preserves any configuration and results still in the current session. This is a notebook execution-order issue; the read has not reached Object Storage or ADB.
+
+## Test the source controls: allow, deny, restore
+
+Keep the target, reader, workspace DNS and routes unchanged during these tests. First make each normal read succeed. Then run one permission test at a time.
+
+| Phase | Bucket | ADB public endpoint | Expected result |
+| --- | --- | --- | --- |
+| Allow | Existing `read objects` grant with the Network Source condition | Original customer-VCN ACL | Read succeeds. |
+| Deny | Temporarily replace **only** `read objects` with `inspect objects` in that exact grant | Temporarily restrict the same VCN to a CIDR that does not overlap the workspace source subnet | Object GET is denied / new database connection is rejected by its ACL. |
+| Restore | Restore the original statement | Restore the original ACL exactly | Read succeeds again; ADB returns a different session ID. |
+
+**What this proves.** The bucket cycle uses a fresh native OCI filesystem stream on the driver for each attempt, then checks the Spark fixture. This avoids mistaking a cached Spark result for a new object GET. A completed cycle establishes that the driver GET depends on the grant conditioned on the named customer VCN/source subnet; it does not independently verify executor request sources. `inspect objects` retains metadata access but removes `OBJECT_READ`; the Network Source itself stays unchanged. The ADB cycle establishes that its public VCN ACL admits the source subnet: removing that subnet prevents a new connection and restoring it permits a fresh session. These are service authorization checks, not packet traces. A timeout, DNS error or unchanged successful read does not count as the expected denial.
+
+### Operator permissions and credentials
+
+The administrator switching controls is separate from the AIDP principal reading the object and the database user running SQL. A dynamic group for the reader does not give notebook Python an administrator signer.
+
+Use an approved, private OCI operator profile on an administrator-controlled runtime with the OCI Python SDK installed. Set `ADMIN_CONFIG_FILE` and `ADMIN_PROFILE` to that existing profile. **Do not upload a personal OCI config, token or private key to a shared Workbench folder.** If Workbench has no approved private operator credential mechanism, run the controller on the administrator host and execute the displayed read probes in Workbench between changes. Keep a copy of the recovery journal on that host. A short-lived operator session must have at least 20 minutes remaining before either cycle starts.
+
+An IAM administrator can grant the operator the following privileges, scoped to the existing test policy and ADB. The `where` condition identifies the **existing** policy; it does not authorize policy creation.
+
+```text
+Allow group <IAM_DOMAIN>/<TEST_OPERATORS> to read network-sources in tenancy
+Allow group <IAM_DOMAIN>/<TEST_OPERATORS> to manage policies in compartment id <POLICY_COMPARTMENT_ID> where all {target.policy.id='<BUCKET_POLICY_OCID>', any {request.permission='POLICY_READ', request.permission='POLICY_UPDATE'}}
+Allow group <IAM_DOMAIN>/<TEST_OPERATORS> to inspect autonomous-databases in compartment id <DB_COMPARTMENT_ID> where target.id='<ADB_OCID>'
+Allow group <IAM_DOMAIN>/<TEST_OPERATORS> to use autonomous-databases in compartment id <DB_COMPARTMENT_ID> where all {target.id='<ADB_OCID>', request.permission='AUTONOMOUS_DATABASE_UPDATE', request.operation.actiontype='whitelistedIps'}
+```
+
+For a policy located at the tenancy root, replace `in compartment id <POLICY_COMPARTMENT_ID>` with `in tenancy`. For a cross-tenancy operator, the IAM administrator must configure matching Endorse/Admit authorization. These operator privileges manage controls; they do not authorize the notebook's SQL login.
+
+### Run the bucket permission test
+
+1. Complete `BUCKET_CONTROL`: exact policy OCID, full original `read objects` statement, bucket name, Network Source OCID/name, VCN OCID and source subnet CIDR. The source must contain only that VCN/subnet and no public alternatives.
+2. Set `RUN_BUCKET_PERMISSION_TEST=True`. Run **Bucket: allow, deny, restore**. The cell first reads the fixture; if that fails it changes nothing.
+3. The cell changes the selected grant to `inspect objects`, retries the same bounded read while IAM propagates (up to `max_wait_seconds`, 120 seconds by default), then restores `read objects` in `finally`. It preserves the statement count and unrelated policy statements.
+4. Expect `ALLOWED → DENIED → ALLOWED`, `SOURCE_CONTEXT_VERIFIED` and `Restoration: RESTORED`. If the negative read still succeeds, the result is `INCONCLUSIVE`: review overlapping grants and propagation rather than declaring source verification.
+
+### Run the ADB ACL test
+
+1. Verify the catalog/wallet uses the public descriptor. Complete `ADB_CONTROL` with database/VCN OCIDs, the workspace source CIDR and a different, nonoverlapping CIDR in that VCN. For example, source `10.20.1.0/24`, negative-test CIDR `10.20.2.0/24`.
+2. Confirm a maintenance window for clients of the shared public endpoint. Set both `RUN_ADB_ACL_TEST=True` and `ADB_INTERRUPTION_APPROVED=True`.
+3. Run **ADB: allow, deny, restore**. It requires a successful baseline query and an original public ACL containing only the selected VCN (optionally limited to the source CIDR).
+4. During the negative phase the API value is `["<CUSTOMER_VCN_ID>;10.20.2.0/24"]`. The semicolon separates the VCN from its CIDR. **An empty ACL is never used.** Only `whitelisted_ips` changes; private endpoint settings, NSGs, database accounts and credentials stay intact.
+5. Expect an explicit ACL rejection (`ORA-12529` or `ORA-12506`), followed by a successful query after restoration with a new database session ID. A timeout or reused session makes the result `INCONCLUSIVE`.
+
+### Restoration and recovery
+
+Both controllers write the original settings to a private JSON journal **before** the first change, use ETags, and restore in `finally`. They verify the restored setting by reading it back. A terminated kernel or expired operator session can prevent that code from running. Retain the journal outside the notebook session and keep an administrator session available throughout the test.
+
+If the result is `RESTORE_REQUIRED`, renew the operator session if necessary and run **Restore from journal** for the affected target. Do not start another cycle or overwrite that journal until restoration is verified. If another administrator changed the same grant/ACL, compare the journal and current settings and resolve that change with the owner; the helper will not overwrite an unexpected edit.
 
 ## Verify the customer VCN path
 
@@ -131,7 +183,7 @@ Notebook -> AIDP mapped destination -> private connection
          -> customer VCN/subnet -> customer service gateway -> Object Storage
 ```
 
-Run **Read the bucket object**, then **Verify the customer VCN path**. The new cell makes no additional network requests. It shows four separate observations: driver DNS answers, the configured customer path, the bucket read, and whether the customer source is confirmed. It never treats `dns: PASS` as route confirmation.
+The allow/deny/restore cells above provide the primary source-control test. The optional diagnostic below provides configuration and request-log evidence when available. Run **Read the bucket object**, then **Verify the customer VCN path**. The new cell makes no additional network requests. It shows four separate observations: driver DNS answers, the configured customer path, the bucket read, and whether the customer source is confirmed. It never treats `dns: PASS` as route confirmation.
 
 **1. Collect the configuration.** From an administrator's terminal with the OCI Python SDK and `requests` installed, run the sample's read-only collector. Use an existing OCI CLI profile; keep credentials outside the notebook.
 
@@ -177,9 +229,9 @@ Allow group <IAM_DOMAIN>/<REVIEWERS> to read log-content in compartment id <LOG_
 | Bucket, same authorized reader and no bypass grant | Exact fixture rows | Object read denied by IAM |
 | ADB public endpoint, same valid database login | Expected service and session details | Connection rejected by the ADB ACL |
 
-A successful CSV read or SQL query alone does not prove source enforcement. For Object Storage, correlate the UTC time/object with **Read Access Events**, checking request ID and `principalId`; review effective IAM grants and service-gateway evidence. For ADB, retain the public descriptor, ACL snapshot, service-gateway evidence, returned service/user/client address, and a controlled outside-source comparison where available. A client address alone does not prove the VCN route. Missing best-effort logs, DNS errors and timeouts do not establish an IAM denial.
+A successful CSV read or SQL query alone does not prove source enforcement. Use the allow/deny/restore cycle above. As optional corroborating evidence for Object Storage, correlate the UTC time/object with **Read Access Events**, checking request ID and `principalId`; review effective IAM grants and service-gateway evidence. For ADB, retain the public descriptor, ACL snapshot, service-gateway evidence, returned service/user/client address, and a controlled outside-source comparison where available. A client address alone does not prove the VCN route. Missing best-effort logs, DNS errors and timeouts do not establish an IAM denial.
 
-The notebook reports functional results separately and leaves `source_path` for evidence review. The SQL result does not claim that IAM Network Sources control database login, or that a client certificate was presented. If an authorized path already works at baseline, report existing-configuration validation rather than a deny-to-allow transition.
+A normal read reports `ACCESS_SUCCEEDED_SOURCE_NOT_VERIFIED`; that is an incomplete source check, not a blocked read. The permission cycle reports `SOURCE_CONTEXT_VERIFIED` only when denial, recovery and restoration pass. Otherwise it reports `INCONCLUSIVE`, `NEEDS_SETUP` or `NOT_RUN`, with the next action. The SQL result does not claim that IAM Network Sources control database login, or that a client certificate was presented. If an authorized path already works at baseline, report existing-configuration validation rather than a deny-to-allow transition.
 
 ## References
 
@@ -189,6 +241,7 @@ The notebook reports functional results separately and leaves `source_path` for 
 - [Dynamic-group matching rules](https://docs.oracle.com/en-us/iaas/Content/Identity/dynamicgroups/Writing_Matching_Rules_to_Define_Dynamic_Groups.htm)
 - [Object Storage permissions](https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/objectstoragepolicyreference.htm)
 - [Object Storage request log fields](https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/details_for_object_storage.htm)
+- [ADB administration IAM permissions and ACL-only action](https://docs.oracle.com/en/cloud/paas/autonomous-database/serverless/adbsb/autonomous-database-iam-policies.html)
 - [ADB VCN access-control rules](https://docs.oracle.com/en-us/iaas/autonomous-database-serverless/doc/access-control-rules-autonomous.html)
 - [Service gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm)
 

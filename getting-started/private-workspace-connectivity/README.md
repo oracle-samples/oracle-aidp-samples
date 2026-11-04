@@ -11,7 +11,7 @@ The notebooks do not provision resources, edit workspace DNS, change permissions
 | ID | Choose this when you want to... | Notebook |
 | --- | --- | --- |
 | V01 | Read a private S3 object through customer-controlled outbound connectivity. | [Amazon S3](V01_Amazon_S3.ipynb) |
-| V02 | Read a private bucket under a Network Source policy and query an ADB public endpoint under its VCN ACL. | [Network Source and service gateway](V02_Customer_Network_Source.ipynb) |
+| V02 | Verify bucket Network Source enforcement and an ADB public VCN ACL with allow/deny/restore tests. | [Network Source and service gateway](V02_Customer_Network_Source.ipynb) |
 | V03 | Read OCI Object Storage in a region different from your AIDP workspace. | [Cross-region Object Storage](V03_Cross_Region_Object_Storage.ipynb) |
 | V04 | Establish private database connectivity and preserve it across unrelated DNS edits. | [Private database before and after DNS edits](V04_Service_Private_Endpoint.ipynb) |
 | V05 | Record configuration and authenticated access for the OCI service endpoints you select. | [Service hostname coverage](V05_Service_Hostname_Coverage.ipynb) |
@@ -67,9 +67,9 @@ The illustrated S3 design uses customer NAT internet egress. No AWS VPC is requi
 
 A service gateway can reach supported Oracle services **in the same region** over the Oracle network. Verify the customer subnet's service-CIDR route, gateway configuration and security rules. An unchanged source restriction plus correlated request/network evidence is needed to establish the intended source/path. OCI IAM Network Sources and database ACLs are different controls. See [service gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm) and [Network Sources](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/managingnetworksources.htm).
 
-**V02 uses a new bucket and an existing ADB.** Select the AIDP resource principal with a dynamic group, combine it with the Network Source in a bucket-read policy, and rule out overlapping grants. Separately verify the ADB public endpoint's VCN ACL and database login. The notebook places [the complete standalone setup](docs/v02-network-source.md) before its two read cells. Keep IAM, the ADB ACL and routes fixed across `before`, `after_add` and `restored`.
+**V02 uses a new bucket and an existing ADB.** Select the AIDP resource principal with a dynamic group, combine it with the Network Source in a bucket-read policy, and rule out overlapping grants. Separately verify the ADB public endpoint's VCN ACL and database login. The notebook places [the complete standalone setup](docs/v02-network-source.md) before its two read cells. Keep IAM, the ADB ACL and routes fixed during the DNS comparison. Then use the separate **allow/deny/restore** cells to verify the source controls: temporarily change the exact bucket read grant to inspection-only, or exclude the source subnet from the ADB public ACL, and restore. The cells require separate operator credentials and journal the original settings; the ADB test needs a maintenance window. See [control setup and scoped operator IAM examples](docs/v02-network-source.md#test-the-source-controls-allow-deny-restore).
 
-V02's **Verify the customer VCN path** cell explains the service-side DNS answers and separates configured routing from request-level confirmation. Use [the read-only configuration collector](collect_v02_route_snapshot.py), a correlated Object Storage read event, and an administrator's review of the source-conditioned grants. DNS resolution alone never confirms customer routing. The [step-by-step instructions](docs/v02-network-source.md#verify-the-customer-vcn-path) include the review permissions.
+V02's optional **Verify the customer VCN path** cell explains the service-side DNS answers and separates configured routing from request-level confirmation. Use [the read-only configuration collector](collect_v02_route_snapshot.py), a correlated Object Storage read event, and an administrator's review of the source-conditioned grants. DNS resolution alone never confirms customer routing. The [step-by-step instructions](docs/v02-network-source.md#verify-the-customer-vcn-path) include the review permissions.
 
 | Target | Authorization to prepare |
 | --- | --- |
@@ -116,7 +116,7 @@ The CSV check compares an exact row multiset, so order differences are allowed b
 
 Database username/password authentication and mTLS client-certificate authentication are separate. A wallet-configured successful query, `TCPS`, or port 1522 alone does not independently prove mTLS; ADB can support TLS-only on port 1522 too. Review the effective connection descriptor, actual client identity use, and applicable server/handshake evidence. Do not weaken server requirements for a comparison.
 
-`PASS` applies to one check. `FAIL` means an executed check did not meet its criterion; `BLOCKED` means a prerequisite is missing; `NOT_RUN` means it was not attempted. Supplied observations and remaining external evidence yield `REVIEW_REQUIRED` or `INCOMPLETE`, rather than an automatic overall acceptance PASS. Raw connector exception text is omitted because it may include secrets; diagnose detailed errors privately in your runtime.
+`PASS` applies to one check. `FAIL` means an executed check did not meet its criterion; `BLOCKED` means a prerequisite is missing; `NOT_RUN` means it was not attempted. Supplied observations and remaining external evidence yield `REVIEW_REQUIRED` or `INCOMPLETE`, rather than an automatic overall acceptance PASS. V02 uses `NEEDS_SETUP` for missing prerequisites, `ACCESS_SUCCEEDED_SOURCE_NOT_VERIFIED` for a successful read alone, and `SOURCE_CONTEXT_VERIFIED` only after a completed source-control cycle. `INCONCLUSIVE` means the expected denial/recovery was not established; `RESTORE_REQUIRED` requires administrator recovery before another cycle. Raw connector exception text is omitted because it may include secrets; diagnose detailed errors privately in your runtime.
 
 ## Maintain and verify the samples
 
@@ -124,7 +124,7 @@ Keep this guide open as the entry point, or import README.md alongside a noteboo
 
 Maintain rationale in `docs/advanced-dns-validation.md` and preparation templates in `docs/network-and-iam-examples.md`, then regenerate notebooks. The generator embeds the relevant sections, including supporting network patterns, rather than requiring customers to download the documentation directory.
 
-The notebooks use the Python standard library plus the existing Spark/connector runtime. No extra Python package is required by the harness. From this sample directory, regenerate notebooks after source edits:
+The read checks use the Python standard library plus the existing Spark/connector runtime. V02’s optional administrative control cells also require the OCI Python SDK and a separately approved private operator profile. From this sample directory, regenerate notebooks after source edits:
 
 ```bash
 python3 build_notebooks.py

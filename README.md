@@ -73,7 +73,7 @@ The guide distinguishes [DNS resolution paths](getting-started/private-workspace
 |---|---|
 | [Start here - customer DNS walkthroughs](getting-started/private-workspace-connectivity/00_START_HERE.ipynb) | Choose V01-V04 and follow the customer setup, execution, expected-result and restoration steps. |
 | [V01 — Amazon S3 through customer egress](getting-started/private-workspace-connectivity/V01_Amazon_S3.ipynb) | Read a small private S3 object from an AIDP workspace through your approved outbound network path. |
-| [V02 — Bucket and ADB access from the customer VCN](getting-started/private-workspace-connectivity/V02_Customer_Network_Source.ipynb) | Read a bucket under an IAM Network Source policy and query an ADB public endpoint under its VCN ACL. |
+| [V02 — Bucket and ADB access from the customer VCN](getting-started/private-workspace-connectivity/V02_Customer_Network_Source.ipynb) | Verify bucket Network Source enforcement and an ADB public VCN ACL with controlled allow/deny/restore tests. |
 | [V03 — Cross-region OCI Object Storage](getting-started/private-workspace-connectivity/V03_Cross_Region_Object_Storage.ipynb) | Read a dataset in one OCI region while your AIDP workspace runs in another. |
 | [V04 — Private database before and after DNS edits](getting-started/private-workspace-connectivity/V04_Service_Private_Endpoint.ipynb) | Establish private database connectivity, then verify that unrelated Advanced DNS edits preserve the same database connection. |
 | [V05 — OCI service hostname coverage](getting-started/private-workspace-connectivity/V05_Service_Hostname_Coverage.ipynb) | Record which of your selected OCI service endpoints can be configured and accessed through the workspace. |

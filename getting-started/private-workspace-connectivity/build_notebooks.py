@@ -272,6 +272,7 @@ def v02_walkthrough(diagram):
            'Rerunning initialization preserves your configuration and collected results.\n'),
         code(engine('V02', CASES['V02']['title']) + '\n' + (ROOT / 'v02_adb_check.py').read_text() + '\n'
              + (ROOT / 'v02_route_check.py').read_text() + '\n'
+             + (ROOT / 'v02_control_tests.py').read_text() + '\n'
              'print("V02 initialized. Next: Your configuration, Choose phase, then the bucket and database cells.")\n'),
         md('## Your configuration\n\nComplete the setup first. CONFIG selects the new bucket fixture; '
            'ADB_CONFIG selects the existing database public-endpoint connection. Set each target region '
@@ -288,31 +289,31 @@ def v02_walkthrough(diagram):
              'PHASE = "before"  # Then after_add and restored, following Customer steps.\n'),
         md('## Read the bucket object\n\nRun this cell once per phase. The same configured runtime identity '
            'must read the same object under the unchanged policy and Network Source.\n'),
-        code(v02_session_guard('run_case', 'CONFIG') +
+        code(v02_session_guard('v02_summary', 'CONFIG') +
              'result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), live=RUN_LIVE, phase=PHASE)\n'
              'result["completed_utc"] = utc()\nresult["object_uri"] = CONFIG.get("uri")\n'
              'if "dns" in result["checks"]:\n'
              '    result["checks"]["dns"]["scope"] = "Driver hostname resolution only; customer routing is checked separately below."\n'
              'result["target"] = "bucket"\n'
-             'result["acceptance"] = summarize(result)\nRESULTS.append(result)\nprint(json.dumps(result, indent=2))\n'),
+             'result["acceptance"] = v02_summary(result)\nRESULTS.append(result)\nprint(json.dumps(result, indent=2))\n'),
         md('## Query the database\n\nRun once per phase using the same approved public-endpoint connection. '
            'The query reads DUAL and returns service, database user and the client address observed by ADB. '
            'A catalog supplies its own credentials; the wallet alternative reads ADB_PASSWORD privately '
            'from the runtime environment. This checks the ADB VCN ACL path, not an IAM Network Source condition.\n'),
-        code(v02_session_guard('run_adb_check', 'ADB_CONFIG') + 'import os\n'
+        code(v02_session_guard('v02_summary', 'ADB_CONFIG') + 'import os\n'
              'adb_result = run_adb_check(ADB_CONFIG, spark=globals().get("spark"), '
              'runtime={"adb_password": os.environ.get("ADB_PASSWORD")}, live=RUN_LIVE, phase=PHASE)\n'
-             'adb_result["acceptance"] = summarize(adb_result)\nRESULTS.append(adb_result)\n'
+             'adb_result["acceptance"] = v02_summary(adb_result)\nRESULTS.append(adb_result)\n'
              'print(json.dumps(adb_result, indent=2))\n'),
         md('## Review the result\n\n' + section('Review the result') + '\n'
            '`functional: PASS` confirms the CSV rows or expected database service for the named target. '
-           '`source_path: BLOCKED` means that the policy/ACL and path evidence still needs human review. '
+           '`source_path: NOT_VERIFIED` identifies a read awaiting the source-control test. '
            'The following references document that review; '
            'they do not automatically query or validate IAM.\n'),
         code('EVIDENCE = ' + pprint.pformat(evidence('V02'), sort_dicts=False) + '\n'),
         md('## Export\n\nSave this output privately with your configuration snapshots and request records.\n'),
         code('print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS, '
-             '"evidence": EVIDENCE, "route_reports": globals().get("ROUTE_REPORTS", [])}, indent=2))\n'),
+             '"evidence": EVIDENCE, "route_reports": globals().get("ROUTE_REPORTS", []), "control_tests": globals().get("CONTROL_RESULTS", [])}, indent=2))\n'),
         md('## References\n\n' + section('References').replace('../../../LICENSE.txt', '../../LICENSE.txt'))]
     route_guide = md('## Verify the customer VCN path\n\n' + section('Verify the customer VCN path'))
     route_guide['id'] = 'v02-route-guide'
@@ -329,7 +330,69 @@ def v02_walkthrough(diagram):
         'print_v02_route_report(route_report)\n')
     route_cell['id'] = 'v02-route-check'
     position = next(i for i, c in enumerate(cells) if ''.join(c['source']).startswith('## Review the result'))
-    cells[position:position] = [route_guide, route_cell]
+    control_guide = md('## Test the source controls: allow, deny, restore\n\n' + section('Test the source controls: allow, deny, restore'))
+    control_guide['id'] = 'v02-control-guide'
+    control_setup = code('ADMIN_CONFIG_FILE = ""  # Existing approved private operator profile; never a shared upload.\n'
+        'ADMIN_PROFILE = ""\n'
+        'RUN_BUCKET_PERMISSION_TEST = False\nRUN_ADB_ACL_TEST = False\nADB_INTERRUPTION_APPROVED = False\n'
+        'JOURNAL_DIRECTORY = ""  # Existing private persistent directory; keep a copy outside this session.\n'
+        'BUCKET_CONTROL = ' + pprint.pformat(dict(policy_id='', network_source_id='', allow_statement='',
+            bucket_name='', network_source_name='', vcn_id='', source_subnet_cidr=''), sort_dicts=False) + '\n'
+        'ADB_CONTROL = ' + pprint.pformat(dict(database_id='', vcn_id='', source_subnet_cidr='',
+            denied_subnet_cidr=''), sort_dicts=False) + '\n'
+        'CONTROL_RESULTS = globals().get("CONTROL_RESULTS", [])\n')
+    control_setup['id'] = 'v02-control-setup'
+    bucket_guide = md('## Bucket: allow, deny, restore\n\nRun after the normal bucket read succeeds. '
+        'This changes only the exact scoped object-read grant, keeps the Network Source fixed, and restores the grant. '
+        'Allow up to a few minutes for policy propagation. Expected denial is a successful test step.\n')
+    bucket_guide['id'] = 'v02-bucket-control-guide'
+    bucket_cell = code(v02_session_guard('run_v02_control_cycle', 'CONFIG') + 'if RUN_BUCKET_PERMISSION_TEST:\n'
+        '    if not JOURNAL_DIRECTORY or not Path(JOURNAL_DIRECTORY).is_dir():\n'
+        '        raise ValueError("Choose an existing private journal directory first")\n'
+        '    iam_admin, _ = v02_admin_clients(ADMIN_CONFIG_FILE, ADMIN_PROFILE)\n'
+        '    bucket_control = v02_bucket_control(iam_admin, BUCKET_CONTROL)\n'
+        '    bucket_control_result = run_v02_control_cycle(bucket_control,\n'
+        '        lambda: v02_bucket_probe(CONFIG, spark, fixture_read),\n'
+        '        str(Path(JOURNAL_DIRECTORY) / "v02-bucket-restore.json"), apply=True)\n'
+        'else:\n'
+        '    bucket_control_result = {"target": "bucket", "status": "NOT_RUN", "reason": "Permission switching is disabled"}\n'
+        'CONTROL_RESULTS.append(bucket_control_result)\nprint_v02_control_result(bucket_control_result)\n')
+    bucket_cell['id'] = 'v02-bucket-control'
+    adb_guide = md('## ADB: allow, deny, restore\n\nThe normal query must succeed through the public endpoint. '
+        'The temporary ACL excludes the source subnet and can interrupt new public connections from other consumers. '
+        'Run only in the agreed maintenance window. ADB restores its original ACL even if the negative probe fails.\n')
+    adb_guide['id'] = 'v02-adb-control-guide'
+    adb_cell = code(v02_session_guard('run_v02_control_cycle', 'ADB_CONFIG') + 'if RUN_ADB_ACL_TEST:\n'
+        '    if not ADB_INTERRUPTION_APPROVED:\n'
+        '        raise ValueError("Confirm the database maintenance window before changing its ACL")\n'
+        '    if not JOURNAL_DIRECTORY or not Path(JOURNAL_DIRECTORY).is_dir():\n'
+        '        raise ValueError("Choose an existing private journal directory first")\n'
+        '    _, db_admin = v02_admin_clients(ADMIN_CONFIG_FILE, ADMIN_PROFILE)\n'
+        '    adb_control = v02_adb_control(db_admin, ADB_CONTROL)\n'
+        '    adb_control_result = run_v02_control_cycle(adb_control,\n'
+        '        lambda: v02_adb_probe(ADB_CONFIG, spark, run_adb_check, {"adb_password": os.environ.get("ADB_PASSWORD")}),\n'
+        '        str(Path(JOURNAL_DIRECTORY) / "v02-adb-restore.json"), apply=True)\n'
+        'else:\n'
+        '    adb_control_result = {"target": "adb", "status": "NOT_RUN", "reason": "ACL switching is disabled"}\n'
+        'CONTROL_RESULTS.append(adb_control_result)\nprint_v02_control_result(adb_control_result)\n')
+    adb_cell['id'] = 'v02-adb-control'
+    recovery_guide = md('## Restore from journal\n\nUse only to recover an interrupted cycle. '
+        'Select the affected target and its saved journal; renew the operator session first if needed. '
+        'The helper checks the recorded resource and preserves unrelated edits.\n')
+    recovery_guide['id'] = 'v02-recovery-guide'
+    recovery_cell = code('RUN_RECOVERY = False\nRECOVERY_TARGET = "bucket"  # Or "adb".\nRECOVERY_JOURNAL = ""\n'
+        'if RUN_RECOVERY:\n'
+        '    iam_admin, db_admin = v02_admin_clients(ADMIN_CONFIG_FILE, ADMIN_PROFILE)\n'
+        '    if RECOVERY_TARGET not in ("bucket", "adb"):\n'
+        '        raise ValueError("Select bucket or adb")\n'
+        '    recovery_control = (v02_bucket_control(iam_admin, BUCKET_CONTROL) if RECOVERY_TARGET == "bucket"\n'
+        '                        else v02_adb_control(db_admin, ADB_CONTROL))\n'
+        '    print(restore_v02_control_from_journal(recovery_control, RECOVERY_JOURNAL))\n'
+        'else:\n'
+        '    print("Recovery disabled; no changes made")\n')
+    recovery_cell['id'] = 'v02-recovery'
+    cells[position:position] = [control_guide, control_setup, bucket_guide, bucket_cell,
+        adb_guide, adb_cell, recovery_guide, recovery_cell, route_guide, route_cell]
     return cells
 
 def customer_walkthrough(case, cells):

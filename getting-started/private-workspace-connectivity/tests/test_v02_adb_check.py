@@ -57,14 +57,14 @@ class AdbChecks(unittest.TestCase):
             self.assertEqual(adb.run_adb_check({})['checks']['execution']['status'], 'NOT_RUN')
             cfg = self.config();cfg['public_endpoint_confirmed'] = False
             reader = Reader();result = adb.run_adb_check(cfg, spark=reader, live=True)
-            self.assertEqual(result['checks']['execution']['status'], 'BLOCKED')
+            self.assertEqual(result['checks']['execution']['status'], 'NEEDS_SETUP')
             self.assertEqual(reader.options, {})
             dns.assert_not_called()
 
     def test_catalog_query_is_bounded_and_cannot_prove_source_restriction(self):
         reader = Reader();result = self.run_check(self.config(), reader)
         self.assertEqual(result['checks']['functional']['status'], 'PASS')
-        self.assertEqual(result['checks']['source_path']['status'], 'BLOCKED')
+        self.assertEqual(result['checks']['source_path']['status'], 'NOT_VERIFIED')
         self.assertEqual(reader.options['catalog.id'], 'approved_catalog')
         self.assertNotIn('password', reader.options)
         self.assertEqual(reader.limit_value, 2)
@@ -85,5 +85,5 @@ class AdbChecks(unittest.TestCase):
     def test_other_region_blocks_before_connection(self):
         cfg = self.config();cfg['region'] = 'region-b'
         reader = Reader();result = self.run_check(cfg, reader)
-        self.assertEqual(result['checks']['execution']['status'], 'BLOCKED')
+        self.assertEqual(result['checks']['execution']['status'], 'NEEDS_SETUP')
         self.assertEqual(reader.options, {})
