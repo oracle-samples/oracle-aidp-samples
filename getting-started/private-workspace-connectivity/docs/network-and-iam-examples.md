@@ -113,6 +113,7 @@ For this grant, **caller is a group member AND bucket matches AND source matches
 
 A dynamic group is the identity mechanism chosen for this walkthrough. A policy that directly matches a resource principal can also authorize it without a dynamic group; do not add that alternative grant alongside this test policy.
 
+
 ### Before you begin
 
 Use an existing private-network workspace and a small private test bucket. Have the AIDP administrator confirm that the native `oci://` reader uses the AIDP instance resource principal. A dynamic group does not change the reader's authentication mode. If the reader uses a user credential, stop and resolve that setup before using this resource-principal walkthrough.
@@ -127,9 +128,20 @@ Record:
 | `<CUSTOMER_VCN_ID>`, `<SOURCE_SUBNET_CIDR>` | The VCN and customer-side source subnet used by the workspace private connection. |
 | Object key, size and expected rows | An existing CSV fixture of at most 64 KiB, uploaded by the bucket owner. |
 
+
 ### IAM setup
 
 An existing IAM administrator completes these three steps before the tester runs the notebook.
+
+**Permission to perform setup:** creating a Network Source requires `NETWORK_SOURCE_CREATE` in the target tenancy. Workspace access, VCN management and the bucket-read policy below do not supply this permission. If a separate setup operator will create it, an authorized tenancy administrator can add this policy in the **root compartment**, for an existing group containing that operator:
+
+```text
+Allow group <IAM_DOMAIN>/<SETUP_OPERATORS> to manage network-sources in tenancy
+```
+
+This is a **human operator group**, not the `aidp_v02_reader` dynamic group used by the notebook. It permits Network Source management; it does not delegate dynamic-group or policy creation. The IAM administrator still performs those steps. For a tenancy without identity domains, omit `<IAM_DOMAIN>/`. Allow permission changes to propagate before retrying.
+
+This `Allow` example assumes the operator's group belongs to the target tenancy. An operator from another tenancy needs corresponding **Endorse** and **Admit** grants for Network Source creation. Access to the target VCN or permission to read all resources does not establish permission to create a Network Source. Have the IAM owners verify that cross-tenancy setup before proceeding.
 
 #### 1. Create the dynamic group: who may read
 
@@ -143,7 +155,7 @@ Use `resource.id` for the AIDP resource, not a Compute instance matching rule. T
 
 #### 2. Create the Network Source: where requests may originate
 
-In the tenancy's **home region**, open **Identity & Security > Network Sources > Create Network Source**:
+Sign in to the tenancy that owns the customer VCN. In that tenancy's **home region**, open **Identity & Security > Network Sources > Create Network Source**. Network Sources belong to the **tenancy/root compartment**, not the bucket or workspace compartment. For API/CLI creation, `compartmentId` / `--compartment-id` must be the **tenancy OCID** (`<TENANCY_OCID>`).
 
 | Field | Value |
 | --- | --- |
@@ -153,6 +165,8 @@ In the tenancy's **home region**, open **Identity & Security > Network Sources >
 | IP address/CIDR | `<SOURCE_SUBNET_CIDR>`, such as `10.20.1.0/24` in an illustrative network |
 
 Add no public IP range for this test. The VCN ID and source range form a pair: the same IP range in a different VCN does not match. Do not enter the Object Storage destination IP.
+
+**If creation reports “Authorization failed or requested resource not found”:** verify the signed-in operator's group has the setup grant above, the target is the correct tenancy root, and the VCN OCID belongs to that tenancy. Check the home region and any defined-tag permissions as well; omit optional defined tags when testing creation. Capture the failed operation, HTTP status/error code and `opc-request-id` if it still fails. Being able to list Network Sources does not prove permission to create one. A dynamic-group bucket-read grant cannot resolve a setup-operator authorization failure.
 
 #### 3. Create the policy: permission plus source restriction
 
@@ -166,6 +180,7 @@ Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read buckets in compartment 
 For a tenancy without identity domains, use `dynamic-group aidp_v02_reader`. The first statement permits object reads/listing; the second permits bucket metadata checks. No write grant is needed.
 
 Review all effective grants for this resource and bucket, including inherited policies and other dynamic-group memberships. An additional unconditional allow can bypass this restriction. Choose an isolated test bucket if existing grants cannot be safely scoped. Allow IAM and dynamic-group membership changes to propagate, then keep these definitions unchanged throughout the test.
+
 
 ### Network setup
 
