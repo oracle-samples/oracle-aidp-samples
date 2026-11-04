@@ -87,9 +87,40 @@ def resolution_diagram(private_only=False):
     image.save(ROOT / 'assets' / ('v04-network.png' if private_only else 'dns-resolution-paths.png'))
 
 
+def bucket_and_adb_diagram():
+    """Two application destinations with their distinct source controls."""
+    image = Image.new('RGB', (1500, 600), 'white')
+    d = ImageDraw.Draw(image)
+    d.text((30, 24), 'V02 - One customer VCN, two service access checks', fill='#183d4a', font=font(30, True))
+    d.text((30, 76), 'Connection paths through the same-region service gateway', fill='#4e626b', font=font(22))
+    def box(rect, lines, color='#e9f3ee'):
+        d.rounded_rectangle(rect, radius=12, fill=color, outline='#307160', width=2)
+        for j, line in enumerate(lines):
+            bounds = d.textbbox((0, 0), line, font=font(22, True))
+            assert bounds[2]-bounds[0] < rect[2]-rect[0]-20, line
+            d.text(((rect[0]+rect[2]-bounds[2]+bounds[0])/2, rect[1]+23+j*29), line,
+                   fill='#203d43', font=font(22, True))
+    def arrow(points):
+        d.line(points, fill='#307160', width=4)
+        x,y=points[-1];d.polygon([(x,y),(x-12,y-8),(x-12,y+8)],fill='#307160')
+    box((30, 235, 270, 350), ['AIDP compute', 'CSV + SQL reads'], '#eaf1f5')
+    box((320, 220, 640, 365), ['Workspace private', 'connection', 'Customer source subnet'])
+    box((690, 220, 960, 365), ['Service gateway', 'All regional services', 'Oracle network'])
+    box((1040, 130, 1470, 285), ['Private Object Storage bucket', 'HTTPS 443', 'IAM Network Source + reader'], '#f5f1e7')
+    box((1040, 340, 1470, 495), ['ADB public endpoint', 'TCPS descriptor port', 'VCN ACL + database login'], '#f5f1e7')
+    arrow([(270,292),(320,292)]);arrow([(640,292),(690,292)])
+    arrow([(960,292),(1000,292),(1000,207),(1040,207)])
+    arrow([(960,292),(1000,292),(1000,417),(1040,417)])
+    d.text((30, 410), 'Use the exact public client hostnames in the workspace configuration.', fill='#425b65', font=font(20))
+    d.text((30, 450), 'Keep IAM, database ACLs, identities and routes fixed between phases.', fill='#425b65', font=font(20))
+    d.text((30, 540), 'The IAM Network Source controls bucket authorization; the ADB VCN ACL controls SQL connection origins.', fill='#425b65', font=font(20))
+    image.save(ROOT / 'assets' / 'v02-network.png')
+
+
 if __name__ == '__main__':
     for key, value in DIAGRAMS.items():
-        if key != 'V04':
+        if key not in ('V02', 'V04'):
             build(key, value)
+    bucket_and_adb_diagram()
     resolution_diagram()
     resolution_diagram(private_only=True)

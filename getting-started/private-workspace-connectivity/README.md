@@ -11,7 +11,7 @@ The notebooks do not provision resources, edit workspace DNS, change permissions
 | ID | Choose this when you want to... | Notebook |
 | --- | --- | --- |
 | V01 | Read a private S3 object through customer-controlled outbound connectivity. | [Amazon S3](V01_Amazon_S3.ipynb) |
-| V02 | Preserve a customer Network Source restriction while accessing an in-region OCI service. | [Network Source and service gateway](V02_Customer_Network_Source.ipynb) |
+| V02 | Read a private bucket under a Network Source policy and query an ADB public endpoint under its VCN ACL. | [Network Source and service gateway](V02_Customer_Network_Source.ipynb) |
 | V03 | Read OCI Object Storage in a region different from your AIDP workspace. | [Cross-region Object Storage](V03_Cross_Region_Object_Storage.ipynb) |
 | V04 | Establish private database connectivity and preserve it across unrelated DNS edits. | [Private database before and after DNS edits](V04_Service_Private_Endpoint.ipynb) |
 | V05 | Record configuration and authenticated access for the OCI service endpoints you select. | [Service hostname coverage](V05_Service_Hostname_Coverage.ipynb) |
@@ -67,7 +67,7 @@ The illustrated S3 design uses customer NAT internet egress. No AWS VPC is requi
 
 A service gateway can reach supported Oracle services **in the same region** over the Oracle network. Verify the customer subnet's service-CIDR route, gateway configuration and security rules. An unchanged source restriction plus correlated request/network evidence is needed to establish the intended source/path. OCI IAM Network Sources and database ACLs are different controls. See [service gateway](https://docs.oracle.com/en-us/iaas/Content/Network/Tasks/servicegateway.htm) and [Network Sources](https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/managingnetworksources.htm).
 
-**V02 starts with IAM setup.** Create a dynamic group for the AIDP resource principal, create the VCN Network Source, and combine them in a bucket-read policy. Rule out broader grants before testing. The notebook places [the complete standalone setup](docs/v02-network-source.md) before execution. Keep the policy fixed across `before`, `after_add` and `restored`.
+**V02 uses a new bucket and an existing ADB.** Select the AIDP resource principal with a dynamic group, combine it with the Network Source in a bucket-read policy, and rule out overlapping grants. Separately verify the ADB public endpoint's VCN ACL and database login. The notebook places [the complete standalone setup](docs/v02-network-source.md) before its two read cells. Keep IAM, the ADB ACL and routes fixed across `before`, `after_add` and `restored`.
 
 | Target | Authorization to prepare |
 | --- | --- |

@@ -60,8 +60,8 @@ CASES = {
   'acceptance': 'The authenticated S3 read returns the expected rows. Configuration, DNS and optional TCP results are separate. Review route evidence before claiming a specific outbound path.',
   'refs': ['workspaces', 'nat']},
  'V02': {
-  'title': 'Customer Network Source and service gateway', 'file': 'V02_Customer_Network_Source.ipynb', 'kind': 'csv',
-  'purpose': 'Prepare a bucket-scoped IAM grant with a VCN Network Source, then demonstrate the same-region Object Storage read through the customer network.',
+  'title': 'Bucket and ADB access from the customer VCN', 'file': 'V02_Customer_Network_Source.ipynb', 'kind': 'csv',
+  'purpose': 'Read a bucket under an IAM Network Source policy and query an ADB public endpoint under its VCN ACL, through the same customer network.',
   'setup': [
    ('Workspace', 'Attach the private-network-enabled workspace to the VCN/subnet intended by the source restriction.'),
    ('Route', 'Use an existing service gateway in that VCN and enable the supported regional service. Add/verify the regional service-CIDR route in the customer subnet route table and the applicable security rules. A more specific service route must take precedence over unrelated default egress.'),
@@ -221,7 +221,8 @@ def evidence(case):
                   network_source_snapshot_ref='', bucket_policy_snapshot_ref='',
                   effective_grants_review_ref='', route_snapshot_ref='',
                   dns_before_ref='', dns_after_ref='', dns_restored_ref='',
-                  read_request_refs=[])
+                  read_request_refs=[], adb_public_descriptor_ref='', adb_acl_snapshot_ref='',
+                  adb_session_refs=[], outside_source_comparison_refs=[])
     if case == 'V05':
         ev.update(required_services=[], services=[])
     if case == 'V06':
@@ -249,26 +250,42 @@ def v02_walkthrough(diagram):
     section = lambda heading: documentation_section(guide, heading)
     intro = (ROOT / 'docs' / guide).read_text().split('\n## ', 1)[0]
     cells = [md(intro + '\n\nThis notebook is an unexecuted sample.\n')]
-    for heading in ('How the IAM restriction works', 'Before you begin', 'IAM setup', 'Network setup'):
+    for heading in ('How the source restrictions work', 'Before you begin', 'IAM and database setup', 'Network setup'):
         cells.append(md('## ' + heading + '\n\n' + section(heading)))
     cells += [diagram, md('## Customer steps\n\n' + section('Customer steps')),
         md('## Test helpers\n\nRun once. These definitions make no network calls.\n'),
-        code(engine('V02', CASES['V02']['title']), True),
-        md('## Your configuration\n\nComplete the IAM and network setup first. Use the exact bucket, namespace, '
-           'object and endpoint from the preparation record. Both region fields must match the workspace region. '
-           'The two expected rows below match the supplied sample.csv fixture. Keep credentials out of CONFIG.\n'),
+        code(engine('V02', CASES['V02']['title']) + '\n' + (ROOT / 'v02_adb_check.py').read_text(), True),
+        md('## Your configuration\n\nComplete the setup first. CONFIG selects the new bucket fixture; '
+           'ADB_CONFIG selects the existing database public-endpoint connection. Set each target region '
+           'to the workspace region. The expected CSV rows match sample.csv. Copy expected_service '
+           'from the selected ADB descriptor. Keep credentials out of both dictionaries.\n'),
         code("CASE_ID = 'V02'\nCONFIG = " + pprint.pformat(configuration('csv'), sort_dicts=False) + '\n'
+             'ADB_CONFIG = ' + pprint.pformat(dict(workspace_label='', compute_label='',
+                 hostname='', port=1522, region='', workspace_region='', catalog_id='',
+                 wallet_zip='', tns='', user='', expected_service='', public_endpoint_confirmed=False),
+                 sort_dicts=False) + '\n'
              'RUN_LIVE = False\nRUN_EVIDENCE_CHECKS = False\nPHASE = "before"\nRESULTS = []\n'),
         md('## Choose phase\n\nChange only the phase and live flag between attempts. Keep earlier RESULTS.\n'),
         code('RUN_LIVE = False  # Set True after completing IAM and network setup.\n'
              'PHASE = "before"  # Then after_add and restored, following Customer steps.\n'),
-        md('## Read the test object\n\nRun this cell once per phase. The same configured runtime identity '
+        md('## Read the bucket object\n\nRun this cell once per phase. The same configured runtime identity '
            'must read the same object under the unchanged policy and Network Source.\n'),
         code('result = run_case(CASE_ID, CONFIG, spark=globals().get("spark"), live=RUN_LIVE, phase=PHASE)\n'
+             'result["target"] = "bucket"\n'
              'result["acceptance"] = summarize(result)\nRESULTS.append(result)\nprint(json.dumps(result, indent=2))\n'),
+        md('## Query the database\n\nRun once per phase using the same approved public-endpoint connection. '
+           'The query reads DUAL and returns service, database user and the client address observed by ADB. '
+           'A catalog supplies its own credentials; the wallet alternative reads ADB_PASSWORD privately '
+           'from the runtime environment. This checks the ADB VCN ACL path, not an IAM Network Source condition.\n'),
+        code('import os\n'
+             'adb_result = run_adb_check(ADB_CONFIG, spark=globals().get("spark"), '
+             'runtime={"adb_password": os.environ.get("ADB_PASSWORD")}, live=RUN_LIVE, phase=PHASE)\n'
+             'adb_result["acceptance"] = summarize(adb_result)\nRESULTS.append(adb_result)\n'
+             'print(json.dumps(adb_result, indent=2))\n'),
         md('## Review the result\n\n' + section('Review the result') + '\n'
-           '`functional: PASS` confirms the exact CSV rows. `source_path: BLOCKED` means that the policy '
-           'and request evidence still needs human review. The following references document that review; '
+           '`functional: PASS` confirms the CSV rows or expected database service for the named target. '
+           '`source_path: BLOCKED` means that the policy/ACL and path evidence still needs human review. '
+           'The following references document that review; '
            'they do not automatically query or validate IAM.\n'),
         code('EVIDENCE = ' + pprint.pformat(evidence('V02'), sort_dicts=False) + '\n'),
         md('## Export\n\nSave this output privately with your configuration snapshots and request records.\n'),

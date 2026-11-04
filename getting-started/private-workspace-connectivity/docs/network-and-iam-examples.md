@@ -98,100 +98,110 @@ Sources: [AWS S3 identity policy examples](https://docs.aws.amazon.com/AmazonS3/
 
 ## V02 — Customer Network Source and service gateway
 
-### How the IAM restriction works
+### How the source restrictions work
 
-| IAM element | What it checks | This example |
-| --- | --- | --- |
-| Resource principal | **Who signed the request?** | The AIDP instance resource identity. |
-| Dynamic group | **Is that resource a member?** | `aidp_v02_reader` contains the selected AIDP instance. |
-| Network Source | **Where did the request originate?** | `aidp_v02_vcn` contains the customer VCN and allowed subnet range. |
-| Policy | **What may this caller do, from that source?** | Read the named bucket only when the Network Source matches. |
+| Target | Who authenticates? | What restricts the connection source? | Successful operation |
+| --- | --- | --- | --- |
+| Object Storage | AIDP resource principal, selected by a dynamic group | IAM policy condition `request.networkSource.name='aidp_v02_vcn'` | Read the exact CSV rows. |
+| Autonomous Database public endpoint | Existing database user through an approved catalog or wallet connection | The database's **VCN access control list**, plus database login privileges | Return the expected database service and session details from `DUAL`. |
 
-The dynamic group and Network Source are independent IAM objects. The policy connects them. Neither object grants access by itself. Putting an AIDP resource in the dynamic group does not put its requests in the allowed network.
+A Network Source is an IAM definition of allowed request origins; it does not connect to a service or grant access by itself. For the bucket, the policy combines **identity + named bucket + allowed source**. The service-gateway path supplies the customer VCN/source context.
 
-For this grant, **caller is a group member AND bucket matches AND source matches** must all be true. IAM evaluates the source condition when Object Storage authorizes the request. It uses the request's VCN/source-address context through the service gateway; the notebook does not send a Network Source name as a credential.
-
-A dynamic group is the identity mechanism chosen for this walkthrough. A policy that directly matches a resource principal can also authorize it without a dynamic group; do not add that alternative grant alongside this test policy.
-
+The database check uses a password-authenticated SQL connection. Its VCN ACL is configured separately: the IAM Network Source name is **not** an ADB SQL access rule. Putting `request.networkSource.name` on an `autonomous-databases` management policy does not restrict this SQL session. This notebook tests two source controls for the same customer network and reports their results separately.
 
 ### Before you begin
 
-Use an existing private-network workspace and a small private test bucket. Have the AIDP administrator confirm that the native `oci://` reader uses the AIDP instance resource principal. A dynamic group does not change the reader's authentication mode. If the reader uses a user credential, stop and resolve that setup before using this resource-principal walkthrough.
+Have the AIDP administrator confirm the native `oci://` reader's effective identity. This walkthrough selects the AIDP instance resource principal; a dynamic-group rule cannot change a reader that actually uses user credentials.
 
-Record:
+Record the following before starting compute:
 
 | Value | Obtain from |
 | --- | --- |
-| `<AIDP_RESOURCE_ID>` | AIDP instance details: its resource OCID, not the workspace or cluster UUID. |
-| `<IAM_DOMAIN>` | Identity domain where the dynamic group will be created. |
-| `<BUCKET_COMPARTMENT_ID>`, `<BUCKET_NAME>`, namespace | Object Storage bucket details. |
-| `<CUSTOMER_VCN_ID>`, `<SOURCE_SUBNET_CIDR>` | The VCN and customer-side source subnet used by the workspace private connection. |
-| Object key, size and expected rows | An existing CSV fixture of at most 64 KiB, uploaded by the bucket owner. |
+| `<TEST_COMPARTMENT_ID>` | The compartment for the new bucket and existing database. |
+| `<AIDP_RESOURCE_ID>`, `<IAM_DOMAIN>` | AIDP instance OCID and the dynamic group's identity domain. |
+| `<CUSTOMER_VCN_ID>`, `<SOURCE_SUBNET_CIDR>` | Workspace private-connection VCN and actual customer-side source subnet. |
+| `<BUCKET_NAME>`, namespace, object key | New private bucket and the supplied `fixtures/sample.csv`; it contains two rows and is 24 bytes. |
+| ADB public hostname, port and service name | **Database connection > Public endpoint** for the existing ADB. Copy the selected descriptor's service name, not the display name. |
+| Catalog key, or wallet ZIP/TNS/user | An approved connection to that **public endpoint**. Verify the effective descriptor before setting `public_endpoint_confirmed=True`. |
 
+Keep secrets out of notebook cells and outputs. Prefer an existing catalog. If using a wallet, supply the password through a private runtime `ADB_PASSWORD` environment variable. Do not download credentials into the test bucket.
 
-### IAM setup
+### IAM and database setup
 
-An existing IAM administrator completes these three steps before the tester runs the notebook.
+Complete these steps before the reads. The notebook does not create policies or change the database.
 
-**Permission to perform setup:** creating a Network Source requires `NETWORK_SOURCE_CREATE` in the target tenancy. Workspace access, VCN management and the bucket-read policy below do not supply this permission. If a separate setup operator will create it, an authorized tenancy administrator can add this policy in the **root compartment**, for an existing group containing that operator:
+#### 1. Verify the operator's setup permissions
+
+An IAM administrator creates the dynamic group, Network Source and bucket policy. A bucket owner creates the private bucket and uploads `sample.csv`. A database owner verifies the ACL and connection.
+
+Creating a Network Source requires `NETWORK_SOURCE_CREATE` at the tenancy root. For a setup group in the same tenancy, an administrator can delegate management with:
 
 ```text
 Allow group <IAM_DOMAIN>/<SETUP_OPERATORS> to manage network-sources in tenancy
 ```
 
-This is a **human operator group**, not the `aidp_v02_reader` dynamic group used by the notebook. It permits Network Source management; it does not delegate dynamic-group or policy creation. The IAM administrator still performs those steps. For a tenancy without identity domains, omit `<IAM_DOMAIN>/`. Allow permission changes to propagate before retrying.
+For an operator from another tenancy, verify corresponding **Endorse** and **Admit** grants. A local `Allow any-user` statement does not replace cross-tenancy authorization. Being able to list Network Sources does not prove permission to create them. If creation fails, check the caller, tenancy root, home region and failed request ID.
 
-This `Allow` example assumes the operator's group belongs to the target tenancy. An operator from another tenancy needs corresponding **Endorse** and **Admit** grants for Network Source creation. Access to the target VCN or permission to read all resources does not establish permission to create a Network Source. Have the IAM owners verify that cross-tenancy setup before proceeding.
+#### 2. Select the bucket reader with a dynamic group
 
-#### 1. Create the dynamic group: who may read
-
-In **Identity & Security > Domains > your domain > Dynamic groups**, create `aidp_v02_reader`. In a tenancy without identity domains, open **Identity & Security > Dynamic Groups**. Enter this matching rule, replacing the placeholder:
+Create `aidp_v02_reader` in **Identity & Security > Domains > your domain > Dynamic groups**, using:
 
 ```text
 ALL {resource.id = '<AIDP_RESOURCE_ID>'}
 ```
 
-Use `resource.id` for the AIDP resource, not a Compute instance matching rule. This selects one resource; it does not include every resource in the compartment.
+Use the AIDP **instance OCID**, not a workspace/compute UUID or an `instance.id` rule for a Compute VM. In a tenancy without identity domains, use **Identity & Security > Dynamic Groups**.
 
-#### 2. Create the Network Source: where requests may originate
+#### 3. Define the Network Source
 
-Sign in to the tenancy that owns the customer VCN. In that tenancy's **home region**, open **Identity & Security > Network Sources > Create Network Source**. Network Sources belong to the **tenancy/root compartment**, not the bucket or workspace compartment. For API/CLI creation, `compartmentId` / `--compartment-id` must be the **tenancy OCID** (`<TENANCY_OCID>`).
+In the tenancy's **home region**, open **Identity & Security > Network Sources**. Create or verify:
 
 | Field | Value |
 | --- | --- |
 | Name | `aidp_v02_vcn` |
-| Network type | **Virtual Cloud Network** |
+| Placement | Tenancy root; API `compartmentId` must be `<TENANCY_OCID>`. |
+| Network type | Virtual Cloud Network |
 | VCN OCID | `<CUSTOMER_VCN_ID>` |
-| IP address/CIDR | `<SOURCE_SUBNET_CIDR>`, such as `10.20.1.0/24` in an illustrative network |
+| IP address/CIDR | `<SOURCE_SUBNET_CIDR>`, for example `10.20.1.0/24` |
+| Public sources | Empty |
 
-Add no public IP range for this test. The VCN ID and source range form a pair: the same IP range in a different VCN does not match. Do not enter the Object Storage destination IP.
+The VCN and range are a pair. Enter the **source subnet**, not an Object Storage destination address.
 
-**If creation reports “Authorization failed or requested resource not found”:** verify the signed-in operator's group has the setup grant above, the target is the correct tenancy root, and the VCN OCID belongs to that tenancy. Check the home region and any defined-tag permissions as well; omit optional defined tags when testing creation. Capture the failed operation, HTTP status/error code and `opc-request-id` if it still fails. Being able to list Network Sources does not prove permission to create one. A dynamic-group bucket-read grant cannot resolve a setup-operator authorization failure.
+#### 4. Grant reads from that source to the new bucket
 
-#### 3. Create the policy: permission plus source restriction
-
-Open **Identity & Security > Policies** in the bucket compartment or an authorized ancestor. Create a policy using the manual editor:
+In the test compartment or an authorized ancestor, create:
 
 ```text
-Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read objects in compartment id <BUCKET_COMPARTMENT_ID> where all {target.bucket.name='<BUCKET_NAME>', request.networkSource.name='aidp_v02_vcn'}
-Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read buckets in compartment id <BUCKET_COMPARTMENT_ID> where all {target.bucket.name='<BUCKET_NAME>', request.networkSource.name='aidp_v02_vcn'}
+Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read objects in compartment id <TEST_COMPARTMENT_ID> where all {target.bucket.name='<BUCKET_NAME>', request.networkSource.name='aidp_v02_vcn'}
+Allow dynamic-group <IAM_DOMAIN>/aidp_v02_reader to read buckets in compartment id <TEST_COMPARTMENT_ID> where all {target.bucket.name='<BUCKET_NAME>', request.networkSource.name='aidp_v02_vcn'}
 ```
 
-For a tenancy without identity domains, use `dynamic-group aidp_v02_reader`. The first statement permits object reads/listing; the second permits bucket metadata checks. No write grant is needed.
+For a tenancy without identity domains, omit `<IAM_DOMAIN>/`. This grants object reads/listing and bucket metadata checks, not writes.
 
-Review all effective grants for this resource and bucket, including inherited policies and other dynamic-group memberships. An additional unconditional allow can bypass this restriction. Choose an isolated test bucket if existing grants cannot be safely scoped. Allow IAM and dynamic-group membership changes to propagate, then keep these definitions unchanged throughout the test.
+**Check overlapping grants before claiming enforcement.** A new bucket still inherits compartment/tenancy policies. A broad object grant through another dynamic group can authorize reads outside the Network Source. The IAM owner must exclude the test bucket from such grants or provide an otherwise isolated reader. Preserve shared access to other buckets. Until this is resolved, label the restriction test **BLOCKED**, even if the CSV read succeeds. Allow IAM and dynamic-group changes to propagate before testing.
 
+#### 5. Restrict the ADB public endpoint to the customer VCN
+
+Open the existing ADB's **Network > Access control list > Edit**. Verify an approved **Virtual cloud network** entry for `<CUSTOMER_VCN_ID>`. Optionally specify `<SOURCE_SUBNET_CIDR>` to restrict clients further. Review existing consumers before tightening an ACL; preserve approved entries and any existing private endpoint.
+
+Use an existing database account with `CREATE SESSION`; the query reads `DUAL` and changes no data. No `manage autonomous-databases` or `use database-connections` grant is needed for this password-authenticated SQL session. Database-management IAM permissions are required only for an administrator changing the database configuration. IAM token authentication would require a separate database integration and is not used here.
+
+If the database has both public and private access, select **Public endpoint** explicitly. A successful query through the private descriptor does not validate this public-endpoint VCN ACL.
 
 ### Network setup
 
 | Component | Required configuration |
 | --- | --- |
-| Workspace | Existing private connection to the customer VCN/subnet recorded above; platform private-network prerequisites already satisfied. |
-| Service gateway | Enabled Object Storage service, or All Services label including Object Storage, in this same region. |
-| Source subnet route | Destination type **Service**, matching regional service label, target the service gateway. |
-| Egress controls | Stateful TCP 443 to the regional service label through the applicable subnet/NSG/firewall rules. |
+| Workspace | Existing private connection to the recorded customer VCN/subnet. |
+| Service gateway | **All services in the regional Oracle Services Network**, covering Object Storage and the ADB public endpoint. An Object Storage-only gateway label is insufficient for both checks. |
+| Source subnet route | Destination type **Service**, matching the regional All Services label, target the service gateway. |
+| Egress | Stateful TCP 443 for Object Storage and the ADB descriptor's TCP port, commonly 1521 for TLS or 1522 for mTLS. Retain applicable workspace prerequisites and return traffic. |
+| Workspace hostnames | Exact Object Storage hostname and ADB **public** hostname used by the clients. Retain the original hostnames for TLS identity verification. |
 
-Expected application path: **AIDP -> workspace private connection -> customer subnet -> service gateway -> Object Storage**. The service-gateway path supplies the customer VCN source context needed by this policy.
+Application paths:
+
+- AIDP -> workspace private connection -> customer subnet -> service gateway -> Object Storage -> IAM Network Source check.
+- AIDP -> workspace private connection -> customer subnet -> service gateway -> ADB public endpoint -> VCN ACL and database login.
 
 ## Object Storage and ADB authorization
 

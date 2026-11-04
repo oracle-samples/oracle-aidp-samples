@@ -8,9 +8,9 @@
   },
   {
     "case": "V02",
-    "title": "Customer Network Source and service gateway",
+    "title": "Bucket and ADB access from the customer VCN",
     "notebook": "V02_Customer_Network_Source.ipynb",
-    "objective": "Prepare a bucket-scoped IAM grant with a VCN Network Source, then demonstrate the same-region Object Storage read through the customer network.",
+    "objective": "Read a bucket under an IAM Network Source policy and query an ADB public endpoint under its VCN ACL, through the same customer network.",
     "kind": "csv"
   },
   {

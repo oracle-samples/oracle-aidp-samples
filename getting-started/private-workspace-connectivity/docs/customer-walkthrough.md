@@ -66,18 +66,18 @@ Keep the time, phase and operation result. A DNS answer or open TCP port is not 
 
 **Completion:** exact object contents plus saved DNS change and reviewed customer NAT path. An S3 permission error is not evidence that DNS failed.
 
-## V02 - Customer Network Source
+## V02 - Bucket and ADB access from the customer VCN
 
-Read one private Object Storage fixture through the customer VCN under a source-restricted IAM policy. The [standalone V02 walkthrough](v02-network-source.md) explains the dynamic group, Network Source and policy, with the complete setup.
+Read a new private bucket under a Network Source policy and query an existing ADB public endpoint under its VCN ACL. Follow the [standalone V02 setup](v02-network-source.md) before execution.
 
-1. **Record the baseline.** Save the dynamic-group rule, Network Source, effective policies, route and full workspace DNS/SCAN settings. If the Object Storage hostname is already configured, preserve it and label the run as validation of an existing setup.
-2. **Configure the read.** Attach the approved test compute. Run **Test helpers** and **Your configuration** once. Set the fixture URI, endpoint and expected rows. Both region fields must match the workspace region.
-3. **Run before.** Set `RUN_LIVE=True` and `PHASE="before"` in **Choose phase**, then run the read cell. Retain the result.
-4. **Apply the hostname setting.** Edit the workspace, open **Advanced options**, and add the exact Object Storage hostname used by the reader, for example `objectstorage.us-ashburn-1.oraclecloud.com`. Preserve all other entries. Follow any required compute-stop action, save, and reopen the settings to confirm. Keep IAM and routes unchanged.
-5. **Run after.** Set `PHASE="after_add"` and repeat the same read with the same identity and object. Expect the exact fixture rows. Use a fresh connection as needed after DNS caches expire. If a required restart resets the session, export the earlier result before restarting.
-6. **Restore.** Remove only the hostname introduced by this run and verify the original DNS/SCAN settings. Run `PHASE="restored"`, then export results. Stop compute only if you started it for this test.
+1. **Prepare and record.** Complete IAM, bucket, ADB and network setup. Record all existing DNS/SCAN entries. If a target hostname is already present, preserve it and label that target as an existing-configuration validation.
+2. **Configure both targets.** Run **Test helpers** and **Your configuration** once. Fill `CONFIG` for the CSV and `ADB_CONFIG` for the database. Verify the catalog/wallet public descriptor; set its exact hostname, port and service, then set `public_endpoint_confirmed=True`.
+3. **Run the baseline.** Attach the approved compute. In **Choose phase**, set `RUN_LIVE=True` and `PHASE="before"`. Run **Read the bucket object** and **Query the database**. Save both results; their outcomes may differ.
+4. **Apply the missing hostname entries.** Edit the workspace's **Advanced options** and add only the two exact client hostnames that are missing. Preserve all existing entries. Follow any required compute-stop action, save, and reopen to verify. Keep IAM, ACLs, identities and routes unchanged.
+5. **Repeat both operations.** Set `PHASE="after_add"` and rerun both read cells. Expect the exact CSV rows and the expected database service. Refresh connections after DNS caching as needed. Export earlier results before any required session restart.
+6. **Restore and compare.** Remove only entries introduced by this test. Set `PHASE="restored"`, repeat both reads, and export. Leave pre-existing entries intact. Stop compute if you started it solely for this test.
 
-Use **Choose phase** between reads; do not rerun the configuration cell and clear earlier results.
+Use **Choose phase** between attempts; rerunning the configuration cell clears results. Keep the test bucket until evidence is reviewed, then have its owner remove the fixture and bucket. Preserve the reused database and catalog.
 
 ## V03 - Cross-region Object Storage
 
