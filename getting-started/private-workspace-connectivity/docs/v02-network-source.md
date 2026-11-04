@@ -274,7 +274,7 @@ Allow group <IAM_DOMAIN>/<REVIEWERS> to read log-groups in compartment id <LOG_C
 Allow group <IAM_DOMAIN>/<REVIEWERS> to read log-content in compartment id <LOG_COMPARTMENT_ID>
 ```
 
-## Review the result
+## Expected results
 
 | Target | From the approved customer source | From a source outside its configured rule |
 | --- | --- | --- |

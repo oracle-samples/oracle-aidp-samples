@@ -257,11 +257,11 @@ def v02_session_guard(helper, config):
     )
 
 def v02_walkthrough(diagram):
-    """Build this use case without the multi-case reference appendices."""
+    """Build customer instructions; keep dated lab history in separate reports."""
     guide = 'v02-network-source.md'
     section = lambda heading: documentation_section(guide, heading)
     intro = (ROOT / 'docs' / guide).read_text().split('\n## ', 1)[0]
-    cells = [md(intro + '\n\nThis notebook is an unexecuted sample.\n')]
+    cells = [md(intro + '\n')]
     for heading in ('How the source restrictions work', 'Before you begin', 'IAM and database setup', 'Network setup'):
         cells.append(md('## ' + heading + '\n\n' + section(heading)))
     cells += [diagram, md('## Customer steps\n\n' + section('Customer steps')),
@@ -307,7 +307,7 @@ def v02_walkthrough(diagram):
              'runtime={"adb_password": os.environ.get("ADB_PASSWORD")}, live=RUN_LIVE, phase=PHASE)\n'
              'adb_result["acceptance"] = v02_summary(adb_result)\nRESULTS.append(adb_result)\n'
              'print(json.dumps(adb_result, indent=2))\n'),
-        md('## Review the result\n\n' + section('Review the result') + '\n'
+        md('## Expected results\n\n' + section('Expected results') + '\n'
            '`functional: PASS` confirms the CSV rows or expected database service for the named target. '
            '`source_path: NOT_VERIFIED` identifies a read awaiting the source-control test. '
            'The following references document that review; '
@@ -331,7 +331,7 @@ def v02_walkthrough(diagram):
         'ROUTE_REPORTS = globals().get("ROUTE_REPORTS", [])\nROUTE_REPORTS.append(route_report)\n'
         'print_v02_route_report(route_report)\n')
     route_cell['id'] = 'v02-route-check'
-    position = next(i for i, c in enumerate(cells) if ''.join(c['source']).startswith('## Review the result'))
+    position = next(i for i, c in enumerate(cells) if ''.join(c['source']).startswith('## Expected results'))
     control_guide = md('## Test the source controls: allow, deny, restore\n\n' + section('Test the source controls: allow, deny, restore'))
     control_guide['id'] = 'v02-control-guide'
     control_setup = code('ADMIN_CONFIG_FILE = ""  # Existing approved private operator profile; never a shared upload.\n'
