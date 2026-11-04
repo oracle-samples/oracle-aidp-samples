@@ -22,7 +22,8 @@ Record the following before starting compute:
 | Value | Obtain from |
 | --- | --- |
 | `<TEST_COMPARTMENT_ID>` | The compartment for the new bucket and existing database. |
-| `<AIDP_RESOURCE_ID>`, `<IAM_DOMAIN>` | AIDP instance OCID and the dynamic group's identity domain. |
+| `<AIDP_INSTANCE_OCID>` | **AI Data Platform > instance Actions > View Details > OCID**; see step 2 below. |
+| `<IAM_DOMAIN>` | Identity domain containing the dynamic group. |
 | `<CUSTOMER_VCN_ID>`, `<SOURCE_SUBNET_CIDR>` | Workspace private-connection VCN and actual customer-side source subnet. |
 | `<BUCKET_NAME>`, namespace, object key | New private bucket and the supplied `fixtures/sample.csv`; it contains two rows and is 24 bytes. |
 | ADB public hostname, port and service name | **Database connection > Public endpoint** for the existing ADB. Copy the selected descriptor's service name, not the display name. |
@@ -64,13 +65,25 @@ For an operator from another tenancy, verify corresponding **Endorse** and **Adm
 
 ### 2. Select the bucket reader with a dynamic group
 
-Create `aidp_v02_reader` in **Identity & Security > Domains > your domain > Dynamic groups**, using:
+**AIDP has an OCI resource identifier at the instance level.** `resource.id` is the IAM matching-rule variable for that OCID; it is not a field to look for on a workspace or compute cluster.
+
+Find the value before creating the group:
+
+1. In the OCI Console, select the tenancy and region containing the AIDP instance. Open **Analytics & AI > AI Data Platform**.
+2. Locate the instance that hosts your workspace. Open its **Actions** menu and select **View Details**.
+3. Copy the complete **OCID** into `<AIDP_INSTANCE_OCID>`. Its prefix is `ocid1.aidataplatform.`; older instances can use `ocid1.datalake.`. Keep the identifier exactly as displayed. If the instance is not listed, check the region/compartment filter and ask the AIDP administrator for its instance details.
+
+These steps are illustrated in [Oracle's AIDP IAM documentation](https://docs.oracle.com/en/cloud/paas/ai-data-platform/aidug/iam-policies-oracle-ai-data-platform.html). The [Get AI Data Platform API/CLI](https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/ai-data-platform/ai-data-platform/get.html) also identifies the instance by its OCID.
+
+Then create `aidp_v02_reader` in **Identity & Security > Domains > your domain > Dynamic groups**. Enter this rule manually and replace the placeholder with the copied OCID:
 
 ```text
-ALL {resource.id = '<AIDP_RESOURCE_ID>'}
+ALL {resource.id = '<AIDP_INSTANCE_OCID>'}
 ```
 
-Use the AIDP **instance OCID**, not a workspace/compute UUID or an `instance.id` rule for a Compute VM. In a tenancy without identity domains, use **Identity & Security > Dynamic Groups**.
+This selects the **AIDP instance resource principal**, not an individual workspace. Workspace/compute UUIDs and the URL's `TENANT_ID` cannot be substituted for this OCID. Keep `resource.id`; `instance.id` is used for OCI Compute VMs. In a tenancy without identity domains, use **Identity & Security > Dynamic Groups**.
+
+**Confirm the reader before testing enforcement.** Finding the instance OCID does not prove that the native `oci://` read is authorized as that principal. Have the AIDP/IAM administrator verify the effective Object Storage caller and any delegation with a correlated read event. If it differs, this rule does not select that caller: resolve the identity mapping before claiming the Network Source test passed. Do not substitute a service-owned compute OCID merely because it appears in a runtime token. See [Verify the customer VCN path](#verify-the-customer-vcn-path).
 
 ### 3. Define the Network Source
 
