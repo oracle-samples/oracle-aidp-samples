@@ -26,26 +26,5 @@
     "notebook": "V04_Service_Private_Endpoint.ipynb",
     "objective": "Establish existing private database connectivity, then verify that unrelated Advanced DNS edits preserve the same database connection.",
     "kind": "adb"
-  },
-  {
-    "case": "V05",
-    "title": "OCI service hostname coverage",
-    "notebook": "V05_Service_Hostname_Coverage.ipynb",
-    "objective": "Record which of your selected OCI service endpoints can be configured and accessed through the workspace.",
-    "kind": null
-  },
-  {
-    "case": "V06",
-    "title": "DNS edits and input validation",
-    "notebook": "V06_DNS_CRUD_And_Validation.ipynb",
-    "objective": "Validate scoped add/edit/delete/cancel behavior and record input-validation outcomes.",
-    "kind": null
-  },
-  {
-    "case": "V07",
-    "title": "DNS changes without a Spark restart",
-    "notebook": "V07_DNS_Without_Restart.ipynb",
-    "objective": "Measure workload continuity for a DNS edit that your deployment explicitly supports while compute is running.",
-    "kind": "csv"
   }
 ]

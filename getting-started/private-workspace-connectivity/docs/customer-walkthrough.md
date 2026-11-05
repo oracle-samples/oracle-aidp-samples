@@ -18,7 +18,7 @@ AIDP manages CoreDNS. You choose the private network and, when needed, destinati
 | V03 | Verified runtime reader granted both remote and local bucket access | Remote-region and local-region Object Storage read events plus customer flows |
 | V04 | Existing database user and reviewed private connection descriptor | Private-endpoint flows, SQL identity results and five DNS-edit snapshots |
 
-Each notebook includes its own setup and troubleshooting. Configure logging before execution; the notebooks do not enable logs or change IAM. Oracle Support can use workspace/update request IDs and UTC intervals to trace the DNS workflow.
+Each notebook includes its own setup and troubleshooting. Configure logging before execution; the notebooks do not enable logs. Normal read cells do not change IAM; V02 includes separately enabled administrator control tests. Oracle Support can use workspace/update request IDs and UTC intervals to trace the DNS workflow.
 
 ## Common Workbench actions
 

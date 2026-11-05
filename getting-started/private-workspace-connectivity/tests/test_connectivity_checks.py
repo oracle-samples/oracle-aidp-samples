@@ -82,46 +82,21 @@ class AcceptanceRegressions(unittest.TestCase):
         for case in h.CASE_NAMES:
             self.assertEqual(h.summarize(h.evaluate_evidence(case, {})), 'BLOCKED')
 
-    def continuity(self):
+    def private_database_phases(self):
         baseline = {'dns_zones': ['legacy.example'], 'scan': []}
         snapshots = [baseline, {'dns_zones': ['legacy.example', 'a.example'], 'scan': []},
                      {'dns_zones': ['legacy.example', 'b.example'], 'scan': []}, baseline, baseline]
         return {'evidence_ref': 'observations.json', 'before': baseline, 'restored': baseline,
-                'restart_count': 0, 'lifecycle_evidence_ref': 'lifecycle.json',
-                'phases': [{'phase': name, 'application_id': 'app1', 'functional': 'PASS',
-                            'operation_evidence_ref': name + '.json', 'configuration_snapshot': snap,
-                            'dns_addresses': ['192.0.2.1'], 'expected_dns_addresses': ['192.0.2.1'],
-                            'mapping_evidence_ref': 'mapping.json'}
+                'phases': [{'phase': name, 'functional': 'PASS',
+                            'operation_evidence_ref': name + '.json', 'configuration_snapshot': snap}
                            for name, snap in zip(['before', 'after_add', 'after_edit', 'after_delete', 'restored'], snapshots)]}
 
-    def test_continuity_valid_record_requires_review(self):
-        r = h.evaluate_evidence('V07', self.continuity())
-        self.assertTrue(all(v['status'] == 'PASS' for v in r['checks'].values()))
-        self.assertEqual(h.summarize(r), 'REVIEW_REQUIRED')
 
-    def test_replaced_application_and_restart_fail(self):
-        e = self.continuity()
-        e['phases'][2]['application_id'] = 'app2'
-        e['restart_count'] = 1
-        r = h.evaluate_evidence('V07', e)
-        self.assertEqual(r['checks']['same_spark_application']['status'], 'FAIL')
-        self.assertEqual(r['checks']['no_restart_events']['status'], 'FAIL')
 
-    def test_unchanged_config_is_not_a_change_test(self):
-        e = self.continuity()
-        for phase in e['phases']:
-            phase['configuration_snapshot'] = e['before']
-        r = h.evaluate_evidence('V07', e)
-        self.assertEqual(r['checks']['configuration_change_exercised']['status'], 'FAIL')
 
-    def test_dns_mismatch_fails_continuity(self):
-        e = self.continuity()
-        e['phases'][1]['dns_addresses'] = ['192.0.2.2']
-        r = h.evaluate_evidence('V07', e)
-        self.assertEqual(r['checks']['dns_each_phase']['status'], 'FAIL')
 
     def test_private_database_preserved_across_dns_edits(self):
-        e = self.continuity()
+        e = self.private_database_phases()
         e['expected_instance'] = 'original-database'
         for phase in e['phases']:
             phase['instance'] = 'original-database'
@@ -133,7 +108,7 @@ class AcceptanceRegressions(unittest.TestCase):
         self.assertEqual(h.evaluate_evidence('V04', e)['checks']['same_database_identity']['status'], 'FAIL')
 
     def test_private_database_baseline_alone_is_incomplete(self):
-        e = self.continuity()
+        e = self.private_database_phases()
         e['expected_instance'] = 'original-database'
         e['phases'] = e['phases'][:1]
         e['phases'][0]['instance'] = 'original-database'
@@ -142,7 +117,7 @@ class AcceptanceRegressions(unittest.TestCase):
         self.assertEqual(r['checks']['configuration_change_exercised']['status'], 'FAIL')
 
     def test_private_database_unchanged_dns_does_not_validate_preservation(self):
-        e = self.continuity()
+        e = self.private_database_phases()
         e['expected_instance'] = 'original-database'
         for phase in e['phases']:
             phase['instance'] = 'original-database'
@@ -150,14 +125,6 @@ class AcceptanceRegressions(unittest.TestCase):
         r = h.evaluate_evidence('V04', e)
         self.assertEqual(r['checks']['configuration_change_exercised']['status'], 'FAIL')
 
-    def test_partial_operation_requires_readback(self):
-        e = {'evidence_ref': 'capture.json', 'before': {}, 'restored': {},
-             'steps': [{'name': 'partial', 'performed': True, 'work_request_status': 'FAILED',
-                        'work_request_ref': 'wr', 'saved_hostnames': ['owned.example'],
-                        'readback_evidence_ref': 'readback.json'}]}
-        self.assertEqual(h.evaluate_evidence('V06', e)['checks']['partial_readback_recorded']['status'], 'PASS')
-        e['steps'][0]['readback_evidence_ref'] = None
-        self.assertEqual(h.evaluate_evidence('V06', e)['checks']['partial_readback_recorded']['status'], 'FAIL')
 
     def test_driver_secret_not_written_to_results(self):
         class BadSpark:

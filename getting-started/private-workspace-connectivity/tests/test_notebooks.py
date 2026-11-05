@@ -31,12 +31,15 @@ class NotebookChecks(unittest.TestCase):
         exec(''.join(config['source']), env)
         return env
 
-    def test_seven_self_contained_notebooks_with_empty_outputs(self):
+    def test_four_self_contained_notebooks_with_empty_outputs(self):
         items = list(self.items())
         self.assertEqual({i['case'] for i, _ in items}, set(shared.CASE_NAMES))
-        self.assertEqual(len(items), 7)
+        self.assertEqual(len(items), 4)
+        self.assertEqual(set(shared.CASE_NAMES), {'V01', 'V02', 'V03', 'V04'})
         self.assertEqual({p.name for p in ROOT.glob('V*.ipynb')},
                          {item['notebook'] for item, _ in items})
+        self.assertEqual({p.name for p in (ROOT / 'assets').glob('v*-network.png')},
+                         {case.lower() + '-network.png' for case in shared.CASE_NAMES})
         for item, nb in items:
             with self.subTest(case=item['case']):
                 for cell in nb['cells']:
@@ -68,19 +71,23 @@ class NotebookChecks(unittest.TestCase):
             self.assertEqual(image, (ROOT / 'assets' / (item['case'].lower() + '-network.png')).read_bytes())
 
     def test_no_environment_specific_or_internal_material(self):
-        files = [ROOT / 'README.md', ROOT / 'connectivity_checks.py', ROOT / 'build_notebooks.py']
-        files += [ROOT / 'customer_case_checks.py'] + list((ROOT / 'docs').glob('*.md'))
-        files += [ROOT / item['notebook'] for item, _ in self.items()]
-        # Resource-type prefixes in customer instructions are not resource IDs.
-        forbidden = [r'ocid1\.[a-z0-9_-]+\.(?:[a-z0-9_-]*\.){2,}[a-z0-9_-]+', r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b',
-                     r'\.oraclecorp\.', r'confluence/', r'Oracle Internal', r'/Users/']
-        for example in ('ocid1.user.oc1..synthetic', 'ocid1.aidataplatform.oc1.iad.synthetic'):
-            self.assertIsNotNone(re.search(forbidden[0], example))
+        # Scan every publishable text artifact, including notebook metadata and tests.
+        files = [ROOT.parents[1] / 'README.md'] + [p for p in ROOT.rglob('*') if p.is_file()
+                 and '__pycache__' not in p.parts and p.suffix in ('.py', '.md', '.json', '.ipynb', '.txt', '.csv')]
+        forbidden = [r'ocid1\.[a-z0-9_-]+\.(?:[a-z0-9_-]*\.){2,}[a-z0-9_-]+',
+                     r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b',
+                     r'https?://[^/\s]+\.oraclecorp\.com',
+                     r'https?://[a-z0-9-]+\.datalake\.oci\.oraclecloud\.com',
+                     r'/Users/[a-z0-9_-]+/']
+        # Type prefixes remain useful documentation; complete IDs must be rejected.
+        for parts in (('ocid1', 'user', 'oc1', '', 'synthetic'),
+                      ('ocid1', 'aidataplatform', 'oc1', 'iad', 'synthetic')):
+            self.assertIsNotNone(re.search(forbidden[0], '.'.join(parts)))
         self.assertIsNone(re.search(forbidden[0], 'Resource type prefix: ocid1.aidataplatform.'))
         for path in files:
             content = path.read_text()
             for pattern in forbidden:
-                self.assertIsNone(re.search(pattern, content, re.I), (path.name, pattern))
+                self.assertIsNone(re.search(pattern, content, re.I), (str(path.relative_to(ROOT.parents[1])), pattern))
 
     def test_specialized_checks_preserve_shared_behavior(self):
         for item, nb in self.items():
@@ -99,7 +106,8 @@ class NotebookChecks(unittest.TestCase):
         for item, _ in self.items():
             self.assertIn('](' + item['notebook'] + ')', guide)
             self.assertIn('private-workspace-connectivity/' + item['notebook'], catalog)
-        for text, parent in [(guide, ROOT)] + [('\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'markdown'), ROOT) for _, nb in self.items()]:
+        documents = [(p.read_text(), p.parent) for p in (ROOT / 'docs').glob('*.md')]
+        for text, parent in [(guide, ROOT)] + documents + [('\n'.join(''.join(c['source']) for c in nb['cells'] if c['cell_type'] == 'markdown'), ROOT) for _, nb in self.items()]:
             for target in re.findall(r'\]\(([^)]+)\)', text):
                 if target.startswith(('https:', 'attachment:', '#')):
                     continue
@@ -126,17 +134,6 @@ class NotebookChecks(unittest.TestCase):
             self.assertEqual(result['checks']['fixture_region']['status'], 'BLOCKED')
             self.assertNotIn('dns', result['checks'])
 
-    def test_service_coverage_is_selected_endpoint_specific(self):
-        empty = shared.evaluate_evidence('V05', {'evidence_ref': 'test', 'required_services': [], 'services': []})
-        self.assertEqual(empty['checks']['service_inventory']['status'], 'BLOCKED')
-        ev = {'evidence_ref': 'test', 'required_services': ['selected-service'], 'services': [
-            {'service': 'selected-service', 'hostname': 'owned.example', 'configuration_accepted': True,
-             'saved_config_ref': 'readback.json', 'functional': 'PASS', 'operation_evidence_ref': 'operation.json'}]}
-        result = shared.evaluate_evidence('V05', ev)
-        self.assertEqual(result['checks']['selected-service']['status'], 'PASS')
-        self.assertEqual(shared.summarize(result), 'REVIEW_REQUIRED')
-        ev['services'][0]['functional'] = 'FAIL'
-        self.assertEqual(shared.evaluate_evidence('V05', ev)['checks']['selected-service']['status'], 'FAIL')
 
     def test_cross_region_local_control_uses_its_own_fixture(self):
         class Spark:
@@ -179,6 +176,13 @@ class NotebookChecks(unittest.TestCase):
                     with patch('builtins.print'):
                         exec(''.join(cell['source']), env)
             self.assertTrue(env['RESULTS'])
+            for name in ('CONFIG', 'ADB_CONFIG', 'CONTROL_CONFIG', 'BUCKET_CONTROL', 'ADB_CONTROL'):
+                for key, value in env.get(name, {}).items():
+                    if isinstance(value, str) and key != 'kind':
+                        self.assertEqual(value, '', (item['case'], name, key))
+            for name, value in env.items():
+                if name.startswith('RUN_') or name == 'ADB_INTERRUPTION_APPROVED':
+                    self.assertIs(value, False, (item['case'], name))
             for result in env['RESULTS']:
                 self.assertEqual(result['checks']['execution']['status'], 'NOT_RUN')
             if item['case'] == 'V03':

@@ -19,8 +19,6 @@ from urllib.parse import urlsplit
 CASE_NAMES = {
     'V01': 'Amazon S3', 'V02': 'Customer Network Source / service gateway',
     'V03': 'Cross-region OCI Object Storage', 'V04': 'Private database baseline and preservation',
-    'V05': 'OCI service hostname coverage', 'V06': 'DNS CRUD and validation',
-    'V07': 'DNS changes without Spark restart',
 }
 
 
@@ -164,9 +162,6 @@ def run_case(case, cfg, spark=None, runtime=None, live=False, phase='baseline', 
         assert value == 1, 'Spark control query returned unexpected result'
         return {'select_1': value, 'application_id': spark.sparkContext.applicationId}
     check('spark_control', spark_control)
-    if case in ('V05', 'V06'):
-        checks['configuration'] = {'status': 'BLOCKED', 'reason': 'Supply Workbench evidence for evaluate_evidence()'}
-        return result
     if case == 'V03':
         result['fixture_role'] = fixture_role
         local = fixture_role == 'local_control'
@@ -215,31 +210,7 @@ def evaluate_evidence(case, evidence):
         checks[name] = {'status': 'PASS' if condition else 'FAIL'}
     before = evidence.get('before')
     restored = evidence.get('restored')
-    if case == 'V06':
-        if not isinstance(before, dict) or not isinstance(restored, dict):
-            checks['snapshots'] = {'status': 'BLOCKED'}
-            return result
-        test('restored_baseline', same(before, restored))
-        steps = {s.get('name'): s for s in evidence.get('steps', [])}
-        for name in ('add', 'edit', 'delete', 'cancel'):
-            step = steps.get(name, {})
-            valid = bool(step.get('work_request_ref') or (name == 'cancel' and step.get('ui_evidence_ref')))
-            valid = valid and isinstance(step.get('actual_snapshot'), dict) and isinstance(step.get('expected_snapshot'), dict)
-            test(name, valid and same(step.get('actual_snapshot'), step.get('expected_snapshot')))
-        for name in ('blank', 'underscore', 'path', 'query', 'fragment', 'malformed'):
-            step = steps.get(name, {})
-            test('reject_' + name, step.get('rejected') is True and
-                 bool(step.get('ui_evidence_ref')) and same(before, step.get('actual_snapshot')))
-        partial = steps.get('partial', {})
-        if partial.get('performed'):
-            test('partial_readback_recorded', bool(partial.get('work_request_ref')) and
-                 partial.get('work_request_status') in ('FAILED', 'SUCCEEDED') and
-                 isinstance(partial.get('saved_hostnames'), list) and
-                 bool(partial.get('readback_evidence_ref')))
-        else:
-            checks['partial_observation'] = {'status': 'NOT_RUN',
-                'reason': 'Optional partial-provisioning observation not performed'}
-    elif case in ('V04', 'V07'):
+    if case == 'V04':
         phases = evidence.get('phases', [])
         expected_phases = {'before', 'after_add', 'after_edit', 'after_delete', 'restored'}
         test('complete_phases', {p.get('phase') for p in phases} == expected_phases and len(phases) == 5)
@@ -253,33 +224,8 @@ def evaluate_evidence(case, evidence):
              not same(snapshots.get('after_add'), snapshots.get('after_edit')) and
              same(snapshots.get('before'), snapshots.get('after_delete')) and
              same(snapshots.get('before'), snapshots.get('restored')))
-        if case == 'V07':
-            ids = {p.get('application_id') for p in phases}
-            test('same_spark_application', len(ids) == 1 and None not in ids and '' not in ids)
-            test('no_restart_events', evidence.get('restart_count') == 0 and
-                 bool(evidence.get('lifecycle_evidence_ref')))
-            test('dns_each_phase', bool(phases) and all(p.get('dns_addresses') and
-                 p.get('expected_dns_addresses') and p.get('mapping_evidence_ref') and
-                 set(p['dns_addresses']) == set(p['expected_dns_addresses']) for p in phases))
-        else:
-            test('same_database_identity', bool(evidence.get('expected_instance')) and bool(phases) and
-                 all(p.get('instance') == evidence['expected_instance'] for p in phases))
-    elif case == 'V05':
-        services = evidence.get('services', [])
-        required = evidence.get('required_services', [])
-        if not required or not services:
-            checks['service_inventory'] = {'status': 'BLOCKED',
-                'reason': 'Select services and their actual resource hostnames'}
-            return result
-        for service in required:
-            matches = [s for s in services if s.get('service') == service]
-            test(service, len(matches) == 1 and bool(matches[0].get('hostname')) and
-                 matches[0].get('configuration_accepted') is True and
-                 matches[0].get('functional') == 'PASS' and
-                 bool(matches[0].get('saved_config_ref')) and
-                 bool(matches[0].get('operation_evidence_ref')))
-        checks['coverage_review'] = {'status': 'REVIEW_REQUIRED',
-            'reason': 'Review endpoint scope and observed configuration; no automatic service-wide claim'}
+        test('same_database_identity', bool(evidence.get('expected_instance')) and bool(phases) and
+             all(p.get('instance') == evidence['expected_instance'] for p in phases))
     else:
         checks['external_evidence'] = {'status': 'REVIEW_REQUIRED',
                                       'reason': 'Review correlated route/source, endpoint or transport evidence'}

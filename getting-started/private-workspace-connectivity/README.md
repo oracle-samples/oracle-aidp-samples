@@ -4,7 +4,7 @@ Use this guide to choose a connectivity scenario, prepare your own network, and 
 
 For a guided first run, open [00_START_HERE.ipynb](00_START_HERE.ipynb). It leads to V01-V04 with numbered customer actions, configuration-field examples, expected results and cleanup. The same instructions are available as a [customer walkthrough](docs/customer-walkthrough.md). V03 includes an executable, independently configured in-region control. Use **Choose phase** to repeat a check without clearing earlier results.
 
-The notebooks do not provision resources, edit workspace DNS, change permissions, install libraries, or start/stop compute. Start with existing resources and your approved change plan. All distributed notebooks have empty outputs and live execution disabled.
+The notebooks do not provision resources, edit workspace DNS, install libraries, or start/stop compute. V02 has optional administrator-only permission/ACL control cells with separate execution flags and restoration journals. Start with existing resources and your approved change plan. All distributed notebooks have empty outputs and live execution disabled.
 
 ## Choose your use case
 
@@ -14,32 +14,19 @@ The notebooks do not provision resources, edit workspace DNS, change permissions
 | V02 | Verify bucket Network Source enforcement and an ADB public VCN ACL with allow/deny/restore tests. | [Network Source and service gateway](V02_Customer_Network_Source.ipynb) |
 | V03 | Read OCI Object Storage in a region different from your AIDP workspace. | [Cross-region Object Storage](V03_Cross_Region_Object_Storage.ipynb) |
 | V04 | Establish private database connectivity and preserve it across unrelated DNS edits. | [Private database before and after DNS edits](V04_Service_Private_Endpoint.ipynb) |
-| V05 | Record configuration and authenticated access for the OCI service endpoints you select. | [Service hostname coverage](V05_Service_Hostname_Coverage.ipynb) |
-| V06 | Check scoped DNS add/edit/delete/cancel and input-validation behavior. | [DNS edits and validation](V06_DNS_CRUD_And_Validation.ipynb) |
-| V07 | Measure continuity for a DNS change that your deployment supports without stopping compute. | [DNS without a Spark restart](V07_DNS_Without_Restart.ipynb) |
 
-V01–V03 demonstrate explicit Advanced DNS connectivity scenarios. V04 combines the existing private-endpoint baseline and the former V08 preservation check in one notebook: run the same database query before, during and after unrelated DNS edits. It adds no explicit entry for the private database. V05–V07 check endpoint coverage, configuration behavior and Spark continuity. There are seven notebooks; the other case IDs remain unchanged.
+V01-V03 demonstrate explicit Advanced DNS connectivity scenarios. V04 establishes private ADB connectivity, then repeats the same database query before, during and after unrelated DNS edits. It adds no explicit entry for the private database. These are the four use cases in this public sample set.
 
-## What do the supporting tests validate?
-
-These cases examine additional Advanced DNS behavior beyond establishing a connection. See the [validation scope and manual acceptance steps](docs/advanced-dns-validation.md) for detailed procedures and limits, also embedded in the corresponding notebooks.
-
-| Case | Advanced DNS objective | What the current test establishes | Additional evidence needed |
-| --- | --- | --- | --- |
-| V04 | Preserve existing private database connectivity while unrelated DNS entries change. | The same database identity across before/add/edit/delete/restored phases and restored DNS/SCAN settings. | Default DNS proxy attribution and private endpoint evidence. A legacy adoption claim also requires historical configuration and an observed transition. |
-| V05 | Distinguish default resolution, service-zone allowances and explicit mappings. | Selected endpoint configuration and authenticated operations. | Eligibility, override history and independent evidence identifying the mechanism. Success without a user entry does not establish automatic entry insertion. |
-| V06 | Self-service create/read/update/delete, validation and cancellation. | Supplied saved snapshots and input-validation observations. | Exercise Create/Edit flows where supported; review runtime effects separately. Preserving SCAN settings does not test SCAN functionality. |
-| V07 | Apply supported Advanced DNS changes without restarting Spark workloads. | DNS convergence, functional phases, application identity and lifecycle evidence. | Verify deployment support; record any older-cluster adoption restart separately before the measured run. |
-
-Use V01–V03 as explicit Advanced DNS walkthroughs, V04 as the private database baseline and compatibility check, and V05–V07 as supporting operational validation. V04 does not assert uninterrupted compute: V07 measures the separate no-restart objective. Automatic inclusion and legacy adoption remain **INCOMPLETE** without their additional evidence, even when the existing endpoint/regression checks succeed. The notebooks do not automate internal rollout, mapping cleanup, feature-flag or telemetry validation.
+See [what the four cases validate](docs/advanced-dns-validation.md) for acceptance criteria. Follow supported workspace-edit lifecycle steps; the tests do not assert automatic propagation to all running compute.
 
 ## Focused setup and troubleshooting
 
-V01, V03 and V04 contain prerequisites, authorization, network and logging setup, executable checks, expected results and troubleshooting in execution order. Their visible initialization cell provides the checks; rerun it after a session restart. Driver DNS/TCP diagnostics do not claim the packet route, and missing path evidence does not turn a successful read into a failed connection.
+Each notebook contains prerequisites, authorization, network and logging setup, executable checks, expected results and troubleshooting in execution order. Their visible initialization cell provides the checks; rerun it after a session restart. Driver DNS/TCP diagnostics do not claim the packet route, and missing path evidence does not turn a successful read into a failed connection.
 
 | Notebook | Standalone preparation | Distinct validation |
 | --- | --- | --- |
 | V01 | [S3 setup](docs/v01-s3.md) | AWS authorization, customer NAT egress, S3 request/flow correlation |
+| V02 | [Network Source and ADB setup](docs/v02-network-source.md) | Bucket source-control enforcement and a separate ADB public VCN ACL |
 | V03 | [Cross-region setup](docs/v03-cross-region.md) | Independent permissions and exact reads for remote and local buckets in every phase |
 | V04 | [Private ADB setup](docs/v04-private-adb.md) | Reviewed private descriptor and the same database identity through unrelated add/edit/delete/restoration |
 
@@ -47,7 +34,7 @@ Configure logs with an authorized administrator before running. Export UTC inter
 
 ## IAM policies and network construction examples
 
-Read [network and IAM preparation examples](docs/network-and-iam-examples.md) before enabling live checks. It includes placeholder statements for operator/private-network permissions, bucket-scoped OCI reads, a Network Source condition, AWS S3/KMS reads, a Streaming consume example, database login and evidence access. Route/security tables illustrate NAT egress, a regional service gateway, private database listeners, peering and resolver prerequisites.
+Read [network and IAM preparation examples](docs/network-and-iam-examples.md) before enabling live checks. It includes placeholder statements for operator/private-network permissions, bucket-scoped OCI reads, a Network Source condition, AWS S3/KMS reads, database login and evidence access. Route/security tables illustrate NAT egress, a regional service gateway, private database listeners, peering and resolver prerequisites.
 
 The examples distinguish the workspace operator, platform service and actual runtime signer. Select the matching policy subject and only the permissions needed for the chosen operation. An Advanced DNS entry grants no service authorization and creates no route. Existing platform setup and customer-specific service permissions still apply. Every notebook embeds its preparation examples so a single-file import retains them; these are documentation templates, not executed provisioning steps.
 
@@ -61,7 +48,7 @@ Read [DNS resolution paths](docs/dns-resolution-paths.md) before choosing a conf
 2. Read **Network setup** in the chosen notebook. Supply actual resource hostnames and connection details from the destination service; do not copy an address from another workspace. A translated DNS answer can be normal and is a destination, not a source address to add to a policy.
 3. Verify existing routes, return traffic, security rules, name resolution and service permissions independently. Advanced DNS configuration does not create any of those controls. For explicit entries, establish service-side resolvability and verify provisioning/readback. For private ADB names using the default proxy, verify customer DNS and runtime resolution without adding an entry merely because the endpoint is private.
 4. Record the original workspace DNS/SCAN settings, route/policy references and compute lifecycle state. Use only scoped, disposable changes that your environment permits.
-5. Follow the workspace UI's prerequisites before saving a change. The public documentation states that **most network changes require stopped compute**. V07 is conditional on support for the particular live DNS operation; do not bypass a stop requirement to run it.
+5. Follow the workspace UI's prerequisites before saving a change. The public documentation states that **most network changes require stopped compute**. Follow the prerequisite shown by your deployment; do not bypass a required stop.
 
 These examples concern **outbound access to data from a private-network-enabled workspace**. They do not configure private ingress to the Workbench UI, Spark UI, SQL endpoints or agent endpoints.
 
@@ -128,17 +115,22 @@ The CSV check compares an exact row multiset, so order differences are allowed b
 | TCP | The selected host/port accepts a connection. | TLS identity and an authenticated service operation. |
 | Functional | Exact fixture rows or the intended database identity were returned. | Source route, private endpoint type and client-certificate use. |
 | Source/path | Correlated target/network records support the intended route and source context. | Review the artifacts; a supplied observation flag alone is not proof. |
-| Continuity | Recorded application identity and lifecycle support continued operation across actual changes. | A stable display name alone does not prove absence of restart. |
 
 Database username/password authentication and mTLS client-certificate authentication are separate. A wallet-configured successful query, `TCPS`, or port 1522 alone does not independently prove mTLS; ADB can support TLS-only on port 1522 too. Review the effective connection descriptor, actual client identity use, and applicable server/handshake evidence. Do not weaken server requirements for a comparison.
 
-`PASS` applies to one check. `FAIL` means an executed check did not meet its criterion; `BLOCKED` means a prerequisite is missing; `NOT_RUN` means it was not attempted. Supplied observations and remaining external evidence yield `REVIEW_REQUIRED` or `INCOMPLETE`, rather than an automatic overall acceptance PASS. V02 uses `NEEDS_SETUP` for missing prerequisites, `ACCESS_SUCCEEDED_SOURCE_NOT_VERIFIED` for a successful read alone, and `SOURCE_CONTEXT_VERIFIED` only after a completed source-control cycle. `INCONCLUSIVE` means the expected denial/recovery was not established; `RESTORE_REQUIRED` requires administrator recovery before another cycle. Raw connector exception text is omitted because it may include secrets; diagnose detailed errors privately in your runtime.
+`PASS` applies to one check. `FAIL` means an executed check did not meet its criterion; `NOT_RUN` means it was not attempted. V01/V03/V04 use `SETUP_REQUIRED` for missing prerequisites, `READ_PASSED` for a successful read and `NOT_ASSESSED` for path or transport evidence still awaiting review. Supplied observations and remaining external evidence yield `REVIEW_REQUIRED` or `INCOMPLETE`, rather than an automatic overall acceptance PASS. V02 uses `NEEDS_SETUP` for missing prerequisites, `ACCESS_SUCCEEDED_SOURCE_NOT_VERIFIED` for a successful read alone, and `SOURCE_CONTEXT_VERIFIED` only after a completed source-control cycle. `INCONCLUSIVE` means the expected denial/recovery was not established; `RESTORE_REQUIRED` requires administrator recovery before another cycle. Raw connector exception text is omitted because it may include secrets; diagnose detailed errors privately in your runtime.
+
+## Keep customer configuration private
+
+Public notebooks contain empty resource/configuration values and disabled execution flags. Replace placeholders such as `<AIDP_INSTANCE_OCID>`, `<WORKSPACE_ID>` and `<TEST_BUCKET>` only in your private working copy. OCID type prefixes explain how to identify a resource; they are not populated resource identifiers.
+
+Keep environment OCIDs, workspace/compute/catalog IDs, bucket namespaces, database hostnames, request/workflow IDs, internal support links, credentials and executed outputs out of commits. Store exports, journals and configuration snapshots outside the repository. Regenerate the public notebooks from the generic sources before committing; the offline checks reject populated defaults and environment identifiers.
 
 ## Maintain and verify the samples
 
 Keep this guide open as the entry point, or import README.md alongside a notebook if you want its relative back-link available in AIDP.
 
-Maintain rationale in `docs/advanced-dns-validation.md` and preparation templates in `docs/network-and-iam-examples.md`, then regenerate notebooks. The generator embeds the relevant sections, including supporting network patterns, rather than requiring customers to download the documentation directory.
+Maintain each standalone procedure in `docs/v01-s3.md`, `docs/v02-network-source.md`, `docs/v03-cross-region.md` or `docs/v04-private-adb.md`, then regenerate notebooks. The generator embeds those sections so each notebook works as a single-file import. Maintain the shared overview and optional preparation examples in the other documentation files.
 
 The read checks use the Python standard library plus the existing Spark/connector runtime. V02’s optional administrative control cells also require the OCI Python SDK and a separately approved private operator profile. From this sample directory, regenerate notebooks after source edits:
 
