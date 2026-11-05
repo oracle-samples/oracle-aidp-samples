@@ -1,7 +1,11 @@
 # Runtime dependencies. Kept minimal on purpose: the AIDP side goes through the
 # `aidp` / `oci` CLI, so no OCI SDK is needed, and there is no HTTP client and
 # no WebSocket in this plugin.
-snowflake-connector-python>=4.7.0
+# Below 5: the PAT handling and the retry classification are tested against
+# connector 4.x internals (snowflake.connector.auth.pat, errors.NonRetryableTlsError),
+# which 5.x moved or removed. Raise the ceiling only after the suite passes
+# against the new major version.
+snowflake-connector-python>=4.7.0,<5
 cryptography>=42.0.0
 
 # Reads the migration config (YAML is the documented format of

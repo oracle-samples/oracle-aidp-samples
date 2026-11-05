@@ -84,6 +84,14 @@ whose class or name is blank or malformed, is a refusal whatever the
 scope too: an escalation on the account, the organisation, a listing or a
 class Snowflake adds tomorrow is never "another database".
 
+The scope is exactly the databases discovery will read: the config's
+`database:`, or every database a repeated `--database` names, each resolved
+the way discovery resolves it (`lexer.config_name`: `sales_db` is SALES_DB,
+`'"MyDb"'` is MyDb, `my-db` is `my-db` as written, which SHOW GRANTS quotes
+the same way). Any other shape -- an empty list, a member that is not a
+name -- refuses the session (`_scope_of`): a scope read from the wrong
+thing would place every real database "outside the migration".
+
 Placing a grant is strict, because a row that is excused is a row that is
 not judged. The name must have exactly the parts SHOW GRANTS prints for
 its class -- DB for a database, DB.SCHEMA for a schema, DB.SCHEMA.OBJECT
@@ -150,6 +158,7 @@ from collections.abc import Mapping
 from typing import Callable
 
 from .conn import AuthError
+from .dialect import lexer
 
 __all__ = ["RoleNotReadOnly", "READ_PRIVILEGES", "WRITE_PRIVILEGES",
            "NON_SOURCE_PRIVILEGES", "NON_SOURCE_CLASSES", "ESCALATIONS",
@@ -380,6 +389,15 @@ _NO_ROLE_NAME = ("a role grant that names no role cannot be walked, so what "
                  "the role holds is unproven and the row is refused")
 
 
+def _unplaced_run(granted_on: str, privilege: str) -> str:
+    kind = granted_on.lower().replace("_", " ")
+    return (f"{privilege} on a {kind} is allowed only inside the migration's "
+            f"database, where discovery reads it, and this row's name is not "
+            f"one SHOW GRANTS prints for a {kind} (DB.SCHEMA.OBJECT), so it "
+            f"cannot be placed in any database; the allowance does not "
+            f"apply and the row is refused")
+
+
 def _owners_rights(granted_on: str, privilege: str) -> str:
     kind = granted_on.lower().replace("_", " ")
     one = ("an " if kind[:1] in "aeiou" else "a ") + kind
@@ -502,8 +520,11 @@ def _database_of(name: str) -> str:
     folds to upper case, as Snowflake resolves it, with the whitespace an
     unquoted identifier cannot contain removed (`_norm`), so a padded part
     is the same database as an unpadded one and never "another database".
-    `_unquote` applies the same rule to the config's `database:`, so the
-    two compare equal.
+    `_scope_of` resolves the config's `database:` with the rule discovery
+    uses (`lexer.config_name`), which agrees with this one on every name
+    SHOW GRANTS can print: an unquoted identifier folds on both sides, and
+    a name that is not one (`my-db`, `Sales DB`) is quoted by SHOW GRANTS
+    and kept verbatim by both.
     """
     text = str(name or "").strip()
     if text.startswith('"'):
@@ -520,23 +541,20 @@ def _database_of(name: str) -> str:
     return _norm(text.split(".", 1)[0])
 
 
-def _outside_scope(granted_on: str, obj: str, scope: str, *,
-                   future: bool = False) -> bool:
-    """True when the grant is provably on an object of ANOTHER database.
+def _placeable(granted_on: str, obj: str, *, future: bool = False) -> bool:
+    """True when the grant can be PLACED in a database: a database-contained
+    source class, named the way SHOW GRANTS names one.
 
-    Only a database-contained source class, named the way SHOW GRANTS
-    names one, can be placed: `DB` for a database, `DB.SCHEMA` for a
-    schema, `DB.SCHEMA.OBJECT` for everything else -- exactly that many
-    parts on a current grant, since SHOW GRANTS always prints the full
-    name; a future grant names the container the objects will be created
-    in (`DB.<TABLE>` or `DB.SCHEMA.<TABLE>`), so two or three. Every
-    unquoted part before the object part must be an identifier, and an
-    unquoted identifier cannot contain whitespace (the object part may: a
-    function's signature has `F(VARCHAR, NUMBER)`). A grant on any other
-    class, or whose name is blank, has the wrong number of parts or a
-    malformed container part, is judged inside the scope: it cannot be
-    shown to be elsewhere, and a row the check cannot place is a row it
-    must judge.
+    `DB` for a database, `DB.SCHEMA` for a schema, `DB.SCHEMA.OBJECT` for
+    everything else -- exactly that many parts on a current grant, since
+    SHOW GRANTS always prints the full name; a future grant names the
+    container the objects will be created in (`DB.<TABLE>` or
+    `DB.SCHEMA.<TABLE>`), so two or three. Every unquoted part before the
+    object part must be an identifier, and an unquoted identifier cannot
+    contain whitespace (the object part may: a function's signature has
+    `F(VARCHAR, NUMBER)`). A grant on any other class, or whose name is
+    blank, has the wrong number of parts or a malformed container part,
+    cannot be placed.
     """
     if granted_on not in SCOPED_SOURCE_CLASSES:
         return False
@@ -554,7 +572,20 @@ def _outside_scope(granted_on: str, obj: str, scope: str, *,
     for text, quoted in parts[:-1] or parts[:1]:
         if not text or (not quoted and text.split() != [text]):
             return False
-    return _database_of(obj) != scope
+    return True
+
+
+def _outside_scope(granted_on: str, obj: str, scope: frozenset, *,
+                   future: bool = False) -> bool:
+    """True when the grant is provably on an object of a database OTHER
+    than every one in `scope` (the databases discovery will read).
+
+    A row that cannot be placed (`_placeable`) is judged inside the scope:
+    it cannot be shown to be elsewhere, and a row the check cannot place
+    is a row it must judge.
+    """
+    return (_placeable(granted_on, obj, future=future)
+            and _database_of(obj) not in scope)
 
 
 def _is_write(privilege: str) -> bool:
@@ -643,15 +674,63 @@ def _refusal(privilege: str, granted_on: str, *,
     return _UNKNOWN
 
 
-def _unquote(value) -> str:
-    """A configured name as Snowflake resolves it: a quoted identifier is
-    its text, an unquoted one folds to upper case. For `database:`, which
-    the user types; a name a listing PRINTS is already stored and goes
-    through `_stored_name` instead."""
-    text = str(value or "").strip()
-    if len(text) >= 2 and text[0] == text[-1] == '"':
-        return text[1:-1].replace('""', '"')
-    return text.upper()
+_SCOPE_HELP = (
+    "The scope must be the database `database:` names, or the databases "
+    "`--database` lists, each a non-empty string; the session is refused "
+    "rather than judged against a scope it cannot read.")
+
+
+def _scope_of(database) -> frozenset | None:
+    """The databases discovery will read, as the set of names Snowflake
+    resolves them to -- or None when no scope was given, in which case
+    every grant is judged inside the migration.
+
+    One name (the config's `database:`) or a list of them (what a repeated
+    `--database` builds). Each is resolved with `lexer.config_name`, the
+    rule discovery and the data plane apply to the same value, so the
+    guard and the readers agree by construction: `sales_db` names
+    SALES_DB, `'"MyDb"'` names MyDb, and `my-db` or `Sales DB` -- not a
+    plain identifier, so meant verbatim -- stays as written, which is how
+    SHOW GRANTS prints it (quoted). A name a listing PRINTS is already
+    stored and goes through `_stored_name` instead.
+
+    Fails closed on any other shape. A list that is empty, a member that
+    is not a string or is blank, a mapping, a number: none of these names
+    the databases discovery will read, and a scope read from the wrong
+    thing (the text of a list, say) would place every real database
+    "outside the migration" and turn every write into a report. A blank
+    string alone is no scope, like None.
+    """
+    if database is None:
+        return None
+    if isinstance(database, str):
+        if not database.strip():
+            return None
+        names = [database]
+    elif isinstance(database, (list, tuple, set, frozenset)):
+        names = list(database)
+        if not names:
+            raise RoleNotReadOnly(
+                f"the database scope is an empty list, so the databases "
+                f"this migration reads are unknown and the role cannot be "
+                f"judged against them. {_SCOPE_HELP}")
+    else:
+        raise RoleNotReadOnly(
+            f"the database scope is a {type(database).__name__}, not a "
+            f"database name or a list of them, so the role cannot be "
+            f"judged against the databases this migration reads. "
+            f"{_SCOPE_HELP}")
+    scope = set()
+    for name in names:
+        if not isinstance(name, str) or not name.strip():
+            raise RoleNotReadOnly(
+                f"the database scope names a "
+                f"{'blank name' if isinstance(name, str) else type(name).__name__}"
+                f" where a database name is expected, so the role cannot "
+                f"be judged against the databases this migration reads. "
+                f"{_SCOPE_HELP}")
+        scope.add(lexer.config_name(name))
+    return frozenset(scope)
 
 
 def _stored_name(value) -> str:
@@ -813,8 +892,13 @@ def _list_grants(run_sql: Callable[..., list], kind: str, sql_name: str,
 
 
 def read_role_grants(run_sql: Callable[..., list], *,
-                     database: str | None = None) -> dict:
+                     database=None) -> dict:
     """Every grant the session's roles hold, judged against the source.
+
+    `database` is the scope: the config's `database:` (one name) or the
+    list a repeated `--database` builds -- exactly the databases discovery
+    will read, resolved as discovery resolves them (`_scope_of`). None
+    judges every grant inside the migration; any other shape is refused.
 
     The session's primary and secondary roles, every other role granted to
     its user, and PUBLIC are listed with `SHOW GRANTS TO ROLE` and `SHOW
@@ -828,6 +912,9 @@ def read_role_grants(run_sql: Callable[..., list], *,
         role, secondary_roles  -- what the session holds
         user, user_roles       -- the session's user and the other roles
                                   granted to it (each walked too)
+        database, databases    -- the scope: one printable string (the
+                                  names joined) and the resolved names;
+                                  None and [] without a scope
         inherited_roles        -- roles reached through those, as
                                   "role NAME" / "database role DB.NAME";
                                   "role PUBLIC" is always among them
@@ -861,7 +948,7 @@ def read_role_grants(run_sql: Callable[..., list], *,
     #  secondary role; `user_roles` is what the user holds beyond them)
     for name in user_roles:
         _refuse_system_role(name, f"role {name}, granted to user {user},")
-    scope = _unquote(database) if database else None
+    scope = _scope_of(database)
     grants_read = 0
     future_read = 0
     by_privilege: dict[str, int] = {}
@@ -936,6 +1023,15 @@ def read_role_grants(run_sql: Callable[..., list], *,
                 outside = bool(scope) and _outside_scope(
                     granted_on, obj, scope, future=future)
                 reason = _refusal(privilege, granted_on, outside=outside)
+                if (scope and reason is None
+                        and _runs_owner(privilege, granted_on)
+                        and not _placeable(granted_on, obj, future=future)):
+                    # The run privilege of an owner's-rights object passes
+                    # only INSIDE the scope, where discovery reads it. A
+                    # row whose name cannot be placed (two or four parts,
+                    # a malformed container) is not shown to be inside:
+                    # it gets no allowance, and is refused.
+                    reason = _unplaced_run(granted_on, privilege)
                 if granted_on in NON_SOURCE_CLASSES:
                     # Not a source object: not counted among the source
                     # privileges, refused only when it leads somewhere.
@@ -966,7 +1062,12 @@ def read_role_grants(run_sql: Callable[..., list], *,
     return {"role": role, "secondary_roles": secondary,
             "user": user, "user_roles": user_roles,
             "inherited_roles": inherited,
-            "database": scope, "grants_read": grants_read,
+            # `database` is the scope as one printable string (the names
+            # joined when `--database` listed several); `databases` the
+            # resolved names themselves.
+            "database": ", ".join(sorted(scope)) if scope else None,
+            "databases": sorted(scope) if scope else [],
+            "grants_read": grants_read,
             "future_grants_read": future_read,
             "by_privilege": dict(sorted(by_privilege.items())),
             "write_grants": writes, "out_of_scope_writes": out_of_scope,
@@ -1029,8 +1130,10 @@ def describe_role_grants(evidence: dict) -> str:
 
 
 def assert_role_read_only(run_sql: Callable[..., list], *,
-                          database: str | None = None) -> dict:
-    """The evidence, or RoleNotReadOnly. Call before the first read."""
+                          database=None) -> dict:
+    """The evidence, or RoleNotReadOnly. Call before the first read.
+    `database`: one name or the list discovery will read (see
+    `read_role_grants`)."""
     evidence = read_role_grants(run_sql, database=database)
     if not evidence["read_only"]:
         raise RoleNotReadOnly(describe_role_grants(evidence))

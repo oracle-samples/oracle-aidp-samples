@@ -530,6 +530,19 @@ def credential_file_object(stem: str, field: str) -> str:
     return f"{PLAN_FOLDER}/{stem}.{field}"
 
 
+# The keys of the `snowflake:` block that `--source-config` copies to the
+# workspace: the connection coordinates the in-AIDP readers use
+# (`dataplane/snowmig_source.SnowflakeSource`, `diagnose_environment`,
+# `target/snowflake_catalog_connection`) and the `*_path` fields, rewritten
+# to the mount. The copy is built FROM this list, never from the block as a
+# whole: every workspace member can read the mount, so a key the parser does
+# not know -- a credential under a spelling it does not refuse, a vendor's
+# field, a note -- must not travel on the strength of being in the file.
+MOUNT_CONFIG_FIELDS = ("account", "host", "port", "user", "role",
+                       "warehouse", "database", "schema", "auth",
+                       *SECRET_PATH_FIELDS)
+
+
 def source_config_objects(path: pathlib.Path
                           ) -> tuple[dict, list[tuple[pathlib.Path, str]]]:
     """What `--source-config` places on the workspace: the `snowflake:` block
@@ -538,19 +551,25 @@ def source_config_objects(path: pathlib.Path
     The in-AIDP scripts read only that block (the data-plane loader unwraps
     it), so the `aidp:` half -- the DataLake OCID and the target
     coordinates -- has no business on the mount and is not copied. The
-    block is written as JSON, which the loader reads without PyYAML.
+    block is written as JSON, which the loader reads without PyYAML, and
+    it carries ONLY the keys in `MOUNT_CONFIG_FIELDS`: the coordinates the
+    readers on the mount use and the `*_path` fields. Anything else in the
+    operator's block stays on the operator's machine.
 
     The block never holds a credential value (`snowflake_block` refuses an
-    inline one). It names credential files by `*_path`, and those paths
-    name files on THIS machine, which the cluster cannot see: so each file
-    is placed on the mount beside the config, and the path in the copy is
-    rewritten to the mount's. Every file is checked here, before anything
-    -- dry run or not -- is uploaded: it must exist and be readable by its
-    owner alone (`check_secret_file`; the check is skipped and said so on
-    Windows). What is returned is `({"snowflake": block}, [(local file,
-    workspace object), ...])`.
+    inline one, under any key name or casing). It names credential files
+    by `*_path`, and those paths name files on THIS machine, which the
+    cluster cannot see: so each file is placed on the mount beside the
+    config, and the path in the copy is rewritten to the mount's. Every
+    file is checked here, before anything -- dry run or not -- is
+    uploaded: it must exist and be readable by its owner alone
+    (`check_secret_file`; the check is skipped and said so on Windows).
+    What is returned is `({"snowflake": block}, [(local file, workspace
+    object), ...])`.
     """
-    block = dict(snowflake_block(load_config(path)))
+    full = snowflake_block(load_config(path))
+    block = {k: full[k] for k in MOUNT_CONFIG_FIELDS
+             if k in full and full[k] is not None}
     files: list[tuple[pathlib.Path, str]] = []
     stem = pathlib.Path(path).stem
     for field in SECRET_PATH_FIELDS:
@@ -725,15 +744,34 @@ def _pypi_from_requirements(path: pathlib.Path | None) -> list[str]:
     return out
 
 
+def _is_credential_file(obj: str) -> bool:
+    """True for a credential FILE placed beside the config
+    (`plan/<stem>.<field>`, see `credential_file_object`), as opposed to
+    the `snowflake:` block itself (`plan/<stem>.json`)."""
+    return str(obj).rsplit(".", 1)[-1] in SECRET_PATH_FIELDS
+
+
 def _current_credential(prior: dict) -> str | None:
-    """The credential path the earlier record's notebooks were pointed at:
-    its own request, else the newest object it tracks that no later
-    --source-config superseded. Still to be LOOKED FOR before use."""
+    """The CONFIG object the earlier record's notebooks were pointed at --
+    `plan/<stem>.json`, the `snowflake:` block -- or None.
+
+    Its own request, else the object it recorded as the notebooks' config
+    (`credential_config`), else the newest config object it tracks that no
+    later --source-config superseded, else one it reported missing (so the
+    next push looks for it again and says so again rather than falling
+    silent). Never a credential FILE: `credential_objects` tracks the files
+    placed beside the block too (`plan/<stem>.password_path`), and after a
+    push that found the block missing they are all that is left in it --
+    handing one of them on as the config would bake the key file in as
+    `--source-config`. Still to be LOOKED FOR before use.
+    """
     superseded = set(prior.get("credential_superseded") or [])
     for obj in (prior.get("credential_requested"),
+                prior.get("credential_config"),
                 *(prior.get("credential_objects") or []),
-                *(prior.get("credential_unconfirmed") or [])):
-        if obj and obj not in superseded:
+                *(prior.get("credential_unconfirmed") or []),
+                *(prior.get("credential_missing") or [])):
+        if obj and obj not in superseded and not _is_credential_file(obj):
             return obj
     return None
 
@@ -950,6 +988,12 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
                                else [inherited_credential]
                                if inherited_credential else []),
         "credential_requested": credential_object,
+        # The config object (`plan/<stem>.json`) THIS push's notebooks are
+        # pointed at -- never a credential file -- so a later re-push
+        # inherits the config and nothing else. Settled below once the
+        # upload is read back; in a dry run, what would be.
+        "credential_config": ((credential_object or inherited_credential)
+                              if not execute else None),
         "credential_unconfirmed": [],
         "datalake_ocid": datalake_ocid,
         # Stage notebooks left as found on the workspace (reuse_existing
@@ -1468,6 +1512,9 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
         # A re-push that did not re-upload it: the copy an earlier push of
         # this same migration placed is still there, and still the path.
         defaults["source-config"] = f"/Workspace/{inherited_credential}"
+    out["credential_config"] = (credential_object
+                                if credential_object and credential_ready
+                                else inherited_credential)
     defaults.update(explicit)
     try:
         existing = call("list_jobs", workspace=ws_key).get("items") or []

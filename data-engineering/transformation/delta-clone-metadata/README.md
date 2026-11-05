@@ -71,7 +71,7 @@ rather than sketched unsafely.
 
 ## Environment
 
-Statements were verified individually on Spark 3.5.0 · Delta 3.2.0-oci-1.0.0 ·
-`spark.sql.sources.default=delta` · catalog impl `hive`. The notebook has **not** yet been run top to
-bottom in this form — every step asserts its expected value, so a Run All that disagrees fails at the
-cell that disagreed rather than finishing green.
+Run top to bottom on AIDP (Spark 3.5.0 · Delta 3.2.0-oci-1.0.0 · `spark.sql.sources.default=delta` ·
+catalog impl `hive`) on 2026-10-08, and twice in one kernel on local Spark 3.5.2 · Delta 3.2.0. Every
+step asserts its expected value, so a Run All that disagrees fails at the cell that disagreed rather
+than finishing green.

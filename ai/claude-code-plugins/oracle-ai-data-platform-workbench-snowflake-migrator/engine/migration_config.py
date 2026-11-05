@@ -14,12 +14,21 @@ rather than redacting it:
 
   * **An inline `password:`, `private_key:`, `key_passphrase:` or `token:`
     is a ConfigError** that names the `*_path` field to use instead. The
-    value itself is never echoed, not even in that error.
+    value itself is never echoed, not even in that error. The match is on
+    the KEY, case-insensitively and into nested mappings (`Password:`,
+    `PASSWORD:`, `extra: {password: ...}`), and covers the other names a
+    credential travels under -- `passcode`, `pat`, `oauth_token`,
+    `private_key_file`, `passphrase`, `secret`, anything with `password` in
+    it (`is_secret_key`) -- so a secret under a name the parser does not
+    read is refused too, not carried along as an unknown key.
   * **A `*_path` file must be owner-only.** On POSIX a file readable by its
     group or by others (mode & 0o077) is refused. On Windows `st_mode` does
     not describe who can read a file -- every file reports 0o666 -- so the
     check is skipped there, and the report says so, rather than refusing
-    every file.
+    every file. The file is opened ONCE and judged through its descriptor
+    (`read_secret_file`): the mode, that it is a regular file, and that it
+    is not empty, all on what is then read, so the path cannot be swapped
+    between the check and the read.
   * **Secrets are never echoed.** `redact()` is the only way this plugin
     renders a config, `preflight` uses it, and a credential FILE is reported
     by its basename only.
@@ -53,7 +62,9 @@ __all__ = ["ConfigError", "CONFIG_NAMES", "SECRET_FIELDS", "TEMPLATE_NAME",
            "SECRET_PATH_FIELDS", "INLINE_SECRET_ALTERNATIVES",
            "MODE_CHECK_SKIPPED_NOTE",
            "discover_config", "load_config", "redact", "resolve_secret",
+           "is_secret_key", "secret_key_alternative", "inline_secret_keys",
            "refuse_inline_secrets", "check_secret_file", "read_secret_file",
+           "read_secret_bytes",
            "credential_sources", "describe_credential_sources",
            "snowflake_block", "aidp_block", "write_template",
            "MAPPING_DEFAULTS", "MAPPING_MODES", "MAPPING_STRICT", "mapping_block",
@@ -68,26 +79,110 @@ CONFIG_NAMES = ("snowmig-config.yaml", "snowmig-config.yml",
 
 TEMPLATE_NAME = "snowmig-config.example.yaml"
 
-# Fields whose VALUE would be a credential. None of them is accepted in a
-# config any more (see `refuse_inline_secrets`); the tuple is kept so that
-# `redact()` still masks one that is found in a file that predates the rule,
-# and so the refusal can name every field it applies to.
+# The canonical fields whose VALUE would be a credential. None of them is
+# accepted in a config any more (see `refuse_inline_secrets`); the tuple is
+# kept so that callers can name the documented fields, and `is_secret_key`
+# widens the match to every spelling and synonym a credential travels under.
 SECRET_FIELDS = ("password", "private_key", "key_content", "token",
                  "key_passphrase")
 
-# Each inline field and the `*_path` field that replaces it. The ONLY way a
+# Each inline key and the `*_path` field that replaces it. The ONLY way a
 # credential reaches this plugin is a file named by one of these paths.
+# Beyond the canonical fields, the names the Snowflake drivers and other
+# tools use for the same secrets; `None` is a secret this plugin takes in
+# no form (an MFA passcode, a generic `secret`), which is removed rather
+# than moved. Keys are compared lower-cased (`is_secret_key`).
 INLINE_SECRET_ALTERNATIVES = {
     "password": "password_path",
+    "passwd": "password_path",
     "private_key": "key_path",
+    "private_key_content": "key_path",
+    "private_key_file": "key_path",
+    "private_key_pem": "key_path",
     "key_content": "key_path",
     "key_passphrase": "key_passphrase_path",
+    "private_key_passphrase": "key_passphrase_path",
+    "private_key_file_pwd": "key_passphrase_path",
+    "passphrase": "key_passphrase_path",
     "token": "pat_path",
+    "pat": "pat_path",
+    "oauth_token": "pat_path",
+    "access_token": "pat_path",
+    "passcode": None,
+    "secret": None,
+    "client_secret": None,
 }
 
 # Fields whose VALUE is a path to a credential file.
 SECRET_PATH_FIELDS = ("key_path", "key_passphrase_path", "password_path",
                       "pat_path")
+
+# Whether this process runs on Windows, where `st_mode` has no owner-only
+# meaning (see MODE_CHECK_SKIPPED_NOTE). A module flag rather than a read
+# of `os.name` at each call, so a test can exercise the other platform's
+# path without patching `os.name` itself -- which pathlib consults, and
+# which on Python 3.11 makes every `Path(...)` raise once it lies.
+_IS_WINDOWS = os.name == "nt"
+
+
+def is_secret_key(key) -> bool:
+    """True when a config KEY, under any casing and in any nesting, names a
+    credential value: a canonical field or a synonym
+    (`INLINE_SECRET_ALTERNATIVES`), or a name with `password`, `passwd` or
+    `passphrase` in it or ending in `_token` or `_secret`. A `*_path` key
+    is never one: its value is a path, which is what the plugin wants."""
+    k = str(key).strip().lower()
+    if not k or k.endswith("_path") or k in SECRET_PATH_FIELDS:
+        return False
+    if k in INLINE_SECRET_ALTERNATIVES:
+        return True
+    return ("password" in k or "passwd" in k or "passphrase" in k
+            or k.endswith("_token") or k.endswith("_secret")
+            or k.startswith("private_key"))
+
+
+def secret_key_alternative(key) -> str | None:
+    """The `*_path` field that carries what a secret-like key holds, or
+    None when this plugin takes no such credential (remove the key)."""
+    k = str(key).strip().lower()
+    if k in INLINE_SECRET_ALTERNATIVES:
+        return INLINE_SECRET_ALTERNATIVES[k]
+    if "passphrase" in k:
+        return "key_passphrase_path"
+    if "password" in k or "passwd" in k:
+        return "password_path"
+    if k.endswith("_token"):
+        return "pat_path"
+    if k.startswith("private_key"):
+        return "key_path"
+    return None
+
+
+def inline_secret_keys(block) -> list[tuple[str, str | None]]:
+    """Every key in `block` whose VALUE is a credential, as `(dotted key,
+    replacement *_path or None)`, in document order.
+
+    Walks nested mappings (and mappings inside lists), so `extra:
+    {password: ...}` is reported as `extra.password`. Only whether a value
+    is SET is looked at; the value itself is never read into the result.
+    """
+    found: list[tuple[str, str | None]] = []
+
+    def walk(value, prefix: str) -> None:
+        if isinstance(value, dict):
+            for key, inner in value.items():
+                dotted = f"{prefix}{key}"
+                if is_secret_key(key):
+                    if inner not in (None, "", [], {}):
+                        found.append((dotted, secret_key_alternative(key)))
+                    continue
+                walk(inner, dotted + ".")
+        elif isinstance(value, list):
+            for i, inner in enumerate(value):
+                walk(inner, f"{prefix}{i}.")
+
+    walk(block, "")
+    return found
 
 # Windows has no POSIX mode bits: `st_mode` reports 0o666 for every file,
 # whoever can read it, so the owner-only check cannot be made there and is
@@ -203,21 +298,25 @@ def write_template(destination: pathlib.Path, *,
 
     Two deliberate choices:
 
-      * it refuses to overwrite -- the file it would clobber is the one
-        carrying live credentials;
-      * it is created 0600 before anything is written to it, because this
-        file is about to hold a password in plain text and a default-umask
-        644 would make it world-readable on a shared host.
+      * it refuses to overwrite -- the file it would clobber is the
+        operator's filled-in config, which names the account, the service
+        user and where the credential files are;
+      * it is created 0600 before anything is written to it. The config
+        holds no credential value (the parser refuses one), but it does
+        name the account, the user and the paths of the credential files,
+        and a default-umask 644 would show all of that to every user of a
+        shared host.
     """
     destination = pathlib.Path(destination).expanduser()
     if destination.exists() and not overwrite:
         raise ConfigError(
-            f"{destination} already exists and holds credentials; refusing to "
-            f"overwrite it. Edit it, or pass --force if you really mean to "
-            f"replace it.")
+            f"{destination} already exists and is your filled-in migration "
+            f"config (the account, the service user, the credential file "
+            f"paths); refusing to overwrite it. Edit it, or pass --force if "
+            f"you really mean to replace it.")
     destination.parent.mkdir(parents=True, exist_ok=True)
     # Create it closed, THEN fill it: a chmod after the write leaves a window
-    # where the secret-bearing file is readable by everyone.
+    # where the file is readable by everyone.
     fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(pathlib.Path(template).read_text(encoding="utf-8"))
@@ -276,13 +375,14 @@ def _quotes_the_file(text: str) -> bool:
 def _yaml_refusal(path: pathlib.Path, exc: Exception) -> str:
     """Say WHERE the YAML broke, never WHAT was there.
 
-    This file holds the password in plain text, and a password containing
-    `{`, `[`, `*`, `: ` or a leading quote is exactly what breaks the parser
-    -- so the line PyYAML would quote back is the password. Only the position
-    travels. The parser's problem text is kept when it names token kinds
-    (`expected ',' or '}', but got ':'`) and withheld when it quotes the file
-    (a composer error names the alias it could not resolve, and that alias is
-    the value on the password line).
+    This file should hold no credential value -- the parser refuses one --
+    but a file that does not parse is exactly the file that may: a password
+    pasted in by mistake and containing `{`, `[`, `*`, `: ` or a leading
+    quote is what breaks the parser, so the line PyYAML would quote back
+    may be that value. Only the position travels. The parser's problem text
+    is kept when it names token kinds (`expected ',' or '}', but got ':'`)
+    and withheld when it quotes the file (a composer error names the alias
+    it could not resolve, and that alias is the value on the broken line).
     """
     marks = [m for m in (getattr(exc, "context_mark", None),
                          getattr(exc, "problem_mark", None)) if m is not None]
@@ -299,7 +399,9 @@ def _yaml_refusal(path: pathlib.Path, exc: Exception) -> str:
     detail = (f" ({said})" if said and not _quotes_the_file(said)
               else " (the parser's message is withheld: it quotes the file)")
     return (f"{path}: not valid YAML{where}{detail}. The offending line is "
-            f"not shown because this file holds a credential. A value that "
+            f"not shown because a line that breaks the parser may be a "
+            f"credential pasted into the config by mistake (one belongs in "
+            f"its own file, named by a `*_path` field). A value that "
             f"contains ':', '#', '{{', '[', '*' or '&', or starts with a "
             f"quote, must be wrapped in single quotes.")
 
@@ -309,7 +411,9 @@ def snowflake_block(config: dict) -> dict:
 
     The refusal sits here, at the parser, so that EVERY stage that reads
     the Snowflake half -- preflight, assess, catalog, provision -- stops
-    on the same error before it connects, uploads or renders anything.
+    on the same error before it connects, uploads or renders anything. The
+    match is on the key, under any casing and inside nested mappings
+    (`refuse_inline_secrets`).
     """
     if "snowflake" in config:
         block = config.get("snowflake") or {}
@@ -326,24 +430,32 @@ def snowflake_block(config: dict) -> dict:
 def refuse_inline_secrets(block: dict) -> None:
     """ConfigError when the Snowflake block carries a credential VALUE.
 
-    Every refused field is named with the `*_path` that replaces it, so the
-    fix is in the message. The value itself never is: this error is printed
-    by the CLI, and a config with an inline password is exactly the file
-    whose contents must not reach a terminal log.
+    Every refused key is named with the `*_path` that replaces it, so the
+    fix is in the message; a key this plugin takes in no form (`passcode`,
+    `secret`) is named with "remove it". The value itself never is: this
+    error is printed by the CLI, and a config with an inline password is
+    exactly the file whose contents must not reach a terminal log. Keys are
+    matched case-insensitively and inside nested mappings
+    (`inline_secret_keys`), so `Password:` or `extra: {token: ...}` is
+    refused like `password:` rather than carried along as an unknown key.
     """
-    inline = [f for f in SECRET_FIELDS if block.get(f)]
+    inline = inline_secret_keys(block)
     if not inline:
         return
-    fixes = ", ".join(f"`{f}` -> `{INLINE_SECRET_ALTERNATIVES[f]}`"
-                      for f in inline)
+    paths = ", ".join(f"`{p}`" for p in SECRET_PATH_FIELDS)
+    fixes = ", ".join(
+        f"`{key}` -> `{alt}`" if alt else
+        f"`{key}` -> remove it (this plugin takes no such credential; one "
+        f"reaches it only through {paths})"
+        for key, alt in inline)
     raise ConfigError(
         f"inline credential(s) in the migration config are not accepted: "
-        f"{', '.join(f'`{f}`' for f in inline)}. A migration config is "
-        f"copied between machines, mounts, tickets and reports, so a secret "
-        f"in it outlives the migration. Move each value into its own file "
-        f"readable by you alone (chmod 600) and point at it instead: {fixes}. "
-        f"Then remove the inline value from the config and rotate the "
-        f"credential if the file has already travelled.")
+        f"{', '.join(f'`{key}`' for key, _ in inline)}. A migration config "
+        f"is copied between machines, mounts, tickets and reports, so a "
+        f"secret in it outlives the migration. Move each value into its own "
+        f"file readable by you alone (chmod 600) and point at it instead: "
+        f"{fixes}. Then remove the inline value from the config and rotate "
+        f"the credential if the file has already travelled.")
 
 
 # `mapping.enabled: false` switches the whole config-default logic off: the
@@ -405,7 +517,8 @@ def resolve_secret(block: dict, inline: str, path_field: str) -> str | None:
     carries neither, so the caller can say which auth mode is missing its
     credential.
     """
-    if block.get(inline):
+    if block.get(inline) or any(key.lower() == inline.lower()
+                                for key, _ in inline_secret_keys(block)):
         raise ConfigError(
             f"`{inline}` may not be set inline in the migration config: the "
             f"file travels and the secret with it. Put the value in its own "
@@ -417,19 +530,40 @@ def resolve_secret(block: dict, inline: str, path_field: str) -> str | None:
     return read_secret_file(path, field=path_field)
 
 
+def _secret_file_note(st: os.stat_result, name: str, field: str) -> str:
+    """Judge a credential file's stat: a regular, owner-only file, or the
+    ConfigError that says what is wrong. `name` is the file's BASENAME --
+    the only part of the path that ever appears in a message, since the
+    directory may name a user, a host or a secret store."""
+    if not stat.S_ISREG(st.st_mode):
+        raise ConfigError(f"`{field}` must name a regular file; {name} "
+                          f"is not one")
+    if _IS_WINDOWS:
+        return MODE_CHECK_SKIPPED_NOTE
+    mode = stat.S_IMODE(st.st_mode)
+    if mode & 0o077:
+        raise ConfigError(
+            f"`{field}` {name} is readable by its group or others (mode "
+            f"{mode:04o}); a credential file must be owner-only. Fix: "
+            f"chmod 600 {name}")
+    return f"owner-only (mode {mode:04o})"
+
+
 def check_secret_file(path, *, field: str = "credential file") -> str:
     """Refuse a credential file that others can read; return a note.
 
-    POSIX: the file must exist and have no group or other bits (mode &
-    0o077 == 0), or it is refused with the `chmod 600` that fixes it. The
-    note says `owner-only (mode 0600)`.
+    POSIX: the file must exist, be a regular file and have no group or
+    other bits (mode & 0o077 == 0), or it is refused with the `chmod 600`
+    that fixes it. The note says `owner-only (mode 0600)`.
 
     Windows: `st_mode` is 0o666 for every file, so the check would refuse
     all of them. It is skipped, and the note says so in one fixed sentence
     (MODE_CHECK_SKIPPED_NOTE) that reports carry verbatim.
 
-    Only the file's BASENAME ever appears in an error or a note: the
-    directory may name a user, a host or a secret store.
+    This is the REPORTING check (`credential_sources`, `preflight`, the
+    upload): it stats by name and reads nothing. A read goes through
+    `read_secret_file`, which judges the very descriptor it reads from.
+    Only the file's BASENAME ever appears in an error or a note.
     """
     p = pathlib.Path(str(path)).expanduser()
     try:
@@ -438,30 +572,69 @@ def check_secret_file(path, *, field: str = "credential file") -> str:
         raise ConfigError(
             f"`{field}` points at {p.name}, which is not readable: "
             f"{exc.strerror}") from exc
-    if not stat.S_ISREG(st.st_mode):
-        raise ConfigError(f"`{field}` must name a regular file; {p.name} "
-                          f"is not one")
-    if os.name == "nt":
-        return MODE_CHECK_SKIPPED_NOTE
-    mode = stat.S_IMODE(st.st_mode)
-    if mode & 0o077:
-        raise ConfigError(
-            f"`{field}` {p.name} is readable by others (mode "
-            f"{mode:04o}); a credential file must be owner-only. Fix: "
-            f"chmod 600 {p.name}")
-    return f"owner-only (mode {mode:04o})"
+    return _secret_file_note(st, p.name, field)
 
 
-def read_secret_file(path, *, field: str = "credential file") -> str:
-    """The stripped text of a credential file, after `check_secret_file`."""
-    check_secret_file(path, field=field)
+# Opened for reading only, without blocking (a FIFO opened O_NONBLOCK for
+# reading returns at once rather than waiting for a writer; a regular file
+# is unaffected) and without becoming the controlling terminal should the
+# path name one. Bytes as they are on Windows (no CRLF or Ctrl-Z
+# translation by the C runtime). Each flag where the platform has it.
+_SECRET_OPEN_FLAGS = (os.O_RDONLY
+                      | getattr(os, "O_NONBLOCK", 0)
+                      | getattr(os, "O_NOCTTY", 0)
+                      | getattr(os, "O_BINARY", 0))
+
+
+def read_secret_bytes(path, *, field: str = "credential file") -> bytes:
+    """The bytes of a credential file, judged through the descriptor read.
+
+    The file is opened ONCE; `fstat` on that descriptor is what the
+    regular-file and owner-only checks (`_secret_file_note`) judge, and the
+    same descriptor is what is read -- so there is no window between a
+    check by name and a read by name in which the path could be pointed at
+    another file. An empty file is refused with a message that says so:
+    read as '' it would surface later as a missing `*_path`, which sends
+    the operator looking at the wrong field.
+    """
     p = pathlib.Path(str(path)).expanduser()
     try:
-        return p.read_text(encoding="utf-8").strip()
+        fd = os.open(p, _SECRET_OPEN_FLAGS)
     except OSError as exc:
         raise ConfigError(
             f"`{field}` points at {p.name}, which is not readable: "
             f"{exc.strerror}") from exc
+    try:
+        _secret_file_note(os.fstat(fd), p.name, field)
+        with os.fdopen(fd, "rb") as fh:
+            fd = None
+            raw = fh.read()
+    except OSError as exc:
+        raise ConfigError(
+            f"`{field}` points at {p.name}, which is not readable: "
+            f"{exc.strerror}") from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
+    if not raw.strip():
+        raise ConfigError(
+            f"`{field}` {p.name} is empty: the credential file must hold "
+            f"the credential itself (the password, token or PEM key, and "
+            f"nothing else). Put the value in it, or point `{field}` at the "
+            f"file that holds it.")
+    return raw
+
+
+def read_secret_file(path, *, field: str = "credential file") -> str:
+    """The stripped text of a credential file (see `read_secret_bytes` for
+    the checks, made on the descriptor that is read)."""
+    raw = read_secret_bytes(path, field=field)
+    try:
+        return raw.decode("utf-8").strip()
+    except UnicodeDecodeError as exc:
+        raise ConfigError(
+            f"`{field}` {pathlib.Path(str(path)).name} is not UTF-8 text; "
+            f"a credential file holds the credential as text") from exc
 
 
 def credential_sources(block: dict) -> list[dict]:
@@ -497,14 +670,16 @@ def describe_credential_sources(block: dict) -> list[str]:
 def redact(value):
     """The config with every credential replaced. The ONLY way to render one.
 
-    Recurses, so a nested block cannot smuggle a secret past it, and reports
-    a `*_path` as the path itself -- the path is useful to a reader and is
-    not the secret.
+    Recurses, so a nested block cannot smuggle a secret past it, matches
+    the key under any casing and by every name a credential travels under
+    (`is_secret_key`: `Password`, `passcode`, `oauth_token`, ...), and
+    reports a `*_path` as the path itself -- the path is useful to a reader
+    and is not the secret.
     """
     if isinstance(value, dict):
         out = {}
         for key, inner in value.items():
-            if key in SECRET_FIELDS:
+            if is_secret_key(key):
                 out[key] = _REDACTED if inner else inner
             else:
                 out[key] = redact(inner)

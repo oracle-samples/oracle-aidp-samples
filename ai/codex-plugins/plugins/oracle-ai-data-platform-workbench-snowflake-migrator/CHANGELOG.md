@@ -4,6 +4,15 @@ Release notes for the Oracle AI Data Platform (AIDP) Workbench Snowflake
 migrator Codex plugin, newest first. The format loosely follows
 [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Fixed
+- `snowflake-connector-python` is pinned below 5 (`>=4.7.0,<5`) in
+  `engine/requirements.txt` and in the commented fallback line of
+  `data-migration-scripts/requirements-aidp.txt`. Connector 5.x removed
+  `snowflake.connector.auth.pat` and `errors.NonRetryableTlsError`, so a fresh
+  install picked up 5.x and two connector tests failed on import.
+
 ## [0.29.0] — 2026-10-10
 
 ### Security
@@ -134,6 +143,52 @@ migrator Codex plugin, newest first. The format loosely follows
 - `preflight`, every stage and `PROVISION.md` print the credential's source
   — the file's basename and whether it is owner-only — never its value or
   its directory. Nothing is spooled to a temp file any more.
+- Review round: `assess --database X` and `smoke --database X` handed the
+  role check a list, which it read as the text `['X']`, so every real
+  database was "outside the migration" and a write on the source was
+  reported rather than refused. The scope is now a set of names — exactly
+  the databases the run reads: the `--database` values when given, else
+  the config's `database:` — and a scope of any other shape (an empty
+  list, a member that is not a name) refuses the session.
+- The role check resolves `database:` the way discovery does
+  (`lexer.config_name`): `my-db`, `Sales DB` or `db-x` is taken as written
+  — which is how `SHOW GRANTS` prints it, quoted — instead of being
+  upper-cased to a name no grant carries, so a write on `"my-db"` is
+  refused rather than excused as another database's. The evidence carries
+  the resolved scope (`databases`).
+- A procedure, notebook or Streamlit row the check cannot place (a name
+  that is not `DB.SCHEMA.OBJECT`) no longer gets the inside-scope `USAGE`
+  allowance; it is refused. The README says `database:` should always be
+  set, and why.
+- An inline credential is refused under any key spelling and inside nested
+  mappings: `Password:`, `PASSWORD:`, `passcode:`, `pat:`, `oauth_token:`,
+  `private_key_file:`, `passphrase:`, `secret:`, anything with `password`
+  in it, or `extra: {password: ...}` is refused with the `*_path` field to
+  use (or "remove it"), and `redact()` masks the same keys. The
+  `snowflake:` block that `provision --source-config` uploads is built from
+  an allowlist of the connection fields the in-AIDP readers use plus the
+  `*_path` fields, never from the whole block, so a key the parser does not
+  know never reaches the workspace mount.
+- A credential file is opened once and judged through the descriptor that
+  is read (`fstat`: a regular, owner-only file), on the laptop, in the
+  transport and in the data-plane connector, so the path cannot be swapped
+  between the check and the read; a FIFO is refused without blocking; an
+  empty file is refused as empty rather than read as `''` and reported
+  later as a missing `*_path`. The connector decides whether a file is on
+  the workspace mount from its resolved path, so `/Workspace/../x` or a
+  symlink out of the mount gets the owner-only check.
+- A re-push without `--source-config` inherits only the config object
+  (`plan/<stem>.json`, now recorded as `credential_config`), never a
+  credential file placed beside it: after a push that found the config
+  missing, the next one used to bake `plan/<stem>.key_path` into the
+  notebooks as `--source-config`.
+- Tests take the platform from a module flag (`_IS_WINDOWS`) instead of
+  patching `os.name`, which pathlib consults and which made every
+  `Path(...)` raise on Python 3.11 (the whole run INTERNALERRORed).
+- Wording: a 0640 file is refused as readable by its "group or others";
+  `init-config` and the YAML refusal no longer say the config holds a
+  password; `preflight`'s "credential (inline, refused)" check, which the
+  parser's refusal made unreachable, is gone.
 
 ### Changed
 - `provision --source-config` now accepts a `*_path` config (previously

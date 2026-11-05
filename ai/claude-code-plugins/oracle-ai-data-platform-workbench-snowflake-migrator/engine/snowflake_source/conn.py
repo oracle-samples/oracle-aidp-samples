@@ -16,7 +16,6 @@ Auth modes:
 """
 from __future__ import annotations
 
-import pathlib
 from typing import Any, Callable
 
 from .dialect import lexer
@@ -111,39 +110,30 @@ def assert_read_only(sql: str) -> None:
                     f"permits. Allowed: {', '.join(READ_ONLY_VERBS)}.")
 
 
-def _owner_only(path: str, label: str) -> None:
-    """Refuse a credential file that others can read (AuthError).
+def _read_secret_file(path: str, label: str) -> str:
+    """The text of a credential file, or AuthError.
 
-    The check itself lives in migration_config so the parser, this
-    transport and the catalog registration agree on one rule; here its
+    The read itself lives in migration_config (`read_secret_file`) so the
+    parser, this transport, the upload and the catalog registration agree
+    on one rule: opened once, judged through the descriptor that is read
+    (a regular, owner-only file -- the mode check skipped and said so on
+    Windows -- that is not empty), the basename alone in any message. Its
     ConfigError becomes the AuthError this module's callers already catch.
     """
-    from migration_config import ConfigError, check_secret_file
+    from migration_config import ConfigError, read_secret_file
     try:
-        check_secret_file(path, field=label)
+        return read_secret_file(path, field=label)
     except ConfigError as exc:
         raise AuthError(str(exc)) from None
 
 
-def _read_secret_file(path: str, label: str) -> str:
-    _owner_only(path, label)
-    p = pathlib.Path(path).expanduser()
-    try:
-        return p.read_text(encoding="utf-8").strip()
-    except OSError as exc:
-        raise AuthError(f"{label} not readable at {p.name}: "
-                        f"{exc.strerror}") from exc
-
-
 def load_private_key_der(path: str, passphrase: str | None = None) -> bytes:
     from cryptography.hazmat.primitives import serialization
-    _owner_only(path, "private key")
-    p = pathlib.Path(path).expanduser()
+    from migration_config import ConfigError, read_secret_bytes
     try:
-        raw = p.read_bytes()
-    except OSError as exc:
-        raise AuthError(f"private key not readable at {p.name}: "
-                        f"{exc.strerror}") from exc
+        raw = read_secret_bytes(path, field="private key")
+    except ConfigError as exc:
+        raise AuthError(str(exc)) from None
     key = serialization.load_pem_private_key(
         raw, password=passphrase.encode() if passphrase else None)
     return key.private_bytes(

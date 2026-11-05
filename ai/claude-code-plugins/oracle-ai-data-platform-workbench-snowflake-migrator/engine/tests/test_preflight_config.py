@@ -166,7 +166,7 @@ def test_a_credential_file_others_can_read_fails_the_check(tmp_path):
     result = run_preflight(config, run_sql=_run_sql)
     bad = next(c for c in result["checks"] if "credential" in c["name"])
     assert bad["ok"] is False
-    assert "readable by others" in bad["detail"] and "chmod 600" in bad["detail"]
+    assert "readable by its group or others" in bad["detail"] and "chmod 600" in bad["detail"]
     assert result["ok"] is False
 
 
@@ -585,31 +585,46 @@ def test_an_unrecognised_driver_error_still_says_what_to_check(monkeypatch):
 
 # --- inline secrets are refused, with the path field that replaces them ----
 
-def test_an_inline_secret_is_reported_refused_and_names_the_path_field():
-    """SEC-AIDP-SAMPLES-001. The field is still recognised (not an unknown
-    key), its value is never rendered, and the check FAILS: the config
-    travels, so a credential in it is not accepted."""
-    from plan.preflight import describe_config, render_preflight_report, \
-        run_preflight
+def test_the_preflight_report_has_no_inline_credential_row():
+    """SEC-AIDP-SAMPLES-001. An inline credential is refused by the parser
+    at the CLI (`snowflake_block`, the test below), before `describe_config`
+    is reached -- so this module carries no `credential (inline, refused)`
+    check: the one it had could never appear in a report and was dropped
+    rather than kept as an untested second path."""
+    from plan.preflight import describe_config, run_preflight
     config = {"account": "ORG-ACCT", "user": "SVC", "warehouse": "WH",
-              "database": "DB", "auth": "keypair",
-              "private_key": "-----BEGIN PRIVATE KEY-----\nabc\n"}
+              "database": "DB", "auth": "keypair"}
     described = describe_config(config)
-    assert described["unknown"] == [], described["unknown"]
-    assert described["missing"] == []
-    inline = [s for s in described["secrets"] if s["field"] == "private_key"]
-    assert inline and inline[0]["inline"] is True
-    assert inline[0]["exists"] is False, "an inline credential is refused"
-    assert "key_path" in inline[0]["note"]
+    assert all("inline" not in s for s in described["secrets"])
+    assert not any("inline" in c["name"]
+                   for c in run_preflight(config)["checks"])
 
-    result = run_preflight(config)
-    assert result["ok"] is False
-    check = next(c for c in result["checks"] if "private_key" in c["name"])
-    assert check["ok"] is False and "refused" in check["name"]
-    report = render_preflight_report(result)
-    assert "not accepted" in report and "key_path" in report
-    assert "abc" not in report, "the key itself must never be rendered"
-    assert "BEGIN PRIVATE KEY" not in report
+
+@pytest.mark.parametrize("line", [
+    "  password: INLINE-SECRET-VALUE\n",
+    "  Password: INLINE-SECRET-VALUE\n",
+    "  PASSWORD: INLINE-SECRET-VALUE\n",
+    "  passcode: INLINE-SECRET-VALUE\n",
+    "  extra:\n    password: INLINE-SECRET-VALUE\n",
+])
+def test_preflight_refuses_an_inline_credential_under_any_key_spelling(
+        tmp_path, capsys, line):
+    """Through the CLI, like the canonical spelling below: a capitalised
+    key, a synonym or a nested mapping is refused by the parser before any
+    check runs, and the value stays out of the output."""
+    from snowmig import main
+    cfg = tmp_path / "snowmig-config.yaml"
+    cfg.write_text("snowflake:\n  account: acme\n  user: u\n  warehouse: w\n"
+                   "  database: d\n  auth: password\n" + line,
+                   encoding="utf-8")
+    rc = main(["preflight", "--config", str(cfg),
+               "--out-dir", str(tmp_path / "out")])
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "error:" in captured.err and "inline credential" in captured.err
+    assert "INLINE-SECRET-VALUE" not in captured.err + captured.out
+    assert not (tmp_path / "out" / "PREFLIGHT_CONFIG.md").exists(), \
+        "refused before any report is written"
 
 
 def test_preflight_refuses_an_inline_password_in_the_config_file(tmp_path,

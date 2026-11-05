@@ -154,6 +154,44 @@ def test_a_write_privilege_on_the_source_refuses_the_session(
     assert isinstance(caught.value, AuthError)
 
 
+@pytest.mark.parametrize("scope", [
+    ["SALES_DB"], ("SALES_DB",), {"SALES_DB"}, ["sales_db"],
+    ["SCRATCH", "SALES_DB"], ["SALES_DB", "ARCHIVE"],
+])
+def test_a_list_of_databases_scopes_the_guard_to_each_of_them(scope):
+    """`--database` is repeatable and hands the guard a LIST. Each name in
+    it is inside the migration: a write on any of them refuses the
+    session. (The list used to be read as the text "['SALES_DB']", which
+    no grant names, so every write became a report.)"""
+    cur = FakeCursor(READ_ONLY + [_grant("INSERT", "TABLE",
+                                         "SALES_DB.PUBLIC.ORDERS")])
+    with pytest.raises(RoleNotReadOnly, match="INSERT"):
+        assert_role_read_only(cur, database=scope)
+    evidence = read_role_grants(cur, database=scope)
+    assert evidence["read_only"] is False
+    assert evidence["out_of_scope_writes"] == 0
+    assert "SALES_DB" in evidence["databases"]
+
+
+def test_a_list_scope_still_reports_a_write_on_a_database_it_does_not_name():
+    cur = FakeCursor(READ_ONLY + [_grant("INSERT", "TABLE",
+                                         "SCRATCH.PUBLIC.T")])
+    evidence = assert_role_read_only(cur, database=["SALES_DB", "ARCHIVE"])
+    assert evidence["read_only"] is True
+    assert evidence["out_of_scope_writes"] == 1
+    assert evidence["databases"] == ["ARCHIVE", "SALES_DB"]
+    assert "on ARCHIVE, SALES_DB" in describe_role_grants(evidence)
+
+
+@pytest.mark.parametrize("scope", [[], (), [None], [""], [3], ["A", None],
+                                   {"database": "SALES_DB"}, 7, b"SALES_DB"])
+def test_a_scope_of_an_unknown_shape_refuses_the_session(scope):
+    """Fail closed: a scope the guard cannot read as names would be judged
+    against the wrong thing, and every write would pass as a report."""
+    with pytest.raises(RoleNotReadOnly, match="scope"):
+        assert_role_read_only(FakeCursor(READ_ONLY), database=scope)
+
+
 def test_the_source_database_is_the_scope_and_other_databases_are_reported():
     """A write grant on ANOTHER database is not a write on the source. It
     is counted and said, never silently dropped, and never fails the gate."""
@@ -242,10 +280,13 @@ def test_secondary_roles_are_checked_too():
 def test_the_evidence_carries_no_credential_and_only_grant_facts():
     evidence = read_role_grants(FakeCursor(READ_ONLY), database="SALES_DB")
     assert set(evidence) == {"role", "secondary_roles", "user", "user_roles",
-                             "inherited_roles", "database", "grants_read",
+                             "inherited_roles", "database", "databases",
+                             "grants_read",
                              "future_grants_read", "by_privilege",
                              "write_grants", "out_of_scope_writes",
                              "read_only"}
+    assert evidence["database"] == "SALES_DB"
+    assert evidence["databases"] == ["SALES_DB"]
 
 
 # --- the role hierarchy: a role holds what the roles granted to it hold ----

@@ -112,7 +112,7 @@ def test_an_inline_credential_is_refused_with_the_path_field_to_use(tmp_path):
 def test_a_credential_file_others_can_read_is_refused(tmp_path):
     config = _config(tmp_path)
     os.chmod(config["key_path"], 0o644)
-    with pytest.raises(ConnectionConfigError, match="readable by others"):
+    with pytest.raises(ConnectionConfigError, match="readable by its group or others"):
         build_snowflake_connection_details(config)
 
 

@@ -22,6 +22,7 @@ oracle-aidp-samples/
 │   └── private-workspace-connectivity/ # Customer network setup, diagrams, and tests
 ├── data-engineering/
 │   ├── ingestion/            # Connectors and data loading patterns
+│   │   └── landing-zone-auto-ingestion/
 │   ├── lineage/              # Reading and visualizing AIDP data lineage
 │   └── transformation/       # Pipeline architectures and table formats
 │       ├── delta-clone-metadata/
@@ -110,6 +111,7 @@ Patterns for connecting to and loading data from a wide range of sources.
 | [Ingest Data Using YAML](data-engineering/ingestion/Ingest_data_using_yaml/Ingest_data_using_YAML.ipynb) | Config-driven ingestion from cloud storage (CSV, JSON) and JDBC sources with schema validation and data quality checks. |
 | [Ingest from Multi-Cloud](data-engineering/ingestion/Ingest_from_Multi_Cloud.ipynb) | Ingest data from Azure Data Lake Storage (ADLS) and Amazon S3 with proper JAR configuration and credential management. |
 | [Apache Iceberg with an OCI Hadoop Catalog](data-engineering/ingestion/Ingest_into_iceberg_hadoop_catalog_oci_native.ipynb) | Register a Spark Hadoop catalog on OCI Object Storage, then create, query, and evolve an Iceberg table. |
+| [Landing Zone Auto-Ingestion](data-engineering/ingestion/landing-zone-auto-ingestion/README.md) | Turn every folder of Parquet files in an Object Storage landing zone into an external table plus a managed Delta table, and load new files incrementally with two rerunnable workflows - no table list to maintain. |
 | [Pipe-Delimited File Ingestion](data-engineering/ingestion/PipeDelimited.ipynb) | Read pipe-delimited (`\|`) files from OCI Object Storage and register them as external tables. |
 | [Read Excel Files](data-engineering/ingestion/Read_excel_data/read_excel.ipynb) | Read Excel (`.xlsx`) files using the Spark Excel connector and convert them to Spark DataFrames or CSV. |
 | [Streaming from OCI Streaming Service](data-engineering/ingestion/Streaming/StreamingFromOCIStreamingService.ipynb) | Consume messages from OCI Streaming (Kafka-compatible) using Spark Structured Streaming with SASL/OAUTHBearer authentication. |
@@ -194,6 +196,7 @@ Combines Delta liquid clustering with UniForm-generated Iceberg metadata for cro
 |---|---|
 | [Slowly Changing Dimensions (SCD Type 2)](data-engineering/transformation/scd/slowly_changing_dimension_template.ipynb) | Track historical changes to dimension records using SCD Type 2 with Jinja2-templated merge logic. |
 | [Concurrent Writes to Native Iceberg Tables](data-engineering/transformation/iceberg/Iceberg_Concurrent_Writes.ipynb) | Concurrent appends and overlapping MERGE statements on native Iceberg tables, with a retry helper for commit conflicts. |
+| [Iceberg Time Travel, Rollback, and Data Retention](data-engineering/transformation/iceberg/iceberg_time_travel_rollback_retention.ipynb) | Demonstrate timestamp- and tag-based time travel, snapshot rollback, snapshot expiration, and business-row retention on a native Iceberg table. |
 | [Streaming — Energy Delta Liquid Clustering](data-engineering/transformation/streaming/energy_delta_streaming_liquid_clustering_demo.ipynb) | Real-time smart grid monitoring with streaming Delta tables, anomaly detection, and statistical baselines for energy consumption. |
 | [Streaming — Manufacturing Delta Liquid Clustering](data-engineering/transformation/streaming/manufacturing_delta_streaming_liquid_clustering_demo.ipynb) | Continuous ingestion and clustering of manufacturing sensor data using Spark Structured Streaming and Delta Lake. |
 | [Zero-Copy Clone and Table Metadata](data-engineering/transformation/delta-clone-metadata/zero_copy_clone_and_table_metadata.ipynb) | Create constant-time zero-copy clones with Delta `SHALLOW CLONE`, observe copy-on-write divergence from the source, and attach and read table and column metadata in SQL. |
@@ -311,6 +314,7 @@ Agent Skills (`SKILL.md` packages) that give AI coding agents product-specific, 
 | [OCI Vault Secret Retrieval](shared-utils/oci_vault/OCI_Vault_Secret_Retrieval.ipynb) | Securely retrieve secrets (passwords, API keys, connection strings) from OCI Vault using auto-detected authentication — Resource Principal on AI Data Platform or OCI config file locally. |
 | [AIDP Customer Workbench Usage UI](shared-utils/aidp-customer-admin-ui/README.md) | Browser UI and read-only local proxy for viewing AIDP Workbench workspaces, compute clusters, notebooks, workflows, and cluster libraries from fixture data or live Workbench REST APIs. |
 | [AIDP Workbench Migration Toolkit](shared-utils/aidp-workspace-bundles/README.md) | Parameterized archive and Bundle-based migration process for AIDP Workbench metadata, workspace files, jobs, and agent flows. |
+| [OCI Compute Capacity Report](shared-utils/oci-compute-capacity-report/README.md) | Estimate how many ARM and AMD VM nodes of a given size OCI can launch right now in any region, per availability domain, with correct vCPU sizes per shape family, to plan capacity for Spark clusters on OCI Data Flow, Compute, or AIDP (estimates only). |
 
 ---
 

@@ -87,7 +87,7 @@ def test_a_file_others_can_read_is_refused_with_the_chmod(tmp_path, mode):
     with pytest.raises(ConfigError) as caught:
         check_secret_file(path, field="password_path")
     message = str(caught.value)
-    assert "readable by others" in message and "chmod 600 pw" in message
+    assert "readable by its group or others" in message and "chmod 600 pw" in message
     assert f"{mode:04o}" in message
     with pytest.raises(ConfigError):
         read_secret_file(path, field="password_path")
@@ -96,10 +96,16 @@ def test_a_file_others_can_read_is_refused_with_the_chmod(tmp_path, mode):
 def test_on_windows_the_mode_check_is_skipped_and_said_not_refused(
         tmp_path, monkeypatch):
     """st_mode is 0o666 for every Windows file, so enforcing the check there
-    would refuse every credential file. It is skipped, with one fixed note."""
+    would refuse every credential file. It is skipped, with one fixed note.
+
+    The platform is taken from the module's own flag, not from `os.name`:
+    patching `os.name` lies to pathlib too, and on Python 3.11 every
+    `Path(...)` then raises NotImplementedError, which took the whole run
+    down with an INTERNALERROR."""
+    import migration_config
     path = write_secret(tmp_path / "pw", "s3cret")
     world_readable(path)
-    monkeypatch.setattr(os, "name", "nt")
+    monkeypatch.setattr(migration_config, "_IS_WINDOWS", True)
     assert check_secret_file(path, field="password_path") == \
         MODE_CHECK_SKIPPED_NOTE
     assert "Windows" in MODE_CHECK_SKIPPED_NOTE
@@ -142,7 +148,7 @@ def test_a_credential_source_that_fails_the_check_is_reported_not_raised(
     pw = write_secret(tmp_path / "pw", "x")
     os.chmod(pw, 0o644)
     [source] = credential_sources({"password_path": pw})
-    assert source["ok"] is False and "readable by others" in source["protection"]
+    assert source["ok"] is False and "readable by its group or others" in source["protection"]
 
 
 # --- the laptop transport (snowflake_source.conn) ---------------------------
@@ -155,7 +161,7 @@ def test_the_transport_refuses_a_credential_file_others_can_read(tmp_path,
     from snowflake_source.conn import AuthError, build_connect_kwargs
     path = write_secret(tmp_path / "secret", "tok")
     os.chmod(path, 0o644)
-    with pytest.raises(AuthError, match="readable by others"):
+    with pytest.raises(AuthError, match="readable by its group or others"):
         build_connect_kwargs(auth, account="acc", user="u", **{field: path})
 
 
@@ -164,7 +170,7 @@ def test_the_transport_refuses_a_private_key_others_can_read(tmp_path):
     from snowflake_source.conn import AuthError, load_private_key_der
     path = write_secret(tmp_path / "rsa.p8", "not even a pem")
     os.chmod(path, 0o644)
-    with pytest.raises(AuthError, match="readable by others"):
+    with pytest.raises(AuthError, match="readable by its group or others"):
         load_private_key_der(path)
 
 
@@ -230,7 +236,7 @@ def test_the_connector_refuses_a_file_others_can_read_off_the_mount(tmp_path):
     from dataplane.snowmig_source import SourceConfigError
     pw = write_secret(tmp_path / "pw", "pw")
     os.chmod(pw, 0o644)
-    with pytest.raises(SourceConfigError, match="readable by others"):
+    with pytest.raises(SourceConfigError, match="readable by its group or others"):
         _source({"auth": "password", "password_path": pw})
 
 
@@ -242,8 +248,10 @@ def test_on_the_workspace_mount_the_mode_is_the_mounts_and_is_not_checked(
     import dataplane.snowmig_source as src
     pw = write_secret(tmp_path / "pw", "pw")
     world_readable(pw)
-    monkeypatch.setattr(src, "WORKSPACE_MOUNT", tmp_path.as_posix() + "/")
-    monkeypatch.setattr(os, "name", "posix")
+    monkeypatch.setattr(src, "WORKSPACE_MOUNT",
+                        pathlib.Path(os.path.realpath(tmp_path)).as_posix()
+                        + "/")
+    monkeypatch.setattr(src, "_IS_WINDOWS", False)
     assert _source({"auth": "password", "password_path": pw}
                    )._options["password"] == "pw"
 

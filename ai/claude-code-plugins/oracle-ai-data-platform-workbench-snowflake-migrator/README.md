@@ -218,7 +218,18 @@ owner decides the rest. Before the first run:
   database** passes because discovery reads procedure DDL — a procedure
   that runs with its owner's rights is a write the credential could call,
   so grant the migration role no procedures it does not need (one in
-  another database is refused: discovery never reads it). System-role
+  another database is refused: discovery never reads it). For the same
+  reason **`database:` should always be set**: it is the scope every grant
+  is placed against, and without it nothing can be placed — every grant is
+  judged inside the migration, which is strict for writes but means the
+  procedure allowance then covers every procedure the role may call,
+  anywhere in the account. With it set, a procedure row the check cannot
+  place (a name that is not `DB.SCHEMA.OBJECT` as `SHOW GRANTS` prints it)
+  is refused rather than allowed. The scope is exactly what the run reads:
+  `assess --database X [--database Y]` and `smoke --database X` scope the
+  check to those databases instead of the config's, and each name is
+  resolved the way discovery resolves it (`sales_db` is `SALES_DB`,
+  `my-db` or `'"MyDb"'` is taken as written). System-role
   names are matched against the **stored** name as `current_role()` and
   `SHOW GRANTS` print it: exactly `SYSADMIN` is the system role, and a
   distinct role created as `"sysadmin"` is walked and judged by its grants

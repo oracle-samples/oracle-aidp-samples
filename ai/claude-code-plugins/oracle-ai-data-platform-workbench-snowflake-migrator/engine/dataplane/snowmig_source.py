@@ -54,8 +54,25 @@ AIDP_FORMAT = "aidataplatform"
 # mode bits the MOUNT gives it, not ones the operator set, and who can read
 # it is decided by workspace membership -- so the owner-only check below
 # does not apply to it. Anywhere else (a laptop running these helpers, a
-# path outside the mount) the check holds.
+# path outside the mount) the check holds. The test is made on the
+# RESOLVED path (`os.path.realpath`): `/Workspace/../etc/pw` or a symlink
+# under the mount to a file outside it is not on the mount.
 WORKSPACE_MOUNT = "/Workspace/"
+
+# Whether this runs on Windows, where `st_mode` says nothing about who can
+# read a file. A module flag (not a read of `os.name` per call) so a test
+# can take the other platform's path without patching `os.name`, which
+# pathlib consults.
+_IS_WINDOWS = os.name == "nt"
+
+# Opened read-only, without blocking on a FIFO (O_NONBLOCK: a pipe opened
+# for reading returns at once instead of waiting for a writer; a regular
+# file is unaffected), without acquiring a terminal, and byte-exact on
+# Windows. Each flag where the platform has it.
+_SECRET_OPEN_FLAGS = (os.O_RDONLY
+                      | getattr(os, "O_NONBLOCK", 0)
+                      | getattr(os, "O_NOCTTY", 0)
+                      | getattr(os, "O_BINARY", 0))
 
 
 # The verbs this transport may send. Deliberately narrower than the
@@ -316,33 +333,62 @@ def read_report_json(path: pathlib.Path) -> dict:
 def read_secret_file(path: str | pathlib.Path, field: str) -> str:
     """The stripped text of a credential file the config names.
 
-    Off the workspace mount, on POSIX, a file that its group or others can
-    read (mode & 0o077) is refused with the chmod that fixes it. On the
-    mount the mode is the mount's (see WORKSPACE_MOUNT), and on Windows
-    `st_mode` says nothing about who can read a file, so neither is
-    checked. Only the file's basename reaches an error.
+    The file must be a regular file (a FIFO or a device is refused, not
+    read). Off the workspace mount, on POSIX, a file that its group or
+    others can read (mode & 0o077) is refused with the chmod that fixes it.
+    On the mount the mode is the mount's (see WORKSPACE_MOUNT), and on
+    Windows `st_mode` says nothing about who can read a file, so neither is
+    checked. Whether the file is on the mount is decided on its RESOLVED
+    path, so `/Workspace/../x` or a symlink out of the mount gets the
+    laptop-side check. The file is opened once and judged through the
+    descriptor that is then read (`fstat`), so the path cannot be swapped
+    between the check and the read; an empty file is refused as such
+    rather than read as ''. Only the file's basename reaches an error.
     """
     p = pathlib.Path(str(path)).expanduser()
     try:
-        st = p.stat()
+        fd = os.open(p, _SECRET_OPEN_FLAGS)
     except OSError as exc:
         raise SourceConfigError(
             f"`{field}` points at {p.name}, which is not readable: "
             f"{exc.strerror}") from exc
-    on_mount = p.as_posix().startswith(WORKSPACE_MOUNT)
-    if os.name != "nt" and not on_mount:
-        mode = stat.S_IMODE(st.st_mode)
-        if mode & 0o077:
-            raise SourceConfigError(
-                f"`{field}` {p.name} is readable by others (mode "
-                f"{mode:04o}); a credential file must be owner-only. Fix: "
-                f"chmod 600 {p.name}")
     try:
-        return p.read_text(encoding="utf-8").strip()
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise SourceConfigError(
+                f"`{field}` must name a regular file; {p.name} is not one")
+        on_mount = pathlib.Path(os.path.realpath(p)).as_posix().startswith(
+            WORKSPACE_MOUNT)
+        if not _IS_WINDOWS and not on_mount:
+            mode = stat.S_IMODE(st.st_mode)
+            if mode & 0o077:
+                raise SourceConfigError(
+                    f"`{field}` {p.name} is readable by its group or others "
+                    f"(mode {mode:04o}); a credential file must be "
+                    f"owner-only. Fix: chmod 600 {p.name}")
+        with os.fdopen(fd, "rb") as fh:
+            fd = None
+            raw = fh.read()
     except OSError as exc:
         raise SourceConfigError(
             f"`{field}` points at {p.name}, which is not readable: "
             f"{exc.strerror}") from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
+    try:
+        text = raw.decode("utf-8").strip()
+    except UnicodeDecodeError as exc:
+        raise SourceConfigError(
+            f"`{field}` {p.name} is not UTF-8 text; a credential file holds "
+            f"the credential as text") from exc
+    if not text:
+        raise SourceConfigError(
+            f"`{field}` {p.name} is empty: the credential file must hold "
+            f"the credential itself (the password, passphrase or PEM key, "
+            f"and nothing else). Put the value in it, or point `{field}` at "
+            f"the file that holds it.")
+    return text
 
 
 def load_source_config(path: str | pathlib.Path) -> dict:

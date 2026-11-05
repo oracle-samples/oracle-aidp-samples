@@ -31,8 +31,7 @@ from __future__ import annotations
 from typing import Callable
 
 from migration_config import (
-    INLINE_SECRET_ALTERNATIVES, SECRET_FIELDS, SECRET_PATH_FIELDS,
-    credential_sources)
+    SECRET_FIELDS, SECRET_PATH_FIELDS, credential_sources)
 from snowflake_source.dialect import lexer
 from snowflake_source.role_guard import describe_role_grants, read_role_grants
 
@@ -70,6 +69,14 @@ def describe_config(config: dict) -> dict:
     Every value is echoed EXCEPT a credential path's content, which is never
     read. A field that is absent is reported as absent rather than defaulted
     silently.
+
+    There is no "inline credential" row here, on purpose. An inline value
+    never reaches this function: `migration_config.snowflake_block` refuses
+    the config at every CLI entry point, `preflight` included, before any
+    check runs, and its one `error:` line names the `*_path` field to use.
+    This module used to carry a `credential (inline, refused)` check for
+    the same case; it could not be reached from the CLI and was dropped
+    rather than kept as a second, untested path.
     """
     fields: list[dict] = []
     for name in ("account", "host", "user", "role", "warehouse", "database",
@@ -88,23 +95,10 @@ def describe_config(config: dict) -> dict:
     secrets: list[dict] = []
     for source in credential_sources(config):
         secrets.append({"field": source["field"], "source": source["source"],
-                        "name": source["name"], "inline": False,
+                        "name": source["name"],
                         "exists": source["ok"],
                         "note": source["protection"] if source["ok"] else
                         f'REFUSED — {source["protection"]}'})
-    for name in SECRET_INLINE_FIELDS:
-        if not config.get(name):
-            continue
-        # The value is never touched. It is not accepted either: the check
-        # fails and names the field that replaces it.
-        secrets.append({"field": name, "source": "inline", "name": None,
-                        "inline": True, "exists": False,
-                        "note": (f"REFUSED — an inline credential is not "
-                                 f"accepted (this file travels). Move the "
-                                 f"value to a file readable by you alone "
-                                 f"and set "
-                                 f"`{INLINE_SECRET_ALTERNATIVES[name]}:` "
-                                 f"to it")})
 
     known = ({f["field"] for f in fields} | set(SECRET_PATH_FIELDS)
              | set(SECRET_INLINE_FIELDS) | {"port"})
@@ -302,8 +296,7 @@ def render_preflight_report(result: dict) -> str:
                   "never echoed:", ""]
         for secret in cfg["secrets"]:
             mark = "✅" if secret["exists"] else "❌"
-            where = ("*inline* — not accepted" if secret.get("inline")
-                     else f'{secret.get("source", "file")} `{secret["name"]}`')
+            where = f'{secret.get("source", "file")} `{secret["name"]}`'
             lines.append(f'- {mark} `{secret["field"]}`: {where} '
                          f'— {secret["note"]}')
         lines.append("")

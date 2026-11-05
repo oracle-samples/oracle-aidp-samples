@@ -28,6 +28,7 @@ recursive-include commands *.md
 recursive-include skills *.md
 include .mcp.json
 include .claude-plugin/*.json
+include .claude-plugin/icon.png
 include .codex-plugin/*.json
 
 # The fixtures the shipped tests need. Without these, `python -m unittest` in

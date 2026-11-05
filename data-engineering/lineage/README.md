@@ -29,7 +29,8 @@ Lineage view or the `exportLineage` operation, which return CSV.
 - Your AI Data Platform OCID and its region.
 
 No extra libraries: requests are signed with the `oci` package the cluster already has. Outside AIDP
-the notebook falls back to your local `~/.oci/config`, so it also runs on a laptop.
+the notebook falls back to your local `~/.oci/config` (an API-key profile; session-token profiles have
+no `user` entry), so it also runs on a laptop.
 
 ## Running it
 

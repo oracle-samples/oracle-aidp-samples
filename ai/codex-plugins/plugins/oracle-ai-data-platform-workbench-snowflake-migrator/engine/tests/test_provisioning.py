@@ -1035,7 +1035,7 @@ def test_a_credential_file_others_can_read_is_refused_before_any_upload(
     os.chmod(pem, 0o644)
     cfg = _config(tmp_path, auth="keypair", key_path=pem, password_path=None)
     fake = Fake()
-    with pytest.raises(ConfigError, match="readable by others"):
+    with pytest.raises(ConfigError, match="readable by its group or others"):
         provision(call=fake, workspace_name="acme", scripts=scripts,
                   source_config=cfg, execute=True, delays=())
     assert fake.ops == []

@@ -15,7 +15,7 @@
 #
 # Fallback A — direct Snowflake reads from Python on the driver (metadata
 # sweeps the external catalog cannot answer, e.g. GET_DDL for view SQL):
-# snowflake-connector-python>=4.7.0
+# snowflake-connector-python>=4.7.0,<5
 #
 # Fallback B — the Spark-native Snowflake connector (bulk reads bypassing the
 # external catalog) is a pair of MAVEN artifacts, not pip packages; the

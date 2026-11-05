@@ -407,7 +407,28 @@ def _snowflake_coords(args) -> dict:
                                if config else None),
             "pat_path": pick("pat_path"),
             "password_path": pick("password_path"),
-            "database": pick("database")}
+            # The config's `database:` alone. `--database` is a repeatable
+            # FILTER on what assess and smoke read (a list), not a
+            # coordinate; `_guard_scope` combines the two for the role
+            # guard, and `_assess_inventory` for discovery.
+            "database": config.get("database")}
+
+
+def _guard_scope(args, coords: dict):
+    """The databases this run will read, for the role guard's scope.
+
+    Exactly what discovery reads: every `--database` value when the flag
+    was given (assess, smoke), else the config's `database:`, else None
+    (every grant is judged inside the migration). The guard resolves each
+    name as discovery does, so with `--database OTHER_DB` the guard is
+    scoped to OTHER_DB -- the database that will be read -- and not to the
+    config's. The list is handed over as a list: the guard reads a set of
+    names from it, and refuses any shape it cannot read.
+    """
+    flagged = getattr(args, "database", None)
+    if flagged:
+        return list(flagged)
+    return coords.get("database") or None
 
 
 def _announce_credential_source(config: dict) -> None:
@@ -456,7 +477,9 @@ def _run_sql_from_args(args, *, role_gate: bool = True):
     if role_gate:
         # Fail closed, before the first read: a role that can write to the
         # source, or whose grants cannot be read, does not get a session.
-        evidence = assert_role_read_only(run_sql, database=coords["database"])
+        # Scoped to the databases THIS run reads (`_guard_scope`).
+        evidence = assert_role_read_only(run_sql,
+                                         database=_guard_scope(args, coords))
         walked = (f', {len(evidence["inherited_roles"])} other role(s) '
                   f'walked' if evidence["inherited_roles"] else "")
         print(f'  role: {evidence["role"]} is read-only on '
@@ -2771,6 +2794,11 @@ def cmd_preflight(args) -> int:
     out = pathlib.Path(args.out_dir)
     # Required here: reading the config back is the whole point of the stage.
     _config_path(args, required=True)
+    # The parser refuses an inline credential HERE, like at every other
+    # entry point: preflight with `password:` in the file is one `error:`
+    # line naming `password_path`, before any check runs or any report is
+    # written. (`plan.preflight` therefore carries no "inline" check row:
+    # it could never be reached from the CLI, and was dropped.)
     config = snowflake_block(_load_migration_config(args))
 
     run_sql = None
