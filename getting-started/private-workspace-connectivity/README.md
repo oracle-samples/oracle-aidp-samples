@@ -33,6 +33,18 @@ These cases examine additional Advanced DNS behavior beyond establishing a conne
 
 Use V01–V03 as explicit Advanced DNS walkthroughs, V04 as the private database baseline and compatibility check, and V05–V07 as supporting operational validation. V04 does not assert uninterrupted compute: V07 measures the separate no-restart objective. Automatic inclusion and legacy adoption remain **INCOMPLETE** without their additional evidence, even when the existing endpoint/regression checks succeed. The notebooks do not automate internal rollout, mapping cleanup, feature-flag or telemetry validation.
 
+## Focused setup and troubleshooting
+
+V01, V03 and V04 contain prerequisites, authorization, network and logging setup, executable checks, expected results and troubleshooting in execution order. Their visible initialization cell provides the checks; rerun it after a session restart. Driver DNS/TCP diagnostics do not claim the packet route, and missing path evidence does not turn a successful read into a failed connection.
+
+| Notebook | Standalone preparation | Distinct validation |
+| --- | --- | --- |
+| V01 | [S3 setup](docs/v01-s3.md) | AWS authorization, customer NAT egress, S3 request/flow correlation |
+| V03 | [Cross-region setup](docs/v03-cross-region.md) | Independent permissions and exact reads for remote and local buckets in every phase |
+| V04 | [Private ADB setup](docs/v04-private-adb.md) | Reviewed private descriptor and the same database identity through unrelated add/edit/delete/restoration |
+
+Configure logs with an authorized administrator before running. Export UTC intervals, results and evidence references privately. Public samples contain no environment-specific support links or identifiers.
+
 ## IAM policies and network construction examples
 
 Read [network and IAM preparation examples](docs/network-and-iam-examples.md) before enabling live checks. It includes placeholder statements for operator/private-network permissions, bucket-scoped OCI reads, a Network Source condition, AWS S3/KMS reads, a Streaming consume example, database login and evidence access. Route/security tables illustrate NAT egress, a regional service gateway, private database listeners, peering and resolver prerequisites.

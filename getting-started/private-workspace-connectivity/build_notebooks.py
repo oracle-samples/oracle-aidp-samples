@@ -471,8 +471,96 @@ def customer_walkthrough(case, cells):
                  'control["acceptance"] = summarize(control)\n'
                  'RESULTS.append(control)\n'
                  'print(json.dumps(control, indent=2))\n')]
-    return [title, procedure, diagram, common] + executable + [
+    legacy = [title, procedure, diagram, common] + executable + [
         md('## Reference appendix\n\nUse the following network, IAM and DNS details when preparing the environment.\n')] + appendix
+    return focused_walkthrough(case, legacy)
+
+
+def focused_walkthrough(case, legacy):
+    """Give each customer case its own setup and preserve deployed cell IDs."""
+    for i, cell in enumerate(legacy):
+        cell['id'] = case.lower() + '-' + str(i)
+    guide = {'V01': 'v01-s3.md', 'V03': 'v03-cross-region.md', 'V04': 'v04-private-adb.md'}[case]
+    section = lambda heading: documentation_section(guide, heading)
+    def markdown(heading, cell_id):
+        cell = md('## ' + heading + '\n\n' + section(heading).replace('../../../LICENSE.txt', '../../LICENSE.txt'))
+        cell['id'] = case.lower() + '-' + str(cell_id)
+        return cell
+    def executable(text, cell_id):
+        cell = code(text)
+        cell['id'] = case.lower() + '-' + str(cell_id)
+        return cell
+    def guard(config='CONFIG'):
+        return (
+            'if not callable(globals().get("run_customer_case")):\n'
+            '    raise RuntimeError(\'Run "Initialize ' + case + '" first; rerun initialization after a session restart.\')\n'
+            'if any(name not in globals() for name in ' + repr(('CASE_ID', config, 'RUN_LIVE', 'PHASE', 'RESULTS')) + '):\n'
+            '    raise RuntimeError(\'Run "Your configuration" and "Choose phase" first.\')\n\n')
+    ids = ({'phase': 11, 'run': 13, 'expected': 16, 'evidence': 17, 'restore': 18, 'export': 19, 'refs': 20,
+            'network': 23, 'iam': 24} if case == 'V03' else
+           {'phase': 9, 'run': 11, 'expected': 12, 'evidence': 13,
+            'restore': 15 if case == 'V04' else 14, 'export': 16 if case == 'V04' else 15,
+            'refs': 17 if case == 'V04' else 16, 'network': 21 if case == 'V04' else 19,
+            'iam': 22 if case == 'V04' else 20})
+    intro = md((ROOT / 'docs' / guide).read_text().split('\n## ', 1)[0] + '\n')
+    intro['id'] = case.lower() + '-0'
+    init = md('## Initialize ' + case + '\n\nAttach the intended compute. Run the next cell and wait for **'
+              + case + ' initialized**. It defines checks without making network calls and preserves your '
+              'configuration and RESULTS. Rerun it after reattaching compute or restarting the session.\n')
+    init['id'] = case.lower() + '-4'
+    helpers = ''.join(legacy[5]['source']) + '\n' + (ROOT / 'customer_case_checks.py').read_text()
+    helpers += '\nprint("' + case + ' initialized. Next: Your configuration, then Choose phase.")\n'
+    config = legacy[7]
+    text = ''.join(config['source']).replace('PHASE = "baseline"', 'PHASE = "before"')
+    if case == 'V04':
+        text += '\nCONFIG["private_endpoint_confirmed"] = False  # Verify the actual catalog/wallet HOST and PORT first.\n'
+    config['source'] = text.splitlines(True)
+    config_intro = md('## Your configuration\n\n' + section('Configuration'))
+    config_intro['id'] = case.lower() + '-6'
+    phase_intro = md('## Choose phase\n\nRun this cell before each attempt. Change only the phase and live flag '
+                     'here; keep earlier RESULTS. Do not use Run all across manual workspace changes.\n')
+    phase_intro['id'] = case.lower() + '-' + str(ids['phase'] - 1)
+    phase = legacy[ids['phase']]
+    diagnostic_intro = md('## Check DNS and the listener\n\nOptional read-only driver checks: compare Python and '
+        'JVM resolution, then attempt a five-second TCP connection to the configured hostname and port. '
+        'RUN_LIVE controls execution. This does not prove the customer route, executor connectivity, TLS '
+        'authentication or service authorization. Correlate the UTC interval with the logs below.\n')
+    diagnostic_intro['id'] = case.lower() + '-diagnostic-guide'
+    diagnostic = executable(guard() +
+        'diagnostic = diagnose_customer_target(CONFIG, spark=globals().get("spark"), live=RUN_LIVE, case=CASE_ID)\n'
+        'DIAGNOSTICS = globals().get("DIAGNOSTICS", [])\nDIAGNOSTICS.append(diagnostic)\n'
+        'print(json.dumps(diagnostic, indent=2))\n', 'diagnostic')
+    run_intro = md('## ' + ('Query the private database' if case == 'V04' else 'Read the test object') + '\n\n'
+        'Run once per phase with the same target, identity and client. ' +
+        ('The query reads DUAL and verifies the expected database identity. Use the reviewed private catalog '
+         'or wallet connection; the password is read privately from ADB_PASSWORD.\n' if case == 'V04' else
+         'The read is bounded to the declared small fixture and compares the exact expected CSV rows.\n'))
+    run_intro['id'] = case.lower() + '-' + str(ids['run'] - 1)
+    runtime = ('import os\nRUNTIME = {"adb_password": os.environ.get("ADB_PASSWORD")}\n' if case == 'V04' else
+               'RUNTIME = {}\n')
+    run = executable(guard() + runtime +
+        'result = run_customer_case(CASE_ID, CONFIG, spark=globals().get("spark"), runtime=RUNTIME, live=RUN_LIVE, phase=PHASE)\n'
+        'RESULTS.append(result)\nprint(json.dumps(result, indent=2))\n', ids['run'])
+    cells = [intro, markdown('Prerequisites', 'prerequisites'), markdown('IAM and database setup' if case == 'V04' else 'IAM setup', ids['iam']),
+        markdown('Network setup', ids['network']), legacy[2], markdown('Logging setup', 'logging'),
+        markdown('Customer steps', 1), init, executable(helpers, 5), config_intro, config]
+    if case == 'V03':
+        cells += [legacy[8], legacy[9]]
+    cells += [phase_intro, phase, diagnostic_intro, diagnostic, run_intro, run]
+    if case == 'V03':
+        control = ''.join(legacy[15]['source']).replace('control = run_case(', 'control = run_customer_case(')
+        control = control.replace('control["acceptance"] = summarize(control)\n', '')
+        cells += [legacy[14], executable(guard('CONTROL_CONFIG') + control, 15)]
+    cells += [markdown('Expected results', ids['expected']), legacy[ids['evidence']]]
+    if case == 'V04':
+        evaluate = ''.join(legacy[14]['source']).replace('observed["acceptance"] = summarize(observed)',
+                                                       'observed = customer_labels(observed)')
+        cells += [executable(guard() + evaluate, 14)]
+    cells += [markdown('Troubleshooting', 'troubleshooting'), markdown('Restore and export', ids['restore']),
+        executable(guard() + 'print(json.dumps({"case": CASE_ID, "generated_utc": utc(), "results": RESULTS, '
+            '"evidence": globals().get("EVIDENCE", {}), "diagnostics": globals().get("DIAGNOSTICS", [])}, indent=2))\n', ids['export']),
+        markdown('References', ids['refs'])]
+    return cells
 
 def build():
     index = []
@@ -501,7 +589,7 @@ def build():
                                                     reference + ' — ' + CASE_HEADINGS[reference]))
         resolution = documentation_section('dns-resolution-paths.md', 'Resolution paths')
         cells.insert(1, md('## When do you need an Advanced DNS entry?\n\n' + resolution))
-        cells.insert(4, md(preparation))
+        cells.insert(4, md(preparation.replace('](v02-network-source.md', '](docs/v02-network-source.md')))
         if case in VALIDATION_HEADINGS:
             cells.insert(1, md('## Advanced DNS objective and coverage limits\n\n'
                               + documentation_section('advanced-dns-validation.md',
@@ -531,7 +619,7 @@ def build():
         (ROOT / item['file']).write_text(json.dumps(nb, indent=2) + '\n')
         index.append({'case': case, 'title': item['title'], 'notebook': item['file'], 'objective': item['purpose'], 'kind': item['kind']})
     (ROOT / 'case-index.json').write_text(json.dumps(index, indent=2) + '\n')
-    intro = (ROOT / 'docs' / 'customer-walkthrough.md').read_text().split('\n## V01 -', 1)[0]
+    intro = (ROOT / 'docs' / 'customer-walkthrough.md').read_text().split('\n## Common Workbench actions', 1)[0]
     for item in index[:4]:
         intro = intro.replace('| ' + item['notebook'] + ' |', '| [' + item['notebook'] + '](' + item['notebook'] + ') |')
     guide = {'cells': [md(intro + '\n\n[Full tester guide](README.md).\n')],

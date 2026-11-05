@@ -69,9 +69,14 @@ class NotebookChecks(unittest.TestCase):
 
     def test_no_environment_specific_or_internal_material(self):
         files = [ROOT / 'README.md', ROOT / 'connectivity_checks.py', ROOT / 'build_notebooks.py']
+        files += [ROOT / 'customer_case_checks.py'] + list((ROOT / 'docs').glob('*.md'))
         files += [ROOT / item['notebook'] for item, _ in self.items()]
-        forbidden = [r'ocid1\.', r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b',
+        # Resource-type prefixes in customer instructions are not resource IDs.
+        forbidden = [r'ocid1\.[a-z0-9_-]+\.(?:[a-z0-9_-]*\.){2,}[a-z0-9_-]+', r'\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b',
                      r'\.oraclecorp\.', r'confluence/', r'Oracle Internal', r'/Users/']
+        for example in ('ocid1.user.oc1..synthetic', 'ocid1.aidataplatform.oc1.iad.synthetic'):
+            self.assertIsNotNone(re.search(forbidden[0], example))
+        self.assertIsNone(re.search(forbidden[0], 'Resource type prefix: ocid1.aidataplatform.'))
         for path in files:
             content = path.read_text()
             for pattern in forbidden:
