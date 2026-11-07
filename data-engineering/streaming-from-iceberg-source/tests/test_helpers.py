@@ -91,7 +91,9 @@ def test_merge_sql_guards():
     assert "WHERE s.event_id > t.last_event_id" in stream
     # ... while a resync overwrites unless ADW holds an event newer than the order's watermark.
     assert "WHERE t.last_event_id <= s.watermark_id" in resync
-    assert sink.insert_sql.startswith("INSERT INTO ORDERS_STG (batch_id, event_id, order_id")
+    assert sink.insert_sql.startswith("INSERT INTO ORDERS_STG (query_id, batch_id, event_id, order_id")
+    for sql in (stream, resync):                      # a query only ever sees its own staged rows
+        assert "WHERE s.query_id = :query_id AND s.batch_id = :batch_id" in sql
     assert sink.insert_sql.count(":") == len(adw_sink.STAGING_COLUMNS)
     assert adw_sink.STAGING_COLUMNS[-1] == "watermark_id"
 
@@ -139,6 +141,60 @@ def test_checkpoint_query_id(tmp_path):
 def test_upsert_batch_requires_the_checkpoint():
     with pytest.raises(ValueError, match="checkpoint_location"):
         _sink()._stream_query_id()
+
+
+class _FakeCursor:
+    def __init__(self, count):
+        self.count, self.executed = count, []
+
+    def execute(self, sql, **binds):
+        self.executed.append((sql, binds))
+
+    def fetchone(self):
+        return (self.count,)
+
+
+class _FakeAdw:
+    def __init__(self, count):
+        self.cursor_ = _FakeCursor(count)
+
+    def connect(self):
+        adw = self
+
+        class Conn:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def cursor(self):
+                return adw.cursor_
+        return Conn()
+
+
+def _sink_on(tmp_path, other_checkpoint_batches, allow=False):
+    (tmp_path / "metadata").write_text('{"id":"11111111-2222-3333-4444-555555555555"}')
+    spark = types.SimpleNamespace(sparkContext=_FakeSparkContext())
+    return adw_sink.AdwSink(spark, _FakeAdw(other_checkpoint_batches), query_name="q",
+                            checkpoint_location=str(tmp_path), allow_new_checkpoint=allow)
+
+
+def test_new_checkpoint_over_existing_state_is_refused(tmp_path):
+    with pytest.raises(RuntimeError, match="another checkpoint"):
+        _sink_on(tmp_path, other_checkpoint_batches=5)._stream_query_id()
+
+
+def test_new_checkpoint_allowed_explicitly_or_on_empty_state(tmp_path):
+    assert _sink_on(tmp_path, 5, allow=True)._stream_query_id() == "11111111-2222-3333-4444-555555555555"
+    assert _sink_on(tmp_path, 0)._stream_query_id() == "11111111-2222-3333-4444-555555555555"
+
+
+def test_passwords_are_not_stripped():
+    secrets = types.SimpleNamespace(get=lambda name, key: {"user": " U ", "password": " p w ",
+                                                           "wallet_password": "w ", "tns": " db_low\n"}[key])
+    adw = adw_sink.AdwConnection.from_credential_store(secrets, "c", "/w")
+    assert (adw.user, adw.tns_alias, adw.password, adw.wallet_password) == ("U", "db_low", " p w ", "w ")
 
 
 def test_connection_repr_hides_secrets():
@@ -190,12 +246,40 @@ def test_stop_file_ends_the_run(tmp_path):
     assert reason == "stop file" and q.stopped
 
 
-def test_stale_stop_file_is_cleared_first(tmp_path):
+def test_an_existing_stop_file_is_honoured(tmp_path):
+    # A stop requested between start() and run_until_stopped() must not be lost.
     stream_control.request_stop(str(tmp_path), "consumer")
     q = FakeQuery(finish_after=3)
     reason = stream_control.run_until_stopped(q, str(tmp_path), "consumer", max_minutes=5, poll_seconds=0,
                                               printer=lambda _: None)
+    assert reason == "stop file" and q.polls == 1 and q.stopped
+
+
+def test_clear_stop_before_start(tmp_path):
+    stream_control.request_stop(str(tmp_path), "consumer")
+    stream_control.clear_stop(str(tmp_path), "consumer")
+    q = FakeQuery(finish_after=3)
+    reason = stream_control.run_until_stopped(q, str(tmp_path), "consumer", max_minutes=5, poll_seconds=0,
+                                              printer=lambda _: None)
     assert reason == "query terminated" and q.polls == 3 and q.stopped
+
+
+def test_bad_name_still_stops_the_query(tmp_path):
+    q = FakeQuery()
+    with pytest.raises(ValueError):
+        stream_control.run_until_stopped(q, str(tmp_path), "../x", max_minutes=5, poll_seconds=0,
+                                         printer=lambda _: None)
+    assert q.stopped
+
+
+def test_pending_batch(tmp_path):
+    assert stream_control.pending_batch(str(tmp_path)) is False
+    (tmp_path / "offsets").mkdir()
+    (tmp_path / "commits").mkdir()
+    (tmp_path / "offsets" / "0").write_text("v1")
+    assert stream_control.pending_batch(str(tmp_path)) is True       # planned, not done
+    (tmp_path / "commits" / "0").write_text("v1")
+    assert stream_control.pending_batch(str(tmp_path)) is False
 
 
 def test_time_limit(tmp_path):

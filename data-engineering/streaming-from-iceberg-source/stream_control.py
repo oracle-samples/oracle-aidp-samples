@@ -74,21 +74,21 @@ def run_until_stopped(
     ``"stop file"``, ``"time limit"`` or ``"query terminated"``. If the query failed, its
     ``StreamingQueryException`` propagates after the query has been stopped.
 
+    Call ``clear_stop()`` *before* starting the query: a stop file that exists while this runs
+    -- an old one, or a request made since the query started -- stops the query.
+
     On a stop file or the time limit, it first waits -- up to two minutes -- for the running
     micro-batch to finish. Stopping a query in the middle of a batch cancels that batch's Spark
     job, and AIDP then reports the cell as failed ("Streaming query failed: JobFailed ...
     cancelled job group") although nothing is lost: the batch runs again on restart. A trigger
     that starts between the check and ``stop()`` can still be cancelled; in our runs none was.
 
-    A stop file left over from an earlier run is removed first, so call this right after
-    ``start()``.
     """
-    clear_stop(control_dir, name)
-    marker = stop_file_path(control_dir, name)
-    deadline = time.monotonic() + max_minutes * 60
-    next_report = time.monotonic() + report_every_seconds
     reason = "time limit"
     try:
+        marker = stop_file_path(control_dir, name)
+        deadline = time.monotonic() + max_minutes * 60
+        next_report = time.monotonic() + report_every_seconds
         while True:
             # Returns True once the query has terminated; raises if it terminated with an error.
             if query.awaitTermination(poll_seconds):
@@ -152,6 +152,19 @@ def committed_source_offset(checkpoint_dir: str, source_index: int = 0) -> Optio
     if source_index >= len(sources):
         raise ValueError(f"the checkpoint has {len(sources)} source(s), no index {source_index}")
     return json.loads(sources[source_index])
+
+
+def pending_batch(checkpoint_dir: str) -> bool:
+    """True if the query has planned a micro-batch that has not completed yet.
+
+    Spark writes ``offsets/<n>`` when it plans batch n and ``commits/<n>`` when the batch is done.
+    A query that has read everything available plans nothing new, so this stays False.
+    """
+    def batches(sub):
+        folder = os.path.join(checkpoint_dir, sub)
+        return [int(f) for f in os.listdir(folder) if f.isdigit()] if os.path.isdir(folder) else []
+    planned, done = batches("offsets"), batches("commits")
+    return bool(planned) and max(planned) > max(done, default=-1)
 
 
 def list_cluster_streams(spark) -> List[dict]:

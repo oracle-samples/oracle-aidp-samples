@@ -132,7 +132,8 @@ notebooks plus `adw_sink.py` and `stream_control.py`. In each notebook, set `WAR
    after it cannot run (see the caveats).
 
 Each stream stops by itself after `RUN_MINUTES`, or when notebook 3 calls
-`stream_control.request_stop(CONTROL_DIR, "producer" | "consumer")`.
+`stream_control.request_stop(CONTROL_DIR, "producer" | "consumer")`. A stream cell clears its
+stop file before it starts the query, so a request made at any time after that is honoured.
 
 ---
 
@@ -199,7 +200,8 @@ processed one limited batch per run.
 1. Skip the batch if `STREAM_BATCH_LOG` records it for this query (Spark replays the last batch
    after a restart if it was not marked complete). The log key is the query name, the query id
    Spark keeps in the checkpoint's `metadata` file, and the batch id -- so a query started on a
-   new checkpoint, whose batch ids start again at 0, is never mistaken for an earlier one.
+   new checkpoint, whose batch ids start again at 0, is never mistaken for an earlier one. Staged
+   rows carry the same query id, so two queries never touch each other's rows.
 2. Keep the newest event per order (no duplicate keys for the MERGE, ORA-30926).
 3. Executors insert the rows into a **permanent** staging table with python-oracledb array
    inserts, in parallel.
@@ -236,6 +238,12 @@ Notes:
   run the pipeline on a cluster whose users may see these credentials.
 - A task Spark re-runs after it committed stages its rows twice; the MERGE keeps one row per
   order, so the result is unchanged.
+- **Starting the consumer on a new checkpoint** while ADW keeps its tables would replay the
+  source from its oldest snapshot into the state the old query built: orders that skipped
+  snapshots deleted would come back. So the first batch of a new checkpoint fails if
+  `STREAM_BATCH_LOG` has batches of another checkpoint under the same query name. Start over
+  from empty ADW tables (notebook 2's clean-up), or pass `allow_new_checkpoint=True` to
+  `AdwSink` once ADW holds the right state.
 
 ### Reading the Iceberg table in place
 
@@ -266,9 +274,11 @@ MERGE; orders with no events left are deleted. The MERGE overwrites an ADW row u
 the changelog and the current table contain. A row above it was updated by an event that
 arrived later, and stays. Two rules:
 
-- **Resync only after the consumer has passed the snapshot.** Otherwise the consumer can still
-  deliver older appends of those orders afterwards -- in one test it re-inserted 3 orders that a
-  partition `DELETE` had removed. `resync_snapshot` waits for the consumer's checkpoint first.
+- **Resync only after the consumer has read every append committed before the snapshot.**
+  Otherwise it can still deliver older appends of those orders afterwards -- in one test it
+  re-inserted 3 orders that a partition `DELETE` had removed. `resync_snapshot` first waits until
+  the consumer's checkpoint points past the last such append, or points at it and plans no
+  further micro-batch for longer than the consumer's trigger interval.
 - **Resync before expiring the snapshot.** The changelog needs the snapshot and its parent.
 
 ---

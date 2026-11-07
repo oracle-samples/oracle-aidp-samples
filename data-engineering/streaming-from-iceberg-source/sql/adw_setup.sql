@@ -59,8 +59,8 @@ FROM   stream_batch_log WHERE query_name = 'orders_to_adw' ORDER BY batch_id DES
 -- Both together: orders whose state in ORDERS differs from the newest event in the Iceberg table.
 -- Expect recent orders here while events are in flight; none once the stream has caught up.
 WITH latest AS (
-  SELECT order_id, status, amount, event_id
-  FROM  (SELECT e.order_id, e.status, e.amount, e.event_id, e.op,
+  SELECT order_id, region, status, amount, event_id
+  FROM  (SELECT e.order_id, e.region, e.status, e.amount, e.event_id, e.op,
                 ROW_NUMBER() OVER (PARTITION BY e.order_id ORDER BY e.event_id DESC) AS rn
          FROM order_events_iceberg e)
   WHERE rn = 1 AND op <> 'D')
@@ -68,6 +68,7 @@ SELECT l.order_id, l.status AS source_status, o.status AS adw_status, l.event_id
 FROM   latest l FULL OUTER JOIN orders o ON o.order_id = l.order_id
 WHERE  o.order_id IS NULL OR l.order_id IS NULL
    OR  o.last_event_id <> l.event_id
+   OR  DECODE(o.region, l.region, 0, 1) = 1
    OR  DECODE(o.status, l.status, 0, 1) = 1
    OR  DECODE(o.amount, l.amount, 0, 1) = 1
 FETCH FIRST 20 ROWS ONLY;

@@ -6,8 +6,8 @@ function; for every micro-batch it:
 
 1. Skips the batch if ``STREAM_BATCH_LOG`` already records it for this query. Spark replays the
    last micro-batch after a restart if it was not marked complete in the checkpoint. A query is
-   identified by its name and by the id Spark keeps in its checkpoint, so a query started on a
-   new checkpoint never mistakes its batches for those of an earlier one.
+   identified by its name and by the id Spark keeps in its checkpoint; its staged rows carry that
+   id too, so two queries never touch each other's rows.
 2. Keeps only the newest event per order, so the MERGE never sees two rows for one key
    (ORA-30926) and fewer rows travel to ADW.
 3. Has the executors insert those rows into a permanent staging table, in parallel, with
@@ -52,7 +52,7 @@ _IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,127}$")
 EVENT_COLUMNS = ("event_id", "order_id", "region", "status", "amount", "op", "event_ts")
 # Column order of the staging table, and of the rows the executors insert. watermark_id is only
 # set by a resync (see resync_orders); the stream leaves it NULL.
-STAGING_COLUMNS = ("batch_id",) + EVENT_COLUMNS + ("watermark_id",)
+STAGING_COLUMNS = ("query_id", "batch_id") + EVENT_COLUMNS + ("watermark_id",)
 # query_id of the rows that resyncs write to the batch log.
 RESYNC_QUERY_ID = "resync"
 
@@ -138,7 +138,8 @@ class AdwConnection:
             value = secrets.get(name=credential_name, key=key)
             if not value:
                 raise RuntimeError(f"credential {credential_name!r} has no value for key {key!r}")
-            values[key] = value.strip()
+            # Names may carry stray whitespace from copy and paste; passwords are used exactly as stored.
+            values[key] = value.strip() if key in ("user", "tns") else value
         return cls(values["user"], values["password"], values["tns"], wallet_dir, values["wallet_password"])
 
     def connect(self):
@@ -206,11 +207,17 @@ class AdwSink:
     ``checkpoint_location`` is the checkpoint of the streaming query that calls ``upsert_batch``;
     it is needed to tell that query's batches apart from those of an earlier query with the same
     name. Leave it out for a sink that only runs resyncs and queries.
+
+    A query on a **new** checkpoint replays the source table from its oldest snapshot, while the
+    ADW table still holds the state the old query built: rows that skipped snapshots later
+    deleted would come back. So the first batch of a new checkpoint fails if STREAM_BATCH_LOG
+    has batches of another checkpoint under the same query name. Start from empty ADW tables
+    (notebook 2's clean-up), or set ``allow_new_checkpoint=True`` once ADW holds the right state.
     """
 
     def __init__(self, spark, adw: AdwConnection, query_name: str, checkpoint_location: Optional[str] = None,
                  target: str = "ORDERS", staging: str = "ORDERS_STG", batch_log: str = "STREAM_BATCH_LOG",
-                 array_size: int = 1000):
+                 array_size: int = 1000, allow_new_checkpoint: bool = False):
         self.spark = spark
         self.adw = adw
         self.query_name = query_name
@@ -219,6 +226,7 @@ class AdwSink:
         self.staging = identifier(staging)
         self.batch_log = identifier(batch_log)
         self.array_size = array_size
+        self.allow_new_checkpoint = allow_new_checkpoint
         self._executor_settings = None   # broadcast once, on first use
         self._query_id = None            # read from the checkpoint on the first batch
         # The executors import this module to run insert_partition, so ship it to them.
@@ -247,6 +255,7 @@ class AdwSink:
                     last_event_ts  TIMESTAMP,
                     updated_at     TIMESTAMP    DEFAULT SYSTIMESTAMP)""",
             f"""CREATE TABLE IF NOT EXISTS {self.staging} (
+                    query_id      VARCHAR2(36) NOT NULL,
                     batch_id      NUMBER(19) NOT NULL,
                     event_id      NUMBER(19) NOT NULL,
                     order_id      NUMBER(19) NOT NULL,
@@ -256,7 +265,7 @@ class AdwSink:
                     op            VARCHAR2(1),
                     event_ts      TIMESTAMP,
                     watermark_id  NUMBER(19))""",
-            f"CREATE INDEX IF NOT EXISTS {self.staging}_BATCH_IX ON {self.staging} (batch_id)",
+            f"CREATE INDEX IF NOT EXISTS {self.staging}_BATCH_IX ON {self.staging} (query_id, batch_id)",
             f"""CREATE TABLE IF NOT EXISTS {self.batch_log} (
                     query_name    VARCHAR2(128) NOT NULL,
                     query_id      VARCHAR2(36)  NOT NULL,
@@ -272,6 +281,14 @@ class AdwSink:
             cursor = conn.cursor()
             for statement in ddl:
                 cursor.execute(statement)
+            # Tables made by an older version of this sample lack columns this version needs.
+            for table, column in ((self.staging, "QUERY_ID"), (self.staging, "WATERMARK_ID"), (self.batch_log, "QUERY_ID")):
+                cursor.execute("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = :t AND column_name = :c",
+                               t=table, c=column)
+                if not cursor.fetchone()[0]:
+                    raise RuntimeError(f"{table} has no column {column}: it was created by an older version of "
+                                       f"this sample. Drop {self.target}, {self.staging} and {self.batch_log} "
+                                       "(notebook 2's clean-up cell) and run again.")
 
     def create_iceberg_external_table(self, table_name: str, credential_name: str, table_location: str,
                                       region: str, replace: bool = False) -> bool:
@@ -318,16 +335,16 @@ class AdwSink:
                     print(f"batch {batch_id}: already applied in ADW, skipped")
                     return
                 # Remove rows a failed attempt of this batch may have staged.
-                cursor.execute(f"DELETE FROM {self.staging} WHERE batch_id = :b", b=batch_id)
+                self._clear_staging(cursor, query_id, batch_id)
                 conn.commit()
             newest = self._newest_per_order(batch_df).withColumn("watermark_id", F.lit(None).cast("bigint"))
-            staged = self._stage(newest, batch_id)
+            staged = self._stage(newest, query_id, batch_id)
             with self.adw.connect() as conn:
                 cursor = conn.cursor()
-                cursor.execute(self.stream_merge_sql, batch_id=batch_id)
+                cursor.execute(self.stream_merge_sql, query_id=query_id, batch_id=batch_id)
                 merged = cursor.rowcount
                 self._log_batch(cursor, self.query_name, query_id, batch_id, stats.n, merged, stats.lo, stats.hi)
-                cursor.execute(f"DELETE FROM {self.staging} WHERE batch_id = :b", b=batch_id)
+                self._clear_staging(cursor, query_id, batch_id)
                 conn.commit()
             print(f"batch {batch_id}: {stats.n} events, {staged} orders staged, {merged} rows merged, "
                   f"event_id {stats.lo}..{stats.hi}, {time.monotonic() - started:.1f}s")
@@ -373,13 +390,13 @@ class AdwSink:
                              "event_ts", "watermark_id")
         counts = joined.agg(F.count(F.lit(1)).alias("n"), F.sum(F.col("gone").cast("int")).alias("gone"),
                             F.max("watermark_id").alias("hi")).first()
-        staged = self._stage(rows, resync_id)
+        staged = self._stage(rows, RESYNC_QUERY_ID, resync_id)
         with self.adw.connect() as conn:
             cursor = conn.cursor()
-            cursor.execute(self.resync_merge_sql, batch_id=resync_id)
+            cursor.execute(self.resync_merge_sql, query_id=RESYNC_QUERY_ID, batch_id=resync_id)
             merged = cursor.rowcount
             self._log_batch(cursor, log_name, RESYNC_QUERY_ID, resync_id, staged, merged, None, counts.hi)
-            cursor.execute(f"DELETE FROM {self.staging} WHERE batch_id = :b", b=resync_id)
+            self._clear_staging(cursor, RESYNC_QUERY_ID, resync_id)
             conn.commit()
         print(f"resync {label!r}: {counts.n} orders checked, {counts.gone} without events left, "
               f"{merged} ADW rows merged")
@@ -434,7 +451,7 @@ class AdwSink:
                 FROM (
                     SELECT s.*, ROW_NUMBER() OVER (PARTITION BY s.order_id ORDER BY s.event_id DESC) AS rn
                     FROM {self.staging} s
-                    WHERE s.batch_id = :batch_id
+                    WHERE s.query_id = :query_id AND s.batch_id = :batch_id
                 )
                 WHERE rn = 1
             ) s
@@ -452,7 +469,20 @@ class AdwSink:
         if self._query_id is None:
             if not self.checkpoint_location:
                 raise ValueError("upsert_batch needs the streaming query's checkpoint_location")
-            self._query_id = checkpoint_query_id(self.checkpoint_location)
+            query_id = checkpoint_query_id(self.checkpoint_location)
+            if not self.allow_new_checkpoint:
+                with self.adw.connect() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(f"SELECT COUNT(*) FROM {self.batch_log} WHERE query_name = :q AND query_id <> :i",
+                                   q=self.query_name, i=query_id)
+                    if cursor.fetchone()[0]:
+                        raise RuntimeError(
+                            f"{self.batch_log} has batches of {self.query_name!r} from another checkpoint. A query "
+                            "on a new checkpoint replays the source table into ADW state built by the old one, "
+                            "which can bring back rows that skipped snapshots deleted. Start from empty ADW "
+                            "tables (notebook 2's clean-up), or pass allow_new_checkpoint=True if ADW already "
+                            "holds the right state.")
+            self._query_id = query_id
         return self._query_id
 
     @staticmethod
@@ -461,15 +491,19 @@ class AdwSink:
         newest_first = Window.partitionBy("order_id").orderBy(F.col("event_id").desc())
         return events_df.withColumn("_rn", F.row_number().over(newest_first)).where("_rn = 1").drop("_rn")
 
-    def _stage(self, rows_df, batch_id: int) -> int:
+    def _stage(self, rows_df, query_id: str, batch_id: int) -> int:
         """Insert rows into the staging table from the executors; returns the row count."""
         from pyspark.sql import functions as F
-        rows = rows_df.select(F.lit(batch_id).cast("bigint").alias("batch_id"), *STAGING_COLUMNS[1:])
+        rows = rows_df.select(F.lit(query_id).alias("query_id"), F.lit(batch_id).cast("bigint").alias("batch_id"),
+                              *STAGING_COLUMNS[2:])
         if self._executor_settings is None:
             # The password and wallet travel to the executors as a broadcast variable.
             self._executor_settings = self.spark.sparkContext.broadcast(self.adw.executor_settings())
         settings, sql, size = self._executor_settings, self.insert_sql, self.array_size
         return sum(rows.rdd.mapPartitions(lambda part: insert_partition(part, settings.value, sql, size)).collect())
+
+    def _clear_staging(self, cursor, query_id: str, batch_id: int) -> None:
+        cursor.execute(f"DELETE FROM {self.staging} WHERE query_id = :i AND batch_id = :b", i=query_id, b=batch_id)
 
     def _already_applied(self, cursor, query_id: str, batch_id: int) -> bool:
         cursor.execute(f"""SELECT COUNT(*) FROM {self.batch_log}
