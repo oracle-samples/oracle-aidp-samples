@@ -52,7 +52,8 @@ FETCH FIRST 5 ROWS ONLY;
 SELECT COUNT(*) AS events, MAX(event_id) AS last_event_id FROM order_events_iceberg;
 
 -- The native table the stream maintains, and its batch log.
-SELECT status, COUNT(*) AS orders FROM orders GROUP BY status ORDER BY 1;
+-- Deleted orders stay as tombstones (is_deleted = 'Y'), so that older events cannot bring them back.
+SELECT is_deleted, status, COUNT(*) AS orders FROM orders GROUP BY is_deleted, status ORDER BY 1, 2;
 SELECT batch_id, rows_in, rows_merged, applied_at
 FROM   stream_batch_log WHERE query_name = 'orders_to_adw' ORDER BY batch_id DESC FETCH FIRST 10 ROWS ONLY;
 
@@ -65,7 +66,7 @@ WITH latest AS (
          FROM order_events_iceberg e)
   WHERE rn = 1 AND op <> 'D')
 SELECT l.order_id, l.status AS source_status, o.status AS adw_status, l.event_id, o.last_event_id
-FROM   latest l FULL OUTER JOIN orders o ON o.order_id = l.order_id
+FROM   latest l FULL OUTER JOIN (SELECT * FROM orders WHERE is_deleted = 'N') o ON o.order_id = l.order_id
 WHERE  o.order_id IS NULL OR l.order_id IS NULL
    OR  o.last_event_id <> l.event_id
    OR  DECODE(o.region, l.region, 0, 1) = 1

@@ -16,6 +16,11 @@ function; for every micro-batch it:
 4. Runs one set-based MERGE from staging into ``ORDERS``, records the batch in
    ``STREAM_BATCH_LOG`` and removes the staged rows, all in one transaction.
 
+A delete event (``op = 'D'``) does not remove the order's row: it marks it ``is_deleted = 'Y'``
+and keeps its ``last_event_id``. Such a tombstone lets every MERGE reject an older event for the
+order, so neither a late event nor a resync can bring a deleted order back. Query live orders
+with ``WHERE is_deleted = 'N'``.
+
 Why not the built-in ``aidataplatform`` connector with ``write.mode=MERGE``? It works, but it
 creates and drops a staging table on every call (and by default stages the rows through Object
 Storage). In our test, loading the same 2,000 rows into a permanent staging table took 13.2 s
@@ -255,6 +260,7 @@ class AdwSink:
                     amount         NUMBER(12,2),
                     last_event_id  NUMBER(19)   NOT NULL,
                     last_event_ts  TIMESTAMP,
+                    is_deleted     VARCHAR2(1)  DEFAULT 'N' NOT NULL,
                     updated_at     TIMESTAMP    DEFAULT SYSTIMESTAMP)""",
             f"""CREATE TABLE IF NOT EXISTS {self.staging} (
                     query_id      VARCHAR2(36) NOT NULL,
@@ -284,7 +290,8 @@ class AdwSink:
             for statement in ddl:
                 cursor.execute(statement)
             # Tables made by an older version of this sample lack columns this version needs.
-            for table, column in ((self.staging, "QUERY_ID"), (self.staging, "WATERMARK_ID"), (self.batch_log, "QUERY_ID")):
+            for table, column in ((self.target, "IS_DELETED"), (self.staging, "QUERY_ID"),
+                                  (self.staging, "WATERMARK_ID"), (self.batch_log, "QUERY_ID")):
                 cursor.execute("SELECT COUNT(*) FROM user_tab_columns WHERE table_name = :t AND column_name = :c",
                                t=table, c=column)
                 if not cursor.fetchone()[0]:
@@ -369,7 +376,7 @@ class AdwSink:
         with self.adw.connect() as conn:
             cursor = conn.cursor()
             cursor.execute(f"DELETE FROM {self.target}")
-            # Into an empty table, the stream's MERGE inserts every order whose newest event is not a delete.
+            # Into an empty table, the stream's MERGE inserts every order -- deleted ones as tombstones.
             cursor.execute(self.stream_merge_sql, query_id=RESYNC_QUERY_ID, batch_id=reload_id)
             loaded = cursor.rowcount
             self._log_batch(cursor, f"reload:{label}"[:128], RESYNC_QUERY_ID, reload_id, staged, loaded, None, None)
@@ -390,7 +397,7 @@ class AdwSink:
         highest event_id of that order the caller looked at -- the events the skipped snapshot
         removed or added, and the order's newest surviving event. ``truth_df`` holds the newest
         surviving event of each affected order that still has one. Affected orders without a row
-        in ``truth_df`` are deleted from ADW.
+        in ``truth_df`` are marked deleted in ADW.
 
         An ADW row whose ``last_event_id`` is above its order's watermark reflects an event newer
         than anything the resync saw (the stream applied it meanwhile) and is left alone. ``label``
@@ -444,7 +451,7 @@ class AdwSink:
         """Compare the ADW table with the source, entirely inside ADW.
 
         The latest event per order is computed from the Iceberg external table (the source, read
-        in place) and joined with the target table that the stream maintains. It compares the
+        in place) and joined with the live rows of the target table. It compares the
         event id, region, status and amount; not the event timestamp, which the two tables store
         with different time zone handling. Run it once the consumer has caught up; while events
         are in flight, recent orders show as different.
@@ -465,7 +472,8 @@ class AdwSink:
                                       OR DECODE(o.region, l.region, 0, 1) = 1
                                       OR DECODE(o.status, l.status, 0, 1) = 1
                                       OR DECODE(o.amount, l.amount, 0, 1) = 1) THEN 1 END), 0)
-            FROM latest l FULL OUTER JOIN {self.target} o ON o.order_id = l.order_id"""
+            FROM latest l FULL OUTER JOIN (SELECT * FROM {self.target} WHERE is_deleted = 'N') o
+                 ON o.order_id = l.order_id"""
         row = self.fetch(sql)[0]
         keys = ("orders_in_source", "orders_in_adw", "missing_in_adw", "extra_in_adw", "different")
         return dict(zip(keys, (int(v) for v in row)))
@@ -487,12 +495,12 @@ class AdwSink:
             ON (t.order_id = s.order_id)
             WHEN MATCHED THEN UPDATE SET
                 t.region = s.region, t.status = s.status, t.amount = s.amount,
-                t.last_event_id = s.event_id, t.last_event_ts = s.event_ts, t.updated_at = SYSTIMESTAMP
+                t.last_event_id = s.event_id, t.last_event_ts = s.event_ts,
+                t.is_deleted = CASE WHEN s.op = 'D' THEN 'Y' ELSE 'N' END, t.updated_at = SYSTIMESTAMP
                 WHERE {matched_condition}
-                DELETE WHERE s.op = 'D'
-            WHEN NOT MATCHED THEN INSERT (order_id, region, status, amount, last_event_id, last_event_ts)
-                VALUES (s.order_id, s.region, s.status, s.amount, s.event_id, s.event_ts)
-                WHERE s.op <> 'D'"""
+            WHEN NOT MATCHED THEN INSERT (order_id, region, status, amount, last_event_id, last_event_ts, is_deleted)
+                VALUES (s.order_id, s.region, s.status, s.amount, s.event_id, s.event_ts,
+                        CASE WHEN s.op = 'D' THEN 'Y' ELSE 'N' END)"""
 
     def _stream_query_id(self) -> str:
         if self._query_id is None:

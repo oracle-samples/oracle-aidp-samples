@@ -86,7 +86,10 @@ def test_merge_sql_guards():
     for sql in (stream, resync):
         assert "MERGE INTO ORDERS t" in sql and "FROM ORDERS_STG s" in sql
         assert "PARTITION BY s.order_id ORDER BY s.event_id DESC" in sql   # one source row per key
-        assert "DELETE WHERE s.op = 'D'" in sql and "WHERE s.op <> 'D'" in sql
+        # A delete leaves a tombstone, also for an order ADW has not seen, so an older event
+        # can never bring the order back.
+        assert "DELETE WHERE" not in sql and "WHERE s.op <> 'D'" not in sql
+        assert sql.count("CASE WHEN s.op = 'D' THEN 'Y' ELSE 'N' END") == 2
     # The stream never lets an older event overwrite a newer one ...
     assert "WHERE s.event_id > t.last_event_id" in stream
     # ... while a resync overwrites unless ADW holds an event newer than the order's watermark.

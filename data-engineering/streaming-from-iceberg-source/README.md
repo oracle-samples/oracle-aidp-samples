@@ -208,17 +208,21 @@ processed one limited batch per run.
 4. The driver runs **one** set-based MERGE into `ORDERS`, logs the batch and clears its staging
    rows, in a single transaction.
 
-The MERGE applies an event only if its `event_id` is newer than the one the row reflects, deletes
-the order for `op = 'D'`, and inserts new orders:
+The MERGE applies an event only if its `event_id` is newer than the one the row reflects, and
+inserts new orders. A delete event does not remove the row: it turns it into a **tombstone**,
+`is_deleted = 'Y'` with the delete's `last_event_id`, so that no older event -- arriving late, or
+written by a resync -- can bring the order back. Live orders are `WHERE is_deleted = 'N'`.
 
 ```sql
 MERGE INTO orders t
 USING (SELECT ... FROM (SELECT s.*, ROW_NUMBER() OVER (PARTITION BY s.order_id ORDER BY s.event_id DESC) rn
-                        FROM orders_stg s WHERE s.batch_id = :batch_id) WHERE rn = 1) s
+                        FROM orders_stg s WHERE s.query_id = :query_id AND s.batch_id = :batch_id)
+       WHERE rn = 1) s
 ON (t.order_id = s.order_id)
-WHEN MATCHED THEN UPDATE SET ... WHERE s.event_id > t.last_event_id
-                         DELETE WHERE s.op = 'D'
-WHEN NOT MATCHED THEN INSERT (...) VALUES (...) WHERE s.op <> 'D'
+WHEN MATCHED THEN UPDATE SET ..., t.last_event_id = s.event_id,
+                             t.is_deleted = CASE WHEN s.op = 'D' THEN 'Y' ELSE 'N' END
+                  WHERE s.event_id > t.last_event_id
+WHEN NOT MATCHED THEN INSERT (..., is_deleted) VALUES (..., CASE WHEN s.op = 'D' THEN 'Y' ELSE 'N' END)
 ```
 
 Why not the built-in `aidataplatform` connector? It has a MERGE write mode, but every call
@@ -268,7 +272,7 @@ Hadoop catalog support (`iceberg_catalog_type: hadoop`, the warehouse folder, an
 `resync_snapshot` in notebook 3 handles any skipped `overwrite` or `delete` snapshot:
 `create_changelog_view` between the snapshot's parent and the snapshot lists the rows it
 removed and added; their orders are re-read from the current table and written to ADW with a
-MERGE; orders with no events left are deleted. The MERGE overwrites an ADW row unless its
+MERGE; orders with no events left become tombstones. The MERGE overwrites an ADW row unless its
 `last_event_id` is above that order's **watermark** -- the highest event id of the order that
 the changelog and the current table contain. A row above it was updated by an event that
 arrived later, and stays. Two rules:
@@ -317,6 +321,7 @@ version, changing it on a restart skips snapshots (see below).
 | `RENAME COLUMN` or `DROP COLUMN` on the table a streaming writer writes to stops that writer: "Field status not found in source schema", also after a restart, until its code changes. `ADD COLUMN` is fine: the writer leaves the new column `NULL`. | Change the writer's code together with the schema; try such changes on a copy first (notebook 3, section 6b). |
 | Every column type change is rejected, even Iceberg-legal widenings: "405 ... Changing Column Data Type operation is not supported for this data format". | Add a new column with the new type and migrate; or `CREATE OR REPLACE TABLE ... AS SELECT` and restart readers with a new checkpoint and `stream-from-timestamp`. |
 | `DROP TABLE` -- even `PURGE` -- leaves the files of a table with its own `LOCATION`; `CREATE TABLE` at that location then attaches to the old metadata, or fails with "Existing Iceberg schema at location ... does not match incoming schema" (it listed the partition column last, so even the identical DDL mismatched). | Delete the folder too; notebook 1's clean-up does it with the Hadoop `FileSystem` API. |
+| Right after `DROP TABLE`, file system calls on the dropped table's folder failed for a while with "GeneratePar operation in LakeSharing service (404, NotAuthorizedOrNotFound) ... READ operation"; a minute later they worked. Our inference: AIDP authorises `oci://` paths through its catalog, and the path no longer belongs to a table. Separately, one recursive delete of a large folder left about half of its objects behind. | The clean-up cells retry the delete and check that the folder is gone. |
 | A **new** query on a table whose old snapshots were compacted and expired reads nothing: it starts at the oldest snapshot, a `replace`, and reads only files that snapshot added. 0 of 60 rows. | Bootstrap: load the table once in batch at a snapshot, then stream with `stream-from-timestamp` just after it (notebook 3, section 7b). |
 | A query restarted after the snapshot in its checkpoint was expired fails: "Cannot load current offset at snapshot ..., the snapshot was expired or removed". | Expire only behind the oldest reader's position: `stream_control.committed_source_offset(checkpoint)` reads it. |
 
