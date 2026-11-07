@@ -53,7 +53,8 @@ What one change to the source table does to a stream reading it:
 
 The consumer in notebook 2 sets both skip options so that it survives notebook 3, and notebook 3
 shows how to apply the skipped changes to ADW. After all of notebook 3's changes, ADW and the
-Iceberg table matched exactly: 4,970 orders on each side, 0 missing, 0 extra, 0 different.
+Iceberg table matched: 4,970 orders on each side, none missing, none extra, none with a
+different event id, region, status or amount (`AdwSink.compare_with_source`).
 
 ---
 
@@ -121,11 +122,14 @@ notebooks plus `adw_sink.py` and `stream_control.py`. In each notebook, set `WAR
 
 ## Run it
 
-1. Open notebook 1 and run all cells. The last cell starts the producer and keeps running.
-2. Open notebook 2 in another tab and run all cells. Its stream cell keeps running too.
+1. Open notebook 1 and run its cells up to and including **Start the stream**. That cell keeps
+   running while the producer runs.
+2. Open notebook 2 in another tab and run its cells up to and including **Start the stream**.
 3. Work through notebook 3, section by section. Its last section stops both streams, catches up
    the skipped changes and compares ADW with the source.
-4. Optional: run the clean-up cells of notebooks 2 and 1.
+4. Once the streams have stopped, the stream cells return; then run the remaining cells of
+   notebooks 2 and 1 -- the checks, and the optional clean-up. While a stream runs, the cells
+   after it cannot run (see the caveats).
 
 Each stream stops by itself after `RUN_MINUTES`, or when notebook 3 calls
 `stream_control.request_stop(CONTROL_DIR, "producer" | "consumer")`.
@@ -192,8 +196,10 @@ processed one limited batch per run.
 
 `adw_sink.AdwSink.upsert_batch` is the `foreachBatch` function:
 
-1. Skip the batch if `STREAM_BATCH_LOG` records it (Spark replays the last batch after a restart
-   if it was not marked complete).
+1. Skip the batch if `STREAM_BATCH_LOG` records it for this query (Spark replays the last batch
+   after a restart if it was not marked complete). The log key is the query name, the query id
+   Spark keeps in the checkpoint's `metadata` file, and the batch id -- so a query started on a
+   new checkpoint, whose batch ids start again at 0, is never mistaken for an earlier one.
 2. Keep the newest event per order (no duplicate keys for the MERGE, ORA-30926).
 3. Executors insert the rows into a **permanent** staging table with python-oracledb array
    inserts, in parallel.
@@ -224,9 +230,10 @@ Notes:
 
 - Executors cannot read `/Volumes` paths, so Spark JDBC with `TNS_ADMIN=/Volumes/...` fails on
   them ("The Network Adapter could not establish the connection"). The driver therefore
-  broadcasts the PEM wallet and the connect descriptor; each executor writes the wallet once to
-  a private temporary folder. The ADW password travels to the executors as part of that
-  broadcast.
+  broadcasts the PEM wallet, the connect descriptor and the ADW password. Each insert task
+  writes the wallet to a new private temporary folder and deletes it as soon as the connection
+  is open. Anyone who can run code on the cluster's executors could still read the broadcast:
+  run the pipeline on a cluster whose users may see these credentials.
 - A task Spark re-runs after it committed stages its rows twice; the MERGE keeps one row per
   order, so the result is unchanged.
 
@@ -254,8 +261,10 @@ Hadoop catalog support (`iceberg_catalog_type: hadoop`, the warehouse folder, an
 `resync_snapshot` in notebook 3 handles any skipped `overwrite` or `delete` snapshot:
 `create_changelog_view` between the snapshot's parent and the snapshot lists the rows it
 removed and added; their orders are re-read from the current table and written to ADW with a
-MERGE that overwrites unless ADW already holds a newer event; orders with no events left are
-deleted. Two rules:
+MERGE; orders with no events left are deleted. The MERGE overwrites an ADW row unless its
+`last_event_id` is above that order's **watermark** -- the highest event id of the order that
+the changelog and the current table contain. A row above it was updated by an event that
+arrived later, and stays. Two rules:
 
 - **Resync only after the consumer has passed the snapshot.** Otherwise the consumer can still
   deliver older appends of those orders afterwards -- in one test it re-inserted 3 orders that a
@@ -270,7 +279,7 @@ deleted. Two rules:
 |---|---|
 | While a stream started from a notebook runs, other cells of **that** notebook wait ~95 s and fail with "Command execution failed on compute cluster." Other notebooks cannot see the query (separate Spark sessions, one Spark application). | One notebook per long-running stream; run the stream inside one blocking cell (`stream_control.run_until_stopped`). |
 | Closing or deleting the notebook session does **not** stop its stream; one kept committing for an hour. The kernel itself also outlives the session: edited helper modules stay loaded until the kernel restarts (or `importlib.reload`). | Always stop with `query.stop()` -- `run_until_stopped` does, on a stop file or a time limit. Last resort: `stream_control.list_cluster_streams(spark)` and `stop_cluster_stream(spark, run_id)`, which interrupts the query's driver thread. `sparkContext.cancelJobGroup(run_id)` only stopped queries that had a batch running at that moment (2 of 6). |
-| Stopping a query in the middle of a micro-batch cancels that batch's job, and AIDP marks the cell failed ("Streaming query failed: JobFailed ... cancelled job group"). | `run_until_stopped` waits for the running batch to finish before `stop()`. |
+| Stopping a query in the middle of a micro-batch cancels that batch's job, and AIDP marks the cell failed ("Streaming query failed: JobFailed ... cancelled job group"); nothing is lost, the batch runs again on restart. | `run_until_stopped` waits up to two minutes for the running batch to finish before `stop()`; in our runs no batch was cancelled. A trigger starting in between can still be. |
 | Concurrent writers to one native Iceberg table race for the next `vN.metadata.json`; losers fail with `CommitFailedException: Version N already exists` once retries run out. A 10-second streaming writer starved another writer for 16 minutes. | Trigger at 1 minute or more; raise `commit.retry.num-retries`; retry writes on that error (notebook 3's `committed`). See [Concurrent Writes to Native Iceberg Tables](../transformation/iceberg/Iceberg_Concurrent_Writes.ipynb). |
 | `RENAME COLUMN` or `DROP COLUMN` on the table a streaming writer writes to stops that writer: "Field status not found in source schema", also after a restart, until its code changes. `ADD COLUMN` is fine: the writer leaves the new column `NULL`. | Change the writer's code together with the schema; try such changes on a copy first (notebook 3, section 6b). |
 | Every column type change is rejected, even Iceberg-legal widenings: "405 ... Changing Column Data Type operation is not supported for this data format". | Add a new column with the new type and migrate; or `CREATE OR REPLACE TABLE ... AS SELECT` and restart readers with a new checkpoint and `stream-from-timestamp`. |

@@ -89,10 +89,11 @@ def test_merge_sql_guards():
         assert "DELETE WHERE s.op = 'D'" in sql and "WHERE s.op <> 'D'" in sql
     # The stream never lets an older event overwrite a newer one ...
     assert "WHERE s.event_id > t.last_event_id" in stream
-    # ... while a resync overwrites unless ADW already holds an event newer than its snapshot.
-    assert "WHERE t.last_event_id <= :as_of_max_event_id" in resync
+    # ... while a resync overwrites unless ADW holds an event newer than the order's watermark.
+    assert "WHERE t.last_event_id <= s.watermark_id" in resync
     assert sink.insert_sql.startswith("INSERT INTO ORDERS_STG (batch_id, event_id, order_id")
     assert sink.insert_sql.count(":") == len(adw_sink.STAGING_COLUMNS)
+    assert adw_sink.STAGING_COLUMNS[-1] == "watermark_id"
 
 
 def test_insert_partition_batches_rows_and_commits(monkeypatch, tmp_path):
@@ -114,18 +115,35 @@ def test_insert_partition_batches_rows_and_commits(monkeypatch, tmp_path):
 
     def connect(**kwargs):
         calls["connect"] = kwargs
+        pem = pathlib.Path(kwargs["wallet_location"]) / "ewallet.pem"   # what the driver sees at connect time
+        calls["pem"] = (pem.read_bytes(), pem.stat().st_mode & 0o077)
         return Conn()
 
     monkeypatch.setitem(sys.modules, "oracledb", types.SimpleNamespace(connect=connect))
-    monkeypatch.setattr(adw_sink.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(adw_sink.tempfile, "tempdir", str(tmp_path))
     settings = {"user": "U", "password": "P", "wallet_password": "W", "descriptor": "(description=x)",
                 "wallet_pem": "LS0tLS1CRUdJTi0tLS0t"}
     counts = list(adw_sink.insert_partition(iter([(i,) for i in range(5)]), settings, "INSERT ...", array_size=2))
     assert counts == [5]
     assert calls["executemany"] == [2, 2, 1] and calls["commit"] == 1 and calls["closed"]
-    wallet_dir = pathlib.Path(calls["connect"]["wallet_location"])
-    assert (wallet_dir / "ewallet.pem").read_bytes() == b"-----BEGIN-----"
-    assert (wallet_dir / "ewallet.pem").stat().st_mode & 0o077 == 0     # readable by the owner only
+    assert calls["pem"] == (b"-----BEGIN-----", 0)                  # owner-only while it exists ...
+    assert not pathlib.Path(calls["connect"]["wallet_location"]).exists()   # ... and gone after connect
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_checkpoint_query_id(tmp_path):
+    (tmp_path / "metadata").write_text('{"id":"f4d24539-8726-4fd8-befb-b7880876a91f"}')
+    assert adw_sink.checkpoint_query_id(str(tmp_path)) == "f4d24539-8726-4fd8-befb-b7880876a91f"
+
+
+def test_upsert_batch_requires_the_checkpoint():
+    with pytest.raises(ValueError, match="checkpoint_location"):
+        _sink()._stream_query_id()
+
+
+def test_connection_repr_hides_secrets():
+    text = repr(adw_sink.AdwConnection("U", "s3cret", "mydb_low", "/w", "walletpw"))
+    assert "s3cret" not in text and "walletpw" not in text and "mydb_low" in text
 
 
 # ---- stream_control ----------------------------------------------------------------------------

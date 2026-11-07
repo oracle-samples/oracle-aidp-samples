@@ -74,9 +74,11 @@ def run_until_stopped(
     ``"stop file"``, ``"time limit"`` or ``"query terminated"``. If the query failed, its
     ``StreamingQueryException`` propagates after the query has been stopped.
 
-    On a stop file or the time limit, the query is stopped between micro-batches: stopping it
-    in the middle of one cancels that batch's Spark job, and AIDP then reports the cell as failed
-    ("Streaming query failed: JobFailed ... cancelled job group") although nothing went wrong.
+    On a stop file or the time limit, it first waits -- up to two minutes -- for the running
+    micro-batch to finish. Stopping a query in the middle of a batch cancels that batch's Spark
+    job, and AIDP then reports the cell as failed ("Streaming query failed: JobFailed ...
+    cancelled job group") although nothing is lost: the batch runs again on restart. A trigger
+    that starts between the check and ``stop()`` can still be cancelled; in our runs none was.
 
     A stop file left over from an earlier run is removed first, so call this right after
     ``start()``.
@@ -100,7 +102,9 @@ def run_until_stopped(
             if time.monotonic() >= next_report:
                 printer(progress_line(query))
                 next_report = time.monotonic() + report_every_seconds
-        wait_for_idle(query)
+        if not wait_for_idle(query):
+            printer(f"{name}: a micro-batch is still running after two minutes; stopping anyway "
+                    "(it runs again when the query restarts)")
     finally:
         query.stop()
     printer(f"{name}: stopped ({reason}). {progress_line(query)}")
