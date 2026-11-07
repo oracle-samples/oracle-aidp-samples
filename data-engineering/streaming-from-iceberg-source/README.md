@@ -241,9 +241,8 @@ Notes:
 - **Starting the consumer on a new checkpoint** while ADW keeps its tables would replay the
   source from its oldest snapshot into the state the old query built: orders that skipped
   snapshots deleted would come back. So the first batch of a new checkpoint fails if
-  `STREAM_BATCH_LOG` has batches of another checkpoint under the same query name. Start over
-  from empty ADW tables (notebook 2's clean-up), or pass `allow_new_checkpoint=True` to
-  `AdwSink` once ADW holds the right state.
+  `STREAM_BATCH_LOG` has batches of another checkpoint under the same query name. See
+  [Starting over on a new checkpoint](#starting-over-on-a-new-checkpoint).
 
 ### Reading the Iceberg table in place
 
@@ -274,12 +273,36 @@ MERGE; orders with no events left are deleted. The MERGE overwrites an ADW row u
 the changelog and the current table contain. A row above it was updated by an event that
 arrived later, and stays. Two rules:
 
-- **Resync only after the consumer has read every append committed before the snapshot.**
-  Otherwise it can still deliver older appends of those orders afterwards -- in one test it
-  re-inserted 3 orders that a partition `DELETE` had removed. `resync_snapshot` first waits until
-  the consumer's checkpoint points past the last such append, or points at it and plans no
-  further micro-batch for longer than the consumer's trigger interval.
+- **Resync only after the consumer has applied every earlier append.** Otherwise it can still
+  deliver older appends of those orders afterwards -- in one test it re-inserted 3 orders that a
+  partition `DELETE` had removed. `resync_snapshot` first appends a marker event and waits until
+  ADW has it: the stream applies appends in commit order, so everything before the marker is
+  in ADW too.
 - **Resync before expiring the snapshot.** The changelog needs the snapshot and its parent.
+
+### Starting over on a new checkpoint
+
+A rebuilt source table (`CREATE OR REPLACE TABLE ... AS SELECT`), an expired checkpoint position,
+or a lost checkpoint all mean starting the consumer on a new checkpoint. Replaying the table's
+history into ADW is not safe -- skipped deletes would come back -- and after snapshot expiry a new
+query may read nothing at all. Bootstrap instead:
+
+```python
+# 1. Stop the consumer (notebook 3: stream_control.request_stop(CONTROL_DIR, "consumer")).
+# 2. Reload ADW from one snapshot of the source.
+snap = spark.sql(f"SELECT snapshot_id, unix_millis(committed_at) AS ms FROM {SOURCE_TABLE}.refs r "
+                 f"JOIN {SOURCE_TABLE}.snapshots s USING (snapshot_id) WHERE r.name = 'main'").first()
+sink.reload(spark.sql(f"SELECT * FROM {SOURCE_TABLE} VERSION AS OF {snap.snapshot_id}"), label=f"bootstrap-{snap.snapshot_id}")
+# 3. Start the consumer on a new checkpoint, from just after that snapshot.
+READ_OPTIONS["stream-from-timestamp"] = str(snap.ms + 1)
+CONSUMER_CHECKPOINT = f"{STATE_DIR}/consumer-{snap.snapshot_id}"
+sink = adw_sink.AdwSink(spark, adw, query_name=CONSUMER_QUERY, checkpoint_location=CONSUMER_CHECKPOINT,
+                        allow_new_checkpoint=True)
+# ... then run notebook 2's "Start the stream" cell with this CONSUMER_CHECKPOINT.
+```
+
+Set `stream-from-timestamp` only on the *first* start of the new checkpoint: on this Iceberg
+version, changing it on a restart skips snapshots (see below).
 
 ---
 

@@ -154,19 +154,6 @@ def committed_source_offset(checkpoint_dir: str, source_index: int = 0) -> Optio
     return json.loads(sources[source_index])
 
 
-def pending_batch(checkpoint_dir: str) -> bool:
-    """True if the query has planned a micro-batch that has not completed yet.
-
-    Spark writes ``offsets/<n>`` when it plans batch n and ``commits/<n>`` when the batch is done.
-    A query that has read everything available plans nothing new, so this stays False.
-    """
-    def batches(sub):
-        folder = os.path.join(checkpoint_dir, sub)
-        return [int(f) for f in os.listdir(folder) if f.isdigit()] if os.path.isdir(folder) else []
-    planned, done = batches("offsets"), batches("commits")
-    return bool(planned) and max(planned) > max(done, default=-1)
-
-
 def list_cluster_streams(spark) -> List[dict]:
     """Every streaming query running on this cluster, from any notebook. Read only."""
     found = []

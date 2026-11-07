@@ -272,16 +272,6 @@ def test_bad_name_still_stops_the_query(tmp_path):
     assert q.stopped
 
 
-def test_pending_batch(tmp_path):
-    assert stream_control.pending_batch(str(tmp_path)) is False
-    (tmp_path / "offsets").mkdir()
-    (tmp_path / "commits").mkdir()
-    (tmp_path / "offsets" / "0").write_text("v1")
-    assert stream_control.pending_batch(str(tmp_path)) is True       # planned, not done
-    (tmp_path / "commits" / "0").write_text("v1")
-    assert stream_control.pending_batch(str(tmp_path)) is False
-
-
 def test_time_limit(tmp_path):
     q = FakeQuery()
     reason = stream_control.run_until_stopped(q, str(tmp_path), "p", max_minutes=0, poll_seconds=0,

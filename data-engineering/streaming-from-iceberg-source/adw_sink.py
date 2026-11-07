@@ -211,8 +211,10 @@ class AdwSink:
     A query on a **new** checkpoint replays the source table from its oldest snapshot, while the
     ADW table still holds the state the old query built: rows that skipped snapshots later
     deleted would come back. So the first batch of a new checkpoint fails if STREAM_BATCH_LOG
-    has batches of another checkpoint under the same query name. Start from empty ADW tables
-    (notebook 2's clean-up), or set ``allow_new_checkpoint=True`` once ADW holds the right state.
+    has batches of another checkpoint under the same query name. To start over, either drop the
+    ADW tables (notebook 2's clean-up), or bootstrap: ``reload()`` ADW from one snapshot, then
+    start the new query with ``stream-from-timestamp`` just after that snapshot and
+    ``allow_new_checkpoint=True`` (README, "Starting over on a new checkpoint").
     """
 
     def __init__(self, spark, adw: AdwConnection, query_name: str, checkpoint_location: Optional[str] = None,
@@ -351,6 +353,36 @@ class AdwSink:
         finally:
             batch_df.unpersist()
 
+    def reload(self, snapshot_df, label: str) -> int:
+        """Replace the whole ADW table with the newest surviving event per order of one snapshot.
+
+        ``snapshot_df`` is the source table read at one snapshot, e.g. ``VERSION AS OF <id>``.
+        Use it to bootstrap ADW before starting a query on a new checkpoint from just after that
+        snapshot. The stream must not be running. Returns the number of orders loaded.
+        """
+        from pyspark.sql import functions as F
+
+        newest = self._newest_per_order(snapshot_df.select(*EVENT_COLUMNS)).withColumn(
+            "watermark_id", F.lit(None).cast("bigint"))
+        reload_id = -int(time.time() * 1000)
+        staged = self._stage(newest, RESYNC_QUERY_ID, reload_id)
+        with self.adw.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"DELETE FROM {self.target}")
+            # Into an empty table, the stream's MERGE inserts every order whose newest event is not a delete.
+            cursor.execute(self.stream_merge_sql, query_id=RESYNC_QUERY_ID, batch_id=reload_id)
+            loaded = cursor.rowcount
+            self._log_batch(cursor, f"reload:{label}"[:128], RESYNC_QUERY_ID, reload_id, staged, loaded, None, None)
+            self._clear_staging(cursor, RESYNC_QUERY_ID, reload_id)
+            conn.commit()
+        print(f"reload {label!r}: {loaded} orders loaded")
+        return loaded
+
+    def resync_applied(self, label: str) -> bool:
+        """True if a resync with this label has already been applied."""
+        rows = self.fetch(f"SELECT COUNT(*) FROM {self.batch_log} WHERE query_name = :q", q=f"resync:{label}"[:128])
+        return rows[0][0] > 0
+
     def resync_orders(self, truth_df, watermarks_df, label: str) -> int:
         """Make ADW match the source table for some orders, for changes the stream skipped.
 
@@ -373,12 +405,9 @@ class AdwSink:
         from pyspark.sql import functions as F
 
         log_name = f"resync:{label}"[:128]
-        with self.adw.connect() as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT COUNT(*) FROM {self.batch_log} WHERE query_name = :q", q=log_name)
-            if cursor.fetchone()[0]:
-                print(f"resync {label!r} was already applied, skipped")
-                return 0
+        if self.resync_applied(label):
+            print(f"resync {label!r} was already applied, skipped")
+            return 0
         resync_id = -int(time.time() * 1000)   # negative ids never collide with stream batch ids
         truth = truth_df.select(*EVENT_COLUMNS)
         # One row per affected order: its newest surviving event, or a tombstone (op 'D') if none is left.
