@@ -341,3 +341,53 @@ def test_committed_source_offset_before_first_batch(tmp_path):
     assert stream_control.committed_source_offset(str(tmp_path)) is None
     (tmp_path / "commits").mkdir()
     assert stream_control.committed_source_offset(str(tmp_path)) is None
+
+
+# ---- scratch_tables -----------------------------------------------------------------------------
+
+import re as _re  # noqa: E402
+
+import scratch_tables  # noqa: E402
+
+
+class _FakeCatalogSpark:
+    """Records SQL and keeps a set of table names, like a tiny catalog."""
+
+    def __init__(self, existing):
+        self.tables = set(existing)
+        self.statements = []
+
+    def sql(self, statement):
+        self.statements.append(statement)
+        m = _re.match(r"CREATE TABLE (\S+) ", statement)
+        if m:
+            self.tables.add(m.group(1))
+        m = _re.match(r"DROP TABLE IF EXISTS (\S+)", statement)
+        if m:
+            self.tables.discard(m.group(1))
+
+
+def test_scratch_cleanup_leaves_unrelated_scratch_tables_alone():
+    unrelated = "default.demo.scratch_existing_unrelated"
+    spark = _FakeCatalogSpark({unrelated, "default.demo.order_events"})
+    scratch = scratch_tables.ScratchTables(spark, "default", "demo", "oci://b@ns/wh/")
+    mine = scratch.create("schema_lab", "SELECT 1 AS id")
+    assert mine.startswith("default.demo.scratch_schema_lab_")
+    deleted = []
+    dropped = scratch.drop_all(delete=lambda location: deleted.append(location) or True)
+
+    assert dropped == [mine]
+    assert spark.tables == {unrelated, "default.demo.order_events"}       # the unrelated table survives
+    assert deleted == [f"oci://b@ns/wh/demo/{mine.split('.')[-1]}"]       # and so does its folder
+    assert not any(unrelated in s for s in spark.statements)
+    assert scratch.created == []
+
+
+def test_scratch_cleanup_keeps_tables_whose_folder_is_left_for_a_retry():
+    spark = _FakeCatalogSpark(set())
+    scratch = scratch_tables.ScratchTables(spark, "default", "demo", "oci://b@ns/wh")
+    mine = scratch.create("expiry_lab", "SELECT 1 AS id")
+    assert scratch.drop_all(delete=lambda location: False) == []
+    assert [t for t, _ in scratch.created] == [mine]                        # still recorded ...
+    assert scratch.drop_all(delete=lambda location: True) == [mine]         # ... so a second call finishes it
+    assert scratch.created == []

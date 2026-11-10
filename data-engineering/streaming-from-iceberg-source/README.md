@@ -349,6 +349,7 @@ describe the newest release. On AIDP's 1.8.x build:
 | `01_producer_rate_to_iceberg.ipynb`, `02_consumer_iceberg_to_adw.ipynb`, `03_source_table_changes.ipynb` | The three notebooks, outputs cleared. |
 | `adw_sink.py` | `AdwConnection` (Credential Store + wallet), `AdwSink`: table DDL, `upsert_batch`, `resync_orders`, `create_iceberg_external_table`, `compare_with_source`. |
 | `stream_control.py` | `run_until_stopped`, `request_stop`, `committed_source_offset`, `list_cluster_streams`, `stop_cluster_stream`. |
+| `scratch_tables.py` | `ScratchTables`: the scratch Iceberg tables notebook 3 creates, recorded by name and location so that its clean-up drops those and nothing else. |
 | `sql/adw_setup.sql` | ADW user, grants, Object Storage credential, and queries over both ADW tables. |
 | `tests/test_helpers.py` | Offline tests for the two modules. |
 
@@ -361,13 +362,13 @@ python3 -m pytest -q tests
 
 The tests need no Spark and no database: they cover identifier validation, TNS descriptor and
 Hadoop-catalog path parsing, the generated MERGE and INSERT statements, the executor insert loop
-(with a fake driver), the stop logic of `run_until_stopped`, and checkpoint parsing.
+(with a fake driver), the stop logic of `run_until_stopped`, checkpoint parsing, and that the scratch clean-up drops only the tables it created.
 
 ## Clean up
 
 - Notebook 2, last cell: drops `ORDERS`, `ORDERS_STG`, `STREAM_BATCH_LOG` and the external table.
 - Notebook 1, last cell: drops the Iceberg table, deletes its folder and the checkpoints.
-- Notebook 3, last cell: drops its scratch tables.
+- Notebook 3, last cell (`CLEAN_UP = True`): drops the scratch tables that run created and deletes their folders; other tables, also ones named `scratch_...`, are left alone.
 - Then, if you no longer need them: the Credential Store entry, the wallet folder, the
   `ICEBERG_STREAM` user and its `OCI_ICEBERG_CRED` credential in ADW.
 
