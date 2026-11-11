@@ -2,7 +2,7 @@
 // Static QA for the Ask AIDP Claude Code plugin.
 //
 // Checks (no live AIDP / OCI calls):
-//   1. MCP stdio smoke test: initialize -> tools/list returns 43 tools,
+//   1. MCP stdio smoke test: initialize -> tools/list returns 44 tools,
 //      server name is "ask-aidp", and nothing non-JSON is printed to stdout.
 //   2. .mcp.json uses the wrapped mcpServers format with ${CLAUDE_PLUGIN_ROOT}.
 //   3. No broken or absolute symlinks anywhere in the plugin tree.
@@ -14,6 +14,8 @@
 //   6. CLI root request-model selection and Compute export REST transport
 //      (mocked HTTP), plus CLI/REST lookup and REST planning for every
 //      August/September 2026 addition.
+//   7. REST supplement merge (MLOps model deployment and private network
+//      profile operations) and aidp_model_deployment planning.
 //
 // Exit code is non-zero if any check fails.
 import { spawnSync } from 'node:child_process';
@@ -22,13 +24,17 @@ import { existsSync, readFileSync, readdirSync, readlinkSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeExportTransportTest, exportFields, exportModel, requestBodyReferenceTest } from './qa-compute-export.mjs';
+import { mergeRestApiSupplement } from '../mcp/ask-aidp-server.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const MARKETPLACE_ROOT = path.resolve(PLUGIN_ROOT, '..', '..');
 const SERVER = path.join(PLUGIN_ROOT, 'mcp', 'ask-aidp-server.mjs');
-const EXPECTED_VERSION = '0.10.0';
-const EXPECTED_TOOLS = 43;
+const EXPECTED_VERSION = '0.11.0';
+const EXPECTED_TOOLS = 44;
+const GENERATED_REST = { categories: 19, operations: 271 };
+const SUPPLEMENT_REST = { categories: 2, operations: 27 };
+const MERGED_REST = { categories: 20, operations: 298 };
 const MAX_STDIO_BUFFER = 16 * 1024 * 1024;
 const EXPECTED_TOOL_NAMES = [
   'aidp_cli',
@@ -56,6 +62,7 @@ const EXPECTED_TOOL_NAMES = [
   'aidp_create_ai_compute',
   'aidp_list_ai_computes',
   'aidp_update_ai_compute',
+  'aidp_model_deployment',
   'aidp_collect_logs',
   'aidp_track_runs',
   'aidp_create_schema',
@@ -121,7 +128,7 @@ function smokeTest() {
     missingTools.length === 0 && unexpectedTools.length === 0,
     missingTools.length || unexpectedTools.length
       ? `missing=${missingTools.join(',') || 'none'} unexpected=${unexpectedTools.join(',') || 'none'}`
-      : 'all 43 expected tools present'
+      : `all ${EXPECTED_TOOLS} expected tools present`
   );
   const tableTool = tools.find((tool) => tool.name === 'aidp_create_table_with_data');
   const headerSchemaIsSafe = tableTool?.inputSchema?.properties?.csvIncludeHeader?.const === false;
@@ -135,7 +142,13 @@ function referenceCatalogs() {
   record('cli-agent-reference', Boolean(agentDeploy), agentDeploy ? 'aidp agent deploy present' : 'aidp agent deploy missing');
 
   const rest = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-reference.json'), 'utf8'));
-  record('rest-reference-counts', rest.categoryCount === 19 && rest.operationCount === 271, `categories=${rest.categoryCount}, operations=${rest.operationCount}`);
+  record('rest-reference-counts', rest.categoryCount === GENERATED_REST.categories && rest.operationCount === GENERATED_REST.operations, `categories=${rest.categoryCount}, operations=${rest.operationCount}`);
+
+  const supplement = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-supplement.json'), 'utf8'));
+  const supplementOps = supplement.categories.flatMap((category) => category.operations);
+  const supplementOk = Boolean(supplement.verifiedAt) && supplement.categories.length === SUPPLEMENT_REST.categories && supplementOps.length === SUPPLEMENT_REST.operations
+    && supplementOps.every((op) => op.operationId && op.documented === false && op.path.startsWith('/20260430/aiDataPlatforms/{aiDataPlatformId}/'));
+  record('rest-supplement-counts', supplementOk, `categories=${supplement.categories.length}, operations=${supplementOps.length}`);
 }
 
 // 2
@@ -272,9 +285,10 @@ function toolDryRuns() {
   record('dryrun-create-ai-compute', aiComputeOk, aiComputeOk ? 'AI Compute dry-run returns typed cluster body' : `AI Compute dry-run mismatch: ${aiCompute.detail}`);
 
   const restReference = planFor(responses, 16);
-  const restReferenceOk = !restReference.isError && restReference.plan?.categoryCount === 19
-    && restReference.plan?.operationCount === 271 && restReference.plan?.apiVersion === '20260430';
-  record('rest-reference-summary', restReferenceOk, restReferenceOk ? 'REST reference exposes 19 categories and 271 operations' : `REST reference mismatch: ${restReference.detail}`);
+  const restReferenceOk = !restReference.isError && restReference.plan?.categoryCount === MERGED_REST.categories
+    && restReference.plan?.operationCount === MERGED_REST.operations && restReference.plan?.apiVersion === '20260430'
+    && restReference.plan?.supplement?.operationCount === SUPPLEMENT_REST.operations;
+  record('rest-reference-summary', restReferenceOk, restReferenceOk ? `REST reference exposes ${MERGED_REST.categories} categories and ${MERGED_REST.operations} operations (${SUPPLEMENT_REST.operations} from the supplement)` : `REST reference mismatch: ${restReference.detail}`);
 
   const rest = planFor(responses, 17);
   const restOk = !rest.isError && String(rest.plan?.url || '').includes('/20260430/aiDataPlatforms/ocid1.aidataplatform.oc1..example/workspaces/workspace-key/clusters?type=AI_COMPUTE');
@@ -374,6 +388,126 @@ function latestOperationChecks() {
   record('rest-bundle-status-method', wrongMethodRejected, wrongMethodRejected ? 'GET getBundlePublishStatus rejected; operation reference requires POST' : `expected rejection, got: ${wrongMethod.detail}`);
 }
 
+// 7
+const QA_CONFIG = {
+  endpoint: 'https://aidp.example.com',
+  instanceId: 'ocid1.aidataplatform.oc1..example',
+  workspaceKey: 'workspace-key'
+};
+const QA_DEPLOYMENT_ID = '0123456789abcdef0123456789abcdef';
+
+function supplementMergeChecks() {
+  const generated = {
+    apiVersion: '20260430',
+    categories: [{ id: 'mlops', name: 'MLOps', operationCount: 1, operations: [{ name: 'Documented', method: 'GET', path: '/20260430/x', referenceUrl: 'https://docs.example' }] }]
+  };
+  const supplement = {
+    source: 'qa',
+    verifiedAt: '2026-11-10',
+    categories: [
+      { id: 'mlops', name: 'MLOps', operations: [{ name: 'Duplicate', method: 'GET', path: '/20260430/x' }, { name: 'Extra', method: 'POST', path: '/20260430/y' }] },
+      { id: 'new-category', name: 'NewCategory', description: 'qa', operations: [{ name: 'New', method: 'GET', path: '/20260430/z' }] }
+    ]
+  };
+  const merged = mergeRestApiSupplement(generated, supplement);
+  const mlops = merged.categories.find((category) => category.name === 'MLOps');
+  const documentedWins = mlops.operations.filter((op) => op.path === '/20260430/x').length === 1
+    && mlops.operations.find((op) => op.path === '/20260430/x').name === 'Documented';
+  const ok = documentedWins && mlops.operationCount === 2 && merged.categoryCount === 2 && merged.operationCount === 3
+    && merged.supplement.operationCount === 2 && generated.categories[0].operations.length === 1
+    && merged.categories.find((category) => category.name === 'NewCategory')?.operations[0]?.source === 'supplement';
+  record('rest-supplement-merge', ok, ok ? 'documented entries win, new categories are added, counts are recomputed, input is not mutated' : JSON.stringify(merged).slice(0, 300));
+}
+
+function supplementOperationChecks() {
+  const supplement = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-supplement.json'), 'utf8'));
+  const operations = supplement.categories.flatMap((category) => category.operations.map((op) => ({ ...op, category: category.name })));
+  const fill = (value) => value
+    .replace('{deploymentId}', QA_DEPLOYMENT_ID)
+    .replace('{registeredModelKey}', 'catalog.schema.model')
+    .replace('{privateNetworkProfileKey}', 'profile-key')
+    .replace('{requestId}', 'request-id')
+    .replace('{logId}', 'log-id');
+  const calls = operations.flatMap((op, index) => [
+    { jsonrpc: '2.0', id: 500 + index * 2, method: 'tools/call', params: { name: 'aidp_rest_api_reference', arguments: { category: op.category, search: op.path } } },
+    { jsonrpc: '2.0', id: 501 + index * 2, method: 'tools/call', params: { name: 'aidp_rest', arguments: { method: op.method, path: fill(op.path), dryRun: true, config: QA_CONFIG } } }
+  ]);
+  const unlistedId = 499;
+  calls.push({ jsonrpc: '2.0', id: unlistedId, method: 'tools/call', params: { name: 'aidp_rest', arguments: { method: 'POST', path: `/20260430/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/model-deployments/${QA_DEPLOYMENT_ID}/actions/qa-unlisted-operation`, dryRun: true, config: QA_CONFIG } } });
+  const responses = callServer(calls);
+
+  const failures = [];
+  operations.forEach((op, index) => {
+    const lookup = planFor(responses, 500 + index * 2);
+    if (lookup.isError || !lookup.plan?.matches?.some((match) => match.method === op.method && match.path === op.path && match.source === 'supplement')) {
+      failures.push(`REST reference: ${op.method} ${op.path}`);
+    }
+    const plan = planFor(responses, 501 + index * 2);
+    let planPath = '';
+    try { planPath = new URL(plan.plan?.url).pathname; } catch { planPath = ''; }
+    if (plan.isError || plan.plan?.method !== op.method || planPath !== fill(op.path).replace('{aiDataPlatformId}', QA_CONFIG.instanceId)) {
+      failures.push(`REST dry-run: ${op.method} ${op.path}`);
+    }
+  });
+  record('rest-supplement-operations', failures.length === 0, failures.length ? failures.join('; ') : `${operations.length} supplement operations resolve through REST reference and REST planning`);
+
+  const unlisted = planFor(responses, unlistedId);
+  const unlistedRejected = unlisted.isError && /method and path do not match a documented AIDP REST operation/.test(unlisted.detail || '');
+  record('rest-supplement-excludes-unlisted', unlistedRejected, unlistedRejected ? 'paths outside the catalog stay rejected under a supplement category' : `expected rejection, got: ${unlisted.detail}`);
+}
+
+function modelDeploymentChecks() {
+  const base = '/20260430/aiDataPlatforms/ocid1.aidataplatform.oc1..example/mlops/api/2.0';
+  const call = (id, args) => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'aidp_model_deployment', arguments: { config: QA_CONFIG, dryRun: true, ...args } } });
+  const targets = [{ modelVersion: 3, trafficPercentage: 100 }];
+  const responses = callServer([
+    call(600, { action: 'create', name: 'qa_deployment', modelName: 'catalog.schema.model', computeKey: 'compute-key', targets }),
+    call(601, { action: 'get', deploymentId: QA_DEPLOYMENT_ID.toUpperCase() }),
+    call(602, { action: 'search', modelName: 'catalog.schema.model', status: 'ACTIVE', maxResults: 10 }),
+    call(603, { action: 'activate', deploymentId: QA_DEPLOYMENT_ID, message: 'go live' }),
+    call(604, { action: 'roll_back', deploymentId: QA_DEPLOYMENT_ID, targets }),
+    call(605, { action: 'inference_summary', deploymentId: QA_DEPLOYMENT_ID, timeStart: '2026-11-09T00:00:00Z', timeEnd: '2026-11-10T00:00:00Z' }),
+    call(606, { action: 'logs', deploymentId: QA_DEPLOYMENT_ID, timeStart: '2026-11-09T00:00:00Z', timeEnd: '2026-11-10T00:00:00Z', levels: ['ERROR'] }),
+    call(607, { action: 'get', deploymentId: 'not-a-deployment-id' }),
+    call(608, { action: 'create', name: 'qa_deployment', modelName: 'catalog.schema.model', computeKey: 'compute-key', targets, authType: 'OAUTH' }),
+    call(609, { action: 'roll_forward', deploymentId: QA_DEPLOYMENT_ID }),
+    call(610, { action: 'search' }),
+    call(611, { action: 'delete', deploymentId: QA_DEPLOYMENT_ID }),
+    call(612, { action: 'activities', deploymentId: QA_DEPLOYMENT_ID, status: 'FAILURE' }),
+    call(613, { action: 'create', name: 'qa_deployment', modelName: 'catalog.schema.model', computeKey: 'compute-key', targets: [{ modelVersion: 1, trafficPercentage: 0 }] })
+  ]);
+  const failures = [];
+  const expectPlan = (id, label, predicate) => {
+    const plan = planFor(responses, id);
+    if (plan.isError || !predicate(plan.plan || {})) failures.push(`${label}: ${plan.detail}`);
+  };
+  const expectError = (id, label, pattern) => {
+    const plan = planFor(responses, id);
+    if (!plan.isError || !pattern.test(plan.detail || '')) failures.push(`${label} should fail: ${plan.detail}`);
+  };
+
+  expectPlan(600, 'create', (p) => p.method === 'POST' && p.url === `https://aidp.example.com${base}/model-deployments/create`
+    && p.body?.model_name === 'catalog.schema.model' && p.body?.workspaceKey === 'workspace-key' && p.body?.computeKey === 'compute-key'
+    && p.body?.authType === 'AIDP' && p.body?.authDetails === undefined
+    && JSON.stringify(p.body?.deployment_targets) === JSON.stringify([{ model_version: '3', traffic_percentage: 100 }]));
+  expectPlan(601, 'get', (p) => p.method === 'GET' && p.url === `https://aidp.example.com${base}/model-deployments/get?deployment_id=${QA_DEPLOYMENT_ID}`);
+  expectPlan(602, 'search', (p) => p.method === 'POST' && p.body?.model_name === 'catalog.schema.model' && p.body?.status === 'ACTIVE' && p.body?.max_results === 10);
+  expectPlan(603, 'activate', (p) => p.url.endsWith('/model-deployments/activate') && p.body?.deployment_id === QA_DEPLOYMENT_ID && p.body?.message === 'go live');
+  expectPlan(604, 'roll_back', (p) => p.url.endsWith('/model-deployments/roll-back') && p.body?.deployment_targets?.[0]?.model_version === '3');
+  expectPlan(605, 'inference_summary', (p) => p.method === 'GET' && p.url.includes(`/model-deployments/${QA_DEPLOYMENT_ID}/monitoring/inferences/summary?`)
+    && p.url.includes('timeStart=2026-11-09T00%3A00%3A00.000Z') && p.url.includes('timeEnd=2026-11-10T00%3A00%3A00.000Z'));
+  expectPlan(606, 'logs', (p) => p.url.endsWith(`/model-deployments/${QA_DEPLOYMENT_ID}/monitoring/logs/search`)
+    && p.body?.timeStart === '2026-11-09T00:00:00.000Z' && p.body?.timeEnd === '2026-11-10T00:00:00.000Z' && p.body?.levels?.[0] === 'ERROR');
+  expectError(607, 'invalid deploymentId', /32 lowercase hexadecimal/);
+  expectError(608, 'OAUTH without authDetails', /authDetails/);
+  expectError(609, 'roll_forward without targets', /targets/);
+  expectError(610, 'search without modelName', /modelName/);
+  expectPlan(611, 'delete', (p) => p.url.endsWith('/model-deployments/delete') && p.body?.deployment_id === QA_DEPLOYMENT_ID);
+  expectPlan(612, 'activities', (p) => p.url.endsWith('/model-deployments/activities/search') && p.body?.status === 'FAILURE');
+  expectError(613, 'trafficPercentage out of range', /trafficPercentage/);
+  record('model-deployment-tool', failures.length === 0, failures.length ? failures.join('; ') : '14 aidp_model_deployment plans and validations behave as specified');
+}
+
 pluginManifest();
 smokeTest();
 mcpConfig();
@@ -383,6 +517,9 @@ referenceCatalogs();
 toolDryRuns();
 await computeExportChecks();
 latestOperationChecks();
+supplementMergeChecks();
+supplementOperationChecks();
+modelDeploymentChecks();
 
 const failed = results.filter((r) => !r.ok);
 for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}: ${r.detail}`);

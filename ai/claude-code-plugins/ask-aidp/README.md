@@ -15,6 +15,7 @@ It provides:
 - `aidp_git_get_repository`, `aidp_git_operation_state`, `aidp_git_list_branches`, `aidp_git_create_branch`, `aidp_git_checkout_branch`, `aidp_git_list_diffs`, `aidp_git_diff_detail`, `aidp_git_merge`, `aidp_git_rebase`, and `aidp_git_reset` for native SDK Git repository workflows.
 - `aidp_create_agent`, `aidp_deploy_agent`, `aidp_list_agents`, and `aidp_get_agent_session_trace` for typed Agent workflows.
 - `aidp_create_ai_compute`, `aidp_list_ai_computes`, and `aidp_update_ai_compute` for typed AI Compute cluster workflows.
+- `aidp_model_deployment` (Preview) for MLOps model deployments that serve registered models: create, status, search, activate, deactivate, roll forward/back, delete, activity history, inference summary, and lifecycle logs.
 - `aidp_collect_logs` for existing job-run evidence collection. Use `continueOnError` for smoke tests that should preserve partial evidence when one log stream is unavailable.
 - `aidp_track_runs` for notebook sessions, workflow runs, task runs, task outputs, and log downloads. Use `continueOnLogError` with `downloadLogs` for partial log evidence.
 - `aidp_create_schema` for schema creation.
@@ -27,10 +28,10 @@ It provides:
 - `aidp_create_medallion_architecture` for bronze/silver/gold schemas.
 - `aidp_create_bundle` and `aidp_deploy_bundle` for bundle promotion workflows.
 - `aidp_command_help` for command discovery.
-- `aidp_rest_api_reference` for the generated catalog of 271 REST operations across 19 categories.
-- `aidp_rest` for OCI-signed calls restricted to documented method/path pairs.
+- `aidp_rest_api_reference` for the REST catalog: 271 operations generated from Oracle's published endpoint index plus 27 supplement operations (298 operations across 20 categories).
+- `aidp_rest` for OCI-signed calls restricted to catalogued method/path pairs.
 
-`tools/list` returns `43` tools.
+`tools/list` returns `44` tools.
 
 ## Requirements
 
@@ -96,7 +97,9 @@ does not verify full plugin functionality.
 
 For file work in notebooks, use AIDP Workbench path patterns such as `/Volumes/<catalog>/<schema>/<volume>/<file>`, `/Workspace/<folder>/<file>`, `file:///Volumes/...`, `file:///Workspace/...`, and `oci://<bucket>@<namespace>/<folder-or-file>`.
 
-For REST-only or advanced operations, use `aidp_rest_api_reference` to find the documented operation, then call `aidp_rest` with `dryRun: true` before a live request. The plugin signs the request with the configured OCI identity and only permits endpoint/method pairs from the generated Oracle REST catalog. The current documented endpoint version is `/20260430`.
+For REST-only or advanced operations, use `aidp_rest_api_reference` to find the documented operation, then call `aidp_rest` with `dryRun: true` before a live request. The plugin signs the request with the configured OCI identity and only permits endpoint/method pairs from the REST catalog. The current documented endpoint version is `/20260430`.
+
+The catalog combines the generated Oracle endpoint index (`assets/aidp-rest-api-reference.json`) with `assets/aidp-rest-api-supplement.json`. The supplement lists `/20260430` operations that are included in the [AIDP SDK](https://github.com/oracle-samples/aidataplatform-sdk) but not yet listed in the published REST endpoint reference: MLOps model deployments and monitoring (22 operations) and private network profiles (5 operations). Supplement entries carry the matching SDK operation name as `operationId` and are marked `source: "supplement"` in `aidp_rest_api_reference` results. When the published reference adds an operation with the same method and path, the published entry is used.
 
 ## Install Or Update With Claude Code — Recommended
 
@@ -248,8 +251,8 @@ cd ai/claude-code-plugins/ask-aidp
 node scripts/qa-claude.mjs
 ```
 
-Expected: `"ok": true`, 43 MCP tools, 256 CLI commands, and 271 REST
-operations.
+Expected: `"ok": true`, 44 MCP tools, 256 CLI commands, and 298 REST
+operations (271 generated + 27 supplement).
 
 ## Refresh CLI Reference - Maintainers
 
@@ -351,8 +354,11 @@ The generated CLI reference, refreshed on September 21, 2026, covers 256 documen
 Version 0.10.0 adds references for Data Lineage export and retrieval, bundle
 publishing and publish status, Compute cloning and configuration import/export,
 Maven package search, volume/workspace ZIP operations, and task-run retry details.
-These operations use the existing generic tools; the number of dedicated MCP
-tools remains 43.
+These operations use the existing generic tools.
+
+Version 0.11.0 adds the `aidp_model_deployment` tool and the REST supplement for
+MLOps model deployments and private network profiles, bringing the number of
+dedicated MCP tools to 44.
 
 Update the separately installed `aidp-cli` and SDK as well as the plugin. Refreshing
 the plugin catalog does not update an external CLI executable. If a command is

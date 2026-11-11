@@ -10,12 +10,19 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-const SERVER_VERSION = '0.10.0';
+const SERVER_VERSION = '0.11.0';
 const SERVER_NAME = 'ask-aidp';
 const __filename = fileURLToPath(import.meta.url);
 const PLUGIN_ROOT = path.resolve(path.dirname(__filename), '..');
 const CLI_REFERENCE_PATH = path.join(PLUGIN_ROOT, 'assets', 'aidp-cli-command-reference.json');
 const REST_API_REFERENCE_PATH = path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-reference.json');
+const REST_API_SUPPLEMENT_PATH = path.join(PLUGIN_ROOT, 'assets', 'aidp-rest-api-supplement.json');
+const MODEL_DEPLOYMENT_ACTIONS = [
+  'create', 'get', 'search', 'activate', 'deactivate', 'roll_forward', 'roll_back',
+  'delete', 'activities', 'inference_summary', 'logs'
+];
+const MODEL_DEPLOYMENT_ID_PATTERN = /^[0-9a-f]{32}$/;
+const DEFAULT_LOG_WINDOW_MS = 24 * 60 * 60 * 1000;
 const requireFromPlugin = createRequire(import.meta.url);
 
 const TOOLS = [
@@ -559,6 +566,66 @@ const TOOLS = [
         timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
       },
       required: ['clusterKey'],
+      $defs: { config: configSchema() }
+    }
+  },
+  {
+    name: 'aidp_model_deployment',
+    description: '(Preview) Manage MLOps model deployments that serve registered MLflow models: create, get status, search, activate, deactivate, roll forward or back between model versions, delete, list activity history, and read inference summaries and lifecycle logs. Validates deployment IDs and request bodies locally, then sends an OCI-signed REST request. activate, deactivate, roll_forward, and roll_back are asynchronous (HTTP 202): poll get or activities for the outcome, and expect HTTP 409 while another operation on the same deployment is in progress. Use dryRun to preview.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        action: {
+          type: 'string',
+          enum: MODEL_DEPLOYMENT_ACTIONS,
+          description: 'create, get (status), search (by modelName), activate, deactivate, roll_forward, roll_back, delete, activities (history), inference_summary, or logs.'
+        },
+        deploymentId: { type: 'string', description: '32-character hexadecimal deployment ID returned by create or search. Required for every action except create and search.' },
+        modelName: { type: 'string', description: 'Registered model full name (catalog.schema.model). Required for create and search.' },
+        name: { type: 'string', description: 'Deployment display name. Required for create.' },
+        description: { type: 'string' },
+        computeKey: { type: 'string', description: 'Compute key that serves the deployment. Required for create.' },
+        targets: {
+          type: 'array',
+          minItems: 1,
+          description: 'Model versions and traffic split. Required for create, roll_forward, and roll_back.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              modelVersion: { type: ['string', 'integer'], description: 'Registered model version.' },
+              trafficPercentage: { type: 'integer', minimum: 1, maximum: 100 }
+            },
+            required: ['modelVersion', 'trafficPercentage']
+          }
+        },
+        authType: { type: 'string', enum: ['AIDP', 'OAUTH'], default: 'AIDP', description: 'Query endpoint authentication for create.' },
+        authDetails: {
+          type: 'object',
+          additionalProperties: false,
+          description: 'Required when authType is OAUTH; must be omitted for AIDP.',
+          properties: {
+            issuerClaim: { type: 'string' },
+            audienceClaim: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+            jwksUri: { type: 'string' }
+          },
+          required: ['issuerClaim', 'audienceClaim', 'jwksUri']
+        },
+        tags: { type: 'array', items: { type: 'object' }, description: 'Optional tags for create.' },
+        message: { type: 'string', maxLength: 2000, description: 'Optional audit message for activate, deactivate, roll_forward, and roll_back.' },
+        status: { type: 'string', description: 'Filter for search (INACTIVE, ACTIVATING, ACTIVE, DEACTIVATING, UPDATING) or activities (SUCCESS, FAILURE).' },
+        maxResults: { type: 'integer', minimum: 1, maximum: 1000, description: 'Page size for search and activities.' },
+        pageToken: { type: 'string', description: 'Page token for search, activities, or logs.' },
+        timeStart: { type: 'string', description: 'Start time (any ISO 8601 value) for inference_summary and logs. logs defaults to 24 hours before timeEnd.' },
+        timeEnd: { type: 'string', description: 'End time (any ISO 8601 value) for inference_summary and logs. logs defaults to now.' },
+        levels: { type: 'array', items: { type: 'string' }, description: 'Log levels for logs, for example ["ERROR"].' },
+        limit: { type: 'integer', minimum: 1, maximum: 20, description: 'Page size for logs.' },
+        config: { $ref: '#/$defs/config' },
+        dryRun: { type: 'boolean', default: false },
+        timeoutSeconds: { type: 'integer', minimum: 1, maximum: 7200, default: 120 }
+      },
+      required: ['action'],
       $defs: { config: configSchema() }
     }
   },
@@ -1801,8 +1868,51 @@ async function cliReference(input) {
   }, null, 2));
 }
 
+function restOperationKey(operation) {
+  return `${operation.method} ${operation.path}`;
+}
+
+// The generated reference mirrors the published REST endpoint index. The supplement lists
+// operations that are available in the service but not yet in that index. When the index
+// publishes the same method and path, the generated entry is kept and the supplement entry is ignored.
+export function mergeRestApiSupplement(reference, supplement) {
+  if (!supplement?.categories?.length) return reference;
+  const known = new Set(reference.categories.flatMap((category) => category.operations.map(restOperationKey)));
+  const categories = reference.categories.map((category) => ({ ...category, operations: [...category.operations] }));
+  let added = 0;
+  for (const extra of supplement.categories) {
+    const operations = extra.operations
+      .filter((operation) => !known.has(restOperationKey(operation)))
+      .map((operation) => ({ ...operation, referenceUrl: operation.referenceUrl ?? null, source: 'supplement' }));
+    if (!operations.length) continue;
+    added += operations.length;
+    const index = categories.findIndex((category) => category.name === extra.name);
+    if (index === -1) {
+      categories.push({ id: extra.id, name: extra.name, description: extra.description, operations });
+    } else {
+      categories[index] = { ...categories[index], operations: [...categories[index].operations, ...operations] };
+    }
+  }
+  const counted = categories.map((category) => ({ ...category, operationCount: category.operations.length }));
+  return {
+    ...reference,
+    supplement: { source: supplement.source, verifiedAt: supplement.verifiedAt, operationCount: added },
+    categoryCount: counted.length,
+    operationCount: counted.reduce((total, category) => total + category.operationCount, 0),
+    categories: counted
+  };
+}
+
+let restApiReferenceCache = null;
+
 function loadRestApiReference() {
-  return JSON.parse(readFileSync(REST_API_REFERENCE_PATH, 'utf8'));
+  if (restApiReferenceCache) return restApiReferenceCache;
+  const reference = JSON.parse(readFileSync(REST_API_REFERENCE_PATH, 'utf8'));
+  const supplement = existsSync(REST_API_SUPPLEMENT_PATH)
+    ? JSON.parse(readFileSync(REST_API_SUPPLEMENT_PATH, 'utf8'))
+    : null;
+  restApiReferenceCache = mergeRestApiSupplement(reference, supplement);
+  return restApiReferenceCache;
 }
 
 async function restApiReference(input) {
@@ -1881,6 +1991,7 @@ async function restApiReference(input) {
     endpointTemplate: reference.endpointTemplate,
     source: reference.source,
     whatsNewUrl: reference.whatsNewUrl,
+    supplement: reference.supplement,
     categoryCount: reference.categoryCount,
     operationCount: reference.operationCount,
     categories: reference.categories.map((item) => ({
@@ -2079,6 +2190,114 @@ export async function runRest(input, authProviderFactory = createSdkAuthProvider
   } finally {
     clearTimeout(timer);
   }
+}
+
+function modelDeploymentId(input) {
+  const id = String(requireValue(input.deploymentId, 'deploymentId')).trim().toLowerCase();
+  if (!MODEL_DEPLOYMENT_ID_PATTERN.test(id)) {
+    throw new Error('deploymentId must be the 32 lowercase hexadecimal characters returned by create or search.');
+  }
+  return id;
+}
+
+// The service accepts date-time values only with milliseconds (the toISOString() format);
+// other ISO 8601 forms are rejected with "Unable to process JSON input".
+function modelDeploymentTime(value, name) {
+  const time = new Date(value);
+  if (Number.isNaN(time.getTime())) throw new Error(`${name} must be an ISO 8601 date-time.`);
+  return time.toISOString();
+}
+
+function modelDeploymentTargets(input, action) {
+  if (!Array.isArray(input.targets) || !input.targets.length) {
+    throw new Error(`${action} requires targets: [{ modelVersion, trafficPercentage }].`);
+  }
+  return input.targets.map((target) => {
+    const percentage = target.trafficPercentage;
+    if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
+      throw new Error('Each target trafficPercentage must be an integer from 1 to 100.');
+    }
+    return { model_version: String(requireValue(target.modelVersion, 'targets[].modelVersion')), traffic_percentage: percentage };
+  });
+}
+
+function modelDeploymentAuth(input) {
+  const authType = input.authType || 'AIDP';
+  if (authType === 'OAUTH' && !input.authDetails) throw new Error('authType OAUTH requires authDetails { issuerClaim, audienceClaim, jwksUri }.');
+  if (authType === 'AIDP' && input.authDetails) throw new Error('authDetails must be omitted when authType is AIDP.');
+  return input.authDetails ? { authType, authDetails: input.authDetails } : { authType };
+}
+
+function modelDeploymentPage(input) {
+  return addDefinedProperties({}, { status: input.status, max_results: input.maxResults, page_token: input.pageToken }, ['status', 'max_results', 'page_token']);
+}
+
+function modelDeploymentLogsBody(input) {
+  const timeEnd = input.timeEnd ? modelDeploymentTime(input.timeEnd, 'timeEnd') : new Date().toISOString();
+  const timeStart = input.timeStart
+    ? modelDeploymentTime(input.timeStart, 'timeStart')
+    : new Date(Date.parse(timeEnd) - DEFAULT_LOG_WINDOW_MS).toISOString();
+  return addDefinedProperties({ timeStart, timeEnd }, input, ['levels', 'limit', 'pageToken']);
+}
+
+function modelDeploymentRequest(input, config) {
+  const action = input.action;
+  const base = `/${loadRestApiReference().apiVersion}/aiDataPlatforms/{aiDataPlatformId}/mlops/api/2.0/model-deployments`;
+  const withMessage = (body) => addDefinedProperties(body, input, ['message']);
+  switch (action) {
+    case 'create':
+      return {
+        method: 'POST',
+        path: `${base}/create`,
+        body: addDefinedProperties({
+          name: requireValue(input.name, 'name'),
+          model_name: requireValue(input.modelName, 'modelName'),
+          deployment_targets: modelDeploymentTargets(input, action),
+          workspaceKey: requireValue(config.workspaceKey, 'workspaceKey or AIDP_WORKSPACE_KEY'),
+          computeKey: requireValue(input.computeKey, 'computeKey'),
+          ...modelDeploymentAuth(input)
+        }, input, ['description', 'tags'])
+      };
+    case 'search':
+      return { method: 'POST', path: `${base}/search`, body: { model_name: requireValue(input.modelName, 'modelName'), ...modelDeploymentPage(input) } };
+    case 'get':
+      return { method: 'GET', path: `${base}/get`, query: { deployment_id: modelDeploymentId(input) } };
+    case 'activate':
+    case 'deactivate':
+      return { method: 'POST', path: `${base}/${action}`, body: withMessage({ deployment_id: modelDeploymentId(input) }) };
+    case 'roll_forward':
+    case 'roll_back':
+      return {
+        method: 'POST',
+        path: `${base}/${action.replace('_', '-')}`,
+        body: withMessage({ deployment_id: modelDeploymentId(input), deployment_targets: modelDeploymentTargets(input, action) })
+      };
+    case 'delete':
+      return { method: 'POST', path: `${base}/delete`, body: { deployment_id: modelDeploymentId(input) } };
+    case 'activities':
+      return { method: 'POST', path: `${base}/activities/search`, body: { deployment_id: modelDeploymentId(input), ...modelDeploymentPage(input) } };
+    case 'inference_summary': {
+      const query = {};
+      if (input.timeStart) query.timeStart = modelDeploymentTime(input.timeStart, 'timeStart');
+      if (input.timeEnd) query.timeEnd = modelDeploymentTime(input.timeEnd, 'timeEnd');
+      return { method: 'GET', path: `${base}/${modelDeploymentId(input)}/monitoring/inferences/summary`, query };
+    }
+    case 'logs':
+      return { method: 'POST', path: `${base}/${modelDeploymentId(input)}/monitoring/logs/search`, body: modelDeploymentLogsBody(input) };
+    default:
+      throw new Error(`action must be one of: ${MODEL_DEPLOYMENT_ACTIONS.join(', ')}.`);
+  }
+}
+
+async function modelDeployment(input) {
+  const config = workflowConfig(input.config || {});
+  const request = modelDeploymentRequest(input, config);
+  return await runRest({
+    ...request,
+    config: input.config,
+    dryRun: input.dryRun === true,
+    timeoutSeconds: input.timeoutSeconds
+  });
 }
 
 async function createAgent(input) {
@@ -3887,6 +4106,8 @@ async function handleToolCall(name, args = {}) {
       return await createAiCompute(args);
     case 'aidp_list_ai_computes':
       return await listAiComputes(args);
+    case 'aidp_model_deployment':
+      return await modelDeployment(args);
     case 'aidp_update_ai_compute':
       return await updateAiCompute(args);
     case 'aidp_collect_logs':
