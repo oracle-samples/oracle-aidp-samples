@@ -55,6 +55,7 @@ run the same steps directly; the tool itself is pure Python and portable:
 
 ```
 py -m venv .venv                                   # then .venv\Scripts\python
+.venv\Scripts\python -m pip install --upgrade pip   # pip < 21.3 cannot do -e here
 .venv\Scripts\python -m pip install -e .
 cd fabric_aidp\mparse && npm install && cd ..\..   # Dataflows only
 .venv\Scripts\python scripts\stage_demo_input.py
@@ -117,7 +118,11 @@ subprocess. Set the root in `.mcp.json` (or the client's server config) with
 the server in the project directory, so the default works there; Claude
 Desktop, Cursor and Codex start stdio servers in `/`, the home directory or
 their own install, and the server refuses to run with such a default root
-until the variable is set. And `publish`
+until the variable is set. **In Codex**, export it in the shell before you
+start Codex — `export FABRIC_AIDP_WORK_ROOT=/path/to/migration` — and the
+plugin passes it to the server; Codex passes no other shell variable, and it
+starts the server inside the plugin's own folder, which the server will not
+use as a work root. And `publish`
 through MCP is a dry run with no `apply` to pass: writing to a workspace is
 `fabric-aidp publish <dir> --prefix <you> --apply`, typed by a person.
 
@@ -411,6 +416,8 @@ reasons a test here skips, and none of them is a problem with your machine:
   older one ignores `[project]` and builds this project as `UNKNOWN-0.0.0`; the
   venv `make setup` creates has no setuptools at all. `pip wheel` fetches its
   own copy, so the wheel needs network instead, and a stalled fetch counts.
+  macOS's built-in Python, outside a venv, ships a pip (21.2) that builds the
+  wheel with that old setuptools anyway, so it comes out `UNKNOWN-0.0.0` too.
   All of those degrade to a skip, and `MANIFEST.in` is checked statically
   either way. An sdist that builds but carries the wrong root directory is the
   repository's problem, not the machine's, and fails loudly.

@@ -101,7 +101,7 @@ ENV_ALLOWED_NAMES = frozenset({
     # as the AIDP_ prefix: a shell that has run other AIDP tooling carries
     # AIDP_SECRET_*, AIDP_API_TOKEN and the like, none of which this CLI
     # looks at. Nothing reads a FABRIC_ variable; `.env` loading
-    # (`_env.KEY_PREFIXES`) happens inside the child, from the root's file.
+    # (`_env.ALLOWED_KEYS`) happens inside the child, from the root's file.
     "AIDP_WORKSPACE_KEY", "AIDP_CLUSTER_KEY",
 })
 
@@ -131,6 +131,10 @@ def _home() -> Optional[Path]:
         return None
 
 
+# Set to "codex" by .codex-mcp.json, and only there. See work_root.
+LAUNCHER_VAR = "FABRIC_AIDP_LAUNCHED_BY"
+
+
 def work_root() -> Path:
     """The resolved work root: `$FABRIC_AIDP_WORK_ROOT`, else the server's cwd.
 
@@ -144,6 +148,22 @@ def work_root() -> Path:
     configured = os.environ.get(WORK_ROOT_VAR)
     if configured:
         root = Path(_plain_path(configured) if os.name == "nt" else configured).resolve()
+    elif os.environ.get(LAUNCHER_VAR) == "codex":
+        # Codex starts a plugin's server inside the plugin's own installed
+        # folder (`"cwd": "."` in .codex-mcp.json) -- the only way it can find
+        # the package, since it expands no `${...}` placeholder. MEASURED by
+        # launching the server through Codex: the working directory and $PWD
+        # are both the plugin cache, and nothing says where the user's
+        # project is. A default root there would be the plugin's own files,
+        # so the user's export is refused and every artifact lands in the
+        # cache. The marker is set by .codex-mcp.json only, so Claude Code and
+        # a checkout of this repository keep the cwd default.
+        raise ValueError(
+            f"Codex started the server inside its own plugin folder "
+            f"({Path.cwd().resolve()}), not in your project, so {WORK_ROOT_VAR} "
+            f"must name the migration directory. Export it before starting "
+            f"Codex -- `export {WORK_ROOT_VAR}=/path/to/migration` -- and the "
+            f"plugin passes it to the server.")
     else:
         root = Path.cwd().resolve()
         if root == Path(root.anchor) or root == _home():
