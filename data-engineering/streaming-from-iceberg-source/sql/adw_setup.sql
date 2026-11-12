@@ -1,3 +1,5 @@
+-- Copyright (c) 2026, Oracle and/or its affiliates.
+-- Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/.
 -- One-time ADW setup for the streaming-from-iceberg-source sample.
 -- Oracle AI Database 23ai or later (the notebooks use CREATE TABLE IF NOT EXISTS).
 

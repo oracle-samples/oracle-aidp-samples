@@ -1,3 +1,5 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/.
 """Offline tests for adw_sink.py and stream_control.py - no Spark, no database.
 
 Run from the sample folder:  python3 -m pytest -q tests

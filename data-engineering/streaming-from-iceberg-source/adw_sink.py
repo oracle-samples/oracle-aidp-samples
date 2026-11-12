@@ -1,3 +1,5 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/.
 """Upsert Spark Structured Streaming micro-batches into an Oracle Autonomous Database (ADW) table.
 
 The source rows are order events (one row per change to an order). The ADW table ``ORDERS``

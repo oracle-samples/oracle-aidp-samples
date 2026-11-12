@@ -1,3 +1,5 @@
+# Copyright (c) 2026, Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/.
 """Run a Spark Structured Streaming query from an AIDP notebook cell, and stop it cleanly.
 
 Two AIDP behaviours shape this helper (both observed on AIDP Workbench, Spark 3.5.0):
