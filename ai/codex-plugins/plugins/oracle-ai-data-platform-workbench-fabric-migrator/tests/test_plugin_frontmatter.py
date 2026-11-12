@@ -134,7 +134,10 @@ class CodexManifestTests(unittest.TestCase):
       * `additionalProperties` is `false` over exactly the ten properties
         listed below, and the copy carried two more -- `commands`, which is a
         Claude Code concept with no Codex equivalent, and `mcpServers`, which
-        in this format lives in a sibling `mcp.json`, not the manifest;
+        this format puts in a sibling `mcp.json`. That turned out to be the
+        schema's account and not Codex's: Codex ignores a sibling `mcp.json`
+        and reads `mcpServers` from the manifest, so the key is back, pointing
+        at the Codex-only `.codex-mcp.json` (see ALLOWED below);
       * `name` is constrained to a lowercase pattern of at most 64 characters.
 
     So the old file was not "the same format by luck": it was a manifest that
@@ -147,9 +150,20 @@ class CodexManifestTests(unittest.TestCase):
     caught this.
     """
 
-    # https://agent-plugins.org/schemas/1.0.0/plugin.schema.json, 2026-09-29.
+    # https://agent-plugins.org/schemas/1.0.0/plugin.schema.json, 2026-09-29,
+    # plus `mcpServers` -- the one deliberate departure from that schema.
+    # MEASURED 2026-10-11 by installing the plugin into a throwaway CODEX_HOME
+    # and recording how Codex launched its server: Codex reads `mcpServers`
+    # from this manifest and honours it, and without it falls back to
+    # `.mcp.json` by convention (a sibling `mcp.json` is ignored). `.mcp.json`
+    # is the Claude Code config, whose `${CLAUDE_PLUGIN_ROOT}` Codex does not
+    # expand, so without this key the Codex copy's server cannot start at
+    # all -- see tests/test_codex_launcher.py. The other Codex plugins in
+    # oracle-samples (AWS migrator, Ask-AIDP, Fusion Autopilot) carry the same
+    # key, and Codex installs a manifest with it without complaint.
     ALLOWED = {"$schema", "name", "version", "description", "author",
-               "homepage", "repository", "license", "keywords", "extensions"}
+               "homepage", "repository", "license", "keywords", "extensions",
+               "mcpServers"}
     REQUIRED = {"$schema", "name"}
     SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     NAME_RE = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
@@ -172,7 +186,7 @@ class CodexManifestTests(unittest.TestCase):
         self.assertEqual(set(self.data) - self.ALLOWED, set())
 
     def test_it_does_not_carry_claude_only_keys(self):
-        for key in ("commands", "mcpServers", "hooks", "skills"):
+        for key in ("commands", "hooks", "skills"):
             with self.subTest(key=key):
                 self.assertNotIn(key, self.data)
 

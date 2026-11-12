@@ -51,6 +51,14 @@ def _build_wheel(into: Path):
     wheels = list(into.glob("*.whl"))
     if not wheels:
         raise unittest.SkipTest("pip wheel produced nothing")
+    if wheels[0].name.startswith("UNKNOWN-"):
+        # A pip whose build environment is not on the backend's path (macOS's
+        # built-in Python with pip 21.2, pypa/pip#10151) builds with the
+        # interpreter's own old setuptools, which ignores [project].
+        raise unittest.SkipTest(
+            "pip wheel built this project as UNKNOWN-0.0.0: its build used a "
+            "setuptools too old to read pyproject.toml; run the suite from a "
+            "venv or upgrade pip")
     return wheels[0]
 
 
@@ -496,6 +504,26 @@ class EnvironmentalFailuresDegradeToSkipsTests(unittest.TestCase):
         with mock.patch("subprocess.run", return_value=done):
             with self.assertRaises(unittest.SkipTest):
                 _build_wheel(Path(tempfile.gettempdir()))
+
+    def test_a_wheel_built_as_unknown_skips_and_names_the_cause(self):
+        """MEASURED 2026-10-13, macOS's built-in Python 3.9.6 with its pip
+        21.2.4, outside a venv: pip installs setuptools 82 into its build
+        environment, the backend imports the interpreter's own setuptools
+        58 anyway (pypa/pip#10151), and the wheel comes out as
+        `UNKNOWN-0.0.0` with no package in it. Every WheelContentsTests
+        assertion then failed against an empty name list without naming
+        the cause. The same pip inside a venv builds the real wheel."""
+        def build(*_args, **_kwargs):
+            Path(into, "UNKNOWN-0.0.0-py3-none-any.whl").write_bytes(b"")
+            return subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        with tempfile.TemporaryDirectory() as into:
+            with mock.patch("subprocess.run", side_effect=build):
+                with self.assertRaises(unittest.SkipTest) as caught:
+                    _build_wheel(Path(into))
+        message = str(caught.exception)
+        for fragment in ("wheel", "UNKNOWN-0.0.0", "venv"):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, message)
 
     def test_the_floor_is_read_from_pyproject_and_is_really_there(self):
         """A `None` floor turns the gate below into a silent no-op, so the

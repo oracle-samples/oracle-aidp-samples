@@ -370,8 +370,8 @@ class DeadDemoFlagIsGoneTests(unittest.TestCase):
     forever, and four tests exist only to stop the documentation teaching it.
 
     Removed, for two reasons that are both facts rather than preferences.
-    Nothing has shipped: CHANGELOG.md says "0.1.0 -- unreleased ... Nothing
-    has been published to an index yet", so no installed copy can be passing
+    Nothing had shipped: CHANGELOG.md said "0.1.0 -- unreleased ... Nothing
+    has been published to an index yet", so no installed copy could be passing
     it, and the only in-tree callers were `mcp_server.migrate` (whose `demo`
     parameter defaulted to True, so every MCP call passed it) and one
     end-to-end test -- both fixed in the same commit. And the repository
@@ -381,7 +381,7 @@ class DeadDemoFlagIsGoneTests(unittest.TestCase):
     released, so it is renamed rather than aliased". Keeping `--demo` while
     having renamed `--catalog` would be two answers to one question.
 
-    0.1.0 is the last moment this is free.
+    It went before 0.1.0 shipped, while it was free.
     """
 
     def test_the_cli_no_longer_accepts_it(self):
@@ -446,6 +446,58 @@ class DeadDemoFlagIsGoneTests(unittest.TestCase):
                     "--demo" in literals,
                     f"{path.name} still has a `--demo` string literal, so "
                     f"something there can still build argv the CLI rejects")
+
+
+
+class PythonDashMTests(unittest.TestCase):
+    """`python3 -m fabric_aidp` runs the CLI, so it still works when the
+    `fabric-aidp` script is not on PATH. MEASURED 2026-10-13: on macOS's
+    built-in Python 3.9, outside a venv, pip installs the script into
+    ~/Library/Python/3.9/bin, which is not on PATH by default, and
+    `python3 -m fabric_aidp` said "'fabric_aidp' is a package and cannot be
+    directly executed" -- so the tool had no way to start at all."""
+
+    def _run(self, *args):
+        import os
+        import subprocess
+        import sys
+        env = dict(os.environ, PYTHONPATH=str(ROOT))
+        with TemporaryDirectory() as cwd:
+            return subprocess.run([sys.executable, "-m", "fabric_aidp", *args],
+                                  capture_output=True, text=True, cwd=cwd,
+                                  env=env, timeout=120)
+
+    def test_it_prints_the_same_version_as_the_script(self):
+        import fabric_aidp
+        done = self._run("--version")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.strip(),
+                         f"fabric-aidp {fabric_aidp.__version__}")
+
+    def test_importing_it_does_not_run_the_cli(self):
+        """Review of oracle-samples #152: with no `__name__` guard, anything
+        that imports every module of the package -- pydoc, a coverage or
+        docs walker -- got a SystemExit from argparse."""
+        import importlib
+        import sys
+        sys.modules.pop("fabric_aidp.__main__", None)
+        try:
+            with redirect_stderr(io.StringIO()):
+                importlib.import_module("fabric_aidp.__main__")
+        except SystemExit as exc:  # pragma: no cover - the bug
+            self.fail(f"importing fabric_aidp.__main__ exited ({exc.code})")
+        finally:
+            sys.modules.pop("fabric_aidp.__main__", None)
+
+    def test_it_passes_the_exit_code_through(self):
+        """A usage error exits 2 from argparse; a verb's own failure exits
+        with what `main` returned. Both must reach the shell unchanged."""
+        self.assertEqual(self._run("no-such-verb").returncode, 2)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            expected = main(["verify", "does-not-exist"])
+        self.assertNotEqual(expected, 0)
+        self.assertEqual(self._run("verify", "does-not-exist").returncode,
+                         expected)
 
 
 if __name__ == "__main__":

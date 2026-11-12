@@ -18,9 +18,19 @@ plugin root — the directory holding `pyproject.toml`, which is the repository
 root when cloned and `${CLAUDE_PLUGIN_ROOT}` when installed as a plugin:
 
 ```bash
-pip install -e "${CLAUDE_PLUGIN_ROOT:-.}"
+python3 -m pip install --upgrade pip       # `py -m pip` on Windows
+python3 -m pip install -e "${CLAUDE_PLUGIN_ROOT:-.}"
 fabric-aidp --version                      # check it resolved
 ```
+
+Upgrade pip first: a pip older than 21.3 cannot install this package editable
+and stops with "File setup.py or setup.cfg not found". macOS's built-in Python
+ships pip 21.2, and so does a venv made from it.
+
+If `fabric-aidp` is then "command not found", pip put the script in a
+directory that is not on PATH (on macOS's built-in Python, outside a venv,
+`~/Library/Python/3.9/bin`). `python3 -m fabric_aidp` is the same CLI and
+needs no PATH: use it in place of `fabric-aidp` in every command below.
 
 **Dataflows additionally need Node 18+.** Power Query has no Python parser —
 Microsoft's own is TypeScript — so the M translator shells out to one:
