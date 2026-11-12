@@ -1,7 +1,7 @@
 ---
 name: ask-aidp
 description: Use when the user asks Claude Code to connect to Oracle AI Data Platform Workbench, run aidp-cli commands, manage AIDP agents/notebooks/workflows/clusters/catalogs/schemas/volumes/MLOps/bundles/audit/roles/credentials, execute notebook workflows, export task outputs, collect AIDP logs, call documented AIDP REST operations, or operate workspace repositories through AIDP SDK tools.
-version: 0.10.0
+version: 0.11.0
 ---
 
 # Ask AIDP
@@ -34,6 +34,7 @@ When the Ask AIDP MCP tools are available, prefer them over shelling out manuall
 - `aidp_create_ai_compute`: create an AI Compute cluster with a typed driver shape/configuration and replica range.
 - `aidp_list_ai_computes`: list only AI Compute clusters.
 - `aidp_update_ai_compute`: update the typed configuration of an AI Compute cluster.
+- `aidp_model_deployment`: (Preview) manage MLOps model deployments of registered models — `create`, `get` (status), `search` (by `modelName`), `activate`, `deactivate`, `roll_forward`, `roll_back`, `delete`, `activities`, `inference_summary`, and `logs`.
 - `aidp_track_runs`: track workflow runs, task runs, notebook sessions, task outputs, and logs. Use `continueOnLogError` with `downloadLogs` for partial log evidence.
 - `aidp_create_schema`: create a schema from catalog name and display name.
 - `aidp_create_delta_table`: create a managed or external Delta table from catalog/schema keys and typed column inputs.
@@ -50,8 +51,8 @@ When the Ask AIDP MCP tools are available, prefer them over shelling out manuall
 - `aidp_cli`: run any `aidp-cli` command group or command not covered by the higher-level tools.
 - `aidp_command_help`: inspect `aidp-cli` command groups and command help.
 - `aidp_cli_reference`: inspect the generated command reference for all documented CLI command groups and commands from the aidataplatform-sdk CLI README.
-- `aidp_rest_api_reference`: summarize, search, or inspect the generated catalog of documented REST operations.
-- `aidp_rest`: make an OCI-signed request to any method/path pair in the documented REST catalog.
+- `aidp_rest_api_reference`: summarize, search, or inspect the REST catalog (the generated endpoint index plus supplement operations not yet in the published reference, marked `source: "supplement"`).
+- `aidp_rest`: make an OCI-signed request to any method/path pair in the REST catalog.
 
 If tools are not available, use `aidp-cli` directly with argument arrays or shell commands. For workspace code upload and Git repository push, pull, status, diff, branch, merge, rebase, and reset operations, prefer the native SDK-backed tools.
 
@@ -131,6 +132,19 @@ For new bundle publishing workflows, look up `bundle publish-bundle-action` and 
 The September 21, 2026 reference snapshot covers 256 CLI commands in 18 groups and 271 REST operations in 19 categories. The REST API version is `/20260430`. Use `aidp_cli_reference` for CLI discovery and `aidp_rest_api_reference` for the canonical REST method/path, then run `aidp_rest` with `dryRun: true`. The tool expands configured AIDP/workspace/cluster identifiers, signs live calls with the configured OCI identity, and rejects endpoint/method pairs absent from its catalog. Report the endpoint, method, request body path, response status, and evidence.
 
 New reference coverage includes Data Lineage, bundle publishing, Compute cloning/configuration import/export, Maven search, volume/workspace ZIP operations, and task-run retry inspection. These are accessed through the generic CLI and REST tools. A catalog refresh does not upgrade the external CLI runtime: check `aidp_command_help` before using a newly added command, and update the CLI or use its documented REST equivalent if the installed version does not support it. Read each operation's request schema and preview restrictions before execution; a successful dry run validates routing, not the request payload or service behavior.
+
+### Model deployments
+
+Use `aidp_model_deployment` for model serving rather than raw REST.
+
+- Find a deployment with `action: "search"` and the registered model's full name (`catalog.schema.model`). Deployment IDs are 32 lowercase hexadecimal characters.
+- `create`, `roll_forward`, and `roll_back` take `targets: [{ modelVersion, trafficPercentage }]`. `authType` defaults to `AIDP`; `OAUTH` requires `authDetails`.
+- Creating, activating, rolling, deactivating, or deleting a deployment changes a serving endpoint. Confirm with the user and preview with `dryRun: true` first.
+- `activate`, `deactivate`, `roll_forward`, and `roll_back` return HTTP 202 and complete asynchronously. HTTP 202 means accepted, not succeeded: an action that is not valid for the current state (for example `deactivate` on an INACTIVE deployment) is accepted and then fails. Poll `get` for `status` and `activities` for each action's SUCCESS or FAILURE.
+- Only one action runs per deployment at a time. A second action returns HTTP 409; wait for the first to finish, then retry.
+- To diagnose a failed action, read the activity's `status_message` with `aidp_rest` GET `.../mlops/api/2.0/model-deployments/activities/get`, and the async operation's `errorCode` and `errorMessage` with GET `/asyncOperations?resourceType=MODEL_DEPLOYMENT&shouldFilterByCallingPrincipal=true` followed by GET `/asyncOperations/{key}`. For activation, the serving compute's own log is available through the cluster `searchLogs` action on the deployment's `computeKey`.
+- The tool converts `timeStart`/`timeEnd` to the millisecond ISO 8601 format the service requires. `logs` defaults to the last 24 hours; it can return HTTP 503 for a deployment that has never been activated.
+- The remaining MLOps deployment operations (update, tags, contract, activity details, inference search, details, and export, registered-model permissions) and private network profiles are available through `aidp_rest`.
 
 ## Safety
 

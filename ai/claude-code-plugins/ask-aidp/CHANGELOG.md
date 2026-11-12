@@ -4,6 +4,32 @@ All notable changes to this plugin are documented here.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-11
+
+### Added
+
+- `aidp_model_deployment` (Preview) for MLOps model deployments: create, get, search,
+  activate, deactivate, roll forward, roll back, delete, activity history, inference
+  summary, and lifecycle logs. Requests are validated before they are sent (deployment
+  ID format, traffic targets, and `authType`/`authDetails`), and `timeStart`/`timeEnd`
+  are converted to the millisecond ISO 8601 format the service expects.
+- REST catalog supplement (`assets/aidp-rest-api-supplement.json`) with 27 `/20260430`
+  operations that are included in the AIDP SDK but not yet listed in the published REST
+  endpoint reference: 22 MLOps
+  model deployment, monitoring, and registered-model permission operations, and 5
+  private network profile operations. `aidp_rest` and `aidp_rest_api_reference` now
+  cover 298 operations across 20 categories. When the published reference adds an
+  operation with the same method and path, the published entry is used.
+- QA coverage for the supplement merge, REST planning of every supplement operation,
+  and `aidp_model_deployment` request planning and validation.
+
+### Notes
+
+- Model deployment lifecycle actions (`activate`, `deactivate`, `roll_forward`,
+  `roll_back`) are asynchronous. HTTP 202 means the request was accepted; use `get`,
+  `activities`, or the related async operation to confirm the result. Starting a second
+  action on a deployment while one is in progress returns HTTP 409.
+
 ### Security
 - The MCP server resolves `oci-common` and `aidp-typescript-client` only from the plugin's
   own `vendor/node_modules` / `node_modules` (or `AIDP_VENDOR_NODE_MODULES`), no longer from
