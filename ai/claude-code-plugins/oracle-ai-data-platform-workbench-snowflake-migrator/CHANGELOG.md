@@ -30,6 +30,14 @@ migrator plugin, newest first. The format loosely follows
   Snowflake credential is still on the workspace and that `teardown --scope
   credential --execute` removes it once the copies are done (#175). Only from
   an executed record of the same workspace; never on a failed run.
+- `teardown --scope credential` and `--scope all` read each workspace-object
+  delete (the credential, and the notebooks on an adopted workspace) back by
+  the object's path, path leaf or display name, like every upload read-back
+  in this plugin. They matched the workspace-relative path exactly, which
+  the listing does not return in the SDK's documented form (a fully
+  qualified `path`, a leaf `displayName`), so every such delete read as gone
+  and one accepted but never applied was reported verified. It is now
+  `delete_requested`, unverified, exit 1 (#175).
 - README: who can read the credential on the workspace, that a key-pair
   passphrase placed beside the key does not protect it there, and that
   `--source-mode external-catalog` places no credential at all (#175).

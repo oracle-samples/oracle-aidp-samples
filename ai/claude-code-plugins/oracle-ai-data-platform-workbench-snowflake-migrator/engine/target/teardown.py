@@ -118,11 +118,15 @@ def _state(call, workspace: str, key: str):
     return None                      # not listed: gone
 
 
-def _ws_object_listed(call, ws_key: str, path: str) -> bool:
-    """Whether the listing of `path`'s folder still shows it. Matched the
-    way provision reads its own uploads back -- the path, a path ending in
-    its leaf, or the display name -- so a listing that names it in another
-    form never reads as "removed". One listed as DELETED is gone."""
+def _ws_object_item(call, ws_key: str, path: str) -> dict | None:
+    """The item the listing of `path`'s folder still shows for it, or None.
+
+    Matched the way every upload read-back in this plugin matches -- the
+    path, a path ending in its leaf, or the display name -- never by the
+    workspace-relative path alone: the SDK documents a listed `path` as
+    fully qualified (`/Shared/Folder1/Notebook1.ipynb`) and `displayName`
+    as the leaf, so an exact match of `plan/x.json` would never succeed and
+    every object would read as gone. One listed as DELETED is gone."""
     parent, _, leaf = path.rstrip("/").rpartition("/")
     for item in call("list_ws_objects", workspace=ws_key,
                      path=parent).get("items") or []:
@@ -131,8 +135,12 @@ def _ws_object_listed(call, ws_key: str, path: str) -> bool:
                 or item.get("displayName") == leaf):
             state = str(item.get("lifecycleState") or item.get("state")
                         or "").upper()
-            return state != "DELETED"
-    return False
+            return None if state == "DELETED" else item
+    return None
+
+
+def _ws_object_listed(call, ws_key: str, path: str) -> bool:
+    return _ws_object_item(call, ws_key, path) is not None
 
 
 def credential_left(call, prov: dict, *, execute: bool,
@@ -667,13 +675,11 @@ def teardown_everything(call, prov: dict, *, scope: str, execute: bool,
         step = dict(p)
         try:
             if p["kind"] in ("credential", "notebook"):
-                parent, _, leaf = p["name"].rstrip("/").rpartition("/")
                 verified, detail = _gone_after(
                     call,
                     lambda: call("delete_ws_object", workspace=ws_key,
                                  path=p["name"]),
-                    lambda: _listed(call, "list_ws_objects", p["name"],
-                                    workspace=ws_key, path=parent),
+                    lambda: _ws_object_item(call, ws_key, p["name"]),
                     (), sleep)
             elif p["kind"] == "job":
                 found = _listed(call, "list_jobs", p["name"],
