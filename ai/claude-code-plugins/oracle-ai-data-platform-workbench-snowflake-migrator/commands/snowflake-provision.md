@@ -25,3 +25,7 @@ Thin wrapper over
    --plan-label FULL|REDUCED`. Report any copy job listed as `stale` (exit 1)
    and offer `--delete-stale-copy-jobs` to remove it (it removes only a job
    this migration's records show it created; others stay listed as stale).
+7. A `refused_on_adopted_workspace` halt means `--source-config` would put
+   the Snowflake credential on a workspace this migration did not create.
+   Pass `--allow-credential-on-adopted-workspace` only on the user's
+   explicit yes, after saying every member of that workspace can read it.

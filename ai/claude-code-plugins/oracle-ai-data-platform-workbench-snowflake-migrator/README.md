@@ -367,6 +367,22 @@ only when every object it depends on was. A re-push with a different
 the previous credential, until you remove them. Remove them with
 `teardown --scope credential` once the copies are done (step 10).
 
+- **Who can read them.** Every member of the workspace and every cluster in
+  it, through `/Workspace`. So `--source-config` with `--reuse-existing` into
+  a workspace this migration did not create (the executed
+  `provision_result.json` here does not prove it) stops before anything is
+  created or uploaded, exit 1. Pass `--allow-credential-on-adopted-workspace`
+  only if everyone who can read that workspace may hold the credential. The
+  runbook's re-push into the workspace step 4 created is not affected.
+- **Key-pair auth.** With `key_passphrase_path:`, the passphrase file goes
+  up beside the private key, and both are readable by the same people. On
+  the workspace the passphrase does not protect the key: treat it as an
+  unencrypted key and rotate it when the migration is done.
+- **No credential at all.** `--source-mode external-catalog` reads through
+  the registered EXTERNAL catalog and places no credential on the
+  workspace. It needs a completed catalog crawl and has no pushdown (see
+  step 6).
+
 ### 5. Register the source as an EXTERNAL catalog, then create the INTERNAL target (S3, S4)
 
 One Snowflake database becomes one AIDP catalog. If the account holds

@@ -1587,7 +1587,46 @@ def cmd_run(args) -> int:
             print(f"  manifest NOT fetched ({str(exc)[:200]}); it is on the "
                   f"workspace at {remote}. Run `fetch` to retry.",
                   file=sys.stderr)
+    if result["ok"]:
+        _remind_credential(out, args.workspace, args.job)
     return 0 if result["ok"] else 1
+
+
+# The jobs after which the Snowflake credential may no longer be needed:
+# each copy, and the reconcile that closes the data move.
+_CREDENTIAL_REMINDER_JOBS = ("snowmig_03_reconcile",)
+
+
+def _remind_credential(out: pathlib.Path, workspace: str | None,
+                       job: str | None) -> None:
+    """After a copy job or the reconcile SUCCEEDS: the Snowflake credential
+    `provision --source-config` placed is still on the workspace, and what
+    removes it once the copies are done (#175). Only from an executed
+    record of the workspace the job ran on (a record in this out dir may
+    be another migration's); never changes the exit code. A copy that
+    succeeded in connector mode read Snowflake with it, so it is there."""
+    from target.provisioning import COPY_JOB_PREFIX
+    if not job or not (job.startswith(COPY_JOB_PREFIX)
+                       or job in _CREDENTIAL_REMINDER_JOBS):
+        return
+    try:
+        rec = json.loads((out / "provision_result.json")
+                         .read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if (rec.get("dry_run") is not False
+            or (rec.get("workspace") or {}).get("key") != workspace):
+        return
+    objects = list(dict.fromkeys(
+        [*(rec.get("credential_objects") or []),
+         *(rec.get("credential_unconfirmed") or [])]))
+    if not objects:
+        return
+    print(f"  SNOWFLAKE CREDENTIAL still on workspace "
+          f"{(rec.get('workspace') or {}).get('name') or workspace}, "
+          f"readable by every member and every cluster in it: "
+          f"{', '.join(objects)}. When the last copy job is done, remove it "
+          f"with `teardown --scope credential --execute`.", file=sys.stderr)
 
 
 def _check_task_parameters(call, *, workspace: str, job_key: str,
@@ -3012,7 +3051,16 @@ def cmd_provision(args) -> int:
         refresh_notebooks=args.refresh_notebooks,
         plan_label=args.plan_label, copy_schemas=copy_schemas,
         delete_stale_copy_jobs=getattr(args, "delete_stale_copy_jobs", False),
-        prior=earlier, datalake_ocid=ocid)
+        prior=earlier, datalake_ocid=ocid,
+        allow_credential_on_adopted_workspace=getattr(
+            args, "allow_credential_on_adopted_workspace", False))
+    # Before any return: a halted run goes out early, and this is its why.
+    for s in res["steps"]:
+        if s["step"] == "credential" and "adopted" in s["action"]:
+            halt = next((h["detail"] for h in res["steps"]
+                         if h["step"] == "halt"), None)
+            print(f"  ADOPTED WORKSPACE: {halt or s['detail']}",
+                  file=sys.stderr)
     if res.get("inherited_from"):
         print(f"  re-push into this migration's workspace "
               f"{res['workspace'].get('name')}: catalogs and credential "
@@ -3484,6 +3532,13 @@ def build_parser() -> argparse.ArgumentParser:
                     help="the Snowflake connection config to place on the "
                          "workspace mount for connector mode. It carries the "
                          "credential, so it is uploaded only when passed")
+    pv.add_argument("--allow-credential-on-adopted-workspace",
+                    action="store_true",
+                    help="with --source-config and --reuse-existing, place "
+                         "the Snowflake credential on a workspace this "
+                         "migration did not create (its provision_result.json "
+                         "does not prove it). OFF by default: every member "
+                         "of that workspace can read it via /Workspace")
     pv.add_argument("--external-catalog",
                     help="the registered EXTERNAL catalog name, baked into "
                          "the jobs' default parameters")

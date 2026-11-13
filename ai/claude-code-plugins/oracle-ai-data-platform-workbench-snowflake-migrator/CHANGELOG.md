@@ -17,6 +17,22 @@ migrator plugin, newest first. The format loosely follows
   (`SNOWFLAKE CREDENTIAL STILL ON THE WORKSPACE`), to the top of
   `TEARDOWN.md`, and to `credential_left` in `teardown_result.json`. The exit
   code is unchanged.
+- `provision --source-config --reuse-existing` into a workspace this
+  migration did not create (the executed `provision_result.json` does not
+  prove it) stops before anything is created or uploaded
+  (`refused_on_adopted_workspace`, exit 1, the earlier record kept), unless
+  `--allow-credential-on-adopted-workspace` is passed (#175). The dry run says
+  so in advance. The runbook's re-push into this migration's own workspace,
+  a workspace the run creates, and an adoption without `--source-config` are
+  unchanged. An allowed placement is recorded as
+  `credential_on_adopted_workspace` and called out in `PROVISION.md`.
+- `run` reminds, after a copy job or the reconcile succeeds, that the
+  Snowflake credential is still on the workspace and that `teardown --scope
+  credential --execute` removes it once the copies are done (#175). Only from
+  an executed record of the same workspace; never on a failed run.
+- README: who can read the credential on the workspace, that a key-pair
+  passphrase placed beside the key does not protect it there, and that
+  `--source-mode external-catalog` places no credential at all (#175).
 
 ### Fixed
 - `snowflake-connector-python` is pinned below 5 (`>=4.7.0,<5`) in

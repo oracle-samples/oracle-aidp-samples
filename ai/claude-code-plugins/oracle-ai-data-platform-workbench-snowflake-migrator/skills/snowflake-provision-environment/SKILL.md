@@ -94,6 +94,17 @@ first: it must exist and be readable by the user alone, or nothing is
 uploaded. A config with an inline secret is refused before anything is
 uploaded.
 
+Once on the workspace, those objects are readable by **every member of the
+workspace and every cluster in it**. So `--source-config` with
+`--reuse-existing` into a workspace this migration did **not** create (the
+executed `provision_result.json` does not prove it) halts before anything is
+created or uploaded (`refused_on_adopted_workspace`, exit 1). The runbook's
+own re-push into the S1 workspace is not affected. Do not add
+`--allow-credential-on-adopted-workspace` on your own: tell the user who can
+read that workspace, offer a workspace this migration creates or
+`--source-mode external-catalog` (no credential placed), and pass the flag
+only on their explicit yes in that turn.
+
 `--source-mode external-catalog` uses three-part names instead, and needs a
 catalog whose metadata crawl has completed. Check that first — an empty
 `SHOW SCHEMAS IN <catalog>` means the catalog has not been populated yet, not
