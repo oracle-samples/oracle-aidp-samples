@@ -21,11 +21,15 @@ been rendered with profile params. The flow is therefore:
    rendered_sql_hash.
 5. **Plan-hash drift gate** (incremental only) — block resume on
    AIDPF-4040 BEFORE any Spark write.
+   5b. Capture the primary SOURCE's high-water mark (newest
+   ``watermark.column`` value) — before the write, so a row landing
+   mid-run is re-read next run rather than skipped.
 6. Dispatch by strategy, reusing the same RenderedSql.
 7. Quality tests — failures block cursor advance.
 8. Materialised-schema assertion — Spark target schema must match
    ``node.outputSchema`` (AIDPF-4070).
-9. Compute output_watermark.
+9. Compute output_watermark — the Step 5b high-water mark, or the prior
+   cursor when a merge skipped an empty delta.
 10. Assemble the full state-row list (primary + every lookup) in memory.
 11. ONE atomic batch state write via ``write_state_rows_hard``.
 12. Return.
@@ -53,7 +57,6 @@ logger = logging.getLogger(__name__)
 from .node_preflight import preflight_node
 from .quality_runner import run_quality_tests
 from .sql_renderer import (
-    RenderedSql,
     RunContext,
     SqlRendererError,
     compute_rendered_sql_hash,
@@ -330,6 +333,12 @@ def execute_node(
     if drift_result is not None:
         return drift_result
 
+    # ----- Step 5b: capture the source high-water mark BEFORE the write -
+    # It becomes this run's output_watermark (Step 9). Reading it before the
+    # write means a source row that lands mid-run is re-read next run rather
+    # than skipped by a cursor that has already moved past it.
+    source_high_water_mark = _probe_source_high_water_mark(spark, node, ctx)
+
     # ----- Step 6: dispatch by strategy, reusing RenderedSql ----------
     target = target_override or _build_target_identifier(node, ctx, paths)
     try:
@@ -382,7 +391,7 @@ def execute_node(
 
     # ----- Step 9: compute output_watermark ---------------------------
     output_watermark = _compute_output_watermark(
-        spark, node, ctx, paths, rendered, strategy_result,
+        node, ctx, strategy_result, source_high_water_mark,
     )
 
     # ----- Step 10: assemble state rows (primary + lookups) ----------
@@ -574,55 +583,86 @@ def _build_target_identifier(
     )
 
 
-def _compute_output_watermark(
+def _probe_source_high_water_mark(
     spark: "SparkSession",
     node: "NodeYaml",  # noqa: F821
     ctx: RunContext,
-    paths: "TablePaths",  # noqa: F821
-    rendered: RenderedSql,
-    strategy_result,
 ) -> datetime | None:
-    """Compute the primary source's max watermark over the rows scanned.
+    """Return the newest ``watermark.column`` value in the node's primary SOURCE.
 
-    For ``replace`` strategy: probe the target's max watermark column
-    value. For ``merge`` with non-empty delta: probe the source SELECT.
-    For ``merge`` with empty delta: preserve the prior watermark (None
-    here; the caller threads the prior value when writing the row).
+    ``refresh.incremental.watermark.column`` names a SOURCE column — preflight
+    (AIDPF-2043) checks it on the bronze source, the column-contract gate
+    (AIDPF-2045) checks it against the source's ``outputSchema``, and the
+    renderer filters the source on it. Silver/gold SQL usually renames it in
+    the output (``_extract_ts AS bronze_extract_ts``), so the target cannot be
+    probed for it. Called BEFORE the strategy writes (see execute_node Step 5b).
 
-    Defensive against missing watermark column — returns None if the
-    column doesn't exist (which means the node has no incremental
-    semantics, in which case the watermark field is informational).
+    Returns ``None`` — without querying — unless the node is an incremental
+    ``merge`` node with a watermark block: only a merge node reads its cursor
+    back (a ``replace`` node may not use the predicate, AIDPF-5015), and
+    preflight (AIDPF-2043) guarantees a merge node's source is a known bronze
+    table. Also ``None`` when the source is empty. When the probe cannot run or
+    its value cannot be read,
+    logs a WARNING and returns the PRIOR cursor: the cursor neither advances
+    nor resets to NULL (which would force a full rescan), and the next run
+    re-reads from the prior cursor — at-least-once, never a skipped row.
+    """
+    inc = node.refresh.incremental
+    if inc is None or inc.watermark is None or inc.strategy != "merge":
+        return None
+    source = inc.watermark.source
+    column = inc.watermark.column
+    prior = ctx.prior_watermark.get(source)
+    table = ctx.bronze_table_for_source.get(source)
+    if table is None:
+        logger.warning(
+            "Output watermark for node %r: no source table known for watermark "
+            "source %r; keeping the previous cursor %r.",
+            node.id, source, prior,
+        )
+        return prior
+    try:
+        rows = spark.sql(f"SELECT MAX({column}) AS wm FROM {table}").collect()
+    except Exception as exc:  # noqa: BLE001 — never fail a node over its cursor probe
+        logger.warning(
+            "Output watermark probe for node %r on %s (column %r) failed: %s: %s. "
+            "Keeping the previous cursor %r.",
+            node.id, table, column, type(exc).__name__, str(exc)[:200], prior,
+        )
+        return prior
+    value = rows[0][0] if rows else None
+    if value is None or isinstance(value, datetime):
+        return value
+    # Spark may return strings for timestamp columns in some configurations.
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        logger.warning(
+            "Output watermark probe for node %r on %s returned unreadable value "
+            "%r; keeping the previous cursor %r.",
+            node.id, table, value, prior,
+        )
+        return prior
+
+
+def _compute_output_watermark(
+    node: "NodeYaml",  # noqa: F821
+    ctx: RunContext,
+    strategy_result,
+    source_high_water_mark: datetime | None,
+) -> datetime | None:
+    """Cursor to store for this run's primary source.
+
+    * ``merge`` that skipped an empty delta → the prior cursor, unchanged.
+    * Otherwise → ``source_high_water_mark``, the source's newest watermark
+      value captured before the write by :func:`_probe_source_high_water_mark`
+      (``None`` for nodes without an incremental watermark).
     """
     if strategy_result.merge_skipped_empty_delta:
-        return ctx.prior_watermark.get(
-            node.refresh.incremental.watermark.source
-            if node.refresh.incremental and node.refresh.incremental.watermark
-            else None,
-        )
-
-    inc = node.refresh.incremental
-    if inc is None or inc.watermark is None:
-        return None
-    column = inc.watermark.column
-    target = _build_target_identifier(node, ctx, paths)
-    try:
-        df = spark.sql(f"SELECT MAX({column}) AS wm FROM {target}")
-        rows = df.collect()
-        if not rows:
-            return None
-        wm = rows[0][0]
-        if isinstance(wm, datetime):
-            return wm
-        if wm is None:
-            return None
-        # Spark may return strings for timestamp columns in some
-        # configurations; defensive coercion.
-        try:
-            return datetime.fromisoformat(str(wm))
-        except (TypeError, ValueError):
-            return None
-    except Exception:  # noqa: BLE001 — informational; missing column shouldn't fail the run
-        return None
+        inc = node.refresh.incremental
+        source = inc.watermark.source if inc is not None and inc.watermark is not None else None
+        return ctx.prior_watermark.get(source)
+    return source_high_water_mark
 
 
 def _assemble_success_state_rows(

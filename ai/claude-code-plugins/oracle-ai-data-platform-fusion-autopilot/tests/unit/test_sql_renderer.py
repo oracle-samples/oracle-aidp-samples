@@ -35,6 +35,7 @@ from oracle_ai_data_platform_fusion_autopilot.orchestrator.sql_renderer import (
     PostRenderRejectedError,
     RenderedSql,
     RunContext,
+    SqlRendererError,
     UnknownTokenError,
     UnresolvedVariationPointError,
     _format_profile_value_for_params,
@@ -174,8 +175,53 @@ profile:
 """
 
 
-def _build_pack(tmp_path: pathlib.Path, *, with_variants: bool, sql_template: str):
-    """Materialise a minimal content pack on disk and return the ResolvedPack."""
+# A full-rebuild (`replace`) node — the supplier_spend shape. No watermark block.
+NODE_YAML_REPLACE_NO_WATERMARK = """
+id: dim_thing
+layer: silver
+implementation:
+  type: sql
+  sql: silver/dim_thing.sql
+target: dim_thing
+outputSchema:
+  columns:
+    - name: thing_id
+      type: string
+      nullable: false
+      pii: none
+dependsOn:
+  bronze:
+    - id: erp_thing
+      watermark:
+        column: _extract_ts
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: replace
+"""
+
+
+# The same replace node after someone "fixes" AIDPF-5003 by adding a watermark
+# block — the schema accepts it, and the predicate would then filter a full
+# rebuild down to the delta.
+NODE_YAML_REPLACE_WITH_WATERMARK = NODE_YAML_REPLACE_NO_WATERMARK + """    watermark:
+      source: erp_thing
+      column: _extract_ts
+"""
+
+
+def _build_pack(
+    tmp_path: pathlib.Path,
+    *,
+    with_variants: bool,
+    sql_template: str,
+    node_yaml: str | None = None,
+):
+    """Materialise a minimal content pack on disk and return the ResolvedPack.
+
+    ``node_yaml`` overrides the default ``dim_thing`` node definition.
+    """
     pack_root = tmp_path / "pack"
     pack_root.mkdir(parents=True, exist_ok=True)
     pack_yaml = PACK_YAML_WITH_VARIANTS if with_variants else PACK_YAML_BASE
@@ -183,7 +229,8 @@ def _build_pack(tmp_path: pathlib.Path, *, with_variants: bool, sql_template: st
 
     silver = pack_root / "silver"
     silver.mkdir()
-    node_yaml = NODE_YAML_WITH_VARIANTS if with_variants else NODE_YAML_NO_VARIANTS
+    if node_yaml is None:
+        node_yaml = NODE_YAML_WITH_VARIANTS if with_variants else NODE_YAML_NO_VARIANTS
     (silver / "dim_thing.yaml").write_text(node_yaml, encoding="utf-8")
     (silver / "dim_thing.sql").write_text(sql_template, encoding="utf-8")
 
@@ -689,3 +736,149 @@ profile: {}
         qualifier = "fusion_catalog.bronze.ap_invoices"
         assert f"{qualifier}.ApInvoicesCancelledDate" in sql
         assert f"FROM {qualifier}" in sql
+
+
+# ---------------------------------------------------------------------------
+# {{ watermark_predicate }} in a full-rebuild (`replace`) node — issue #176
+# ---------------------------------------------------------------------------
+
+
+class TestWatermarkPredicateOnReplaceNode:
+    """A ``replace`` node rebuilds its whole target with CREATE OR REPLACE, so a
+    watermark filter can only shrink the table to the delta. The renderer must
+    never emit one for such a node, and its error must tell the author to remove
+    the token — not to add the watermark block that would cause the data loss."""
+
+    SQL = "SELECT a FROM {{ catalog }}.{{ bronze_schema }}.erp_thing WHERE {{ watermark_predicate }}"
+
+    def _node(self, tmp_path: pathlib.Path, node_yaml: str):
+        pack = _build_pack(
+            tmp_path, with_variants=False, sql_template=self.SQL, node_yaml=node_yaml
+        )
+        return pack, pack.silver["dim_thing"]
+
+    def test_replace_node_without_watermark_block_fails_with_remove_token_hint(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        pack, node = self._node(tmp_path, NODE_YAML_REPLACE_NO_WATERMARK)
+        with pytest.raises(SqlRendererError, match="AIDPF-5015") as exc_info:
+            render_node_sql(node, pack, _profile(), _default_ctx(mode="incremental"))
+        message = str(exc_info.value)
+        assert "remove" in message.lower()
+        assert "do not add" in message.lower()
+
+    def test_replace_node_with_watermark_block_never_gets_a_filter(
+        self, tmp_path: pathlib.Path
+    ) -> None:
+        """The trap: with a watermark block and a prior cursor the renderer used
+        to emit ``_extract_ts > :watermark_erp_thing`` into a CREATE OR REPLACE."""
+        pack, node = self._node(tmp_path, NODE_YAML_REPLACE_WITH_WATERMARK)
+        with pytest.raises(SqlRendererError, match="AIDPF-5015"):
+            render_node_sql(
+                node, pack, _profile(),
+                _default_ctx(
+                    mode="incremental",
+                    prior_watermark={"erp_thing": "2026-11-01T00:00:00"},
+                ),
+            )
+
+    def test_replace_node_seed_render_is_unchanged(self, tmp_path: pathlib.Path) -> None:
+        """Seed renders the token as the no-op ``1=1``; the guard is incremental-only."""
+        pack, node = self._node(tmp_path, NODE_YAML_REPLACE_NO_WATERMARK)
+        rendered = render_node_sql(node, pack, _profile(), _default_ctx(mode="seed"))
+        assert "WHERE 1=1" in rendered.sql
+
+
+# ---------------------------------------------------------------------------
+# Every shipped starter-pack SQL node renders in every mode — issue #176
+# ---------------------------------------------------------------------------
+
+
+class TestStarterPackRendersInEveryMode:
+    """No test rendered the shipped pack in incremental mode, which is how
+    ``supplier_spend`` shipped a template that only renders in seed."""
+
+    STARTER_PACK_ROOT = (
+        pathlib.Path(_pkg.__file__).parent / "content_packs" / "fusion-finance-starter"
+    )
+
+    _PROFILE_YAML = """
+schemaVersion: 1
+tenant: starter-render-test
+pinnedAt: 2026-06-01T00:00:00+00:00
+bronzeSchemaFingerprint: "sha256:abc"
+resolved:
+  column:
+    supplier_natural_key: SEGMENT1
+    vendor_id: VENDORID
+    invoice_currency_code: ApInvoicesInvoiceCurrencyCode
+  semantic:
+    cancelled_status: cancelled_date
+profile:
+  chartOfAccounts:
+    balancingSegment: CodeCombinationSegment1
+    costCenterSegment: CodeCombinationSegment2
+    naturalAccountSegment: CodeCombinationSegment3
+"""
+
+    @staticmethod
+    def _primary_source(node) -> str | None:
+        inc = node.refresh.incremental
+        if inc is not None and inc.watermark is not None:
+            return inc.watermark.source
+        return node.depends_on.bronze[0].id if node.depends_on.bronze else None
+
+    @pytest.mark.parametrize(
+        ("mode", "with_cursor"),
+        [("seed", False), ("incremental", False), ("incremental", True)],
+        ids=["seed", "incremental-first-run", "incremental-with-cursor"],
+    )
+    def test_every_sql_node_renders(self, mode: str, with_cursor: bool) -> None:
+        from datetime import datetime
+
+        pack = load_pack(self.STARTER_PACK_ROOT)
+        profile = load_tenant_profile_from_string(self._PROFILE_YAML)
+        failures: list[str] = []
+        rendered_ids: list[str] = []
+        for layer in ("silver", "gold"):
+            for node_id, node in getattr(pack, layer).items():
+                if node.implementation.type != "sql":
+                    continue
+                source = self._primary_source(node)
+                cursor = {source: datetime(2026, 11, 1)} if with_cursor and source else {}
+                ctx = RunContext(
+                    catalog="fusion_catalog",
+                    bronze_schema="bronze",
+                    silver_schema="silver",
+                    gold_schema="gold",
+                    run_id="run-starter-render",
+                    active_profile_name="finance-default",
+                    mode=mode,
+                    prior_watermark=cursor,
+                    bronze_table_for_source={
+                        s.id: f"fusion_catalog.bronze.{s.id}" for s in node.depends_on.bronze
+                    },
+                )
+                try:
+                    rendered = render_node_sql(node, pack, profile, ctx)
+                except SqlRendererError as exc:
+                    failures.append(f"{layer}/{node_id}: {exc}")
+                    continue
+                rendered_ids.append(f"{layer}/{node_id}")
+                # With a cursor, a merge node must actually filter — otherwise a
+                # cursor-key mismatch would silently render `1=1` and this case
+                # would pass without exercising the incremental predicate.
+                inc = node.refresh.incremental
+                expects_filter = (
+                    with_cursor
+                    and inc is not None
+                    and inc.strategy == "merge"
+                    and inc.watermark is not None
+                )
+                if expects_filter and f"watermark_{source}" not in rendered.params:
+                    failures.append(
+                        f"{layer}/{node_id}: cursor supplied but no watermark filter rendered"
+                    )
+        assert not failures, "starter-pack nodes failed to render:\n" + "\n".join(failures)
+        # Guard against the loop silently covering nothing.
+        assert "gold/supplier_spend" in rendered_ids
