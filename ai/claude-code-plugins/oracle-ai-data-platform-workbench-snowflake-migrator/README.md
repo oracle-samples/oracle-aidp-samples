@@ -621,7 +621,11 @@ bin/snowmig teardown --scope all [--include-data] [--execute]   # undo the migra
 - **Default scope**: stops (or, with `--action delete`, deletes) only the
   clusters this migration created, and keeps its output — the workspace, the
   catalogs and the jobs. Stopping is reversible and leaves the copy jobs
-  runnable.
+  runnable. It does **not** remove the Snowflake credential `--source-config`
+  placed: while that is still on the workspace (looked for with `--execute`;
+  in a dry run, as recorded), it prints `SNOWFLAKE CREDENTIAL STILL ON THE
+  WORKSPACE` and puts a warning at the top of `TEARDOWN.md` naming each
+  object. The exit code is unchanged.
 - **`--scope credential`** removes the credential `--source-config` placed on
   the workspace. Run it after the copies: the copy jobs need it.
 - **`--scope all`** is for a lab, a rehearsal or an abandoned migration: the

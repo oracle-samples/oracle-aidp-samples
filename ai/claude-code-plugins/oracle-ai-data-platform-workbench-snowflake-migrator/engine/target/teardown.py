@@ -32,8 +32,10 @@ from .provenance import (CREATED, NOT_CREATED, REQUESTED, UNKNOWN,
                          cluster_records)
 
 __all__ = ["ACTIONS", "RELEASED_ACTIONS", "SCOPES", "STOPPED_STATES",
-           "catalogs_created", "ledger_workspace_rows", "teardown",
-           "teardown_everything", "render_teardown"]
+           "catalogs_created", "credential_left", "credential_left_advice",
+           "credential_left_lines",
+           "ledger_workspace_rows", "teardown", "teardown_everything",
+           "render_teardown"]
 
 ACTIONS = ("stop", "delete")
 # One stopped set, shared with the billing report (report/resources.py).
@@ -116,6 +118,68 @@ def _state(call, workspace: str, key: str):
     return None                      # not listed: gone
 
 
+def _ws_object_listed(call, ws_key: str, path: str) -> bool:
+    """Whether the listing of `path`'s folder still shows it. Matched the
+    way provision reads its own uploads back -- the path, a path ending in
+    its leaf, or the display name -- so a listing that names it in another
+    form never reads as "removed". One listed as DELETED is gone."""
+    parent, _, leaf = path.rstrip("/").rpartition("/")
+    for item in call("list_ws_objects", workspace=ws_key,
+                     path=parent).get("items") or []:
+        listed = str(item.get("path") or "")
+        if (listed == path or listed.endswith("/" + leaf)
+                or item.get("displayName") == leaf):
+            state = str(item.get("lifecycleState") or item.get("state")
+                        or "").upper()
+            return state != "DELETED"
+    return False
+
+
+def credential_left(call, prov: dict, *, execute: bool,
+                    datalake_ocid: str | None = None) -> list[dict]:
+    """The Snowflake credential objects `provision --source-config` placed
+    that may still be on a workspace, for the compute scope to warn about:
+    it never removes them (the copy jobs read Snowflake with them).
+
+    Executed, each recorded object is looked for in its folder: the record
+    is not updated when `--scope credential` removes them, so the record
+    alone would warn about a credential already gone. One not listed is
+    left out; a listing that fails is `unknown`, never gone. In a dry run
+    nothing is looked up and each is `on_record`. An object an earlier push
+    placed on another workspace is `elsewhere`, named and not looked for."""
+    ws_key = (prov.get("workspace") or {}).get("key")
+    names = list(dict.fromkeys(
+        list(prov.get("credential_objects") or [])
+        + list(prov.get("credential_unconfirmed") or [])))
+    other = (datalake_ocid and prov.get("datalake_ocid")
+             and prov["datalake_ocid"] != datalake_ocid)
+    left: list[dict] = []
+    for name in names:
+        entry = {"name": name, "workspace": ws_key}
+        if not execute or call is None:
+            left.append({**entry, "status": "on_record"})
+            continue
+        if other or not ws_key:
+            left.append({**entry, "status": "unknown",
+                         "detail": (f'recorded in aiDataPlatform '
+                                    f'{prov["datalake_ocid"]}, not the one '
+                                    f'this teardown targets' if other else
+                                    "the record names no workspace key")})
+            continue
+        try:
+            found = _ws_object_listed(call, ws_key, name)
+        except Exception as exc:
+            left.append({**entry, "status": "unknown",
+                         "detail": str(exc)[:200]})
+            continue
+        if found:
+            left.append({**entry, "status": "on_workspace"})
+    for e in prov.get("earlier_credential_objects") or []:
+        left.append({"name": e.get("path"), "workspace": e.get("workspace"),
+                     "status": "elsewhere"})
+    return left
+
+
 def teardown(call, prov: dict, *, action: str, execute: bool,
              delays: tuple[float, ...] = (10.0, 20.0, 30.0, 30.0, 60.0,
                                           60.0),
@@ -149,11 +213,16 @@ def teardown(call, prov: dict, *, action: str, execute: bool,
                         "this teardown cannot tell what the migration "
                         "allocated; nothing was touched. Check the console "
                         "and PROVISION.md of the push that created the "
-                        "environment."}
+                        "environment.",
+                "credential_left": credential_left(
+                    call, prov, execute=execute,
+                    datalake_ocid=datalake_ocid)}
     if not execute:
         base["steps"] = [{**t, "action": f"would {action}", "verified": None}
                          for t in targets] + unkeyed
-        return {**base, "verified": 0, "note": ""}
+        return {**base, "verified": 0, "note": "",
+                "credential_left": credential_left(
+                    call, prov, execute=False, datalake_ocid=datalake_ocid)}
 
     for t in targets:
         step = dict(t)
@@ -215,8 +284,11 @@ def teardown(call, prov: dict, *, action: str, execute: bool,
         base["steps"].append(step)
     # Counted, so the run cannot report full success over them.
     base["steps"] += unkeyed
+    # Looked for after the clusters, so a failed lookup costs no release.
     return {**base, "note": "", "at": _now(),
-            "verified": sum(1 for s in base["steps"] if s["verified"])}
+            "verified": sum(1 for s in base["steps"] if s["verified"]),
+            "credential_left": credential_left(
+                call, prov, execute=True, datalake_ocid=datalake_ocid)}
 
 
 def _render_scoped(res: dict) -> str:
@@ -255,6 +327,59 @@ def _render_scoped(res: dict) -> str:
     return "\n".join(out) + "\n"
 
 
+_LEFT_WHY = {
+    "on_workspace": "still listed on the workspace",
+    "on_record": "placed by provision; not looked for in a dry run",
+    "unknown": "could not be looked for",
+    "elsewhere": "placed on another workspace by an earlier push",
+}
+
+
+def credential_left_lines(left: list[dict]) -> list[str]:
+    """One line per credential object `credential_left` reported: the
+    object, where, and why it is listed."""
+    lines = []
+    for c in left:
+        why = _LEFT_WHY.get(c.get("status"), c.get("status"))
+        where = (f' (workspace `{c["workspace"]}`)'
+                 if c.get("status") == "elsewhere" and c.get("workspace")
+                 else "")
+        detail = f': {c["detail"]}' if c.get("detail") else ""
+        lines.append(f'`{c.get("name")}`{where} — {why}{detail}')
+    return lines
+
+
+def credential_left_advice(left: list[dict]) -> list[str]:
+    """What removes what `credential_left` reported. `--scope credential`
+    removes only the objects on this migration's current workspace; one an
+    earlier push placed elsewhere it leaves alone ("remove it there")."""
+    advice = []
+    if any(c.get("status") != "elsewhere" for c in left):
+        advice.append("Once the copy jobs are done (they read Snowflake with "
+                      "it), remove it with `teardown --scope credential "
+                      "--execute`.")
+    if any(c.get("status") == "elsewhere" for c in left):
+        advice.append("An object on another workspace is not removed by "
+                      "this migration's teardown: delete it on that "
+                      "workspace.")
+    advice.append("Rotate the Snowflake credential if anyone who must not "
+                  "hold it can read the workspace.")
+    return advice
+
+
+def _render_credential_left(left: list[dict]) -> list[str]:
+    if not left:
+        return []
+    return (["## ⚠️ The Snowflake credential is still on the workspace", "",
+             "This scope stops (or deletes) clusters only; it does not "
+             "remove the Snowflake credential `provision --source-config` "
+             "placed. Until it is removed, it is readable by **every member "
+             "of the workspace and every cluster in it** via `/Workspace`:",
+             ""]
+            + [f"- {line}" for line in credential_left_lines(left)]
+            + ["", " ".join(credential_left_advice(left)), ""])
+
+
 def render_teardown(res: dict) -> str:
     if res.get("scope") in ("credential", "all"):
         return _render_scoped(res)
@@ -264,6 +389,7 @@ def render_teardown(res: dict) -> str:
                 f'to {res["action"]} the clusters below.', ""]
     if res.get("note"):
         out += [res["note"], ""]
+    out += _render_credential_left(res.get("credential_left") or [])
     out += ["| Cluster | Role | Action | Verified | State |",
             "|---|---|---|---|---|"]
     for s in res.get("steps") or []:

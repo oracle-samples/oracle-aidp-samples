@@ -6,6 +6,18 @@ migrator plugin, newest first. The format loosely follows
 
 ## [Unreleased]
 
+### Security
+- The default (compute) `teardown` warns when the Snowflake credential
+  `provision --source-config` placed is still on the workspace (#175). It
+  never removed it, so an operator who stopped there left a credential every
+  workspace member can read. With `--execute` each recorded object is looked
+  for on the workspace, so a credential `--scope credential` already removed
+  is not reported; a lookup that fails is reported as unknown, never as gone.
+  A dry run reports what the record holds. The warning goes to stderr
+  (`SNOWFLAKE CREDENTIAL STILL ON THE WORKSPACE`), to the top of
+  `TEARDOWN.md`, and to `credential_left` in `teardown_result.json`. The exit
+  code is unchanged.
+
 ### Fixed
 - `snowflake-connector-python` is pinned below 5 (`>=4.7.0,<5`) in
   `engine/requirements.txt` and in the commented fallback line of

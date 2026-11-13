@@ -2365,6 +2365,7 @@ def cmd_teardown(args) -> int:
                    datalake_ocid=ocid)
     _write(out, "teardown_result.json", res)
     _write(out, "TEARDOWN.md", render_teardown(res))
+    _warn_credential_left(res.get("credential_left") or [])
     targets = [s for s in res["steps"]
                if str(s.get("action")).startswith("would ")]
     for s in res["steps"]:
@@ -2387,6 +2388,23 @@ def cmd_teardown(args) -> int:
     print(f'  teardown: {res["verified"]}/{len(res["steps"])} cluster(s) '
           f'{action} verified')
     return 0 if res["verified"] == len(res["steps"]) else 1
+
+
+def _warn_credential_left(left: list[dict]) -> None:
+    """The compute scope's warning about the Snowflake credential it does
+    not remove. Never changes the exit code: the clusters are what the
+    compute scope is judged on, and the copy jobs still need the
+    credential."""
+    if not left:
+        return
+    from target.teardown import credential_left_advice, credential_left_lines
+    print("  SNOWFLAKE CREDENTIAL STILL ON THE WORKSPACE: this teardown does "
+          "not remove it, and every member of the workspace and every "
+          "cluster in it can read it via /Workspace:", file=sys.stderr)
+    for line in credential_left_lines(left):
+        print(f"    - {line.replace('`', '')}", file=sys.stderr)
+    for line in credential_left_advice(left):
+        print(f"  {line}", file=sys.stderr)
 
 
 def _teardown_scoped(args, out, prov, call, ocid, scope: str) -> int:
