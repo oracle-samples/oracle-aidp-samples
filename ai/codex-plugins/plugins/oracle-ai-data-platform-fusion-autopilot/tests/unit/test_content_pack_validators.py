@@ -14,6 +14,9 @@ import yaml
 from unittest.mock import MagicMock
 
 from oracle_ai_data_platform_fusion_autopilot.orchestrator.content_pack import load_pack
+from oracle_ai_data_platform_fusion_autopilot.orchestrator.sql_renderer import (
+    watermark_predicate_on_replace_message,
+)
 from oracle_ai_data_platform_fusion_autopilot.orchestrator.content_pack_validators import (
     AIDPF_2003_SQL_FILE_MISSING,
     AIDPF_2005_RESERVED_NODE_ID,
@@ -940,3 +943,130 @@ def test_starter_pack_passes_column_contract_gate() -> None:
 
     pack = _load_full_chain(resolve_pack_path("fusion-finance-starter"))
     assert validate_column_contracts(pack) == []
+
+
+# ---------------------------------------------------------------------------
+# {{ watermark_predicate }} in a full-rebuild (`replace`) node — issue #176
+# ---------------------------------------------------------------------------
+
+_WATERMARK_SQL = (
+    "SELECT {{ column.supplier_natural_key }} "
+    "FROM {{ catalog }}.{{ bronze_schema }}.erp_suppliers "
+    "WHERE {{ watermark_predicate }}"
+)
+
+
+def _make_watermark_token_pack(root: Path, *, incremental: dict) -> Path:
+    """Base pack whose dim_supplier SQL uses the watermark token, with the given
+    ``refresh.incremental`` block."""
+    pack_root = _make_base_pack(root, with_sql=True)
+    _write_file(pack_root / "silver" / "dim_supplier.sql", _WATERMARK_SQL)
+    node_path = pack_root / "silver" / "dim_supplier.yaml"
+    node = yaml.safe_load(node_path.read_text())
+    node["refresh"]["incremental"] = incremental
+    _write_yaml(node_path, node)
+    return pack_root
+
+
+def test_watermark_predicate_in_replace_node_rejected(tmp_path: Path) -> None:
+    """The shipped supplier_spend shape: replace strategy, no watermark block."""
+    pack = load_pack(
+        _make_watermark_token_pack(tmp_path, incremental={"strategy": "replace"})
+    )
+    errors = validate_template_variables(pack)
+    matching = [e for e in errors if e.code == "AIDPF-5015"]
+    assert len(matching) == 1
+    assert matching[0].location == "silver/dim_supplier"
+    assert matching[0].message == watermark_predicate_on_replace_message("dim_supplier")
+
+
+def test_watermark_predicate_in_replace_node_with_watermark_block_rejected(
+    tmp_path: Path,
+) -> None:
+    """The data-loss shape: a watermark block on a replace node would turn the
+    full rebuild into a delta-only CREATE OR REPLACE."""
+    pack = load_pack(
+        _make_watermark_token_pack(
+            tmp_path,
+            incremental={
+                "strategy": "replace",
+                "watermark": {"source": "erp_suppliers", "column": "_extract_ts"},
+            },
+        )
+    )
+    assert any(e.code == "AIDPF-5015" for e in validate_template_variables(pack))
+
+
+def test_watermark_predicate_in_merge_node_accepted(tmp_path: Path) -> None:
+    pack = load_pack(
+        _make_watermark_token_pack(
+            tmp_path,
+            incremental={
+                "strategy": "merge",
+                "watermark": {"source": "erp_suppliers", "column": "_extract_ts"},
+                "naturalKey": ["supplier_number"],
+            },
+        )
+    )
+    assert validate_template_variables(pack) == []
+
+
+def test_watermark_predicate_in_replace_node_fails_full_validation(tmp_path: Path) -> None:
+    """validate_pack_full is what `content-pack validate` and run-start call."""
+    pack = load_pack(
+        _make_watermark_token_pack(tmp_path, incremental={"strategy": "replace"})
+    )
+    report = validate_pack_full(pack)
+    # (The base fixture also trips an unrelated AIDPF-2084, so `report.ok` is
+    # not informative here — assert on the specific code.)
+    assert any(e.code == "AIDPF-5015" for e in report.errors)
+
+
+def test_starter_pack_passes_template_variable_gate() -> None:
+    """Non-regression: the shipped starter pack uses only tokens its nodes can render."""
+    from oracle_ai_data_platform_fusion_autopilot.commands.content_pack import (
+        _load_full_chain,
+        resolve_pack_path,
+    )
+
+    pack = _load_full_chain(resolve_pack_path("fusion-finance-starter"))
+    assert validate_template_variables(pack) == []
+
+
+_EXAMPLE_OVERLAY = Path(__file__).resolve().parents[2] / "examples" / "overlay-pack"
+
+
+def _load_overlay_chain(overlay_root: Path):
+    from oracle_ai_data_platform_fusion_autopilot.orchestrator.content_pack import (
+        load_full_chain,
+        make_filesystem_base_resolver,
+    )
+
+    return load_full_chain(
+        overlay_root, base_resolver=make_filesystem_base_resolver(overlay_root)
+    )
+
+
+def test_watermark_predicate_in_overlay_replace_mart_rejected(tmp_path: Path) -> None:
+    """The customer path: an overlay (what mart-author writes) adds a replace
+    mart and puts the token in its SQL. The merged pack must flag that node."""
+    import shutil
+
+    overlay = tmp_path / "overlay-pack"
+    shutil.copytree(_EXAMPLE_OVERLAY, overlay)
+    sql_path = overlay / "gold" / "supplier_spend_by_currency.sql"
+    sql = sql_path.read_text()
+    anchor = "WHERE a.ApInvoicesInvoiceCurrencyCode IS NOT NULL"
+    assert anchor in sql
+    sql_path.write_text(sql.replace(anchor, anchor + " AND {{ watermark_predicate }}", 1))
+
+    errors = validate_template_variables(_load_overlay_chain(overlay))
+    assert [(e.code, e.location) for e in errors] == [
+        ("AIDPF-5015", "gold/supplier_spend_by_currency")
+    ]
+
+
+def test_example_overlay_passes_template_variable_gate() -> None:
+    """Non-regression: the shipped example overlay, merged over the starter
+    pack, uses only tokens its nodes can render."""
+    assert validate_template_variables(_load_overlay_chain(_EXAMPLE_OVERLAY)) == []

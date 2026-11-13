@@ -8,6 +8,7 @@ and a preflight/render/drift failure must never invoke Spark writes.
 from __future__ import annotations
 
 import pathlib
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -92,13 +93,13 @@ profile: {}
 SIMPLE_SQL = "SELECT 1 AS thing_id"
 
 
-def _build_pack(tmp_path: pathlib.Path, sql: str = SIMPLE_SQL):
+def _build_pack(tmp_path: pathlib.Path, sql: str = SIMPLE_SQL, node_yaml: str = NODE_YAML):
     pack_root = tmp_path / "pack"
     pack_root.mkdir(parents=True, exist_ok=True)
     (pack_root / "pack.yaml").write_text(PACK_YAML, encoding="utf-8")
     silver = pack_root / "silver"
     silver.mkdir()
-    (silver / "dim_thing.yaml").write_text(NODE_YAML, encoding="utf-8")
+    (silver / "dim_thing.yaml").write_text(node_yaml, encoding="utf-8")
     (silver / "dim_thing.sql").write_text(sql, encoding="utf-8")
     return load_pack(pack_root)
 
@@ -981,3 +982,352 @@ class TestBatchGateDownstreamNeeds:
         self._patch(monkeypatch, {"test_bronze": _fake_struct(["vendorid", "segment1"])})
         out = self._call(downstream_required={"test_bronze": {"_extract_ts"}})
         assert out == []
+
+
+# ---------------------------------------------------------------------------
+# Output watermark = source high-water mark captured before the write (#176)
+# ---------------------------------------------------------------------------
+
+
+class _ColumnCheckingSpark:
+    """Fake Spark that, like real Spark, raises on a ``MAX(<col>)`` over a column
+    the table does not have. The old fake answered every ``SELECT MAX`` with
+    NULL, which is how a probe against the wrong table went unnoticed.
+
+    Tables: the bronze source has ``_extract_ts``; the silver target has only its
+    declared ``outputSchema`` (``thing_id``). ``statements`` is an ordered log
+    the stubbed write step also appends to, so tests can check probe-vs-write order.
+    """
+
+    SOURCE = "cat.bronze.erp_thing"
+    TARGET = "cat.silver.dim_thing"
+
+    def __init__(
+        self, *, source_max, fail_source_probe: bool = False, columns: dict | None = None
+    ) -> None:
+        self.source_max = source_max
+        self.fail_source_probe = fail_source_probe
+        self.statements: list[str] = []
+        self.columns = columns or {
+            self.SOURCE: {"segment1", "_extract_ts"},
+            self.TARGET: {"thing_id"},
+        }
+        self.createDataFrame = MagicMock(name="createDataFrame")
+        target_df = MagicMock(name="target_df")
+        target_df.count.return_value = 1
+        self.table = MagicMock(name="table", return_value=target_df)
+
+    def max_probes(self) -> list[tuple[str, str]]:
+        """``(column, table)`` for every ``SELECT MAX(...)`` issued, in order."""
+        import re
+
+        found = []
+        for stmt in self.statements:
+            m = re.match(r"\s*SELECT MAX\((\w+)\) AS wm FROM ([\w.]+)\s*$", stmt)
+            if m:
+                found.append((m.group(1), m.group(2)))
+        return found
+
+    def sql(self, stmt: str, *args, **kwargs) -> MagicMock:
+        import re
+
+        self.statements.append(stmt)
+        df = MagicMock(name="df")
+        if stmt.startswith(f"DESCRIBE TABLE {self.SOURCE}"):
+            df.collect.return_value = [
+                ("SEGMENT1", "string", None),
+                ("_extract_ts", "timestamp", None),
+            ]
+        elif stmt.startswith("DESCRIBE TABLE"):
+            df.collect.return_value = [("thing_id", "string", None)]
+        elif m := re.match(r"\s*SELECT MAX\((\w+)\) AS wm FROM ([\w.]+)\s*$", stmt):
+            column, table = m.group(1), m.group(2)
+            if column.lower() not in self.columns.get(table, set()):
+                raise RuntimeError(
+                    f"[UNRESOLVED_COLUMN] A column `{column}` cannot be resolved in {table}."
+                )
+            if self.fail_source_probe and table == self.SOURCE:
+                raise RuntimeError("transient metastore error")
+            df.collect.return_value = [(self.source_max,)]
+        else:
+            df.collect.return_value = []
+        return df
+
+
+class TestOutputWatermarkFromSourceHighWaterMark:
+    """The cursor must be the newest ``watermark.column`` value in the SOURCE,
+    read before the write. Issue #176: it was probed on the target, where the
+    column is renamed (``_extract_ts AS bronze_extract_ts``), and the error was
+    swallowed, so every run stored NULL and every incremental was a full scan."""
+
+    HWM = datetime(2026, 11, 13, 6, 0)
+    PRIOR = datetime(2026, 11, 12, 6, 0)
+
+    def _run(
+        self,
+        tmp_path: pathlib.Path,
+        monkeypatch,
+        *,
+        mode: str,
+        prior=None,
+        empty_delta: bool = False,
+        fail_source_probe: bool = False,
+        sql: str = SIMPLE_SQL,
+        node_yaml: str = NODE_YAML,
+        source_max=HWM,
+    ):
+        from oracle_ai_data_platform_fusion_autopilot.orchestrator import sql_runner
+        from oracle_ai_data_platform_fusion_autopilot.orchestrator.strategy_executors import (
+            StrategyExecutionResult,
+        )
+
+        spark = _ColumnCheckingSpark(source_max=source_max, fail_source_probe=fail_source_probe)
+
+        def fake_execute_strategy(spark_, *, node, rendered, target, ctx, mode):
+            spark_.statements.append("<WRITE>")
+            spark_.written = rendered
+            return StrategyExecutionResult(
+                strategy="merge" if mode == "incremental" else "replace",
+                rows_scanned=0 if empty_delta else 1,
+                merge_skipped_empty_delta=empty_delta,
+                target=target,
+            )
+
+        monkeypatch.setattr(sql_runner, "execute_strategy", fake_execute_strategy)
+        pack = _build_pack(tmp_path, sql, node_yaml)
+        ctx = RunContext(
+            catalog="cat",
+            bronze_schema="bronze",
+            silver_schema="silver",
+            gold_schema="gold",
+            run_id="run-hwm",
+            active_profile_name="finance-default",
+            prior_watermark={"erp_thing": prior} if prior is not None else {},
+            mode=mode,
+            bronze_table_for_source={"erp_thing": _ColumnCheckingSpark.SOURCE},
+        )
+        result = execute_node(
+            spark,
+            node=pack.silver["dim_thing"],
+            pack=pack,
+            profile=_profile(),
+            ctx=ctx,
+            paths=_paths(),
+            mode=mode,
+            profile_hash="profile-h",
+        )
+        assert result.status == "success", result.error_message
+        state_rows = spark.createDataFrame.call_args[0][0]
+        primary = next(r for r in state_rows if r["source_role"] == "primary")
+        return result, spark, primary
+
+    def test_seed_stores_the_source_high_water_mark(self, tmp_path, monkeypatch) -> None:
+        result, _, primary = self._run(tmp_path, monkeypatch, mode="seed")
+        assert result.output_watermark == self.HWM
+        assert primary["output_watermark"] == self.HWM
+
+    def test_incremental_stores_the_source_high_water_mark(self, tmp_path, monkeypatch) -> None:
+        result, _, primary = self._run(
+            tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR
+        )
+        assert result.output_watermark == self.HWM
+        assert primary["output_watermark"] == self.HWM
+
+    def test_probe_reads_the_source_table_not_the_target(self, tmp_path, monkeypatch) -> None:
+        _, spark, _ = self._run(tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR)
+        assert spark.max_probes() == [("_extract_ts", _ColumnCheckingSpark.SOURCE)]
+
+    def test_probe_runs_before_the_write(self, tmp_path, monkeypatch) -> None:
+        """Captured before the write, a row landing mid-run is read again next
+        time instead of being skipped by a cursor that already moved past it."""
+        _, spark, _ = self._run(tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR)
+        probe_at = next(
+            i for i, s in enumerate(spark.statements) if _ColumnCheckingSpark.SOURCE in s
+            and s.lstrip().startswith("SELECT MAX")
+        )
+        assert probe_at < spark.statements.index("<WRITE>")
+
+    def test_empty_delta_keeps_the_previous_cursor(self, tmp_path, monkeypatch) -> None:
+        result, _, primary = self._run(
+            tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR, empty_delta=True
+        )
+        assert result.output_watermark == self.PRIOR
+        assert primary["output_watermark"] == self.PRIOR
+
+    def test_failed_probe_keeps_the_previous_cursor_and_warns(
+        self, tmp_path, monkeypatch, caplog
+    ) -> None:
+        """A failed probe must neither advance the cursor nor reset it to NULL
+        (NULL forces a full rescan); keeping the previous value re-reads from
+        there next run, which is safe. And it must not be silent."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result, _, primary = self._run(
+                tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR,
+                fail_source_probe=True,
+            )
+        assert result.output_watermark == self.PRIOR
+        assert primary["output_watermark"] == self.PRIOR
+        warning = " ".join(r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING)
+        assert "dim_thing" in warning
+        assert _ColumnCheckingSpark.SOURCE in warning
+
+    def test_replace_node_with_watermark_block_is_not_probed(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Only a merge node reads its cursor back (a replace node may not use
+        the predicate, AIDPF-5015), so probing anything else is overhead and,
+        for a non-bronze watermark source, a WARNING on every run."""
+        node_yaml = NODE_YAML.replace(
+            "  incremental:\n    strategy: merge\n    naturalKey: [thing_id]\n",
+            "  incremental:\n    strategy: replace\n",
+        )
+        assert "strategy: replace\n    watermark:" in node_yaml
+        result, spark, primary = self._run(
+            tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR, node_yaml=node_yaml
+        )
+        assert spark.max_probes() == []
+        assert result.output_watermark is None
+        assert primary["output_watermark"] is None
+
+    def test_empty_source_in_seed_stores_no_cursor(self, tmp_path, monkeypatch) -> None:
+        """MAX over an empty source is NULL; the next run then renders `1=1`."""
+        result, _, primary = self._run(tmp_path, monkeypatch, mode="seed", source_max=None)
+        assert result.output_watermark is None
+        assert primary["output_watermark"] is None
+
+    def test_unreadable_probe_value_keeps_the_previous_cursor_and_warns(
+        self, tmp_path, monkeypatch, caplog
+    ) -> None:
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            result, _, _ = self._run(
+                tmp_path, monkeypatch, mode="incremental", prior=self.PRIOR,
+                source_max="not-a-timestamp",
+            )
+        assert result.output_watermark == self.PRIOR
+        assert any("not-a-timestamp" in r.getMessage() for r in caplog.records)
+
+    def test_drift_blocked_node_issues_no_probe(self, tmp_path, monkeypatch) -> None:
+        """The probe sits after the gates: a node they block runs no extra query."""
+        from oracle_ai_data_platform_fusion_autopilot.orchestrator import sql_runner
+
+        def must_not_write(*args, **kwargs):
+            raise AssertionError("a drift-blocked node must not reach the write")
+
+        monkeypatch.setattr(sql_runner, "execute_strategy", must_not_write)
+        spark = _ColumnCheckingSpark(source_max=self.HWM)
+        pack = _build_pack(tmp_path)
+        result = execute_node(
+            spark,
+            node=pack.silver["dim_thing"],
+            pack=pack,
+            profile=_profile(),
+            ctx=_ctx("incremental"),
+            paths=_paths(),
+            mode="incremental",
+            profile_hash="profile-h",
+            prior_plan_hash="sha256:a-different-plan",
+        )
+        assert result.status == "resume_drift_blocked"
+        assert spark.max_probes() == []
+
+    def test_unknown_source_table_keeps_the_previous_cursor_and_warns(
+        self, tmp_path, caplog
+    ) -> None:
+        """Defensive: preflight (AIDPF-2043) blocks a merge node whose source has
+        no bronze table, but a direct caller must still get the prior cursor."""
+        import logging
+
+        from oracle_ai_data_platform_fusion_autopilot.orchestrator import sql_runner
+
+        node = _build_pack(tmp_path).silver["dim_thing"]
+        ctx = RunContext(
+            catalog="cat", bronze_schema="bronze", silver_schema="silver",
+            gold_schema="gold", run_id="r", active_profile_name="finance-default",
+            mode="incremental", prior_watermark={"erp_thing": self.PRIOR},
+            bronze_table_for_source={},
+        )
+        spark = MagicMock(name="spark")
+        with caplog.at_level(logging.WARNING):
+            assert sql_runner._probe_source_high_water_mark(spark, node, ctx) == self.PRIOR
+        spark.sql.assert_not_called()
+        assert any("erp_thing" in r.getMessage() for r in caplog.records)
+
+    def test_incremental_after_seed_filters_on_the_stored_cursor(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """The issue end to end: the cursor a seed stores is read back by the
+        orchestrator's prior-state reader and turns the next run's
+        ``{{ watermark_predicate }}`` into a real filter. Before the fix the
+        stored cursor was NULL, so it rendered ``1=1`` on every run."""
+        from oracle_ai_data_platform_fusion_autopilot.orchestrator import (
+            _read_prior_state_for_node,
+        )
+
+        sql = "SELECT 1 AS thing_id FROM cat.bronze.erp_thing WHERE {{ watermark_predicate }}"
+        seed_result, _, seed_row = self._run(tmp_path / "seed", monkeypatch, mode="seed", sql=sql)
+
+        state_spark = MagicMock(name="state_spark")
+        state_spark.sql.return_value.collect.return_value = [{
+            "plan_hash": seed_result.plan_hash,
+            "output_watermark": seed_row["output_watermark"],
+            "source_id": seed_row["source_id"],
+            "status": "success",
+            "run_id": seed_row["run_id"],
+        }]
+        node = _build_pack(tmp_path / "reader", sql).silver["dim_thing"]
+        _, prior_watermark, _ = _read_prior_state_for_node(
+            state_spark, _paths(), node, mode="incremental"
+        )
+        assert prior_watermark == {"erp_thing": self.HWM}
+
+        _, spark, _ = self._run(
+            tmp_path / "incremental", monkeypatch, mode="incremental",
+            prior=prior_watermark["erp_thing"], sql=sql,
+        )
+        assert "_extract_ts > :watermark_erp_thing" in spark.written.sql
+        assert spark.written.params["watermark_erp_thing"] == self.HWM
+
+
+class TestStarterPackMergeNodesProbeTheirSource:
+    """The issue's exact scenario on the shipped nodes: each merge node renames
+    its watermark column in its output, so the cursor must come from the bronze
+    source. The fake Spark knows every table's columns from the pack itself and
+    raises on an unknown one, as real Spark does."""
+
+    @pytest.mark.parametrize("node_id", ["dim_supplier", "dim_account", "gl_balance"])
+    def test_cursor_comes_from_the_bronze_source(self, node_id: str) -> None:
+        import oracle_ai_data_platform_fusion_autopilot as _pkg
+        from oracle_ai_data_platform_fusion_autopilot.orchestrator import sql_runner
+
+        pack = load_pack(
+            pathlib.Path(_pkg.__file__).parent / "content_packs" / "fusion-finance-starter"
+        )
+        node = pack.silver.get(node_id) or pack.gold.get(node_id)
+        column = node.refresh.incremental.watermark.column
+        source = node.refresh.incremental.watermark.source
+        source_table = f"cat.bronze.{pack.bronze[source].target}"
+        target_table = f"cat.{node.layer}.{node.target}"
+
+        # The invariant behind the bug: present in the source, renamed away in the target.
+        source_columns = {c.name.lower() for c in pack.bronze[source].output_schema.columns}
+        target_columns = {c.name.lower() for c in node.output_schema.columns}
+        assert column.lower() in source_columns
+        assert column.lower() not in target_columns
+
+        hwm = datetime(2026, 11, 13, 6, 0)
+        spark = _ColumnCheckingSpark(
+            source_max=hwm,
+            columns={source_table: source_columns, target_table: target_columns},
+        )
+        ctx = RunContext(
+            catalog="cat", bronze_schema="bronze", silver_schema="silver",
+            gold_schema="gold", run_id="r", active_profile_name="finance-default",
+            mode="incremental", bronze_table_for_source={source: source_table},
+        )
+
+        assert sql_runner._probe_source_high_water_mark(spark, node, ctx) == hwm
+        assert spark.max_probes() == [(column, source_table)]
