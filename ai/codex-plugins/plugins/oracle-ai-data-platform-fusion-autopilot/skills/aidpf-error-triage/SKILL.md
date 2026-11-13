@@ -132,6 +132,7 @@ the next command/skill.
 | `AIDPF-4060`, `4061` | State commit or watermark regression. | Stop; inspect state-table write/order issue before retrying. |
 | `AIDPF-5001`, `5002`, `5010`, `5011`, `5013`, `5014` | SQL renderer or builtin dispatch issue. | Fix SQL/template/profile value; route to `$mart-author` if a new overlay caused it. |
 | `AIDPF-5003` | Variation point unresolved during rendering. | `$aidp-fusion-bootstrap`; if candidate missing, `$medallion-author`. |
+| `AIDPF-5015` | A `replace` (full-rebuild) node uses `{{ watermark_predicate }}`. | Remove the token from that node's SQL (`$mart-author` for an overlay mart). Never add a watermark block to a `replace` node — it would rebuild the table from the delta only. |
 | `AIDPF-7001` to `7005`, `8002` | Dashboard validation/security issue. | Fix dashboard descriptor or workbook requirements; remove high-PII exposure. |
 | `AIDPF-8010`, `8011` | Quality test failed or unsupported. | Inspect failed quality rule; fix data/node logic or accept deferred rule intentionally. |
 | `AIDPF-9999` | Test-only invalid code. | Treat as malformed diagnostics outside tests. |

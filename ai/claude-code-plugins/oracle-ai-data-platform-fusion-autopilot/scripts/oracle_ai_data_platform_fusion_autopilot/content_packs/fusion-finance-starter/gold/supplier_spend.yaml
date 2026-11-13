@@ -16,6 +16,9 @@ dependsOn:
 refresh:
   seed:
     strategy: replace
+  # `replace` rebuilds the whole table every run, so supplier_spend.sql must not
+  # use {{ watermark_predicate }} (AIDPF-5015): a watermark filter would rebuild
+  # the table from only the rows changed since the last run.
   incremental:
     strategy: replace
     reason: |

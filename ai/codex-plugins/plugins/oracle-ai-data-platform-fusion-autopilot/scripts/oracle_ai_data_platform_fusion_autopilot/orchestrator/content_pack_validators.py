@@ -8,7 +8,7 @@ Operator-facing behavior is documented in ``docs/content_pack_execution.md``.
 Validators implemented (one error code per failure mode):
 
     * :func:`validate_sql_paths` → AIDPF-2003
-    * :func:`validate_template_variables` → AIDPF-5002, AIDPF-5003
+    * :func:`validate_template_variables` → AIDPF-5002, AIDPF-5003, AIDPF-5015
     * :func:`validate_dag` → AIDPF-2040, AIDPF-2041
     * :func:`validate_column_contracts` → AIDPF-2045
     * :func:`validate_dashboard_requires` → AIDPF-7001, AIDPF-7003
@@ -32,6 +32,10 @@ from oracle_ai_data_platform_fusion_autopilot.orchestrator.sql_references import
 )
 from oracle_ai_data_platform_fusion_autopilot.orchestrator.spark_types import (
     _normalise_spark_type,
+)
+from oracle_ai_data_platform_fusion_autopilot.orchestrator.sql_renderer import (
+    AIDPF_5015_WATERMARK_PREDICATE_ON_REPLACE,
+    watermark_predicate_on_replace_message,
 )
 from oracle_ai_data_platform_fusion_autopilot.schema.dashboard_pack import DashboardYaml
 
@@ -210,6 +214,12 @@ def validate_template_variables(pack: ResolvedPack) -> list[ValidationError]:
           in the pack because profile key depth can vary.
         * `column.<name>` — must match a declared `columnAliases.<name>`.
         * `semantic.<name>` — must match a declared `semanticVariants.<name>`.
+
+    `watermark_predicate` is also rejected in a node whose
+    `refresh.incremental.strategy` is `replace` (AIDPF-5015): that node rebuilds
+    its whole target, so the token can only fail the incremental render or, with
+    a watermark block, shrink the table to the delta. Catching it here stops the
+    run before any bronze extract instead of at the node's render.
     """
     errors: list[ValidationError] = []
     declared_columns = set(pack.pack.column_aliases)
@@ -228,6 +238,15 @@ def validate_template_variables(pack: ResolvedPack) -> list[ValidationError]:
                 continue
             content = sql_path.read_text(encoding="utf-8")
             tokens = _TEMPLATE_TOKEN_RE.findall(content)
+            inc = node.refresh.incremental
+            if "watermark_predicate" in tokens and inc is not None and inc.strategy == "replace":
+                errors.append(
+                    ValidationError(
+                        code=AIDPF_5015_WATERMARK_PREDICATE_ON_REPLACE,
+                        message=watermark_predicate_on_replace_message(node_id),
+                        location=qualified,
+                    )
+                )
             for token in tokens:
                 parts = token.split(".")
                 head = parts[0]
