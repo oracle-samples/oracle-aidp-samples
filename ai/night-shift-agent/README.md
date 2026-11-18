@@ -90,6 +90,7 @@ The heartbeat prints one JSON line per step (`replaying`, `statement_graded`, `v
 
 - **Approvals are only as trustworthy as the UPDATE grant on `default.nightshift_ops.approvals`.** Give that grant to an approvers role alone and set `NS_APPROVERS` on the job. The notebook writes `current_user()` under the reviewer's session, so the table's Delta history records who ran the update.
 - **Identity of a scheduled run.** A scheduled run can present a different principal to the Generative AI service than the same job started by hand. If the model call is refused on the schedule but succeeds with Run now, grant that principal the Generative AI permissions in the lake's compartment; until then the job grades and gates on the schedule and drafts whenever a run is started by hand.
+- **The job imports its package from the workspace folder it runs from** (`/Workspace/Shared/nightshift/pkg` by default, `NS_PKG` to change it). Whoever can write that folder can change what the job executes, so restrict write access to `Shared/nightshift/` to the job owner, or point `NS_PKG` at a folder only the owner can write.
 - **Long replays belong in job tasks**, not in notebook kernels: a replay of a large production statement can take 5 to 10 minutes, and a long kernel-side command can leave the cluster's command execution unhealthy.
 - Pending approvals expire after 24 hours and the statement becomes draftable again. A second run of the job inside an already recorded half-hour window ends at once.
 

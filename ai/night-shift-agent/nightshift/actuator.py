@@ -666,6 +666,15 @@ def tick(io: Any, store: Any, now: datetime | None = None, dry_run: bool = True,
             notes.append(f"approval {aid}: action_json does not match action_signature; marked failed")
             store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note="SIGNATURE_MISMATCH", now=now))
             continue
+        # the same identity check the in-cluster drain applies: no empty or service identity, and only names on the
+        # NS_APPROVERS list when the actuator carries one (the row stays approved, nothing is executed)
+        from .drain import approver_problem  # local import: drain imports this module
+        _allow = [x for x in os.environ.get("NS_APPROVERS", "").split(",") if x.strip()]
+        problem = approver_problem(by, _allow or None)
+        if problem:
+            notes.append(f"approval {aid}: {problem}; left approved, not executed")
+            store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE approver.identity: {problem}", now=now))
+            continue
         approved_sigs[sig] = by
         ctx.kv["approved_signatures"] = dict(approved_sigs)
         d = engine.evaluate(a, ctx)

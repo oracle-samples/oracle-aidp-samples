@@ -638,3 +638,16 @@ def test_approve_script_runs_against_injected_store(capsys):
     io2 = Io()
     io2.run_sql = lambda sql, timeout=300: [("ap-1", "executed", "reviewer", T0, "")] if sql.startswith("SELECT") else []
     assert mod.main(["reject", "ap-1", "--by", "reviewer"], io=io2) == 1  # not pending any more
+
+def test_actuator_refuses_service_or_unlisted_approver(monkeypatch):
+    """Gate parity with the in-cluster drain: a row approved by a service identity, or by a name not on NS_APPROVERS,
+    is left approved with DENIED_ON_EXECUTE approver.identity and nothing is executed."""
+    io = FakeIO()
+    a = _quarantined_action(io)
+    for by, approvers in (("dataflow", ""), ("reviewer", "priya,lee")):
+        monkeypatch.setenv("NS_APPROVERS", approvers)
+        store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a, by=by)])
+        report = run(io, store)
+        assert report.approvals_executed == 0
+        assert any("DENIED_ON_EXECUTE approver.identity" in q for q in store.sql), by
+        assert not any("executed" in q and "SET status = 'executed'" in q for q in store.sql), by
