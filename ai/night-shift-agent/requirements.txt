@@ -1,0 +1,6 @@
+# Same as `pip install -e .[dev]`: the runtime dependencies plus pytest.
+pandas
+numpy
+duckdb
+pyarrow
+pytest

@@ -1,0 +1,32 @@
+[project]
+name = "aidp-night-shift-agent"
+version = "0.0.1"
+description = "Replay-verified pipeline incident agent for Oracle AI Data Platform"
+readme = "README.md"
+license = {text = "UPL-1.0"}
+authors = [{name = "Oracle"}]
+requires-python = ">=3.12"
+dependencies = ["pandas", "numpy", "duckdb", "pyarrow"]
+classifiers = [
+    "License :: OSI Approved :: Universal Permissive License (UPL)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/oracle-samples/oracle-aidp-samples"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["nightshift*"]

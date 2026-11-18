@@ -1,0 +1,28 @@
+[
+  {
+    "name": "synthetic insert-if-absent MERGE (orders, in-job drafting)",
+    "table": "default.nightshift_demo.orders_silver",
+    "ts": "updated_at",
+    "key": ["order_id"],
+    "source": "default.nightshift_demo.orders_bronze",
+    "statement": "MERGE INTO default.nightshift_demo.orders_silver t USING default.nightshift_demo.orders_bronze s ON t.order_id = s.order_id WHEN NOT MATCHED THEN INSERT (order_id, customer_id, region, status, amount, quantity, order_date, updated_at) VALUES (s.order_id, s.customer_id, s.region, s.status, s.amount, s.quantity, s.order_date, s.updated_at)",
+    "draft": true
+  },
+  {
+    "name": "synthetic guarded upsert MERGE (orders, grade only)",
+    "table": "default.nightshift_demo.orders_silver",
+    "ts": "updated_at",
+    "key": ["order_id"],
+    "source": "default.nightshift_demo.orders_bronze",
+    "statement": "MERGE INTO default.nightshift_demo.orders_silver t USING default.nightshift_demo.orders_bronze s ON t.order_id = s.order_id WHEN MATCHED AND s.updated_at > t.updated_at THEN UPDATE SET t.customer_id = s.customer_id, t.region = s.region, t.status = s.status, t.amount = s.amount, t.quantity = s.quantity, t.order_date = s.order_date, t.updated_at = s.updated_at WHEN NOT MATCHED THEN INSERT (order_id, customer_id, region, status, amount, quantity, order_date, updated_at) VALUES (s.order_id, s.customer_id, s.region, s.status, s.amount, s.quantity, s.order_date, s.updated_at)",
+    "draft": false
+  },
+  {
+    "name": "PLACEHOLDER: example production insert-if-absent MERGE (replace with your own; rejected until the tables exist)",
+    "table": "demo.silver.sensor_reading",
+    "ts": "ingest_ts",
+    "source": "demo.bronze.sensor_reading_raw",
+    "statement": "MERGE INTO demo.silver.sensor_reading t USING demo.bronze.sensor_reading_raw s ON t.sensor_id = s.sensor_id AND t.event_ts = s.event_ts WHEN NOT MATCHED THEN INSERT *",
+    "draft": false
+  }
+]
