@@ -37,6 +37,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping
 
 import yaml
 from rich.console import Console
+from rich.markup import escape
 
 from ..orchestrator.content_pack import ResolvedPack, load_full_chain, load_pack
 from .coa_resolution import (
@@ -337,11 +338,10 @@ def run_variation_phase(
             diag_path = _write_cluster_dispatch_diagnostic(
                 workdir, run_id, tenant_name, exc.failure_context
             )
-            console.print(
-                f"[red]AIDPF-2048: cluster dispatch failed at "
-                f"{exc.failure_context.failed_step}. "
-                f"Diagnostic at {diag_path}.[/red]"
+            message = _cluster_dispatch_console_message(
+                exc.failure_context, diag_path
             )
+            console.print(f"[red]{escape(message)}[/red]")
             return VariationPhaseOutcome(
                 exit_code=1,
                 diagnostic_paths=[diag_path],
@@ -1646,6 +1646,27 @@ def _snapshot_needs_repair(
         # snapshot. Surface it as a repair so the next read works.
         return "snapshot content does not match live fingerprint"
     return None
+
+
+# Pre-dispatch checks whose cause is a short, operator-facing sentence
+# (no HTTP bodies), safe and useful to print on the console.
+_PREFLIGHT_DISPATCH_STEPS = frozenset({"catalog_preflight", "credential_preflight"})
+
+
+def _cluster_dispatch_console_message(failure_context, diag_path: Path) -> str:
+    """One-line AIDPF-2048 console message.
+
+    Preflight failures name the problem inline (a missing catalog, a
+    credential without the configured key) so the operator does not have to
+    open the diagnostic to learn it. Other steps keep the terse form: their
+    causes can carry long HTTP bodies, which belong in the diagnostic.
+    """
+    message = f"AIDPF-2048: cluster dispatch failed at {failure_context.failed_step}"
+    if failure_context.failed_step in _PREFLIGHT_DISPATCH_STEPS:
+        cause = (failure_context.cause_message or "").splitlines()
+        if cause and cause[0]:
+            message = f"{message}: {cause[0]}"
+    return f"{message}. Diagnostic at {diag_path}."
 
 
 def _write_cluster_dispatch_diagnostic(

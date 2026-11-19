@@ -13,6 +13,7 @@ import base64
 import sys
 from pathlib import Path
 from subprocess import CompletedProcess
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -165,6 +166,70 @@ class TestCredsCell:
         assert "local-password" not in creds
         assert "OAC_OAUTH_CLIENT_SECRET" not in creds
         assert "local-secret" not in creds
+
+
+class _FakeSecrets:
+    def __init__(self, value):
+        self.value = value
+        self.calls: list[dict] = []
+
+    def get(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.value
+
+
+class TestCredsCellExecution:
+    """Run the generated creds cell against a fake ``aidputils``.
+
+    ``aidputils.secrets.get`` returns ``None`` when the credential exists
+    but has no entry for the requested key. Assigning that straight into
+    ``os.environ`` raised ``TypeError: str expected, not NoneType`` before
+    the cell's own check could explain the problem.
+    """
+
+    @staticmethod
+    def _exec_creds(wheel: Path, secret_value, monkeypatch, tmp_path: Path) -> _FakeSecrets:
+        nb = build_notebook(
+            wheel_path=wheel,
+            bundle_yaml="",
+            mode="seed",
+            datasets=None,
+            layers=None,
+            bicc_secret_name="fusion_bicc_password",
+            bicc_secret_key="password",
+        )
+        creds = "".join(nb["cells"][2]["source"])
+        secrets = _FakeSecrets(secret_value)
+        monkeypatch.chdir(tmp_path)
+        # Registers FUSION_BICC_PASSWORD for restoration at teardown.
+        monkeypatch.setenv("FUSION_BICC_PASSWORD", "placeholder")
+        monkeypatch.delenv("FUSION_BICC_PASSWORD")
+        exec(  # executes our own generated cell under test
+            compile(creds, "<creds-cell>", "exec"),
+            {"aidputils": SimpleNamespace(secrets=secrets)},
+        )
+        return secrets
+
+    @pytest.mark.parametrize("missing", [None, ""])
+    def test_missing_secret_raises_a_readable_error(
+        self, wheel: Path, monkeypatch, tmp_path: Path, missing
+    ) -> None:
+        with pytest.raises(RuntimeError) as excinfo:
+            self._exec_creds(wheel, missing, monkeypatch, tmp_path)
+        message = str(excinfo.value)
+        assert "'fusion_bicc_password'" in message
+        assert "'password'" in message
+        assert "biccSecretKey" in message
+        import os
+
+        assert "FUSION_BICC_PASSWORD" not in os.environ
+
+    def test_present_secret_is_exported(self, wheel: Path, monkeypatch, tmp_path: Path) -> None:
+        import os
+
+        secrets = self._exec_creds(wheel, "pw-value", monkeypatch, tmp_path)
+        assert os.environ["FUSION_BICC_PASSWORD"] == "pw-value"
+        assert secrets.calls == [{"name": "fusion_bicc_password", "key": "password"}]
 
 
 class TestRunCell:

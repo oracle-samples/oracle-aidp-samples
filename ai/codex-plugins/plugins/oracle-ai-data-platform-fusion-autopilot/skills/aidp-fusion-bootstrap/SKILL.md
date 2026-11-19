@@ -88,8 +88,12 @@ Interpret `missing` for bootstrap this way:
 - `cluster`: start or fix the AIDP cluster before default cluster-dispatched bootstrap.
 
 Also confirm the Fusion password is in the AIDP credential store as
-`fusion_bicc_password` with key `password`. Do not ask the user to paste secrets
-into chat.
+`fusion_bicc_password` with key `password` (or the `biccSecretName` /
+`biccSecretKey` set in `aidp.config.yaml`), and that the catalog in
+`bundle.yaml` → `aidp.catalog` exists. Bootstrap checks both before dispatch
+and fails with `AIDPF-2048` at `catalog_preflight` or `credential_preflight`,
+naming the problem; a key mismatch lists the keys the entry does store. Do not
+ask the user to paste secrets into chat.
 
 ### 2. Choose initial bootstrap vs refresh
 

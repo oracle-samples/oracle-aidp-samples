@@ -111,6 +111,17 @@ def _patch_chain(
     return helper_mock
 
 
+def _fake_client(
+    *, catalog_exists=True, credential_exists=True, credential_keys=()
+) -> MagicMock:
+    """AIDP REST client whose preflight lookups all pass by default."""
+    client = MagicMock(name="AidpRestClient")
+    client.check_catalog_exists.return_value = catalog_exists
+    client.check_credential_exists.return_value = credential_exists
+    client.get_credential_key_names.return_value = credential_keys
+    return client
+
+
 def _call(monkeypatch, tmp_path: Path, **overrides):
     bundle_path = tmp_path / "bundle.yaml"
     bundle_path.write_text("apiVersion: x\n", encoding="utf-8")
@@ -121,7 +132,7 @@ def _call(monkeypatch, tmp_path: Path, **overrides):
         pack=MagicMock(name="ResolvedPack"),
         dispatch_config=_dispatch_config(),
         tenant="demo-pod",
-        client_factory=lambda: MagicMock(name="AidpRestClient"),
+        client_factory=_fake_client,
     )
     kwargs.update(overrides)
     return cbp.dispatch_cluster_probe(**kwargs)
@@ -233,6 +244,122 @@ class TestClusterDispatchFailures:
         with pytest.raises(cbp.ClusterDispatchError) as raised:
             _call(monkeypatch, tmp_path)
         assert raised.value.failure_context.failed_step == "create_notebook_job"
+
+
+class TestBootstrapPreDispatchPreflight:
+    """The catalog and credential checks run before anything reaches the
+    cluster, so a missing catalog or a wrong credential key stops in
+    seconds with a readable message."""
+
+    @staticmethod
+    def _bundle(catalog: str = "fusion_catalog") -> MagicMock:
+        bundle = MagicMock(name="Bundle")
+        bundle.aidp.catalog = catalog
+        return bundle
+
+    @staticmethod
+    def _env(secret_key: str = "password") -> MagicMock:
+        env = MagicMock(name="EnvSpec")
+        env.bicc_secret_name = "fusion_bicc_password"
+        env.bicc_secret_key = secret_key
+        return env
+
+    def test_missing_catalog_stops_before_dispatch(self, monkeypatch, tmp_path) -> None:
+        helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
+        client = _fake_client(catalog_exists=False)
+        with pytest.raises(cbp.ClusterDispatchError) as raised:
+            _call(
+                monkeypatch, tmp_path,
+                bundle=self._bundle("missing_catalog"),
+                env=self._env(),
+                client_factory=lambda: client,
+            )
+        ctx = raised.value.failure_context
+        assert ctx.failed_step == "catalog_preflight"
+        assert "missing_catalog" in ctx.cause_message
+        client.check_catalog_exists.assert_called_once_with("missing_catalog")
+        client.check_credential_exists.assert_not_called()
+        helper.assert_not_called()
+
+    def test_credential_key_mismatch_stops_before_dispatch(self, monkeypatch, tmp_path) -> None:
+        helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
+        client = _fake_client(credential_keys=("fusion_bicc_password",))
+        with pytest.raises(cbp.ClusterDispatchError) as raised:
+            _call(
+                monkeypatch, tmp_path,
+                bundle=self._bundle(),
+                env=self._env(secret_key="password"),
+                client_factory=lambda: client,
+            )
+        ctx = raised.value.failure_context
+        assert ctx.failed_step == "credential_preflight"
+        assert "'password'" in ctx.cause_message
+        helper.assert_not_called()
+
+    def test_passing_checks_reach_dispatch(self, monkeypatch, tmp_path) -> None:
+        helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
+        client = _fake_client(credential_keys=("password",))
+        _call(
+            monkeypatch, tmp_path,
+            bundle=self._bundle(), env=self._env(), client_factory=lambda: client,
+        )
+        helper.assert_called_once()
+
+
+class TestPreflightFailureDiagnostics:
+    """Both preflight steps must be valid ``failedStep`` values: the
+    diagnostic writer rejected ``credential_preflight`` with a pydantic
+    ValidationError, so a missing credential crashed bootstrap instead of
+    reporting AIDPF-2048."""
+
+    @pytest.mark.parametrize("step", ["credential_preflight", "catalog_preflight"])
+    def test_diagnostic_is_written(self, tmp_path, step) -> None:
+        from oracle_ai_data_platform_fusion_autopilot.commands.variation_phase import (
+            _write_cluster_dispatch_diagnostic,
+        )
+
+        ctx = cbp.ClusterDispatchFailureContext(
+            failed_step=step,
+            cause_type="PreflightFailed",
+            cause_message="catalog 'missing_catalog' not found",
+            cluster_key="cluster-uuid",
+        )
+        path = _write_cluster_dispatch_diagnostic(tmp_path, "run-1", "demo-pod", ctx)
+        assert path.exists()
+        assert step in path.read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("step", ["credential_preflight", "catalog_preflight"])
+    def test_console_message_includes_the_preflight_detail(self, step) -> None:
+        from oracle_ai_data_platform_fusion_autopilot.commands.variation_phase import (
+            _cluster_dispatch_console_message,
+        )
+
+        ctx = cbp.ClusterDispatchFailureContext(
+            failed_step=step,
+            cause_type="PreflightFailed",
+            cause_message="catalog 'missing_catalog' not found\nsecond line",
+        )
+        message = _cluster_dispatch_console_message(ctx, Path("/tmp/AIDPF-2048.json"))
+        assert message.startswith("AIDPF-2048: cluster dispatch failed at ")
+        assert "catalog 'missing_catalog' not found" in message
+        assert "second line" not in message
+        assert "/tmp/AIDPF-2048.json" in message
+
+    def test_console_message_omits_cause_for_dispatch_steps(self) -> None:
+        """Other steps keep today's terse message: their causes can carry
+        long HTTP bodies, which belong in the diagnostic file."""
+        from oracle_ai_data_platform_fusion_autopilot.commands.variation_phase import (
+            _cluster_dispatch_console_message,
+        )
+
+        ctx = cbp.ClusterDispatchFailureContext(
+            failed_step="upload_notebook",
+            cause_type="DispatchUploadError",
+            cause_message="HTTP 500 upload body=...",
+        )
+        message = _cluster_dispatch_console_message(ctx, Path("/tmp/d.json"))
+        assert "HTTP 500" not in message
+        assert "upload_notebook" in message
 
 
 # ---------------------------------------------------------------------------

@@ -6,9 +6,9 @@ against a malformed config:
 - :func:`run_local_preflight` — bundle.yaml schema, dispatch-coordinate
   presence, OCI profile load + session-token validation. No HTTP. Runs first
   and must return PASS for every check before the client is built.
-- :func:`run_remote_preflight` — AIDP control-plane reachability, BICC
-  credential-store presence, and cluster state with optional auto-start.
-  Requires a constructed :class:`AidpRestClient`.
+- :func:`run_remote_preflight` — AIDP control-plane reachability, catalog
+  existence, BICC credential-store entry + key, and cluster state with
+  optional auto-start. Requires a constructed :class:`AidpRestClient`.
 """
 
 from __future__ import annotations
@@ -373,15 +373,13 @@ def _check_bicc_credential(
     Always check, regardless of ``bundle.fusion.password`` shape. The
     notebook's secret fetch is independent of how the password is referenced.
 
-    ``secret_key`` is used ONLY for the operator-facing remediation
-    hint so they can register the entry with the right key the notebook
-    will look up — the credential REST endpoint can't validate individual
-    keys (it lists/looks-up credential ENTRIES by displayName, not
-    key contents). If `biccSecretKey` is the default ``"password"`` the
-    AIDP UI default also matches, but for `biccSecretKey: custom_key`
-    the remediation must say `custom_key` or the operator creates the
-    entry with the wrong key and the next preflight runs PASS while
-    the cluster-side notebook still fails mid-flight.
+    The entry existing is not enough: the notebook asks for one key by
+    name, and ``aidputils.secrets.get`` returns ``None`` for a key the
+    entry does not hold. So once the entry is found, its key NAMES (never
+    values) are compared with ``secret_key``, and a mismatch fails here
+    instead of mid-notebook. The key lookup is best-effort: if it errors,
+    or the entry lists no keys (a vault reference, for example), the
+    existence check decides.
     """
     try:
         exists = client.check_credential_exists(secret_name)
@@ -413,11 +411,88 @@ def _check_bicc_credential(
                 f"aidp.config.yaml to match an existing entry"
             ),
         )
+    try:
+        key_names = tuple(client.get_credential_key_names(secret_name))
+    except AidpRestError as exc:
+        detail = str(exc).splitlines()[0][:200]
+        return PreflightResult(
+            name="BICC credential",
+            status="PASS",
+            detail=(
+                f"credential {secret_name!r} present in AIDP store "
+                f"(key names not verified: {detail})"
+            ),
+        )
+    if key_names and secret_key not in key_names:
+        stored = ", ".join(repr(k) for k in key_names)
+        return PreflightResult(
+            name="BICC credential",
+            status="FAIL",
+            detail=(
+                f"AIDP credential {secret_name!r} has no key {secret_key!r}; "
+                f"it stores key(s) {stored}"
+            ),
+            remediation=(
+                f"set environments.<env>.biccSecretKey in aidp.config.yaml to "
+                f"the key that holds the BICC password ({stored}), OR add a "
+                f"key {secret_key!r} to the {secret_name!r} credential"
+            ),
+        )
     return PreflightResult(
         name="BICC credential",
         status="PASS",
         detail=f"credential {secret_name!r} present in AIDP store",
     )
+
+
+def _check_aidp_catalog(client: AidpRestClient, catalog: str) -> PreflightResult:
+    """Confirm ``bundle.aidp.catalog`` exists before anything is dispatched.
+
+    Runs create the bronze / silver / gold schemas themselves
+    (``orchestrator.state.ensure_schemas``), but not the catalog: that is a
+    one-time admin step. Without this check a missing catalog surfaces only
+    on the cluster, as a ``SCHEMA_NOT_FOUND`` stack trace.
+
+    Only a definite "not found" fails. A lookup that errors otherwise passes
+    with a note: the check improves the error for a missing catalog, and
+    must not add a new way for a run that would succeed to fail.
+    """
+    try:
+        exists = client.check_catalog_exists(catalog)
+    except AidpRestError as exc:
+        detail = str(exc).splitlines()[0][:200]
+        return PreflightResult(
+            name="AIDP catalog",
+            status="PASS",
+            detail=f"catalog {catalog!r} not verified: {detail}",
+        )
+    if not exists:
+        return PreflightResult(
+            name="AIDP catalog",
+            status="FAIL",
+            detail=(
+                f"catalog {catalog!r} not found in this AI Data Platform "
+                "(or not visible to the current OCI profile)"
+            ),
+            remediation=(
+                f"create the catalog {catalog!r} in AIDP before running "
+                "(runs create the bronze/silver/gold schemas, not the "
+                "catalog), OR set aidp.catalog in bundle.yaml to an "
+                "existing catalog"
+            ),
+        )
+    return PreflightResult(
+        name="AIDP catalog",
+        status="PASS",
+        detail=f"catalog {catalog!r} exists",
+    )
+
+
+def _skipped(names: list[str], reason: str) -> list[PreflightResult]:
+    return [
+        PreflightResult(name=name, status="SKIP", detail=f"skipped — {reason}")
+        for name in names
+    ]
 
 
 def run_remote_preflight(
@@ -426,6 +501,7 @@ def run_remote_preflight(
     env: EnvSpec,
     auto_start_cluster: bool = True,
     log: Callable[[str], None] = lambda msg: None,
+    catalog: str | None = None,
 ) -> list[PreflightResult]:
     """Run checks that require an AIDP control-plane round-trip.
 
@@ -434,32 +510,30 @@ def run_remote_preflight(
     up to 10 min):
 
       1. AIDP control plane reachable (``list_clusters`` probe) — ~300ms
-      2. BICC credential entry exists in AIDP credential store — ~300ms
-      3. Cluster state ACTIVE (or auto-start if STOPPED) — can take
-         ~5 min; skipped when the credential check failed
+      2. Catalog ``catalog`` exists — ~300ms; only when ``catalog`` is given
+      3. BICC credential entry exists in AIDP credential store and holds
+         ``env.bicc_secret_key`` — ~600ms
+      4. Cluster state ACTIVE (or auto-start if STOPPED) — can take
+         ~5 min; skipped when any earlier check failed
 
-    The credential check runs before the cluster check to avoid paying cluster
-    startup for a dispatch that is guaranteed to fail.
+    The catalog and credential checks run before the cluster check to avoid
+    paying cluster startup for a dispatch that is guaranteed to fail.
     """
     results: list[PreflightResult] = []
     plane_result, clusters = _check_aidp_control_plane(client)
     results.append(plane_result)
+    later = ["BICC credential", "cluster state"]
     if plane_result.status != "PASS":
-        results.append(
-            PreflightResult(
-                name="BICC credential",
-                status="SKIP",
-                detail="skipped — control-plane check failed",
-            )
-        )
-        results.append(
-            PreflightResult(
-                name="cluster state",
-                status="SKIP",
-                detail="skipped — control-plane check failed",
-            )
-        )
+        skipped = (["AIDP catalog"] if catalog is not None else []) + later
+        results.extend(_skipped(skipped, "control-plane check failed"))
         return results
+
+    if catalog is not None:
+        catalog_result = _check_aidp_catalog(client, catalog)
+        results.append(catalog_result)
+        if catalog_result.status != "PASS":
+            results.extend(_skipped(later, "AIDP catalog check failed"))
+            return results
 
     # Credential preflight runs before the cluster check so a missing
     # credential fast-fails without paying cluster cold-start cost.

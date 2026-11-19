@@ -48,7 +48,8 @@ Follow the current workflow, not old phase reports:
    `aidp-fusion-autopilot init-config`.
 3. Confirm the Fusion BICC password is stored in the AIDP credential store.
    The default credential name is `fusion_bicc_password` and the default key is
-   `password`.
+   `password`. Also confirm the catalog in `bundle.yaml` → `aidp.catalog`
+   exists; runs create its schemas, not the catalog.
 4. Set up operator OAC MCP early with `aidp-fusion-autopilot dashboard mcp-setup`
    or `aidp-fusion-autopilot dashboard mcp-token`, then ask the user to restart or
    reconnect Codex.

@@ -385,6 +385,8 @@ class ClusterDispatchFailure(BaseModel):
     failed_step: Literal[
         "build_wheel",
         "stage_pack",
+        "catalog_preflight",
+        "credential_preflight",
         "upload_notebook",
         "create_notebook_job",
         "submit_run",

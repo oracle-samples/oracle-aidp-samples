@@ -252,6 +252,92 @@ class AidpRestClient:
         items = body.get("items", []) if isinstance(body, dict) else []
         return any(it.get("displayName") == display_name for it in items)
 
+    def get_credential_key_names(
+        self,
+        display_name: str,
+        *,
+        timeout: int | None = None,
+    ) -> tuple[str, ...]:
+        """Return the key NAMES stored in credential ``display_name``.
+
+        Never returns secret values. The detail route reports
+        ``credentialDetails.secretTokenPair[].secretValue`` as null, and this
+        method reads only ``secretKey`` either way.
+
+        Returns ``()`` when no credential has that display name, or when it
+        holds no key/value pairs (a vault-reference credential, for example).
+        The per-resource ``GET /credentials/<uuid>`` route takes the UUID, so
+        this LISTs first to resolve it.
+
+        Raises :class:`AidpRestError` on any non-2xx.
+        """
+        r = self._request(
+            "GET", f"{self.datalake_base}/credentials", timeout=timeout
+        )
+        body = self._ok(r, context="list_credentials")
+        items = body.get("items", []) if isinstance(body, dict) else []
+        match = next(
+            (
+                it
+                for it in items
+                if isinstance(it, dict) and it.get("displayName") == display_name
+            ),
+            None,
+        )
+        uuid_key = match.get("key") if match is not None else None
+        if not isinstance(uuid_key, str) or not uuid_key:
+            return ()
+        r = self._request(
+            "GET",
+            f"{self.datalake_base}/credentials/{urllib.parse.quote(uuid_key, safe='')}",
+            timeout=timeout,
+        )
+        # Unlike _ok, never echo this body into the error: it is the one
+        # response in the client that can carry secret material.
+        if r.status_code != 200:
+            raise AidpRestError(f"get_credential: HTTP {r.status_code}")
+        try:
+            detail = r.json()
+        except ValueError as exc:
+            raise AidpRestError("get_credential: non-JSON response") from exc
+        details = detail.get("credentialDetails") if isinstance(detail, dict) else None
+        pairs = details.get("secretTokenPair") if isinstance(details, dict) else None
+        if not isinstance(pairs, list):
+            return ()
+        return tuple(
+            p["secretKey"]
+            for p in pairs
+            if isinstance(p, dict) and isinstance(p.get("secretKey"), str)
+        )
+
+    # ---- Catalogs -------------------------------------------------------
+
+    def check_catalog_exists(
+        self,
+        catalog: str,
+        *,
+        timeout: int | None = None,
+    ) -> bool:
+        """Return True iff catalog ``catalog`` exists in this AI Data Platform.
+
+        ``GET /catalogs/<name>`` answers 404 for a catalog that does not
+        exist and also for one this OCI profile cannot see, so ``False``
+        covers both. An empty name is ``False`` without a request (``GET
+        /catalogs/`` is the list route). Raises :class:`AidpRestError` on any
+        other non-2xx.
+        """
+        if not catalog:
+            return False
+        r = self._request(
+            "GET",
+            f"{self.datalake_base}/catalogs/{urllib.parse.quote(catalog, safe='')}",
+            timeout=timeout,
+        )
+        if r.status_code == 404:
+            return False
+        self._ok(r, context="get_catalog")
+        return True
+
     def list_clusters(self) -> list[ClusterSummary]:
         r = self._request("GET", f"{self.base}/clusters")
         d = self._ok(r, context="list_clusters")

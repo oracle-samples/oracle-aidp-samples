@@ -33,6 +33,8 @@ The expected customer journey is:
    `/aidp-fusion-config` when the user does not know the OCIDs/keys.
 4. Put the Fusion BICC password in the AIDP credential store. The default
    credential name is `fusion_bicc_password` and the default key is `password`.
+   Create the catalog named in `bundle.yaml` → `aidp.catalog` if it does not
+   exist; runs create its schemas, not the catalog.
 5. Set up operator OAC MCP early with `dashboard mcp-setup` or
    `dashboard mcp-token`, then restart or reconnect Claude Code.
 6. Run `aidp-fusion-autopilot validate`.
