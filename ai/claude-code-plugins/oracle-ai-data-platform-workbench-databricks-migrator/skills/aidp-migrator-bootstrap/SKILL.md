@@ -39,7 +39,7 @@ python3 --version          # 3.10+
 pip install -r ${CLAUDE_PLUGIN_ROOT}/engine/requirements.txt
 ```
 
-Expected packages: `oci`, `requests`, `websocket-client`, `anthropic`, `cryptography`. If any is missing, install + retry.
+Expected packages: `oci`, `requests`, `websocket-client`, `anthropic`, `nbformat`, `PyYAML`, `jsonschema`, `packaging` (plus `pandas` / `numpy`, usually pre-installed). If any is missing, install + retry.
 
 ### 2. `ANTHROPIC_API_KEY` env var
 
@@ -118,8 +118,10 @@ print(r.status_code, r.text[:200])
 ### 6. Migrator pyc compile sanity
 
 ```bash
-python3 -m py_compile ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py \
-                      ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py
+python3 -m py_compile ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag_from_workflow.py \
+                      ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability_for_workflow.py \
+                      ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate_from_workflow.py \
+                      ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py
 ```
 
 Should be silent. If a Python-version mismatch is reported, the user is on the wrong interpreter.
@@ -131,7 +133,7 @@ After running, report back to the user as a single table:
 ```
 | Check               | Status | Notes |
 |---|---|---|
-| Python deps         |  OK    | 3.13.x, all 5 deps present |
+| Python deps         |  OK    | 3.13.x, all required deps present |
 | ANTHROPIC_API_KEY   |  OK    | set, 100+ chars |
 | OCI auth (api_key)  |  OK    | profile <name>, region <region> |
 | Cluster state       |  OK    | Active |

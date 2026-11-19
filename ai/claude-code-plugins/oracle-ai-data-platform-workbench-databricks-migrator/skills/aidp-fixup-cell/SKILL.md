@@ -5,7 +5,7 @@ description: Targeted rewind of a migrated notebook. Re-executes cells from hist
 
 # `aidp-fixup-cell` — surgical re-execute of cells in a migrated notebook
 
-The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 10 fix attempts each. `fixup_cell` is the per-cell escape hatch when those 10 attempts weren't enough OR when the user discovers a latent issue downstream.
+The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 5 fix attempts each (default `MAX_FIX_ATTEMPTS`; env `AIDP_MAX_FIX_ATTEMPTS` / `runtime.fix_max_attempts`). `fixup_cell` is the per-cell escape hatch when those 5 attempts weren't enough OR when the user discovers a latent issue downstream.
 
 ## When to use
 
@@ -35,14 +35,13 @@ The cells replayed start at the absolute history index 12 — could be in the SA
 When the migration is done and the user wants to "fix this one cell":
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate.py \
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
   --manifest reports/<MyJob>_manifest.json \
-  --cluster <CLUSTER_ID> \
-  --only-tasks <task_key> \
-  --no-skip-migrated
+  --only-tasks <task_key>
 ```
 
-This re-runs that single task end-to-end (deps already cached → fast). Combine with `--start-task <substring>` to run only that one task.
+This re-runs that single task end-to-end (a fresh migration of just that task — re-migration is the default; never pass `--cluster`, it is a deprecated no-op).
 
 If the user wants finer-grained control (specific cell, not full task), they need to open the saved `.ipynb` and edit manually. The migrator doesn't expose a "replay cell K only" CLI outside of the in-process fixup_cell tool.
 
@@ -89,10 +88,10 @@ So make the `why` precise — vague reasons produce vague fixes:
 
 | Symptom | Action |
 |---|---|
-| Cell K failed 10 attempts, all with the same error | Try fixup_cell with a specific `why` that names the error. |
+| Cell K failed all 5 attempts, all with the same error | Try fixup_cell with a specific `why` that names the error. |
 | Cell K failed because cell K-2 produced a different schema than expected | fixup_cell from K-2 (not K) with `why` describing the upstream change. |
 | Cell K failed because of a known gotcha (see [references/gotchas.md](../../references/gotchas.md)) | Apply the gotcha-recipe fix in cell K manually, then fixup_cell from K with `why="applied gotcha #N fix"`. |
-| Cell K failed because the cluster died mid-execution | Restart the cluster, re-invoke [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) with `--skip-migrated` — fixup not needed. |
+| Cell K failed because the cluster died mid-execution | Restart the cluster, re-invoke [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) scoped with `--start-task` (or an explicit `--skip-migrated` — it is OFF by default) — fixup not needed. |
 
 ## After this
 

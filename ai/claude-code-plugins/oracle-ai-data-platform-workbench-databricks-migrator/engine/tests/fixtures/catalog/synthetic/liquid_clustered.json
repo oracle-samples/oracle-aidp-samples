@@ -1,0 +1,29 @@
+{
+  "name": "liquid_clustered_sales",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "MANAGED",
+  "data_source_format": "DELTA",
+  "full_name": "main.example_team.liquid_clustered_sales",
+  "storage_location": "s3://examplehealth-uc-managed-bucket/managed/abc-def-123/tables/x1-y2-z3",
+  "owner": "test.user@example.com",
+  "comment": "Synthetic edge case: liquid clustering on (customer_id, region)",
+  "columns": [
+    {"name": "order_id", "type_text": "bigint", "type_name": "LONG", "position": 0, "nullable": false, "comment": "primary key"},
+    {"name": "customer_id", "type_text": "string", "type_name": "STRING", "position": 1, "nullable": false},
+    {"name": "region", "type_text": "string", "type_name": "STRING", "position": 2, "nullable": true},
+    {"name": "amount", "type_text": "decimal(18,2)", "type_name": "DECIMAL", "position": 3, "nullable": true},
+    {"name": "order_ts", "type_text": "timestamp", "type_name": "TIMESTAMP", "position": 4, "nullable": false}
+  ],
+  "properties": {
+    "delta.minReaderVersion": "3",
+    "delta.minWriterVersion": "7",
+    "delta.feature.allowColumnDefaults": "supported",
+    "delta.feature.clustering": "supported",
+    "clusteringColumns": "[[\"customer_id\"], [\"region\"]]",
+    "delta.lastCommitTimestamp": "1701234567000",
+    "spark.sql.statistics.numRecords": "1000000",
+    "transient_lastDdlTime": "1701234567"
+  },
+  "securable_kind": "TABLE_INTERNAL_VIEW"
+}

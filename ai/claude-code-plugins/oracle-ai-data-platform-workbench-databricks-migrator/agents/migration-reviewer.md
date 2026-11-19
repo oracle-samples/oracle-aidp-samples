@@ -10,7 +10,7 @@ You are a code reviewer specialized in Databricks → AIDP migrated notebooks. Y
 
 ## Inputs
 
-- Path to the migrated `.ipynb` (under `<output-base>/<job>/notebooks/...`).
+- Path to the migrated `.ipynb` (under `<migrate-output>/<job>/notebooks/...`).
 - (Optional) Path to the original Databricks source notebook for side-by-side diff. If unavailable, do best-effort review of the migrated file in isolation.
 - (Optional) The relevant `JOB_REPORT.md` for cell pass/fail status — read this to know which cells the migrator already considered "OK".
 
@@ -53,7 +53,7 @@ For each cell:
 - Cell N: <description>
 
 ### ✅ Good
-- Note specific successful rewrites worth confirming (e.g. "Cell 12 correctly rewrote `dbutils.widgets.get` → `oidlUtils.parameters.getParameter`")
+- Note specific successful rewrites worth confirming (e.g. "Cell 12 correctly rewrote Python `dbutils.widgets.get` → `aidputils.widgets.get`"; in Scala cells the correct target is `oidlUtils` — e.g. `dbutils.widgets.get` → the `oidlUtils` widgets API)
 
 ## Recommendation
 

@@ -1,15 +1,15 @@
 """
 Cross-Process Migration Throttle Coordinator
 =============================================
-A file-backed token bucket so N parallel migration processes (e.g. many
+A file-backed token bucket so N parallel migration processes (e.g. 2,500
 ``run_migration.sh`` invocations) coordinate without a central server.
 
 Why
 ---
 The Databricks->AIDP migration toolkit is single-job-per-process. Scaling
-to many jobs is done by launching processes in parallel. That works for
+to 2,500 jobs is done by launching processes in parallel. That works for
 the orchestration layer but NOT for the underlying OCI Object Storage,
-which has per-bucket request-rate limits. Without coordination, all many
+which has per-bucket request-rate limits. Without coordination, all 2,500
 processes try to run simultaneously, the cluster issues thousands of
 parallel PutObject calls per second, the OCI Java SDK's CircuitBreaker
 trips, and entire jobs fail with::
@@ -39,7 +39,7 @@ Usage
     from throttle_coordinator import ThrottleCoordinator
 
     coord = ThrottleCoordinator(budget=48)
-    with coord.lease(label="ExampleJob"):
+    with coord.lease(label="Example_Optimizer_Realtime"):
         run_migration_for_job(...)
 
 The lease blocks until a slot is free. Stale leases (process gone) are
@@ -83,59 +83,12 @@ POLL_MAX_SEC = 4.0
 # -----------------------------------------------------------------------------
 # Cross-platform file lock
 # -----------------------------------------------------------------------------
-class _FileLock:
-    """Minimal exclusive file lock. Uses portalocker if available."""
-
-    def __init__(self, path: str) -> None:
-        self.path = path
-        self._fh = None
-        # Lazily-resolved backend
-        self._backend: Optional[str] = None
-
-    def __enter__(self) -> "_FileLock":
-        os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
-        self._fh = open(self.path + ".lock", "a+")
-        try:
-            import portalocker  # type: ignore
-            portalocker.lock(self._fh, portalocker.LOCK_EX)
-            self._backend = "portalocker"
-        except ImportError:
-            if sys.platform == "win32":
-                import msvcrt  # type: ignore
-                # Block until the lock is available.
-                while True:
-                    try:
-                        msvcrt.locking(self._fh.fileno(), msvcrt.LK_LOCK, 1)
-                        break
-                    except OSError:
-                        time.sleep(0.1)
-                self._backend = "msvcrt"
-            else:
-                import fcntl  # type: ignore
-                fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX)
-                self._backend = "fcntl"
-        return self
-
-    def __exit__(self, *exc) -> None:
-        try:
-            if self._backend == "portalocker":
-                import portalocker  # type: ignore
-                portalocker.unlock(self._fh)
-            elif self._backend == "msvcrt":
-                import msvcrt  # type: ignore
-                try:
-                    self._fh.seek(0)
-                    msvcrt.locking(self._fh.fileno(), msvcrt.LK_UNLCK, 1)
-                except OSError:
-                    pass
-            elif self._backend == "fcntl":
-                import fcntl  # type: ignore
-                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
-        finally:
-            try:
-                self._fh.close()
-            except Exception:
-                pass
+# The exclusive file lock is shared with the exporter's shape-limits store —
+# single implementation in dbx_export/file_lock.py (portalocker/msvcrt/fcntl).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from dbx_export.file_lock import FileLock as _FileLock  # noqa: E402
 
 
 def _pid_alive(pid: int) -> bool:
@@ -213,7 +166,7 @@ class ThrottleCoordinator:
     """File-backed cross-process token-bucket coordinator.
 
     Args:
-        budget: Initial maximum concurrent leases. For large-scale
+        budget: Initial maximum concurrent leases. For the pilot deployment 2,500-job
             scale, calibrate from per-bucket budget * num_buckets / avg
             ops-per-job. Start at 32-48 and tune from observed CB rate.
         state_path: Path to the shared state JSON file. Default

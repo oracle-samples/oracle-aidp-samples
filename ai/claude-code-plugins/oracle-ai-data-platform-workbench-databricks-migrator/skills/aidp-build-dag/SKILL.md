@@ -1,6 +1,6 @@
 ---
 name: aidp-build-dag
-description: Build a migration manifest (the execution DAG) from a Databricks workspace path or workflow ID. Walks %run dependency chains, captures dbutils.notebook.run invocations, and emits reports/<job>_manifest.json — the input every other execute-skill consumes. Use when the user wants to see what would migrate, or before invoking aidp-migrate-job for the first time on a new workload.
+description: Build a migration manifest (the execution DAG) from an AIDP workflow (exported from Databricks by dbx_export). Walks %run dependency chains, captures dbutils.notebook.run invocations, and emits reports/<job>_manifest.json — the input every other execute-skill consumes. Use when the user wants to see what would migrate, or before invoking aidp-migrate-job for the first time on a new workload.
 ---
 
 # `aidp-build-dag` — build the migration manifest
@@ -11,45 +11,31 @@ The execution DAG is what the migrator reads to know which notebooks to migrate,
 
 - User asks "what would migrate", "show me the dependency tree", "build the manifest".
 - Before any [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) invocation against a new workload.
-- After changing the Databricks workspace path or workflow ID.
+- After changing the exported workflow or its notebooks.
 
-## Two entry points
+## One canonical entry point
 
-The migrator ships two DAG builders. Pick based on input shape:
+The canonical builder is **workflow-based**: `${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag_from_workflow.py`. It reads an **AIDP workflow** (normally created by [`aidp-dbx-export`](../aidp-dbx-export/SKILL.md)) via the **AIDP Job API** — it does NOT call the Databricks REST API and needs no `DATABRICKS_HOST` / `DATABRICKS_TOKEN`.
 
-| Input | Entrypoint |
-|---|---|
-| **Path-based**: a folder of `.ipynb` / `.py` notebooks the user wants migrated | `${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py` |
-| **Workflow-based**: a Databricks Job ID whose tasks the user wants migrated, preserving the task DAG | `${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag_from_workflow.py` |
+> `${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py` (path-based directory scan) is **DEPRECATED** — do not invoke it as a CLI; it survives only as an importable library used by the workflow variant.
 
-## Path-based invocation
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag.py \
-  --root "<databricks-workspace-path>" \
-  --job-name "<MyJob>" \
-  --output reports/<MyJob>_manifest.json
-```
-
-- `--root` — Databricks workspace folder containing the entry notebooks. The script walks every `*.ipynb` / `*.py` under this prefix.
-- `--job-name` — a name for the manifest (used as the output-base subdirectory).
-- `--output` — manifest write path.
-
-The builder follows `%run` chains AND `dbutils.notebook.run(...)` calls to build a topo-ordered DAG. It also flags transitive deps so Pass-1 knows which notebooks to migrate code-only first.
-
-## Workflow-based invocation
+## Workflow-based invocation (canonical)
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/build_dag_from_workflow.py \
-  --job-id <databricks-job-id> \
+  --config <customer>.yaml \
+  --job-key <workflow-key> \
+  --cluster <CLUSTER_ID> \
   --output reports/<MyJob>_manifest.json
 ```
 
-This pulls the Job's task definitions via the Databricks Jobs REST API and converts `depends_on` task edges into the manifest's DAG. Use when the user wants the AIDP migration to mirror the Databricks Workflow shape (vs. just inferring dependencies from `%run`).
+- `--job-key` — **required**; the AIDP job key (UUID) of the workflow.
+- `--cluster` — **required**; the AIDP cluster ID used for scanning notebooks.
+- `--config` — customer YAML (falls back to `$AIDP_CONFIG_PATH`, `./aidp_migrator.yaml`, `~/aidp_migrator.yaml`); `--lake-ocid` / `--workspace-id` / `--oci-profile` are per-run overrides.
+- `--output` — manifest write path (default: stdout).
+- Useful extras: `--validate-only` (validate notebooks exist + print the task graph), `--job-name`, `--export-output` / `--source-base` (base-path overrides when auto-derivation guesses wrong), `--params-from-run <RUN_KEY>` (populate parameters from a prior AIDP job run), repeatable `--param KEY=VALUE`.
 
-Required env / args:
-- `DATABRICKS_HOST` — `https://<workspace>.cloud.databricks.com`
-- `DATABRICKS_TOKEN` — a PAT with workspace-read permission
+This pulls the workflow's task definitions from the AIDP Job API and converts `depends_on` task edges into the manifest's DAG. The builder also follows `%run` chains AND `dbutils.notebook.run(...)` calls in the task notebooks to build the topo-ordered DAG and flag transitive deps, so Pass-1 knows which notebooks to migrate code-only first.
 
 ## Manifest shape
 

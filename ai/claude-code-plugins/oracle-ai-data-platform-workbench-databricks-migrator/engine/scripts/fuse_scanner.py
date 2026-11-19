@@ -10,10 +10,10 @@ FUSE mount problem:
     will hit FUSE issues that are invisible in the notebook source code.
 
 Usage:
-    python3 scripts/fuse_scanner.py --manifest reports/example_job_manifest.json
-    python3 scripts/fuse_scanner.py --manifest reports/example_job_manifest.json --output /tmp/fuse_report.md
+    python3 scripts/fuse_scanner.py --manifest reports/examplevendor_job_manifest.json
+    python3 scripts/fuse_scanner.py --manifest reports/examplevendor_job_manifest.json --output /tmp/fuse_report.md
     python3 scripts/fuse_scanner.py --notebook /Volumes/.../my_notebook.ipynb
-    python3 scripts/fuse_scanner.py --manifest reports/example_job_manifest.json --unknown-packages
+    python3 scripts/fuse_scanner.py --manifest reports/examplevendor_job_manifest.json --unknown-packages
 """
 
 import argparse
@@ -39,7 +39,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"Memory\s*\(\s*location\s*=",
             r"Parallel\s*\(",  # may write temp files
         ],
-        "mitigation": "Replace joblib.dump/load with safe_joblib_dump/safe_joblib_load from aidp_compat.",
+        "mitigation": "joblib.dump/load on /Volumes was historically flaky; FUSE issues resolved 2026-04-11. If issues resurface, /tmp/ stage + shutil.copy2() to /Volumes/.",
         "import_names": ["joblib"],
     },
     "optuna": {
@@ -61,7 +61,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"mlflow\.log_artifact\s*\(",
             r"mlflow\.set_tracking_uri\s*\(",
             r"mlflow\.set_experiment\s*\(",
-            r"/Users/\S+@example\.com/",  # Generic Databricks user-namespace pattern (e.g. /Users/alice@example.com/)
+            r"/Users/\S+@\S+\.\S+/",  # Databricks user-namespace experiment paths
             r"azuredatabricks://",
             r"databricks://",
         ],
@@ -100,7 +100,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"keras\.models\.load_model\s*\(",
             r"load_model\s*\(",
         ],
-        "mitigation": "Use load_saved_model_from_volumes() from aidp_compat (copies to /tmp then loads locally).",
+        "mitigation": "For TF SavedModel on /Volumes: save via tf.saved_model.save(); if load fails, copy the SavedModel dir to /tmp/ with shutil.copytree() and load from there.",
         "import_names": ["tensorflow", "tf", "keras"],
     },
     "lightgbm": {
@@ -152,7 +152,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"dill\.dump\s*\(",
             r"dill\.load\s*\(",
         ],
-        "mitigation": "Replace with safe_pickle_dump/safe_pickle_load from aidp_compat (handles any pickle-compatible serializer).",
+        "mitigation": "dill.dump/load on /Volumes was historically flaky; FUSE issues resolved 2026-04-11. If issues resurface, /tmp/ stage + shutil.copy2() to /Volumes/.",
         "import_names": ["dill"],
     },
     "shelve": {
@@ -161,7 +161,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
         "patterns": [
             r"shelve\.open\s*\(",
         ],
-        "mitigation": "Avoid shelve on /Volumes/. Use pickle + safe_pickle_dump/load or a database in /tmp/.",
+        "mitigation": "Avoid shelve on /Volumes/. Use plain pickle to /tmp/ + shutil.copy2() to /Volumes/, or a database in /tmp/.",
         "import_names": ["shelve"],
     },
     "sklearn": {

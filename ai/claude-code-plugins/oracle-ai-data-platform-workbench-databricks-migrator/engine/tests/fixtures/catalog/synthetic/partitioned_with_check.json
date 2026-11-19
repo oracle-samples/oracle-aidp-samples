@@ -1,0 +1,31 @@
+{
+  "name": "events_partitioned_with_check",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "MANAGED",
+  "data_source_format": "DELTA",
+  "full_name": "main.example_team.events_partitioned_with_check",
+  "storage_location": "s3://examplehealth-uc-managed-bucket/managed/abc-def-123/tables/e1-f2-g3",
+  "owner": "test.user@example.com",
+  "comment": "Synthetic edge case: PARTITIONED BY + CHECK constraints + deletion vectors",
+  "columns": [
+    {"name": "event_id", "type_text": "string", "type_name": "STRING", "position": 0, "nullable": false},
+    {"name": "user_id", "type_text": "string", "type_name": "STRING", "position": 1, "nullable": false},
+    {"name": "event_type", "type_text": "string", "type_name": "STRING", "position": 2, "nullable": false, "comment": "must be one of login/logout/purchase"},
+    {"name": "amount", "type_text": "decimal(10,2)", "type_name": "DECIMAL", "position": 3, "nullable": true, "comment": "non-negative when present"},
+    {"name": "event_date", "type_text": "date", "type_name": "DATE", "position": 4, "nullable": false, "partition_index": 0},
+    {"name": "region", "type_text": "string", "type_name": "STRING", "position": 5, "nullable": false, "partition_index": 1}
+  ],
+  "properties": {
+    "delta.feature.checkConstraints": "supported",
+    "delta.feature.deletionVectors": "supported",
+    "delta.enableDeletionVectors": "true",
+    "delta.constraints.amount_non_negative": "(amount IS NULL OR amount >= 0)",
+    "delta.constraints.event_type_valid": "(event_type IN ('login','logout','purchase'))",
+    "delta.minReaderVersion": "3",
+    "delta.minWriterVersion": "7",
+    "delta.lastCommitTimestamp": "1701234567000",
+    "spark.sql.statistics.colStats.event_id.distinctCount": "100000"
+  },
+  "securable_kind": "TABLE_INTERNAL_VIEW"
+}

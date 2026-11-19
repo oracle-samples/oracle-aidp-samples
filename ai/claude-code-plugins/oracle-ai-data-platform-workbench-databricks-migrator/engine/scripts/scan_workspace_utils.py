@@ -10,7 +10,7 @@ Pipeline (streaming, no full local clone of the workspace):
   4. For each detected wrapper, infer which args are table / db / path / bucket
      based on which arg names participate in the write call (string substitution
      into a SQL literal, .option("path", arg), or .saveAsTable(arg)).
-  5. Emit a JSON catalog at reports/writer_wrappers.json.
+  5. Emit a JSON catalog at reports/customer_writer_wrappers.json.
 
 Usage:
   python3 scripts/scan_workspace_utils.py [--root /Workspace/Users] [--enumerate-only]
@@ -33,29 +33,28 @@ from typing import Any
 import oci
 import requests
 
-# ----- AIDP config -----
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = "<DATALAKE_OCID>"
-WORKSPACE_ID = "<WORKSPACE_ID>"
-OCI_PROFILE = "DEFAULT"
+# ----- AIDP config — sourced from aidp_migrator.yaml with env-var fallback -----
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 OBJECTS_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/objects"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORTS_DIR = os.path.join(PROJECT_DIR, "reports")
-OUT_CATALOG = os.path.join(REPORTS_DIR, "writer_wrappers.json")
+OUT_CATALOG = os.path.join(REPORTS_DIR, "customer_writer_wrappers.json")
 OUT_INVENTORY = os.path.join(REPORTS_DIR, "workspace_inventory.json")
 
 
 def get_signer() -> Any:
-    config = oci.config.from_file(profile_name=OCI_PROFILE)
-    return oci.signer.Signer(
-        tenancy=config["tenancy"],
-        user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-        private_key_content=config.get("key_content"),
-    )
+    # Single auth source: oci_auth (Credential Store on-cluster → config file on laptop).
+    from oci_auth import get_oci_signer as _shared
+    _, signer = _shared(OCI_PROFILE)
+    return signer
 
 
 # ----- Workspace enumeration -----

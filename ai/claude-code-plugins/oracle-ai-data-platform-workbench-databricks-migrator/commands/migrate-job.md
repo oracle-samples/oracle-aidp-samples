@@ -9,10 +9,10 @@ Drive the migrator end-to-end with checkpoints between phases. Asks the user bef
 ## Workflow
 
 1. **Confirm prerequisites** (invoke [`aidp-migrator-bootstrap`](../skills/aidp-migrator-bootstrap/SKILL.md) silently — surface any gaps).
-2. **Ask for the source** — either a Databricks workspace path OR a Databricks Job ID. Don't proceed without it.
+2. **Ask for the source** — the AIDP workflow key (UUID) created by [`aidp-dbx-export`](../skills/aidp-dbx-export/SKILL.md). If the job still lives only in Databricks, run that export skill first (needs the Databricks Job ID). Don't proceed without it.
 3. **Build the DAG** — invoke [`aidp-build-dag`](../skills/aidp-build-dag/SKILL.md). Show the resulting task count + dep count. Ask "looks right?" before next step.
-4. **Data check** — invoke [`aidp-check-data`](../skills/aidp-check-data/SKILL.md). Show the OK/MISSING/EMPTY counts.
-   - If any MISSING / EMPTY: ask the user how to handle. Options: (a) migrate catalog first via [`aidp-migrate-catalog`](../skills/aidp-migrate-catalog/SKILL.md), (b) configure [`aidp-bucket-mapping`](../skills/aidp-bucket-mapping/SKILL.md), (c) proceed anyway (with a clear warning).
+4. **Data check** — invoke [`aidp-check-data`](../skills/aidp-check-data/SKILL.md). Show the EXISTS/ERROR/MISSING counts.
+   - If any MISSING / NOT FOUND / ERROR: ask the user how to handle. Options: (a) migrate catalog first via [`aidp-migrate-catalog`](../skills/aidp-migrate-catalog/SKILL.md), (b) configure [`aidp-bucket-mapping`](../skills/aidp-bucket-mapping/SKILL.md), (c) proceed anyway (with a clear warning).
 5. **Migrate** — invoke [`aidp-migrate-job`](../skills/aidp-migrate-job/SKILL.md). Surface live log tail.
 6. **Status** — when the run finishes, invoke [`/migration-status`](./migration-status.md) on the resulting `JOB_REPORT.md`.
 
@@ -20,7 +20,7 @@ Drive the migrator end-to-end with checkpoints between phases. Asks the user bef
 
 $ARGUMENTS
 
-If `$ARGUMENTS` contains a Databricks Job ID or workspace path, jump straight to step 3 (skip the question).
+If `$ARGUMENTS` contains an AIDP workflow key (or a Databricks Job ID to export first), jump straight to step 3 (skip the question).
 
 ## Checkpoints to surface to the user
 

@@ -1,8 +1,7 @@
 # aidp_compat — Supported Operations
 
-Version: **0.5.0** (wheel: `aidp_compat-0.5.0-py3-none-any.whl`)
-OCI auth: **API key** via `/Workspace/<oci-config-workspace-path>` (DEFAULT profile).
-Override with env vars: `OCI_CONFIG_FILE` / `OCI_CONFIG_PROFILE`.
+Version: see `aidp_compat.__version__` (declared in `__init__.py`; also used by wheel packaging).
+OCI auth: **API key**, configured with `OCI_CONFIG_FILE` / `OCI_CONFIG_PROFILE`.
 
 > Resource principal auth is NOT used (known failure modes on AIDP; forbidden by policy).
 
@@ -25,9 +24,9 @@ All `dbutils.fs.*` methods support **two path types**:
 | Method | Signature | OCI | Local | Recurse | Notes |
 |---|---|:---:|:---:|:---:|---|
 | `ls` | `dbutils.fs.ls(path) -> List[FileInfo]` | ✅ | ✅ | n/a | Returns FileInfo (path, name, size, modificationTime, isDir, isFile). Subdirectories appear as `isDir=True`. |
-| `cp` | `dbutils.fs.cp(src, dst, recurse=False) -> bool` | ✅ | ✅ | ✅ | All 4 directions: oci↔local, local↔local, oci↔oci. `recurse=True` walks a "directory" (prefix). |
-| `mv` | `dbutils.fs.mv(src, dst, recurse=False) -> bool` | ✅ | ✅ | ✅ | Cross-scheme = copy then delete src. |
-| `rm` | `dbutils.fs.rm(path, recurse=False) -> bool` | ✅ | ✅ | ✅ | Recurse for prefix removal. |
+| `cp` | `dbutils.fs.cp(src, dst, recurse=False) -> bool` | ✅ | ✅ | Partial | OCI→OCI copies one object, even with `recurse=True`; recursive prefix copy is not implemented. Local→local and local→OCI support recursive directories; OCI→local requires a slashed prefix or bucket root. |
+| `mv` | `dbutils.fs.mv(src, dst, recurse=False) -> bool` | ✅ | ✅ | Partial | Copy then delete; inherits `cp` limitations. OCI directory moves are unsafe: a marker copy can precede recursive deletion. The migration sandbox refuses known/slashed directory sources. |
+| `rm` | `dbutils.fs.rm(path, recurse=False) -> bool` | ✅ | ✅ | ✅ | OCI prefix removal requires `recurse=True` and a trailing `/` (or bucket root); an unslashed key is treated as one object. |
 | `mkdirs` | `dbutils.fs.mkdirs(path) -> bool` | ✅ | ✅ | n/a | OCI: writes a zero-byte placeholder ending in `/` (Object Storage is flat). Local: `os.makedirs`. |
 | `head` | `dbutils.fs.head(path, max_bytes=65536) -> str` | ✅ | ✅ | n/a | OCI: uses Range request for partial download. Returns UTF-8 string. |
 | `put` | `dbutils.fs.put(path, contents, overwrite=False) -> bool` | ✅ | ✅ | n/a | Raises `FileExistsError` if `overwrite=False` and target exists. |
@@ -47,9 +46,9 @@ All `dbutils.fs.*` methods support **two path types**:
 | Namespace | Status | Notes |
 |---|---|---|
 | `dbutils.fs.*` | ✅ Full | See table above. |
-| `dbutils.widgets.*` | ✅ | Backed by `oidlUtils.parameters` on AIDP. Use `oidlUtils.parameters.getParameter("name", "default")` for new code. |
-| `dbutils.secrets.*` | ✅ | **Vault-only by default**: OCI Vault (API key auth), requires `AIDP_VAULT_OCID` env var + secret named `<scope>/<key>`. Plaintext `AIDP_SECRET_<SCOPE>_<KEY>` env vars and the JSON file named by `AIDP_SECRETS_FILE` are consulted only with `AIDP_ALLOW_PLAINTEXT_SECRETS=1` (file must be `0600` on POSIX; one `insecure plaintext secrets mode active` log line, never values). `AIDP_SECRET_SCOPES=<scope,scope>` and `AIDP_SECRET_KEYS=<scope/key,scope/*,...>` restrict `get`/`list`/`listScopes` (read per call; `none` = nothing allowed; a refusal is logged as `NBP-RUNTIME-SECRET`); `job_migrate.py` derives both from the `dbutils.secrets.get(scope, key)` literals of the planned notebooks and declares them in the cluster bootstrap (an operator-provided value wins). List operations return names only. |
-| `dbutils.notebook.*` | ✅ | `notebook.run` and `notebook.exit` go to `oidlUtils.notebook.*`. Use `oidlUtils.notebook.run(path, timeout=3600)` for new code (timeout=0 is rejected by AIDP). The compat `notebook.run` passes every non-magic cell through the mandatory sandbox gate (section 8) before `exec`. |
+| `dbutils.widgets.*` | ✅ | Use native `aidputils.widgets.*` in Python and Scala; the shared store preserves required-read failures (live-verified 2026-10-13, REF-202). |
+| `dbutils.secrets.*` | ✅ | Backed by OCI Vault (API key auth). Requires `AIDP_VAULT_OCID` env var + secret named `<scope>/<key>`. |
+| `dbutils.notebook.*` | ✅ | `notebook.run` and `notebook.exit` go to `oidlUtils.notebook.*`. Use `oidlUtils.notebook.run(path, timeout=3600)` for new code (timeout=0 is rejected by AIDP). |
 | `dbutils.library.*` | ⚠️ | No-op shim. Cluster libraries must be installed via cluster libraries API, not at runtime. |
 | `dbutils.credentials.*` | ⚠️ | Stub only. Use API key auth directly. `assumeRole` not supported. |
 | `dbutils.data.*` | ⚠️ | Stub. Use pandas `describe()` instead. |
@@ -60,72 +59,21 @@ All `dbutils.fs.*` methods support **two path types**:
 ## 3. Top-Level Helpers
 
 ```python
-from aidp_compat import displayHTML, display, sql, translate_path, set_notebook_dir
+from aidp_compat import translate_path
 ```
 
 | Function | Purpose | Example |
 |---|---|---|
-| `display(df)` | Pretty-print Spark/Pandas DataFrame in notebook | `display(spark.read.table("default.x.y"))` |
-| `displayHTML(html)` | Render HTML in notebook | `displayHTML("<b>title</b>")` |
-| `sql(query)` | Run a SQL query, return DataFrame | `df = sql("SELECT * FROM default.x.y LIMIT 10")` |
 | `translate_path(p)` | Idempotent `/dbfs/FileStore/...` → `/Volumes/default/default/dbfs/FileStore/...` translation. NO-OP on already-translated paths. | `local = translate_path("/dbfs/FileStore/foo.csv")` |
-| `set_notebook_dir(path)` | Set the dir used by `dbutils.notebook.run("../relative")` to resolve relative paths | Called automatically by the migration tool's bootstrap. |
+
+For pretty-printing:
+- **Spark DataFrames** → use AIDP-native `display(df)` (kernel builtin) or `df.show(N, truncate=False)`.
+- **Pandas DataFrames** → let the DataFrame be the last expression in the cell (Jupyter auto-renders via `_repr_html_`), or use `Idisplay(df)` from `IPython.display` (already available in the migration bootstrap).
+- `aidp_compat` does NOT re-export `display` — keeps aidp_compat scope-minimal and lets AIDP's future pandas support flow through the native builtin without a compat shim in the way.
 
 ---
 
-## 4. `aidp_compat.safe_io` — Spark-Safe I/O Helpers
-
-For situations where naive `df.write.parquet(...)` / `pickle.dump(...)` can corrupt or lose data on AIDP. Import individually:
-
-```python
-from aidp_compat import safe_pickle_dump, safe_pickle_load, safe_write_parquet, ...
-```
-
-| Function | Purpose |
-|---|---|
-| `safe_pickle_dump(obj, path)` / `safe_pickle_load(path)` | Atomic pickle write/read (handles FUSE write-then-read consistency) |
-| `safe_write_parquet(df, path, mode="overwrite", partitionBy=None)` | DataFrame write with overwrite-safety (clears stale `_temporary` dirs) |
-| `safe_save_as_table(df, table_name, mode="overwrite", ...)` | Like saveAsTable but with retry + cleanup |
-| `safe_read_modify_write_parquet(...)` | Read + transform + write back without leaving the original in inconsistent state |
-| `safe_write_parquet_coalesced(df, path, num_files=1, ...)` | Write N target files (use for small-result optimization) |
-| `safe_save_as_table_coalesced(...)` | Same coalesce + saveAsTable |
-| `safe_pandas_to_csv(pdf, path, ...)` | Pandas → CSV with `/Volumes` FUSE retry |
-| `safe_materialize(df)` / `safe_unpersist(df)` | Force-cache + cleanup helpers |
-| `safe_read_file(path)` | Read text file with FUSE retry |
-| `load_saved_model_from_volumes(path)` | Read model artifacts from `/Volumes/...` (handles FUSE delays) |
-| `safe_joblib_dump(obj, path)` / `safe_joblib_load(path)` | joblib with FUSE-safe semantics |
-
-All `safe_io` helpers are **pure Python / PySpark** — no JVM Hadoop FS dependency.
-
----
-
-## 5. `aidp_compat.s3_compat` — S3 → OCI Routing
-
-For code that still references S3 buckets (use only if migrating boto3 code minimally):
-
-```python
-from aidp_compat.s3_compat import read_s3_object, write_s3_object
-data = read_s3_object("<source_bucket>", "path/to/key")  # auto-routes to OCI
-write_s3_object("<source_bucket>", "path/to/key", data)
-```
-
-S3-to-OCI bucket mapping comes from `reports/s3_to_oci_bucket_mapping.csv`. Uses OCI SDK with API key auth.
-
----
-
-## 6. `aidp_compat.glue_compat` — AWS Glue Replacement
-
-```python
-from aidp_compat import get_glue_table_s3_location
-location = get_glue_table_s3_location("database_name", "table_name")
-# Internally calls: spark.sql(f"DESCRIBE FORMATTED `{db}`.`{tbl}`")
-```
-
-Use as a drop-in replacement for `boto3.client('glue').get_table(...)['Table']['StorageDescriptor']['Location']`.
-
----
-
-## 7. `aidp_compat.oci_throttle` — Object Storage Tuning
+## 4. `aidp_compat.oci_throttle` — Object Storage Tuning
 
 For bulk migrations or high-concurrency object-storage workloads:
 
@@ -138,7 +86,7 @@ Applies CircuitBreaker + retry tuning to mitigate OCI 429 bursts. Profiles: cons
 
 ---
 
-## 8. `aidp_compat.notebook_policy` — Mandatory Sandbox Gate
+## 5. `aidp_compat.notebook_policy` — Mandatory Sandbox Gate
 
 Runtime enforcement at the execution sink. `dbutils.notebook.run(...)`, `dbutils.fs.rm/mv/cp/put/mkdirs` and every `safe_io` write helper refuse to run until a sandbox is declared; undeclared = `PermissionError` naming the missing variables (fail closed).
 
@@ -200,7 +148,7 @@ Before each non-magic cell runs it is `ast.parse`d and refused (`PolicyViolation
 
 ---
 
-## 9. What NOT to Use in Migrated Notebooks
+## 6. What NOT to Use in Migrated Notebooks
 
 ❌ **Direct JVM Hadoop FS calls** — `spark._jvm.org.apache.hadoop.fs.FileSystem.get(...)`, `fs.open(...)`, `fs.exists(...)`. These FAIL in scheduled workflow runs even though they work interactively.
 **Use instead**: `dbutils.fs.*` (above) or OCI Python SDK directly.
@@ -209,14 +157,14 @@ Before each non-magic cell runs it is `ast.parse`d and refused (`PolicyViolation
 **Use instead**: API key auth (see top of this doc).
 
 ❌ **`boto3` for S3** — AWS SDK not configured on AIDP.
-**Use instead**: `aidp_compat.s3_compat` for routing, or OCI SDK directly.
+**Use instead**: `translate_path()` + `spark.read` (BmcFilesystem handles OCI auth at cluster level), or OCI SDK directly.
 
 ❌ **`dbutils.notebook.run(path, 0, ...)`** — AIDP rejects `timeout=0`.
 **Use instead**: `oidlUtils.notebook.run(path, timeout=3600, ...)`.
 
 ---
 
-## 10. Quick Smoke Test
+## 7. Quick Smoke Test
 
 After installing the wheel, run this in a notebook to verify install:
 
@@ -225,7 +173,7 @@ import os
 from aidp_compat import dbutils
 
 OCI_BASE = "oci://<oci_backup_bucket>@<WORKSPACE_NAMESPACE>/aidp_compat_smoke"
-# Declare the sandbox first: dbutils.fs writes refuse without it (section 8).
+# Declare the sandbox first: dbutils.fs writes refuse without it (section 5).
 os.environ.setdefault("AIDP_SANDBOX_CATALOG", "default")
 os.environ.setdefault("AIDP_SANDBOX_SCHEMA", "<sandbox_schema>")
 os.environ.setdefault("AIDP_SANDBOX_PREFIX", OCI_BASE + "/")
@@ -237,12 +185,13 @@ print("✓ smoke test passed")
 
 ---
 
-## 11. Changelog (recent)
+## 8. Changelog (recent)
 
 | Version | Date | Highlights |
 |---|---|---|
 | unreleased | 2026-10 | `notebook_policy` mandatory sandbox gate on `notebook.run` + runtime assertions in `fs`/`safe_io` writers; `secrets` Vault-only by default (plaintext opt-in, `0600` file check, scope allowlist); gate is deny-by-default for indirect routes (builtins namespace, dunder / frame chains, IPython shell API and magics, Spark JVM / py4j bridge, deserialisers, process / debugger modules, rebound aliases) with new rule ids `NBP-DUNDER-ESCAPE`, `NBP-IPYTHON-ESCAPE`, `NBP-DESERIALIZE`; skipped magic-led cells are logged; round 2: `posix` / `nt` judged as `os`, one rule table for direct / aliased / imported / `getattr` access (`loop.subprocess_exec` added), `str.format` / `format_map` / `string.Formatter` templates resolved and walked (unresolvable template + run-time argument fails closed), literal local paths through library readers refused (`NBP-OPEN-PATH`; dynamic reader paths allowed and logged as `unverified_read_path`), dynamic `spark.sql` needs a literal read-keyword head (allowed and logged as `unverified_sql_read`; any other head is `NBP-SQL-DYNAMIC`; superseded by the round-3 allowlist), constants bound inside `for` / `if` / `with` / `try` bodies are resolved, `~` / Windows / `file://` paths are absolute on every host; `getattr(spark, "version")` and `"{0.__class__.__name__}".format(obj)` are no longer refused; round 3: `spark.sql` judged by an allowlist (`classify_sql`: top-level verb resolved behind the `WITH` CTE list on a masked statement, path tables and path sources, `SET` / `USE` allowlists, `reflect(` / `java_method(` / `TRANSFORM .. USING` refused anywhere, new rule id `NBP-SQL-REFUSED`), dynamic statements fail closed unless the runtime SQL guard of `notebook.run` is active (it re-classifies the final text of `spark.sql` / `selectExpr` / `filter` / `where` / `functions.expr` before Spark executes), `newSession` / `getOrCreate` / `getActiveSession` refused (`NBP-POLICY-TAMPER`) |
+| **0.5.9** | 2026-08-23 | `credentials`, `display`, `glue_compat`, `s3_compat`, `safe_io`, `spark_config`, `sql_magic` submodules removed. Pandas display is now migrator-emitted as IPython-native (`Idisplay` or bare expression); AIDP-native `display()` continues to handle Spark DataFrames. |
 | **0.5.3** | 2026-05-20 | `cp/mv` OCI → OCI now waits for async `copy_object` work-request to COMPLETE |
 | 0.5.2 | 2026-05-20 | `cp` OCI → OCI passes required `destination_region` to `copy_object` |
-| 0.5.1 | 2026-05-20 | All `dbutils.fs.*` methods rewritten to use OCI Python SDK (API key) — works in workflow; `s3_compat`, `secrets` use API key auth; resource principal removed |
+| 0.5.1 | 2026-05-20 | All `dbutils.fs.*` methods rewritten to use OCI Python SDK (API key) — works in workflow; resource principal removed |
 | 0.5.0 | (prior) | JVM Hadoop FS based; resource principal auth |

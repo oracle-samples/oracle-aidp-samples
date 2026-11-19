@@ -15,26 +15,29 @@ Pass-2 of the migrator is expensive (live cluster time + Claude-with-tool-use to
 
 ## Invocation
 
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py \
-  --root "<databricks-workspace-path>" \
-  --cluster <CLUSTER_ID> \
-  --aidp-base <AIDP_BASE> \
-  --datalake-ocid <DATALAKE_OCID> \
-  --workspace-id <WORKSPACE_UUID> \
-  --oci-profile <profile>
-```
-
-Or for the workflow-shape input (matches [`aidp-build-dag`](../aidp-build-dag/SKILL.md)'s workflow path):
+Workflow-based (the normal case — matches [`aidp-build-dag`](../aidp-build-dag/SKILL.md)'s workflow path):
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability_for_workflow.py \
-  --job-id <databricks-job-id> \
+  --config <customer>.yaml \
+  --job-key <workflow-key> \
   --cluster <CLUSTER_ID> \
-  --aidp-base <AIDP_BASE> \
-  --datalake-ocid <DATALAKE_OCID> \
-  --workspace-id <WORKSPACE_UUID> \
-  --oci-profile <profile>
+  [--manifest reports/<MyJob>_manifest.json] \
+  [--only-tasks <substrings>] \
+  [--output reports/<MyJob>_data_check.json] \
+  [--bucket-mapping <path>]
+```
+
+`--job-key` is the **AIDP** job key (UUID); `--manifest` skips the API fetch when you already built one. `--config` supplies the AIDP coordinates (`--lake-ocid` / `--workspace-id` / `--oci-profile` are per-run overrides).
+
+Or path-rooted, for a workspace folder:
+
+```bash
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py \
+  --root "<workspace-root-path>" \
+  --cluster <CLUSTER_ID> \
+  [--bucket-mapping <path>] \
+  [--lake-ocid <LAKE_OCID> --workspace-id <WORKSPACE_UUID> --oci-profile <profile>]
 ```
 
 ## What it does
@@ -48,39 +51,46 @@ python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability_for_workflo
 3. For each unique reference, opens a Spark session on the cluster and runs a probe:
    - tables → `DESCRIBE TABLE <fq>` (and `SHOW TABLES IN <schema>` to differentiate "schema missing" from "table missing")
    - paths → `dbutils.fs.ls(path)` via the migrator's helper
-4. Emits a report with three columns:
-   - **OK** — table/path exists, accessible
-   - **MISSING** — does not exist on the cluster
-   - **EMPTY** — exists but has 0 rows / 0 files (often a sign that the catalog migration succeeded but data wasn't replicated)
+4. Emits a report with these classes:
+   - **EXISTS** — table/path exists, accessible (row/item count printed)
+   - **MISSING** (tables) / **NOT FOUND** (paths) — does not exist on the cluster
+   - **ERROR** — the probe itself failed (access error, bad reference); investigate, don't assume present
+
+   There is **no `EMPTY` class** — an existing-but-empty table reports as `EXISTS (0 rows)`; judge emptiness from the printed count.
 
 ## How to read the output
 
 Sample shape:
 ```
-== check_data_availability_for_workflow report ==
-TABLES
-   OK      <catalog>.<schema>.<table_a>             1234567 rows
-   MISSING <catalog>.<schema>.<table_b>             -- DESCRIBE failed: SCHEMA_OR_TABLE_NOT_FOUND
-   EMPTY   <catalog>.<schema>.<table_c>             0 rows
+Storage Paths (2)
+  EXISTS (52 items)  oci://<bucket>@<ns>/path/to/file (used by: <task_a>)
+  NOT FOUND          oci://<bucket>@<ns>/missing/path
+                     Suggestions: oci://<bucket>@<ns>/other/path
 
-PATHS
-   OK      oci://<bucket>@<ns>/path/to/file         52 objects
-   MISSING oci://<bucket>@<ns>/missing/path         -- listObjects 404
+Spark Tables (3)
+  EXISTS (1234567 rows)  <schema>.<table_a>
+  MISSING <schema>.<table_b>
+  ERROR   <schema>.<table_c>: <probe error>
+
+RESULT: ALL DATA AVAILABLE - ready to migrate     ← only when nothing is missing
+RESULT: <n> data sources missing - check suggestions above
 ```
 
-**MISSING** rows → Pass-2 will definitely fail at those cells. Options:
+**MISSING / NOT FOUND** rows → Pass-2 will definitely fail at those cells. Options:
 - Run [`aidp-migrate-catalog`](../aidp-migrate-catalog/SKILL.md) if the underlying *schema* is missing.
 - Configure [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) if `s3://` → `oci://` rewrites haven't been done.
 - Mark the table as "out of scope" in the manifest and migrate the consuming notebook with a stub upstream.
 
-**EMPTY** rows → Pass-2 may pass (no error) but produce empty downstream tables. This is the silent failure mode. Decide whether to:
+**ERROR** rows → the probe failed (permissions, malformed reference, cluster hiccup). Root-cause before migrating — an ERROR is not evidence the data exists.
+
+**EXISTS (0 rows)** → Pass-2 may pass (no error) but produce empty downstream tables. This is the silent failure mode. Decide whether to:
 - Backfill the source.
 - Use the synthetic-data path (if your team has one).
 - Accept and document.
 
 ## Reusing the bucket-mapping config
 
-If the manifest references `s3://` paths, the scanner also consults `<migrator-repo>/config/oci_bucket_tenancy_mapping.json` (or whatever your bucket mapping helper resolves) to translate before probing. If the mapping is missing the bucket, the scanner reports a clear `S3 bucket X not found in OCI bucket mapping`. Fix via [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) and re-run.
+If the manifest references `s3://` paths, the scanner consults the S3→OCI bucket mapping CSV (`cfg.bucket_mapping.path`, default `config/bucket_map.csv`; per-run override `--bucket-mapping <path>`) to translate before probing. If the mapping is missing the bucket, the path cannot be translated and probes as `NOT FOUND` (with suggestions when a fuzzy match exists). Fix via [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) and re-run.
 
 ## Performance + cost
 
@@ -97,5 +107,5 @@ If the manifest references `s3://` paths, the scanner also consults `<migrator-r
 
 ## After this
 
-If everything is OK: proceed to [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md).
-If anything is MISSING: resolve via [`aidp-migrate-catalog`](../aidp-migrate-catalog/SKILL.md) or [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) and re-run this skill.
+If `RESULT: ALL DATA AVAILABLE`: proceed to [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md).
+If anything is MISSING / NOT FOUND: resolve via [`aidp-migrate-catalog`](../aidp-migrate-catalog/SKILL.md) or [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) and re-run this skill.
