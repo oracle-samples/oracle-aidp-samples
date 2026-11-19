@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Orchestration fixture: the shapes a production PowerCenter workflow
+  carries that a one-level, session-only reading gets wrong.
+
+    - a reusable WORKLET defined at folder level (wl_dims) that runs ONE
+      reusable session twice, as two renamed instances (s_dim_customer,
+      s_dim_product): links name instances, not tasks
+    - a non-reusable worklet nested inside the workflow (wl_audit), which
+      itself nests the reusable worklet wl_marts
+    - one mapping (m_load_fact) run by two sessions (s_m_load_fact,
+      s_m_load_fact_hist)
+    - a Decision task and a Decision-conditioned link, a failure branch to
+      an Email task, a Command task between two sessions
+    - SUCCEEDED link conditions (exactly what the job's ALL_SUCCESS does)
+    - a daily scheduler at 02:30
+
+  Hand-authored from the PowerCenter 10.x export schema, not captured from
+  a live repository. The matching parameter file is wf_worklets_params.par.
+-->
+<POWERMART CREATION_DATE="09/29/2026 09:00:00" REPOSITORY_VERSION="189.96">
+<REPOSITORY NAME="REP_PROD" VERSION="189" CODEPAGE="UTF-8" DATABASETYPE="Oracle">
+<FOLDER NAME="SALES_DM" GROUP="" OWNER="etl" SHARED="NOTSHARED">
+
+  <SESSION NAME="s_m_load_dim" MAPPINGNAME="m_load_dim" REUSABLE="YES" ISVALID="YES" DESCRIPTION="">
+    <ATTRIBUTE NAME="Treat source rows as" VALUE="Insert"/>
+    <ATTRIBUTE NAME="Parameter Filename" VALUE="$PMRootDir/params/wf_sales_nightly.par"/>
+  </SESSION>
+  <SESSION NAME="s_m_load_fact" MAPPINGNAME="m_load_fact" REUSABLE="YES" ISVALID="YES" DESCRIPTION="">
+    <ATTRIBUTE NAME="$$LOAD_TYPE" VALUE="DELTA"/>
+  </SESSION>
+  <SESSION NAME="s_m_load_fact_hist" MAPPINGNAME="m_load_fact" REUSABLE="YES" ISVALID="YES" DESCRIPTION="">
+    <ATTRIBUTE NAME="$$LOAD_TYPE" VALUE="FULL"/>
+  </SESSION>
+  <SESSION NAME="s_m_cleanup" MAPPINGNAME="m_cleanup" REUSABLE="YES" ISVALID="YES" DESCRIPTION=""/>
+  <SESSION NAME="s_m_mart_sales" MAPPINGNAME="m_mart_sales" REUSABLE="YES" ISVALID="YES" DESCRIPTION=""/>
+
+  <WORKLET NAME="wl_dims" REUSABLE="YES" ISVALID="YES" VERSIONNUMBER="1" DESCRIPTION="Dimensions">
+    <TASKINSTANCE NAME="Start" TASKNAME="Start" TASKTYPE="Start" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="s_dim_customer" TASKNAME="s_m_load_dim" TASKTYPE="Session" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="s_dim_product" TASKNAME="s_m_load_dim" TASKTYPE="Session" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <WORKFLOWLINK FROMTASK="Start" TOTASK="s_dim_customer" CONDITION=""/>
+    <WORKFLOWLINK FROMTASK="s_dim_customer" TOTASK="s_dim_product" CONDITION="$s_dim_customer.Status = SUCCEEDED"/>
+  </WORKLET>
+
+  <WORKLET NAME="wl_marts" REUSABLE="YES" ISVALID="YES" VERSIONNUMBER="1" DESCRIPTION="Marts">
+    <TASKINSTANCE NAME="Start" TASKNAME="Start" TASKTYPE="Start" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="s_m_mart_sales" TASKNAME="s_m_mart_sales" TASKTYPE="Session" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <WORKFLOWLINK FROMTASK="Start" TOTASK="s_m_mart_sales" CONDITION=""/>
+  </WORKLET>
+
+  <WORKFLOW NAME="wf_sales_nightly" SERVERNAME="IS_PROD" ISENABLED="YES" ISVALID="YES" DESCRIPTION="Nightly sales DM">
+    <SCHEDULER NAME="Sched_0230" REUSABLE="NO" DESCRIPTION="">
+      <SCHEDULEINFO SCHEDULETYPE="CUSTOMRUN" STARTTIME="09/01/2026 02:30:00" DELTAVALUE="86400" RUNOPTIONS="2" ENDOPTIONS="0"/>
+    </SCHEDULER>
+
+    <WORKLET NAME="wl_audit" REUSABLE="NO" ISVALID="YES" VERSIONNUMBER="1" DESCRIPTION="Non-reusable">
+      <TASKINSTANCE NAME="Start" TASKNAME="Start" TASKTYPE="Start" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+      <TASKINSTANCE NAME="wl_marts" TASKNAME="wl_marts" TASKTYPE="Worklet" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+      <WORKFLOWLINK FROMTASK="Start" TOTASK="wl_marts" CONDITION=""/>
+    </WORKLET>
+
+    <TASKINSTANCE NAME="Start" TASKNAME="Start" TASKTYPE="Start" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="wl_dims" TASKNAME="wl_dims" TASKTYPE="Worklet" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="s_m_load_fact" TASKNAME="s_m_load_fact" TASKTYPE="Session" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="dec_month_end" TASKNAME="dec_month_end" TASKTYPE="Decision" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="s_m_load_fact_hist" TASKNAME="s_m_load_fact_hist" TASKTYPE="Session" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="em_fact_failed" TASKNAME="em_fact_failed" TASKTYPE="Email" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="cmd_archive" TASKNAME="cmd_archive" TASKTYPE="Command" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="s_m_cleanup" TASKNAME="s_m_cleanup" TASKTYPE="Session" REUSABLE="YES" ISENABLED="YES" DESCRIPTION=""/>
+    <TASKINSTANCE NAME="wl_audit" TASKNAME="wl_audit" TASKTYPE="Worklet" REUSABLE="NO" ISENABLED="YES" DESCRIPTION=""/>
+
+    <WORKFLOWLINK FROMTASK="Start" TOTASK="wl_dims" CONDITION=""/>
+    <WORKFLOWLINK FROMTASK="wl_dims" TOTASK="s_m_load_fact" CONDITION="$wl_dims.Status = SUCCEEDED"/>
+    <WORKFLOWLINK FROMTASK="s_m_load_fact" TOTASK="dec_month_end" CONDITION="$s_m_load_fact.Status = SUCCEEDED"/>
+    <WORKFLOWLINK FROMTASK="dec_month_end" TOTASK="s_m_load_fact_hist" CONDITION="$dec_month_end.Condition = TRUE"/>
+    <WORKFLOWLINK FROMTASK="s_m_load_fact" TOTASK="em_fact_failed" CONDITION="$s_m_load_fact.Status = FAILED"/>
+    <WORKFLOWLINK FROMTASK="s_m_load_fact" TOTASK="cmd_archive" CONDITION="$s_m_load_fact.Status=SUCCEEDED"/>
+    <WORKFLOWLINK FROMTASK="cmd_archive" TOTASK="s_m_cleanup" CONDITION="$cmd_archive.Status = SUCCEEDED"/>
+    <WORKFLOWLINK FROMTASK="s_m_cleanup" TOTASK="wl_audit" CONDITION=""/>
+  </WORKFLOW>
+
+</FOLDER>
+</REPOSITORY>
+</POWERMART>

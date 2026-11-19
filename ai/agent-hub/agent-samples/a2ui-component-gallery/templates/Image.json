@@ -1,0 +1,128 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Image literal url with mediumFeature",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewImage_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewImage_v1",
+          "component": "Image",
+          "url": "https://picsum.photos/120/160",
+          "variant": "mediumFeature",
+          "description": "Random scenic image 120x160"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Image literal url with cover + largeFeature",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewImage_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewImage_v2",
+          "component": "Image",
+          "url": "https://picsum.photos/140/180",
+          "fit": "cover",
+          "variant": "largeFeature",
+          "description": "Random scenic image 140x180"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Image path-backed url and altText",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewImage_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewImage_v3",
+          "component": "Image",
+          "url": {
+            "path": "/demo/image/url"
+          },
+          "fit": "contain",
+          "variant": "smallFeature",
+          "description": {
+            "path": "/demo/image/altText"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "Image avatar hint",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_previewImage_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewImage_v4",
+          "component": "Image",
+          "url": "https://picsum.photos/96/96",
+          "variant": "avatar",
+          "description": "Random avatar image 96x96"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "url": "https://picsum.photos/130/170",
+        "altText": "Random scenic image 130x170"
+      },
+      "path": "/demo/image"
+    }
+  }
+]

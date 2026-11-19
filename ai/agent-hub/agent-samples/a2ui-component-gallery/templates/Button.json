@@ -1,0 +1,84 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_previewButton_v1",
+            "tpl_actionContextInfo",
+            "tpl_actionContextExamplesList"
+          ]
+        },
+        {
+          "id": "tpl_previewButtonLabel_v1",
+          "component": "Text",
+          "text": "Confirm",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewButton_v1",
+          "component": "Button",
+          "child": "tpl_previewButtonLabel_v1",
+          "action": {
+            "event": {
+              "name": "preview_button_action"
+            }
+          }
+        },
+        {
+          "id": "tpl_actionContextInfo",
+          "component": "Text",
+          "text": "Button actions can include an optional context array: [{\"key\":\"...\",\"value\":{...}}]. Each item includes a key plus one typed value.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_actionContextExample_path",
+          "component": "Text",
+          "text": "Path: Reads a runtime value from the data model. Example: {\"key\":\"variantContext\",\"value\":{\"path\":\"/demo/context/value\"}}",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_actionContextExample_literalString",
+          "component": "Text",
+          "text": "LiteralString: Sends fixed text. Example: {\"key\":\"variantContext\",\"value\":{\"literalString\":\"sample-context\"}}",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_actionContextExample_literalNumber",
+          "component": "Text",
+          "text": "LiteralNumber: Sends a numeric value. Example: {\"key\":\"variantContext\",\"value\":{\"literalNumber\":7}}",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_actionContextExample_literalBoolean",
+          "component": "Text",
+          "text": "LiteralBoolean: Sends true or false. Example: {\"key\":\"variantContext\",\"value\":{\"literalBoolean\":true}}",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_actionContextExamplesList",
+          "component": "List",
+          "children": [
+            "tpl_actionContextExample_path",
+            "tpl_actionContextExample_literalString",
+            "tpl_actionContextExample_literalNumber",
+            "tpl_actionContextExample_literalBoolean"
+          ],
+          "direction": "vertical",
+          "align": "start"
+        }
+      ]
+    }
+  }
+]

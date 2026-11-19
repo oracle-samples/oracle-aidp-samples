@@ -1,0 +1,8 @@
+{
+  "username": "ocid1.user.oc1..<your-user-ocid>",
+  "tenancy": "ocid1.tenancy.oc1..<your-tenancy-ocid>",
+  "region": "us-ashburn-1",
+  "fingerprint": "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
+  "idl-ocid": "ocid1.aidataplatform.oc1.iad.<your-aidp-instance-ocid>",
+  "dsn": "jdbc:spark://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/default;SparkServerType=AIDP;httpPath=cliservice/<your-cluster-http-path-id>"
+}

@@ -1,0 +1,92 @@
+id: executive_cfo
+title: Executive CFO Dashboard
+version: 0.1.0
+description: |
+  Executive CFO overview combining GL balances, AP aging, and supplier
+  spend. The dashboard YAML contract describes the workbook delivered
+  through the OAC snapshot flow.
+
+delivery:
+  type: oac-snapshot
+  barObject: dashboards/executive-cfo.bar
+  oac:
+    projectName: Executive CFO
+    folderPath: /Shared Folders/AIDP Fusion/Finance
+    connectionName: aidp-fusion-gold
+    refreshMode: live
+    importMode: replace
+
+requires:
+  pack:
+    id: fusion-finance-starter
+    minVersion: 0.1.0
+  tables:
+    - gold.gl_balance
+    - gold.ap_aging
+    - gold.supplier_spend
+  columns:
+    gold.gl_balance:
+      - name: ledger_id
+        type: bigint
+      - name: account_id
+        type: bigint
+      - name: period_year
+        type: bigint
+      - name: period_num
+        type: bigint
+      - name: currency_code
+        type: string
+      - name: closing_balance
+        type: decimal(28,2)
+    gold.ap_aging:
+      - name: supplier_number
+        type: string
+      - name: aging_bucket
+        type: string
+      - name: open_amount
+        type: decimal(28,2)
+      - name: currency_code
+        type: string
+    gold.supplier_spend:
+      - name: supplier_number
+        type: string
+      - name: currency_code
+        type: string
+      - name: total_invoice_amount
+        type: decimal(20,2)
+  freshness:
+    gold.gl_balance:
+      maxAgeHours: 168
+    gold.ap_aging:
+      maxAgeHours: 24
+    gold.supplier_spend:
+      maxAgeHours: 24
+
+validationQueries:
+  - id: gl_balance_has_data
+    sql: |
+      SELECT COUNT(*) AS row_count
+      FROM {{ catalog }}.{{ gold_schema }}.gl_balance
+    expect:
+      row_count_min: 1
+    severity: error
+
+security:
+  allowedColumns:
+    gold.ap_aging:
+      - supplier_number
+      - aging_bucket
+      - open_amount
+      - currency_code
+
+metadata:
+  audience:
+    - cfo
+    - controller
+  tags:
+    - finance
+    - executive
+  refreshSchedule:
+    suggestedCron: "0 6 * * *"
+    rationale: |
+      Daily 6 AM refresh — AP aging is current-date anchored.

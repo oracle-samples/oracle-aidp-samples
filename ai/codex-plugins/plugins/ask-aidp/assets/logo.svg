@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" role="img" aria-label="Ask AIDP">
+  <rect x="0" y="0" width="96" height="96" rx="18" fill="#C74634"/>
+  <path d="M25 64 41 22h14l16 42H59l-2.8-8.5H40L37.2 64H25Zm18.7-18.9h8.8L48 31.7l-4.3 13.4Z" fill="#fff"/>
+  <path d="M27 76h42" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+  <text x="116" y="44" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#1f2937">Ask</text>
+  <text x="116" y="73" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#4b5563">AIDP</text>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "oac-mcp-server": {
+      "command": "node",
+      "args": [
+        "${OAC_MCP_CONNECT_PATH}"
+      ]
+    }
+  }
+}

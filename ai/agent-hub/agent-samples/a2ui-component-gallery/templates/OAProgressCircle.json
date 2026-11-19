@@ -1,0 +1,111 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_progress_circle_v1",
+            "tpl_variant_wrapper_progress_circle_v2",
+            "tpl_variant_wrapper_progress_circle_v3",
+            "tpl_variant_wrapper_progress_circle_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_progress_circle_v1",
+          "component": "Text",
+          "text": "OAProgressCircle small 25 / 100",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_circle_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_circle_v1",
+            "tpl_previewOAProgressCircle_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressCircle_v1",
+          "component": "OAProgressCircle",
+          "value": 25,
+          "max": 100,
+          "size": "sm"
+        },
+        {
+          "id": "tpl_variant_header_progress_circle_v2",
+          "component": "Text",
+          "text": "OAProgressCircle medium 55 / 100",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_circle_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_circle_v2",
+            "tpl_previewOAProgressCircle_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressCircle_v2",
+          "component": "OAProgressCircle",
+          "value": 55,
+          "max": 100,
+          "size": "md"
+        },
+        {
+          "id": "tpl_variant_header_progress_circle_v3",
+          "component": "Text",
+          "text": "OAProgressCircle large 83 / 100",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_circle_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_circle_v3",
+            "tpl_previewOAProgressCircle_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressCircle_v3",
+          "component": "OAProgressCircle",
+          "value": 83,
+          "max": 100,
+          "size": "lg"
+        },
+        {
+          "id": "tpl_variant_header_progress_circle_v4",
+          "component": "Text",
+          "text": "OAProgressCircle loading",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_circle_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_circle_v4",
+            "tpl_previewOAProgressCircle_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressCircle_v4",
+          "component": "OAProgressCircle",
+          "value": -1,
+          "max": 100,
+          "size": "md"
+        }
+      ]
+    }
+  }
+]

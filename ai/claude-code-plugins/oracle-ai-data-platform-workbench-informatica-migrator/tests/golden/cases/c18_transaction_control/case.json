@@ -1,0 +1,12 @@
+{
+  "export": "m_order_batches_tc.xml",
+  "notes": [
+    "Number Of Sorted Ports = 2 on SQ_ORDER_LINES: the reader adds ORDER BY ORDER_BATCH, LINE_SEQ, so rows reach the Transaction Control in batch/line order (the seed is deliberately shuffled).",
+    "EXP_BATCH_FLAGS: NEW_BATCH = IIF(LINE_SEQ = 1, 1, 0); BAD_BATCH = IIF(STATUS = 'ABORT', 1, 0). A NULL STATUS makes the IIF condition NULL, i.e. FALSE -> 0 (line 10/3).",
+    "TC_BATCH 'Transaction Control Condition' (the Designer's property name) = IIF(NEW_BATCH = 1, TC_COMMIT_BEFORE, IIF(BAD_BATCH = 1, TC_ROLLBACK_AFTER, TC_CONTINUE_TRANSACTION)). Session Commit Type = User Defined, Commit On End Of File = YES.",
+    "TC_COMMIT_BEFORE commits the open transaction and starts a new one that CONTAINS the current row. TC_ROLLBACK_AFTER puts the current row in the open transaction, rolls that whole transaction back, and starts a new, empty one. TC_CONTINUE_TRANSACTION changes nothing.",
+    "Trace: 10/1 commit-before (nothing open) -> T{10/1}; 10/2, 10/3 continue; 20/1 commits batch 10 (3 rows) -> T{20/1}; 20/2 ABORT rolls back {20/1, 20/2}; 30/1 commits the empty transaction -> T{30/1}; 30/2 continue; 40/1 commits batch 30 -> T{40/1}; 40/2 ABORT rolls back {40/1, 40/2} -> new empty T; 40/3 continue -> T{40/3}; 50/1 commits {40/3} -> T{50/1}; end of file commits {50/1}.",
+    "So batch 20 does not land at all, and batch 40 loses lines 1-2 but line 3 (after the ABORT line, in a NEW transaction) DOES land: a rollback only undoes the current transaction, not the rest of the batch.",
+    "Landed: 10/1, 10/2, 10/3, 30/1, 30/2, 40/3, 50/1 (7 of 11 rows). The target starts empty."
+  ]
+}

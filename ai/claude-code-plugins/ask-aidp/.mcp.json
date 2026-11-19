@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ask-aidp": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp/ask-aidp-server.mjs"
+      ]
+    }
+  }
+}

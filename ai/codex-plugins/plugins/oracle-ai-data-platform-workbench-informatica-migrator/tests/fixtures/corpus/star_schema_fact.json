@@ -1,0 +1,62 @@
+{
+    "name": "m_star_schema_fact_iics",
+    "description": "IICS version of star schema fact table builder",
+    "transformations": [
+        {
+            "name": "SRC_SALES",
+            "type": "SOURCE",
+            "tableName": "SALES_STAGE",
+            "fields": [
+                {"name": "SALE_ID", "dataType": "integer", "portType": "OUTPUT"},
+                {"name": "PRODUCT_CODE", "dataType": "string", "portType": "OUTPUT"},
+                {"name": "CUSTOMER_CODE", "dataType": "string", "portType": "OUTPUT"},
+                {"name": "QUANTITY", "dataType": "integer", "portType": "OUTPUT"},
+                {"name": "UNIT_PRICE", "dataType": "decimal", "portType": "OUTPUT"}
+            ]
+        },
+        {
+            "name": "LKP_PRODUCT",
+            "type": "LOOKUP",
+            "tableName": "PRODUCT_DIM",
+            "joinCondition": "LKP_PRODUCT.PRODUCT_CODE = SRC_SALES.PRODUCT_CODE",
+            "fields": [
+                {"name": "PRODUCT_CODE", "dataType": "string", "portType": "INPUT"},
+                {"name": "PRODUCT_SK", "dataType": "integer", "portType": "OUTPUT"},
+                {"name": "CATEGORY", "dataType": "string", "portType": "OUTPUT"}
+            ]
+        },
+        {
+            "name": "AGG_REVENUE",
+            "type": "AGGREGATOR",
+            "groupByFields": ["PRODUCT_SK", "CATEGORY"],
+            "fields": [
+                {"name": "PRODUCT_SK", "dataType": "integer", "portType": "INPUT"},
+                {"name": "CATEGORY", "dataType": "string", "portType": "INPUT"},
+                {"name": "QUANTITY", "dataType": "integer", "portType": "INPUT"},
+                {"name": "UNIT_PRICE", "dataType": "decimal", "portType": "INPUT"},
+                {"name": "TOTAL_REVENUE", "dataType": "decimal", "portType": "OUTPUT", "expression": "SUM(QUANTITY * UNIT_PRICE)"},
+                {"name": "SALE_COUNT", "dataType": "integer", "portType": "OUTPUT", "expression": "COUNT(*)"}
+            ]
+        },
+        {
+            "name": "TGT_REVENUE_FACT",
+            "type": "TARGET",
+            "tableName": "REVENUE_FACT",
+            "fields": [
+                {"name": "PRODUCT_SK", "dataType": "integer", "portType": "INPUT"},
+                {"name": "CATEGORY", "dataType": "string", "portType": "INPUT"},
+                {"name": "TOTAL_REVENUE", "dataType": "decimal", "portType": "INPUT"},
+                {"name": "SALE_COUNT", "dataType": "integer", "portType": "INPUT"}
+            ]
+        }
+    ],
+    "connections": [
+        {"from": {"transformation": "SRC_SALES", "field": "PRODUCT_CODE"}, "to": {"transformation": "LKP_PRODUCT", "field": "PRODUCT_CODE"}},
+        {"from": {"transformation": "LKP_PRODUCT", "field": "PRODUCT_SK"}, "to": {"transformation": "AGG_REVENUE", "field": "PRODUCT_SK"}},
+        {"from": {"transformation": "LKP_PRODUCT", "field": "CATEGORY"}, "to": {"transformation": "AGG_REVENUE", "field": "CATEGORY"}},
+        {"from": {"transformation": "SRC_SALES", "field": "QUANTITY"}, "to": {"transformation": "AGG_REVENUE", "field": "QUANTITY"}},
+        {"from": {"transformation": "SRC_SALES", "field": "UNIT_PRICE"}, "to": {"transformation": "AGG_REVENUE", "field": "UNIT_PRICE"}},
+        {"from": {"transformation": "AGG_REVENUE", "field": "PRODUCT_SK"}, "to": {"transformation": "TGT_REVENUE_FACT", "field": "PRODUCT_SK"}},
+        {"from": {"transformation": "AGG_REVENUE", "field": "TOTAL_REVENUE"}, "to": {"transformation": "TGT_REVENUE_FACT", "field": "TOTAL_REVENUE"}}
+    ]
+}

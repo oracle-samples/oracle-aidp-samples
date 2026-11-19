@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Bootstrap"
+  short_description: "Validate Fusion and AIDP bootstrap readiness"
+  default_prompt: "Use $aidp-fusion-bootstrap to validate prerequisites and pin my tenant profile."

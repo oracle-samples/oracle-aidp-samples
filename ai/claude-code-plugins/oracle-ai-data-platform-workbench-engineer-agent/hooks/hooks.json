@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/check_env.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/check_env.py\" || py -3 \"${CLAUDE_PLUGIN_ROOT}/scripts/check_env.py\"",
+            "timeout": 300,
+            "statusMessage": "Checking AIDP engineer-agent environment (deps + OCI)..."
+          }
+        ]
+      }
+    ]
+  }
+}

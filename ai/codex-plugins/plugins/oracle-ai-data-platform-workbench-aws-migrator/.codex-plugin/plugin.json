@@ -1,0 +1,14 @@
+{
+  "name": "oracle-ai-data-platform-workbench-aws-migrator",
+  "displayName": "Oracle AIDP Migrator for AWS",
+  "version": "0.3.0",
+  "description": "Migrate an AWS data stack (S3, Glue, Athena, EMR, SageMaker) to Oracle AI Data Platform: inventory, plan, translate (deterministic, flag-don't-guess), and verify. Exposed to Codex/Cursor via an MCP server.",
+  "author": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "license": "MIT",
+  "keywords": ["aidp", "oracle", "aws", "migration", "glue", "athena", "s3", "spark", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

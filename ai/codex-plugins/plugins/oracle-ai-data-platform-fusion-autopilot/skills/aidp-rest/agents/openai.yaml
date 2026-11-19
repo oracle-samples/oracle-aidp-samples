@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP REST"
+  short_description: "Operate AIDP REST jobs and notebook runs"
+  default_prompt: "Use $aidp-rest to dispatch this AIDP job and retrieve its task output."

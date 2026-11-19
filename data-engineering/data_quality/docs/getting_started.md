@@ -53,7 +53,7 @@ pip install -e .
 # Local development — full set of optional validator extras.
 pip install -r requirements-local.txt
 pip install -e .
-# Equivalent: pip install 'qualifire[all]'
+# Equivalent: pip install -e '.[all]'
 
 # Lean install (SLO + threshold + drift on a pre-provisioned Spark)
 pip install -r requirements-core.txt
@@ -67,7 +67,7 @@ Local devs install pyspark separately so the test suite can run:
 ```bash
 pip install -r requirements-local.txt
 pip install -r requirements-dev.txt
-pip install 'pyspark>=3.5'     # OR `pip install qualifire[spark]`
+pip install 'pyspark>=3.5'     # OR `pip install -e '.[spark]'`
 pip install -e .
 ```
 
@@ -116,25 +116,25 @@ pip install -r requirements-local.txt -r requirements-spark.txt -r requirements-
 
 ```bash
 # Prophet for time-series forecasting (trend validator)
-pip install 'qualifire[forecast]'
+pip install -e '.[forecast]'
 
 # Isolation Forest + SHAP for anomaly detection (shape/pattern)
-pip install 'qualifire[anomaly]'
+pip install -e '.[anomaly]'
 
 # Pandas SQL path (threshold/historical on PandasBackend)
-pip install 'qualifire[pandas]'
+pip install -e '.[pandas]'
 
 # All optional validators (no pyspark — AIDP-safe)
-pip install 'qualifire[all]'
+pip install -e '.[all]'
 
 # Local dev convenience: all validators + pyspark
-pip install 'qualifire[all,spark]'
+pip install -e '.[all,spark]'
 ```
 
 ### From Wheel
 
 The wheel itself only carries the core dependencies. Additional
-extras come from `pip install 'qualifire[all]'` after the wheel
+extras come from `pip install -e '.[all]'` after the wheel
 install — keeping the wheel install AIDP-safe.
 
 ```bash

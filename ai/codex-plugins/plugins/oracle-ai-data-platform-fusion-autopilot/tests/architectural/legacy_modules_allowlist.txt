@@ -1,0 +1,17 @@
+# Legacy v1 silver/gold module allowlist.
+#
+# Each entry is a module path (POSIX style, relative to plugin root) that the
+# architectural test `test_no_new_legacy_modules.py` should accept as a
+# preexisting v1 module.
+#
+# Phase 9 (ADR-0022) deleted the v1 dim_supplier / dim_account modules and
+# every transforms/gold/*.py mart — they now ship as SQL templates under
+# content_packs/<pack-id>/silver/ and content_packs/<pack-id>/gold/.
+#
+# Only dim_calendar remains as a permanent exception per ADR-0011 — the
+# engine's `builtin` deterministic date-math generator. It cannot be
+# expressed as a pure SQL template (parameter-driven, not table-driven).
+#
+# Format: one path per line. Blank lines and `# comment` lines ignored.
+
+scripts/oracle_ai_data_platform_fusion_autopilot/dimensions/dim_calendar.py

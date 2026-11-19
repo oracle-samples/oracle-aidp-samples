@@ -1,0 +1,72 @@
+{
+  "PRODUCT_FEED": {
+    "schema": "PRODUCT_ID decimal(10,0), PRODUCT_NAME string, LIST_PRICE decimal(10,2), STATUS string",
+    "rows": [
+      [
+        1,
+        "Widget",
+        10.0,
+        "A"
+      ],
+      [
+        2,
+        "Gadget",
+        22.5,
+        "A"
+      ],
+      [
+        3,
+        "Doohickey",
+        5.0,
+        "D"
+      ],
+      [
+        5,
+        "Sprocket",
+        3.25,
+        "A"
+      ],
+      [
+        6,
+        "Cog",
+        1.1,
+        "D"
+      ],
+      [
+        7,
+        "Whatsit",
+        9.99,
+        "A"
+      ]
+    ]
+  },
+  "TGT_PRODUCT": {
+    "schema": "PRODUCT_ID decimal(10,0), PRODUCT_NAME string, LIST_PRICE decimal(10,2), LOAD_TS timestamp",
+    "rows": [
+      [
+        1,
+        "Widget",
+        10.0,
+        "2026-01-01T00:00:00"
+      ],
+      [
+        2,
+        "Gadget",
+        20.0,
+        "2026-01-01T00:00:00"
+      ],
+      [
+        3,
+        "Doohickey",
+        5.0,
+        "2026-01-01T00:00:00"
+      ],
+      [
+        4,
+        "Gizmo",
+        7.0,
+        "2026-01-01T00:00:00"
+      ]
+    ]
+  }
+}

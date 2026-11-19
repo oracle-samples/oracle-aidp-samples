@@ -1,0 +1,19 @@
+{
+  "TGT_CUSTOMER": {
+    "rows": [
+      {"CUST_ID": 1, "NAME_UP": "SMITH, JOHN", "TIER": "GOLD", "SIGNUP_YEAR": "2026", "CITY": "Boston"},
+      {"CUST_ID": 2, "NAME_UP": "ANN LEE", "TIER": "NONE", "SIGNUP_YEAR": "2026", "CITY": "Austin"},
+      {"CUST_ID": 3, "NAME_UP": "O'BRIEN", "TIER": "STD", "SIGNUP_YEAR": "2026", "CITY": null},
+      {"CUST_ID": 4, "NAME_UP": "BOB", "TIER": "STD", "SIGNUP_YEAR": null, "CITY": "Denver"}
+    ]
+  },
+  "customers_out": {
+    "lines": [
+      "CUST_ID|NAME_UP|CREDIT|SIGNUP_DT",
+      "1|SMITH, JOHN|1500.50|01/15/2026 10:30:00",
+      "2|ANN LEE||02/01/2026 00:00:00",
+      "3|O'BRIEN|99.99|03/10/2026 08:00:00",
+      "4|BOB|250.00|"
+    ]
+  }
+}

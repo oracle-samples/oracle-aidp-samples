@@ -1,0 +1,31 @@
+# Secrets & live credentials — NEVER commit
+.env
+.env.*
+*.pem
+*.key
+oci_api_key*.pem
+**/.oci/
+
+# source-specific coordinates — filled at use time, not shipped
+env-coords.md
+env-coords.local.md
+bucket_mapping.json
+bucket_mapping.local.json
+catalog_manifest.json
+
+# Migrator-local artifacts that should never accompany this plugin
+reports/
+**/JOB_REPORT.md.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Python (if any local tooling under tests)
+__pycache__/
+*.pyc
+.venv/
+venv/

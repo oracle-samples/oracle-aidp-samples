@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+"""
+JAR Dependency Analyzer
+========================
+Downloads JARs from the AIDP workspace and analyzes them for Spark 3.5 compatibility.
+Checks: Scala version, Spark version compiled against, class availability.
+"""
+
+import json
+import os
+import sys
+import subprocess
+import zipfile
+import re
+import time
+import oci
+import requests
+from datetime import datetime
+
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+JARS_DIR = os.path.join(PROJECT_DIR, "jars")
+REPORTS_DIR = os.path.join(PROJECT_DIR, "reports")
+
+# AIDP config
+AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
+DATALAKE_OCID = os.environ.get("AIDP_DATALAKE", "")
+WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
+DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
+OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
+
+def load_workspace_jars() -> list:
+    """Load workspace JAR paths from env or a newline-delimited manifest."""
+    jars = []
+
+    manifest = os.environ.get("AIDP_WORKSPACE_JARS_FILE", "").strip()
+    if manifest and os.path.exists(manifest):
+        with open(manifest, "r", encoding="utf-8") as f:
+            jars.extend(line.strip() for line in f if line.strip() and not line.lstrip().startswith("#"))
+
+    raw = os.environ.get("AIDP_WORKSPACE_JARS", "").strip()
+    if raw:
+        jars.extend(part.strip() for part in re.split(r"[\n,;]+", raw) if part.strip())
+
+    return list(dict.fromkeys(jars))
+
+
+WORKSPACE_JARS = load_workspace_jars()
+
+
+def get_oci_signer():
+    config = oci.config.from_file(profile_name=OCI_PROFILE)
+    signer = oci.signer.Signer(
+        tenancy=config["tenancy"], user=config["user"],
+        fingerprint=config["fingerprint"],
+        private_key_file_location=config["key_file"],
+    )
+    return signer
+
+
+def download_jar(signer, jar_path: str, local_dir: str) -> str:
+    """Download a JAR from AIDP workspace."""
+    headers = {"Content-Type": "application/json", "path": jar_path, "type": "FILE"}
+    resp = requests.post(DOWNLOAD_META_URL, auth=signer, headers=headers, data="")
+    resp.raise_for_status()
+    par_url = resp.json().get("parUrl")
+    if not par_url:
+        raise Exception("No parUrl returned")
+
+    local_path = os.path.join(local_dir, os.path.basename(jar_path))
+    resp = requests.get(par_url)
+    resp.raise_for_status()
+    with open(local_path, "wb") as f:
+        f.write(resp.content)
+    return local_path
+
+
+def analyze_jar(jar_path: str) -> dict:
+    """Analyze a JAR file for Spark/Scala compatibility."""
+    result = {
+        "jar_name": os.path.basename(jar_path),
+        "jar_path": jar_path,
+        "size_bytes": os.path.getsize(jar_path),
+        "scala_version": None,
+        "spark_version": None,
+        "is_assembly": "assembly" in jar_path.lower() or "all" in jar_path.lower(),
+        "classes": [],
+        "private_packages": [],
+        "spark_deps": [],
+        "potential_conflicts": [],
+        "compatibility": "UNKNOWN",
+    }
+
+    try:
+        with zipfile.ZipFile(jar_path, "r") as zf:
+            names = zf.namelist()
+
+            # Count classes
+            class_files = [n for n in names if n.endswith(".class")]
+            result["class_count"] = len(class_files)
+
+            # Check for Scala version from class files
+            scala_classes = [n for n in class_files if "scala" in n.lower()]
+            if any("scala/collection/immutable" in n for n in names):
+                result["has_scala_stdlib"] = True
+
+            # Look for common private package namespaces without assuming a tenant name.
+            private_classes = [
+                n for n in class_files
+                if n.startswith(("com/company/", "com/example/", "org/company/", "io/company/"))
+            ]
+            private_packages = set()
+            for c in private_classes:
+                parts = c.split("/")
+                if len(parts) >= 4:
+                    private_packages.add("/".join(parts[:4]))
+            result["private_packages"] = sorted(private_packages)
+
+            # Check for Spark API usage
+            spark_classes = [n for n in class_files if "org/apache/spark" in n]
+            result["bundles_spark"] = len(spark_classes) > 0
+            if spark_classes:
+                result["spark_deps"].append(f"{len(spark_classes)} Spark classes bundled")
+
+            # Check for Hudi
+            hudi_classes = [n for n in class_files if "org/apache/hudi" in n]
+            if hudi_classes:
+                result["bundles_hudi"] = True
+                result["spark_deps"].append(f"{len(hudi_classes)} Hudi classes")
+
+            # Check for Delta
+            delta_classes = [n for n in class_files if "io/delta" in n]
+            if delta_classes:
+                result["bundles_delta"] = True
+                result["spark_deps"].append(f"{len(delta_classes)} Delta classes")
+
+            # Check MANIFEST.MF for version info
+            if "META-INF/MANIFEST.MF" in names:
+                with zf.open("META-INF/MANIFEST.MF") as mf:
+                    manifest = mf.read().decode("utf-8", errors="replace")
+                    result["manifest_preview"] = manifest[:500]
+
+                    # Look for Scala version
+                    scala_match = re.search(r"Scala[_-]?[Vv]ersion[:\s]+(\S+)", manifest)
+                    if scala_match:
+                        result["scala_version"] = scala_match.group(1)
+
+                    # Look for Spark version
+                    spark_match = re.search(r"Spark[_-]?[Vv]ersion[:\s]+(\S+)", manifest)
+                    if spark_match:
+                        result["spark_version"] = spark_match.group(1)
+
+            # Infer Scala version from JAR name
+            if "_2.12" in jar_path or "_2.12" in os.path.basename(jar_path):
+                result["scala_version"] = result["scala_version"] or "2.12 (from filename)"
+            elif "_2.13" in jar_path or "_2.13" in os.path.basename(jar_path):
+                result["scala_version"] = result["scala_version"] or "2.13 (from filename)"
+                result["potential_conflicts"].append(
+                    "Scala 2.13 JAR may not be compatible with Spark 3.5 (which uses Scala 2.12)"
+                )
+
+            # Check for POM properties
+            pom_files = [n for n in names if n.endswith("pom.properties")]
+            for pom in pom_files[:5]:
+                with zf.open(pom) as pf:
+                    props = pf.read().decode("utf-8", errors="replace")
+                    if "spark" in props.lower():
+                        result["spark_deps"].append(f"POM: {props[:200]}")
+
+            # Compatibility assessment
+            conflicts = []
+            if result.get("scala_version") and "2.13" in str(result["scala_version"]):
+                conflicts.append("Scala 2.13 incompatible with Spark 3.5 (Scala 2.12)")
+            if result.get("bundles_spark") and not result.get("is_assembly"):
+                conflicts.append("Bundles Spark classes - may conflict with cluster Spark")
+
+            if conflicts:
+                result["compatibility"] = "INCOMPATIBLE"
+                result["potential_conflicts"].extend(conflicts)
+            elif result.get("private_packages"):
+                result["compatibility"] = "NEEDS_TESTING"
+            else:
+                result["compatibility"] = "LIKELY_OK"
+
+    except zipfile.BadZipFile:
+        result["error"] = "Not a valid ZIP/JAR file"
+        result["compatibility"] = "ERROR"
+    except Exception as e:
+        result["error"] = str(e)
+        result["compatibility"] = "ERROR"
+
+    return result
+
+
+def main():
+    os.makedirs(JARS_DIR, exist_ok=True)
+
+    print("JAR Dependency Analyzer")
+    print("=" * 60)
+
+    if not WORKSPACE_JARS:
+        print("\nNo workspace JARs configured.")
+        print("Set AIDP_WORKSPACE_JARS to a comma/newline-separated list of workspace paths,")
+        print("or set AIDP_WORKSPACE_JARS_FILE to a newline-delimited manifest.")
+        return
+
+    signer = get_oci_signer()
+
+    # Download JARs
+    print(f"\nDownloading {len(WORKSPACE_JARS)} JARs from AIDP workspace...")
+    downloaded = []
+    for jar_path in WORKSPACE_JARS:
+        local = os.path.join(JARS_DIR, os.path.basename(jar_path))
+        if os.path.exists(local) and os.path.getsize(local) > 0:
+            print(f"  SKIP (exists): {os.path.basename(jar_path)}")
+            downloaded.append(local)
+            continue
+
+        print(f"  Downloading: {jar_path}...", end=" ", flush=True)
+        try:
+            local = download_jar(signer, jar_path, JARS_DIR)
+            size = os.path.getsize(local)
+            print(f"OK ({size:,} bytes)")
+            downloaded.append(local)
+            time.sleep(0.2)
+        except Exception as e:
+            print(f"FAILED: {e}")
+
+    # Analyze JARs
+    print(f"\nAnalyzing {len(downloaded)} JARs...")
+    results = []
+    for jar_path in downloaded:
+        print(f"  Analyzing: {os.path.basename(jar_path)}...", end=" ", flush=True)
+        analysis = analyze_jar(jar_path)
+        results.append(analysis)
+        compat = analysis["compatibility"]
+        classes = analysis.get("class_count", 0)
+        private = len(analysis.get("private_packages", []))
+        print(f"[{compat}] {classes} classes, {private} private packages")
+
+        if analysis.get("potential_conflicts"):
+            for c in analysis["potential_conflicts"]:
+                print(f"    WARNING: {c}")
+
+    # Save report
+    report_path = os.path.join(REPORTS_DIR, "jar_analysis.json")
+    with open(report_path, "w") as f:
+        json.dump(results, f, indent=2)
+
+    # Summary
+    print(f"\n{'=' * 60}")
+    print("JAR ANALYSIS SUMMARY")
+    compat_counts = {}
+    for r in results:
+        c = r["compatibility"]
+        compat_counts[c] = compat_counts.get(c, 0) + 1
+    for c, count in sorted(compat_counts.items()):
+        print(f"  {c}: {count}")
+
+    incompatible = [r for r in results if r["compatibility"] == "INCOMPATIBLE"]
+    if incompatible:
+        print("\nINCOMPATIBLE JARs:")
+        for r in incompatible:
+            print(f"  {r['jar_name']}: {', '.join(r['potential_conflicts'])}")
+
+    print(f"\nReport saved to: {report_path}")
+
+
+if __name__ == "__main__":
+    main()

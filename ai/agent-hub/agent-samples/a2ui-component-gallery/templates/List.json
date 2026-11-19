@@ -1,0 +1,173 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "List vertical with text items",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewList_v1"
+          ]
+        },
+        {
+          "id": "tpl_listText1_v1",
+          "component": "Text",
+          "text": "Backlog",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listText2_v1",
+          "component": "Text",
+          "text": "In Progress",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listText3_v1",
+          "component": "Text",
+          "text": "Done",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewList_v1",
+          "component": "List",
+          "children": [
+            "tpl_listText1_v1",
+            "tpl_listText2_v1",
+            "tpl_listText3_v1"
+          ],
+          "direction": "vertical",
+          "align": "start"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "List horizontal with compact cards",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewList_v2"
+          ]
+        },
+        {
+          "id": "tpl_listCardText1_v2",
+          "component": "Text",
+          "text": "CPU",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listCard1_v2",
+          "component": "Card",
+          "child": "tpl_listCardText1_v2"
+        },
+        {
+          "id": "tpl_listCardText2_v2",
+          "component": "Text",
+          "text": "Memory",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listCard2_v2",
+          "component": "Card",
+          "child": "tpl_listCardText2_v2"
+        },
+        {
+          "id": "tpl_listCardText3_v2",
+          "component": "Text",
+          "text": "Network",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listCard3_v2",
+          "component": "Card",
+          "child": "tpl_listCardText3_v2"
+        },
+        {
+          "id": "tpl_previewList_v2",
+          "component": "List",
+          "children": [
+            "tpl_listCard1_v2",
+            "tpl_listCard2_v2",
+            "tpl_listCard3_v2"
+          ],
+          "direction": "horizontal",
+          "align": "center"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "List nested in a card",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewCard_v3"
+          ]
+        },
+        {
+          "id": "tpl_listStatus1_v3",
+          "component": "Text",
+          "text": "Service A: healthy",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listStatus2_v3",
+          "component": "Text",
+          "text": "Service B: degraded",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_listStatus3_v3",
+          "component": "Text",
+          "text": "Service C: healthy",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewList_v3",
+          "component": "List",
+          "children": [
+            "tpl_listStatus1_v3",
+            "tpl_listStatus2_v3",
+            "tpl_listStatus3_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewCard_v3",
+          "component": "Card",
+          "child": "tpl_previewList_v3"
+        }
+      ]
+    }
+  }
+]

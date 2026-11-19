@@ -1,0 +1,4 @@
+interface:
+  display_name: "OAC Dataset Setup"
+  short_description: "Guide and verify manual OAC dataset setup"
+  default_prompt: "Use $oac-dataset-setup to guide and verify this OAC dataset checkpoint."

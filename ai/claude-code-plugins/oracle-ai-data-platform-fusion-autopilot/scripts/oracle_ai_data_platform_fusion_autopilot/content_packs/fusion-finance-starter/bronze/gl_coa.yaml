@@ -1,0 +1,63 @@
+id: gl_coa
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.CodeCombinationExtractPVO
+  pvo_id: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.CodeCombinationExtractPVO
+  biccSchema: Financial
+  schemaOverride: null
+  # Live-verified 2026-06-16 (demo-pod): BICC honors the
+  # fusion.initial.extract-date lineage delta for CodeCombinationExtractPVO, so
+  # gl_coa extracts incrementally on CodeCombinationLastUpdateDate (declared
+  # below). It is a master-data chart-of-accounts entity, NOT a bucket-config
+  # table — the prior false flag was inherited by analogy. See
+  # tests/live/TC35_gl_coa_incremental_results.md.
+  incrementalCapable: true
+  auditColumnsMode: bronze_v1
+target: gl_coa
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: gl_coa
+      column: CodeCombinationLastUpdateDate
+    naturalKey: [CodeCombinationCodeCombinationId]
+requiredColumns:
+  gl_coa:
+    - CodeCombinationCodeCombinationId
+    - CodeCombinationChartOfAccountsId
+    - CodeCombinationSegment1
+    - CodeCombinationEnabledFlag
+    - CodeCombinationLastUpdateDate
+outputSchema:
+  columns:
+    - { name: CodeCombinationCodeCombinationId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: CodeCombinationChartOfAccountsId, type: "decimal(18,0)", nullable: true, pii: none }
+    # COA segments 1-6: the supported semantic-role domain (a COA role may bind
+    # any of these). dim_account.sql already projects Segment1-6; the contract
+    # now guarantees them so a role binding to Segment4/5/6 is contract-backed.
+    - { name: CodeCombinationSegment1, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationSegment2, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationSegment3, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationSegment4, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationSegment5, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationSegment6, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationAccountType, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationEnabledFlag, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationSummaryFlag, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationDetailPostingAllowedFlag, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationFinancialCategory, type: string, nullable: true, pii: none }
+    - { name: CodeCombinationStartDateActive, type: date, nullable: true, pii: none }
+    - { name: CodeCombinationEndDateActive, type: date, nullable: true, pii: none }
+    - { name: CodeCombinationLastUpdateDate, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

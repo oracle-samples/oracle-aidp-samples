@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""
+Install Libraries on AIDP Compute Cluster
+==========================================
+Uses the AIDP cluster libraries API to install JARs and pip packages.
+This is the proper way - no manual file copying or cluster restarts needed.
+
+Usage:
+    python3 install_cluster_libraries.py [--cluster <id>]
+    python3 install_cluster_libraries.py --status  # check install status
+"""
+
+import json
+import os
+import sys
+import time
+import argparse
+import oci
+import requests
+
+AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
+DATALAKE_OCID = os.environ.get("AIDP_DATALAKE", "")
+WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
+DEFAULT_CLUSTER = os.environ.get("AIDP_CLUSTER", "")
+OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
+
+def split_env_paths(value):
+    return [part.strip() for part in value.replace("\n", ";").replace(",", ";").split(";") if part.strip()]
+
+
+# Workspace-file JAR paths are environment-provided so the public plugin does not
+# ship tenant dependency names.
+JARS_TO_INSTALL = split_env_paths(os.environ.get("AIDP_MIGRATOR_JARS_TO_INSTALL", ""))
+
+# requirements.txt for pip packages
+REQUIREMENTS_PATH = "/Workspace/migration-dependencies/requirements.txt"
+
+
+def get_signer(profile=OCI_PROFILE):
+    config = oci.config.from_file(profile_name=profile)
+    return oci.signer.Signer(
+        tenancy=config["tenancy"], user=config["user"],
+        fingerprint=config["fingerprint"],
+        private_key_file_location=config["key_file"],
+    )
+
+
+def libraries_url(cluster_id):
+    return f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/clusters/{cluster_id}/libraries"
+
+
+def get_libraries(signer, cluster_id):
+    """Get current library status."""
+    resp = requests.get(libraries_url(cluster_id), auth=signer)
+    resp.raise_for_status()
+    return resp.json().get("items", [])
+
+
+def install_libraries(signer, cluster_id, items):
+    """Install libraries via PATCH."""
+    body = {"items": items}
+    resp = requests.patch(libraries_url(cluster_id), auth=signer,
+                          json=body, headers={"Content-Type": "application/json"})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Install libraries on AIDP cluster")
+    parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
+    parser.add_argument("--profile", default=OCI_PROFILE)
+    parser.add_argument("--status", action="store_true", help="Just check status")
+    parser.add_argument("--jars-only", action="store_true")
+    parser.add_argument("--pip-only", action="store_true")
+    args = parser.parse_args()
+
+    signer = get_signer(args.profile)
+
+    if args.status:
+        print(f"Library status for cluster {args.cluster}:")
+        libs = get_libraries(signer, args.cluster)
+        for lib in libs:
+            status = lib.get("status", "?")
+            path = lib.get("path", lib.get("name", "?"))
+            msg = lib.get("stateMessage", "")
+            print(f"  [{status}] {os.path.basename(path)}")
+            if msg:
+                print(f"           {msg}")
+        return
+
+    print(f"Installing libraries on cluster {args.cluster}")
+    print("=" * 60)
+
+    # Check what's already installed
+    existing = get_libraries(signer, args.cluster)
+    existing_paths = {lib.get("path", "") for lib in existing}
+
+    items = []
+
+    # JARs
+    if not args.pip_only:
+        if not JARS_TO_INSTALL:
+            print("  No JARs configured. Set AIDP_MIGRATOR_JARS_TO_INSTALL to install JAR libraries.")
+        else:
+            for jar in JARS_TO_INSTALL:
+                if jar in existing_paths:
+                    print(f"  SKIP (exists): {os.path.basename(jar)}")
+                else:
+                    items.append({
+                        "operation": "INSTALL",
+                        "type": "WORKSPACE_FILE",
+                        "path": jar,
+                    })
+                    print(f"  INSTALL: {os.path.basename(jar)}")
+
+    # requirements.txt
+    if not args.jars_only:
+        if REQUIREMENTS_PATH not in existing_paths:
+            items.append({
+                "operation": "INSTALL",
+                "type": "WORKSPACE_FILE",
+                "path": REQUIREMENTS_PATH,
+            })
+            print(f"  INSTALL: requirements.txt")
+        else:
+            print(f"  SKIP (exists): requirements.txt")
+
+    if not items:
+        print("\nAll libraries already installed.")
+        return
+
+    print(f"\nInstalling {len(items)} libraries...")
+    result = install_libraries(signer, args.cluster, items)
+
+    for item in result.get("items", []):
+        path = item.get("path", "?")
+        status = item.get("status", "?")
+        print(f"  [{status}] {os.path.basename(path)}")
+
+    print(f"\nLibraries submitted. The cluster will install them automatically.")
+    print(f"Check status with: python3 {__file__} --cluster {args.cluster} --status")
+
+
+if __name__ == "__main__":
+    main()

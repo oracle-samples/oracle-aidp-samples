@@ -1,0 +1,74 @@
+id: coa-deep-overlay
+version: 0.1.0
+extends: fusion-finance-starter@0.1.0
+description: |
+  PRODUCT SAMPLE (not a customer runtime overlay) — demonstrates extending the
+  COA semantic-role segment domain beyond the starter pack's Segment1-6 default,
+  up to CodeCombinationSegment30, for a tenant whose chart of accounts uses
+  deeper segments (e.g. natural account at Segment10).
+
+  Two surfaces are extended TOGETHER so the binding is contract-backed:
+    1. the three coa_* semantic-role candidate lists (inherit + Segment7-10), and
+    2. the gl_coa bronze outputSchema (extendColumns Segment7-10).
+
+  The tenant then pins the actual role->column meaning in
+  profiles/<tenant>.yaml `profile.chartOfAccounts` (see profile-fragment.yaml);
+  `bootstrap --refresh` derives `resolved.column.coa_*` from it. Customers copy
+  this shape into their own `overlays/<tenant>/` — never edit the starter pack.
+
+  NOTE: each coa_* entry must re-declare `resolution: semanticRole` + `role:`;
+  overlay merge keeps the overlay entry's fields and only extends `candidates`
+  via the `inherit` keyword.
+compatibility:
+  pluginMinVersion: 0.3.0
+  fusionFamilies:
+    - ERP
+  aidp:
+    requiresDelta: true
+
+# Extend the allowed domain for each COA role to Segment1-10 (inherit = base 1-6).
+columnAliases:
+  coa_balancing_segment:
+    appliesTo: bronze.gl_coa
+    required: true
+    resolution: semanticRole
+    role: coa.balancing
+    candidates:
+      - inherit
+      - CodeCombinationSegment7
+      - CodeCombinationSegment8
+      - CodeCombinationSegment9
+      - CodeCombinationSegment10
+  coa_cost_center_segment:
+    appliesTo: bronze.gl_coa
+    required: true
+    resolution: semanticRole
+    role: coa.cost_center
+    candidates:
+      - inherit
+      - CodeCombinationSegment7
+      - CodeCombinationSegment8
+      - CodeCombinationSegment9
+      - CodeCombinationSegment10
+  coa_natural_account_segment:
+    appliesTo: bronze.gl_coa
+    required: true
+    resolution: semanticRole
+    role: coa.natural_account
+    candidates:
+      - inherit
+      - CodeCombinationSegment7
+      - CodeCombinationSegment8
+      - CodeCombinationSegment9
+      - CodeCombinationSegment10
+
+# Extend the gl_coa bronze contract so the deep segments are guaranteed columns.
+overrides:
+  bronze/gl_coa:
+    outputSchema:
+      extendColumns: true
+      columns:
+        - { name: CodeCombinationSegment7, type: string, pii: none }
+        - { name: CodeCombinationSegment8, type: string, pii: none }
+        - { name: CodeCombinationSegment9, type: string, pii: none }
+        - { name: CodeCombinationSegment10, type: string, pii: none }

@@ -16,7 +16,8 @@
       ],
       "conf": {
         "timeout": 30,
-        "max_output_lines": 200
+        "max_output_lines": 200,
+        "allow_unrestricted_exec": false
       }
     },
     {

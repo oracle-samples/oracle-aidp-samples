@@ -1,0 +1,15 @@
+{
+  "export": "m_dim_cust_dynamic.xml",
+  "notes": [
+    "SQ_CUST_STG Number Of Sorted Ports = 1: rows arrive in STG_SEQ order (seed shuffled). A dynamic cache is row-order dependent, so the order is pinned.",
+    "LKP_DIM_CUST: Lookup on the target DIM_CUST, Dynamic Lookup Cache = YES, Insert Else Update = YES, Output Old Value On Update = NO. The cache starts as DIM_CUST before the run {1 Ann/Boston, 2 Bob/Denver, 3 Cy/Austin} and is updated by every row the lookup flags 1 or 2.",
+    "Rows enter the lookup with row type INSERT (data-driven session, no Update Strategy upstream), so Insert Else Update applies: key not in cache -> insert into cache, NewLookupRow = 1; key in cache and the associated ports differ -> update the cache row, NewLookupRow = 2; key in cache and identical -> NewLookupRow = 0.",
+    "Row-by-row: seq1 CUST 2 Bob/Denver identical -> 0 (dropped); seq2 CUST 3 Dallas vs Austin -> 2, cache = Dallas; seq3 CUST 4 new -> 1, cache gains 4; seq4 CUST 4 again, identical to the cache row just inserted -> 0 (NOT a second insert -- the reason dynamic caches exist); seq5 CUST 5 new -> 1; seq6 CUST 3 Houston vs cached Dallas -> 2, cache = Houston.",
+    "RTR_NEWROW: INSERT_ROWS (NewLookupRow = 1) -> UPD_INSERT (DD_INSERT) -> DIM_CUST; UPDATE_ROWS (NewLookupRow = 2) -> UPD_UPDATE (DD_UPDATE) -> DIM_CUST1 (second instance of DIM_CUST); the DEFAULT group (NewLookupRow = 0) is not connected, so those rows are dropped.",
+    "The lookup's output ports carry the cache values after the insert/update (Output Old Value On Update = NO), i.e. the incoming values for flagged rows.",
+    "DD_UPDATE on DIM_CUST1 updates by the target's primary key CUST_ID. CUST 3 is updated twice in the same target instance, in row order: final CITY = Houston.",
+    "Final DIM_CUST: one row per key -- 1 untouched, 2 unchanged, 3 Houston, 4 inserted once, 5 inserted once.",
+    "Deliberately NOT included: a key that is NEW and then CHANGED in the same run (insert to DIM_CUST then update to DIM_CUST1). The insert and the update then go to two different target instances, and the order in which the writer applies the two instances' rows within one commit is not guaranteed, so the final value would be a guess.",
+    "Uncertain export spelling: in a real export each dynamic-lookup port is associated with an input port (Designer 'Associated Port' column). This case does not carry an association attribute because its XML spelling is not verified here; the IN_* input ports map to the lookup ports by the lookup condition and by name."
+  ]
+}

@@ -1,0 +1,129 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_truncating_text_v1",
+            "tpl_variant_wrapper_truncating_text_v2",
+            "tpl_variant_wrapper_truncating_text_v3",
+            "tpl_variant_wrapper_truncating_text_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_truncating_text_v1",
+          "component": "Text",
+          "text": "OATruncatingText single-line ellipsis",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_truncating_text_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_truncating_text_v1",
+            "tpl_previewOATruncatingText_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewOATruncatingText_v1",
+          "component": "OATruncatingText",
+          "value": "A single-line truncating text example with an intentionally long sentence that should end with an ellipsis when space is constrained.",
+          "variant": "primary",
+          "fontWeight": "semiBold",
+          "truncation": "ellipsis"
+        },
+        {
+          "id": "tpl_variant_header_truncating_text_v2",
+          "component": "Text",
+          "text": "OATruncatingText two-line clamp",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_truncating_text_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_truncating_text_v2",
+            "tpl_previewOATruncatingText_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewOATruncatingText_v2",
+          "component": "OATruncatingText",
+          "value": "This paragraph is clamped to two visible lines, preserving readable wrapping while keeping the surrounding card compact for dense previews. It includes enough additional detail about generated summaries, status notes, recommendations, owners, due dates, exceptions, and follow-up context to overflow the available preview width and visibly demonstrate that lineClamp stops rendering after the configured second line.",
+          "variant": "secondary",
+          "size": "sm",
+          "lineClamp": 2
+        },
+        {
+          "id": "tpl_variant_header_truncating_text_v3",
+          "component": "Text",
+          "text": "OATruncatingText wrapped path value",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_truncating_text_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_truncating_text_v3",
+            "tpl_previewOATruncatingText_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewOATruncatingText_v3",
+          "component": "OATruncatingText",
+          "value": {
+            "path": "/demo/truncatingText/value"
+          },
+          "variant": "primary",
+          "size": "md",
+          "overflowWrap": "breakWord",
+          "hyphens": "auto",
+          "lineClamp": 3
+        },
+        {
+          "id": "tpl_variant_header_truncating_text_v4",
+          "component": "Text",
+          "text": "OATruncatingText disabled clipped text",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_truncating_text_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_truncating_text_v4",
+            "tpl_previewOATruncatingText_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewOATruncatingText_v4",
+          "component": "OATruncatingText",
+          "value": "Clipped disabled text variant with no ellipsis marker, useful when the surrounding UI already communicates overflow.",
+          "variant": "disabled",
+          "size": "xs",
+          "truncation": "clip"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "value": "This value is read from the data model so the preview exercises v0.9 dynamic string binding with OATruncatingText."
+      },
+      "path": "/demo/truncatingText"
+    }
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "export": "m_account_actions.xml",
+  "notes": [
+    "Session 'Treat source rows as' = Data driven; writer Insert / Update as Update / Delete = YES, Update else Insert = NO. UPD_ACCOUNT: DECODE(ACTION, 'I', DD_INSERT, 'U', DD_UPDATE, 'D', DD_DELETE, DD_REJECT) with 'Forward Rejected Rows' = YES, then FIL_NON_NEGATIVE (BAL >= 0) between the Update Strategy and the target.",
+    "Forward Rejected Rows = YES only means DD_REJECT rows travel on down the pipeline flagged as rejects; the target writer never applies them -- they go to the reject file (tgt_account1.bad). So 800 ('X') and 900 ('R') are not inserted, and 500 (NULL ACTION -> DECODE default DD_REJECT) does not update the existing row (BAL stays 0.00).",
+    "A Filter downstream of an Update Strategy keeps each row's update-strategy flag and drops rows whose condition is FALSE or NULL whatever the flag: 200 (DD_UPDATE, BAL -5) is dropped -> existing row keeps 75.00; 400 (DD_DELETE, BAL -1) is dropped -> the row is NOT deleted; 700 (DD_INSERT, BAL -3) and 950 (DD_INSERT, NULL BAL) are not inserted. Filtered rows are discarded silently, not written to the reject file.",
+    "100 DD_UPDATE by primary key ACCT_ID sets the connected columns BAL = 60.00 and STATUS = 'ACTIVE'. 300 DD_DELETE (BAL 0.00 passes >= 0) deletes the row. 600 DD_INSERT inserts.",
+    "1000 DD_UPDATE with no matching target row: Update as Update issues an UPDATE that affects no row -- nothing is inserted (Update else Insert = NO).",
+    "The harness checks only TGT_ACCOUNT; where the migrator puts rejected rows (a <TARGET>_REJECTS table) is not asserted."
+  ]
+}

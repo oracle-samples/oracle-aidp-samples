@@ -164,11 +164,16 @@ def add_spark_connector_at_runtime(
     _distribute_to_executors(spark, jar_paths)
 
 
+# The only hosts a driver JAR may be fetched from at runtime.
+_MAVEN_HOSTS = {"repo1.maven.org", "repo.maven.apache.org"}
+
+
 def download_jdbc_jar(
     *,
     maven_url: str,
     target_path: str,
     overwrite: bool = False,
+    sha256: Optional[str] = None,
 ) -> str:
     """Convenience wrapper around urllib to fetch a driver JAR from Maven Central.
 
@@ -178,13 +183,29 @@ def download_jdbc_jar(
             recommended).
         overwrite: If False (default) and the target already exists, skip the
             download.
+        sha256: Expected hex digest of the JAR. Maven Central publishes one next
+            to every artifact; pass it so a tampered or substituted download is
+            refused instead of loaded into the JVM.
 
     Returns:
         ``target_path`` for chaining.
     """
+    import hashlib
     import os
+    import urllib.parse
     import urllib.request
 
+    parsed = urllib.parse.urlparse(maven_url)
+    if parsed.scheme != "https" or parsed.netloc not in _MAVEN_HOSTS:
+        raise ValueError(
+            f"refusing to download {maven_url!r}: only https://repo1.maven.org and "
+            f"https://repo.maven.apache.org are allowed"
+        )
     if overwrite or not os.path.exists(target_path):
-        urllib.request.urlretrieve(maven_url, target_path)
+        with urllib.request.urlopen(maven_url, timeout=60) as resp:
+            data = resp.read()
+        if sha256 and hashlib.sha256(data).hexdigest().lower() != sha256.lower():
+            raise ValueError(f"SHA-256 mismatch for {maven_url}; download discarded")
+        with open(target_path, "wb") as fh:
+            fh.write(data)
     return target_path

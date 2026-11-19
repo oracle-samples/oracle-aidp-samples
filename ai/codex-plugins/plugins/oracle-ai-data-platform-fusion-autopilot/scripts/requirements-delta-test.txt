@@ -1,0 +1,6 @@
+# Delta-capable real-Spark test leg (feature bronze-extract-schema-patch,
+# design §5d). Pinned to match the cluster: spark-sql 3.5 / delta-spark 3.2
+# jars observed on ephemeral_01 (2026-08-06). Requires Java 11/17 and
+# Python <= 3.12 (pyspark 3.5 does not support newer interpreters).
+pyspark==3.5.*
+delta-spark==3.2.*

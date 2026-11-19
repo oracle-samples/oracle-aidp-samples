@@ -1,0 +1,32 @@
+{
+  "name": "aidp-fusion-autopilot",
+  "owner": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "metadata": {
+    "version": "0.1.0-alpha",
+    "description": "Single-plugin marketplace for the Oracle AI Data Platform Fusion Autopilot Codex plugin."
+  },
+  "plugins": [
+    {
+      "name": "oracle-ai-data-platform-fusion-autopilot",
+      "description": "Productized Fusion \u2192 AIDP pipeline: curated BICC extracts, medallion bronze/silver/gold, conformed dimensions, gold marts, and MCP-native OAC workbook authoring. Legacy .bar OAC REST install remains available for snapshot deployments.",
+      "version": "0.1.0-alpha",
+      "source": "./",
+      "category": "data",
+      "keywords": [
+        "oracle",
+        "aidp",
+        "fusion",
+        "erp",
+        "bicc",
+        "lakehouse",
+        "delta",
+        "oac",
+        "mcp",
+        "spark"
+      ]
+    }
+  ]
+}

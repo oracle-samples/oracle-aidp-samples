@@ -1,0 +1,50 @@
+# Full-node replacement of bronze.erp_suppliers. Identical to the shipped node
+# EXCEPT the four supplier-ID columns are retyped decimal(38,30) -> decimal(18,0).
+# The merge guard requires every identity field below to equal the base node and
+# every base outputSchema/quality entry to be retained — so this file can only
+# retype (or additively extend), never narrow or repoint.
+id: erp_suppliers
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.PrcExtractAM.PozBiccExtractAM.SupplierExtractPVO
+  pvo_id: FscmTopModelAM.PrcExtractAM.PozBiccExtractAM.SupplierExtractPVO
+  biccSchema: Financial
+  schemaOverride: null
+  incrementalCapable: true
+  auditColumnsMode: bronze_v1
+target: erp_suppliers
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: erp_suppliers
+      column: LASTUPDATEDATE
+    naturalKey: [SEGMENT1]
+requiredColumns:
+  erp_suppliers:
+    - SEGMENT1
+    - VENDORID
+    - PARTYID
+    - PARENTVENDORID
+    - PARENTPARTYID
+    - LASTUPDATEDATE
+outputSchema:
+  columns:
+    - { name: SEGMENT1, type: string, nullable: true, pii: low }
+    - { name: VENDORID, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: PARTYID, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: PARENTVENDORID, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: PARENTPARTYID, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: LASTUPDATEDATE, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

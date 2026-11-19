@@ -1,5 +1,6 @@
 ---
-description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 23 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, SQL Server, Hive, Snowflake, Azure ADLS, AWS S3, Salesforce, generic REST, custom JDBC, Excel.
+name: aidp-connectors-overview
+description: Help the user pick the right connector skill for their data source from an AIDP notebook. Use as a router when the user mentions multiple sources, isn't sure which connector applies, or asks "how do I connect to X from AIDP". Covers 27 data sources — Oracle Autonomous DB family (ALH/ADW/ATP), generic Oracle DB, ExaCS, PeopleSoft, Siebel, Fusion ERP/BICC, EPM Cloud, Essbase, OCI Streaming, Object Storage, Iceberg, plus PostgreSQL, MySQL/HeatWave, Db2, SQL Server, Azure SQL, Hive, Snowflake, Google BigQuery, Azure ADLS, AWS S3, Salesforce, NetSuite, generic REST, custom JDBC, Excel.
 allowed-tools: Read
 ---
 
@@ -15,7 +16,7 @@ allowed-tools: Read
 
 ## How to route
 
-**Before any connector skill works**, the helper package must be uploaded to the user's AIDP workspace. If the user hasn't done this yet (or you see `ModuleNotFoundError: oracle_ai_data_platform_connectors` in any prior cell), invoke [`aidp-connectors-bootstrap`](../aidp-connectors-bootstrap/SKILL.md) first. It uses the AIDP MCP tools to push the package into `/Workspace/Shared/` and runs a sanity-import notebook.
+**For examples that import `oracle_ai_data_platform_connectors`**, the helper package must be uploaded to the user's AIDP workspace. If the user hasn't done this yet (or you see `ModuleNotFoundError: oracle_ai_data_platform_connectors` in any prior cell), invoke [`aidp-connectors-bootstrap`](../aidp-connectors-bootstrap/SKILL.md) first. The bootstrap skill uses the AIDP MCP tools to push the package into `/Workspace/Shared/` and runs a sanity-import notebook. Direct built-in `aidataplatform` examples, including the GBQ public notebook, do not require this helper upload.
 
 Otherwise, pick the right skill from this table and **invoke that skill**. Don't re-write its content here.
 
@@ -42,7 +43,9 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 |---|---|
 | "PostgreSQL", "Postgres", "psql" | [`aidp-postgresql`](../aidp-postgresql/SKILL.md) |
 | "MySQL", "HeatWave", "MDS", "MySQL Database Service" | [`aidp-mysql`](../aidp-mysql/SKILL.md) |
-| "SQL Server", "MSSQL", "Azure SQL", "TDS" | [`aidp-sqlserver`](../aidp-sqlserver/SKILL.md) |
+| "SQL Server", "MSSQL", "TDS" | [`aidp-sqlserver`](../aidp-sqlserver/SKILL.md) |
+| "Azure SQL", "Azure SQL Database", "database.windows.net" | [`aidp-azuresql`](../aidp-azuresql/SKILL.md) |
+| "DB2", "Db2", "IBM Db2", "LUW" | [`aidp-db2`](../aidp-db2/SKILL.md) |
 | "Hive", "HiveServer2", "HS2", "HCatalog", non-Kerberos Hive | [`aidp-hive`](../aidp-hive/SKILL.md) |
 
 ### SaaS
@@ -50,16 +53,18 @@ Otherwise, pick the right skill from this table and **invoke that skill**. Don't
 | User says... | Use skill |
 |---|---|
 | "Salesforce", "SFDC", "Sales Cloud", "Service Cloud", "sObject", "SOQL", "Account / Opportunity / Lead" | [`aidp-salesforce`](../aidp-salesforce/SKILL.md) |
+| "NetSuite", "SuiteAnalytics Connect", "ns.account.id", "ns.role.id", "ns.access.token" | [`aidp-netsuite`](../aidp-netsuite/SKILL.md) |
 
 ### Multi-cloud + escape hatches
 
 | User says... | Use skill |
 |---|---|
 | "Snowflake", "sfUrl", "sfWarehouse" | [`aidp-snowflake`](../aidp-snowflake/SKILL.md) |
+| "Google BigQuery", "BigQuery", "GBQ", `type=GOOGLE_BIGQUERY` | [`aidp-google-bigquery`](../aidp-google-bigquery/SKILL.md) — read-only ingestion and external catalogs |
 | "ADLS", "Azure Data Lake", "abfss" | [`aidp-azure-adls`](../aidp-azure-adls/SKILL.md) |
 | "S3", "AWS S3", "s3a" | [`aidp-aws-s3`](../aidp-aws-s3/SKILL.md) |
 | "Generic REST", "manifest URL", "manifest.path", REST endpoint with manifest schema | [`aidp-rest-generic`](../aidp-rest-generic/SKILL.md) |
-| "Custom JDBC", "ClickHouse", "DuckDB", "DB2", "SAP HANA", any DB without a dedicated skill | [`aidp-jdbc-custom`](../aidp-jdbc-custom/SKILL.md) |
+| "Custom JDBC", "ClickHouse", "DuckDB", "SAP HANA", any DB without a dedicated skill | [`aidp-jdbc-custom`](../aidp-jdbc-custom/SKILL.md) |
 | ".xlsx", "Excel", "spreadsheet ingestion" | [`aidp-excel`](../aidp-excel/SKILL.md) |
 
 ## What's blocked at the AIDP platform level (so you don't try)
@@ -71,10 +76,12 @@ If the user wants either of those, point them at API Key + inline OCI config (`o
 ## Cross-cutting AIDP gotchas (every connector inherits these)
 1. **Credentials live under `/tmp/`** — never `/Workspace/`. The latter is FUSE-mounted; intermittent disconnects + `os.chmod` no-op.
 2. **Files written for the JDBC driver process** must be world-readable up-front via `os.open(..., O_WRONLY|O_CREAT, 0o666)`.
+   Treat that as a last resort: the files hold a private key or wallet, so prefer the built-in
+   `aidataplatform` connector or the AIDP credential store, and set `AIDP_CRED_FILE_MODE=600`
+   wherever the driver runs as the notebook's own user.
 3. **Spark streaming checkpoints** must live under `/Volumes/<catalog>/<schema>/<volume>/...`, never `/Workspace/`, never `oci://`.
 4. **Refresh the AIDP session token** before live testing: `oci session authenticate --profile AIDP_SESSION --region us-ashburn-1`.
 
 ## References
 - Plugin README: [../../README.md](../../README.md)
 - Live-test matrix + results: [../../tests/live-results/RESULTS.md](../../tests/live-results/RESULTS.md)
-- AIDP notebook auth investigation: `Claude context/AIDP/AIDP Context/AIDP/aidp-notebook-authentication.md`

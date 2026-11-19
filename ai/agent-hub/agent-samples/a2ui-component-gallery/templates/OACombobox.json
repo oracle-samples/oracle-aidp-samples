@@ -1,0 +1,301 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_combobox_v1",
+            "tpl_variant_wrapper_combobox_v2",
+            "tpl_variant_wrapper_combobox_v3",
+            "tpl_variant_wrapper_combobox_v4",
+            "tpl_variant_wrapper_combobox_v5",
+            "tpl_variant_wrapper_combobox_v6"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_combobox_v1",
+          "component": "Text",
+          "text": "OACombobox with literal label, placeholder, options, and default selection",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_combobox_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_combobox_v1",
+            "tpl_previewOACombobox_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewOACombobox_v1",
+          "component": "OACombobox",
+          "label": "Service size",
+          "placeholder": "Choose a size",
+          "options": [
+            {
+              "value": "small",
+              "label": "Small"
+            },
+            {
+              "value": "medium",
+              "label": "Medium"
+            },
+            {
+              "value": "large",
+              "label": "Large"
+            }
+          ],
+          "selections": [
+            "medium"
+          ],
+          "itemLabelText": "label"
+        },
+        {
+          "id": "tpl_variant_header_combobox_v2",
+          "component": "Text",
+          "text": "OACombobox with selections path writeback",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_combobox_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_combobox_v2",
+            "tpl_previewOACombobox_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewOACombobox_v2",
+          "component": "OACombobox",
+          "label": "Region",
+          "placeholder": "Search regions",
+          "required": true,
+          "options": [
+            {
+              "value": "us-ashburn-1",
+              "label": "US East (Ashburn)"
+            },
+            {
+              "value": "us-phoenix-1",
+              "label": "US West (Phoenix)"
+            },
+            {
+              "value": "uk-london-1",
+              "label": "UK South (London)"
+            }
+          ],
+          "selections": {
+            "path": "/demo/oaCombobox/selectedRegion"
+          }
+        },
+        {
+          "id": "tpl_variant_header_combobox_v3",
+          "component": "Text",
+          "text": "OACombobox disabled",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_combobox_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_combobox_v3",
+            "tpl_previewOACombobox_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewOACombobox_v3",
+          "component": "OACombobox",
+          "label": "Locked environment",
+          "placeholder": "Environment",
+          "disabled": true,
+          "options": [
+            {
+              "value": "dev",
+              "label": "Development"
+            },
+            {
+              "value": "test",
+              "label": "Test"
+            },
+            {
+              "value": "prod",
+              "label": "Production"
+            }
+          ],
+          "selections": [
+            "prod"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_combobox_v4",
+          "component": "Text",
+          "text": "OACombobox readonly",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_combobox_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_combobox_v4",
+            "tpl_previewOACombobox_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewOACombobox_v4",
+          "component": "OACombobox",
+          "label": "Approved tier",
+          "readonly": true,
+          "options": [
+            {
+              "value": "standard",
+              "label": "Standard"
+            },
+            {
+              "value": "premium",
+              "label": "Premium"
+            },
+            {
+              "value": "enterprise",
+              "label": "Enterprise"
+            }
+          ],
+          "selections": [
+            "premium"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_combobox_v5",
+          "component": "Text",
+          "text": "OACombobox required with empty selection",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_combobox_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_combobox_v5",
+            "tpl_previewOACombobox_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewOACombobox_v5",
+          "component": "OACombobox",
+          "label": "Maintenance window",
+          "placeholder": "Select a window",
+          "required": true,
+          "options": [
+            {
+              "value": "weekday",
+              "label": "Weekday"
+            },
+            {
+              "value": "weekend",
+              "label": "Weekend"
+            },
+            {
+              "value": "overnight",
+              "label": "Overnight"
+            }
+          ],
+          "selections": []
+        },
+        {
+          "id": "tpl_variant_header_combobox_v6",
+          "component": "Text",
+          "text": "OACombobox with dynamic label, placeholder, booleans, and option labels",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_combobox_v6",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_combobox_v6",
+            "tpl_previewOACombobox_v6"
+          ]
+        },
+        {
+          "id": "tpl_previewOACombobox_v6",
+          "component": "OACombobox",
+          "label": {
+            "path": "/demo/oaCombobox/dynamicLabel"
+          },
+          "placeholder": {
+            "path": "/demo/oaCombobox/dynamicPlaceholder"
+          },
+          "disabled": {
+            "path": "/demo/oaCombobox/dynamicDisabled"
+          },
+          "readonly": {
+            "path": "/demo/oaCombobox/dynamicReadonly"
+          },
+          "required": {
+            "path": "/demo/oaCombobox/dynamicRequired"
+          },
+          "options": [
+            {
+              "value": "reliability",
+              "label": {
+                "path": "/demo/oaCombobox/dynamicOptionLabels/reliability"
+              }
+            },
+            {
+              "value": "cost",
+              "label": {
+                "path": "/demo/oaCombobox/dynamicOptionLabels/cost"
+              }
+            },
+            {
+              "value": "security",
+              "label": {
+                "path": "/demo/oaCombobox/dynamicOptionLabels/security"
+              }
+            }
+          ],
+          "selections": {
+            "path": "/demo/oaCombobox/dynamicSelections"
+          },
+          "itemLabelText": {
+            "path": "/demo/oaCombobox/itemLabelText"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oaCombobox",
+      "value": {
+        "selectedRegion": [
+          "us-ashburn-1"
+        ],
+        "dynamicLabel": "Optimization focus",
+        "dynamicPlaceholder": "Choose a focus area",
+        "dynamicDisabled": false,
+        "dynamicReadonly": false,
+        "dynamicRequired": true,
+        "dynamicSelections": [
+          "security"
+        ],
+        "itemLabelText": "label",
+        "dynamicOptionLabels": {
+          "reliability": "Reliability",
+          "cost": "Cost",
+          "security": "Security"
+        }
+      }
+    }
+  }
+]

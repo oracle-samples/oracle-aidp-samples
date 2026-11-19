@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Pipeline"
+  short_description: "Build Fusion-to-AIDP analytics pipelines"
+  default_prompt: "Use $aidp-fusion-pipeline to guide my Fusion-to-AIDP analytics workflow."

@@ -1,0 +1,1007 @@
+{
+  "$defs": {
+    "CalendarProfile": {
+      "additionalProperties": false,
+      "description": "Default calendar dimensions for the dim_calendar builtin (ADR-0011).",
+      "properties": {
+        "endDate": {
+          "title": "Enddate",
+          "type": "string"
+        },
+        "fiscalStartMonth": {
+          "default": 1,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Fiscalstartmonth",
+          "type": "integer"
+        },
+        "startDate": {
+          "title": "Startdate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "startDate",
+        "endDate"
+      ],
+      "title": "CalendarProfile",
+      "type": "object"
+    },
+    "ChartOfAccountsProfile": {
+      "additionalProperties": false,
+      "description": "COA segment role->column mapping for a tenant.\n\nTwo shapes are accepted:\n\n* **Flat / legacy** -- ``balancingSegment`` / ``costCenterSegment`` /\n  ``naturalAccountSegment`` directly on this object (the pre-feature pack\n  default shape, kept back-compat-parseable).\n* **Nested** -- ``default`` (a :class:`CoaRoleMapping`) plus optional\n  per-chart ``byChart`` arms keyed by ``CodeCombinationChartOfAccountsId``\n  (the multi-COA serving shape).\n\nThe flat and nested ``default`` shapes are mutually exclusive (declaring\nboth is an error). Use :meth:`resolved_default` to read the effective\ndefault regardless of which shape was authored.",
+      "properties": {
+        "balancingSegment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Balancingsegment"
+        },
+        "byChart": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/CoaRoleMapping"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bychart"
+        },
+        "costCenterSegment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Costcentersegment"
+        },
+        "default": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoaRoleMapping"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "naturalAccountSegment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Naturalaccountsegment"
+        },
+        "singletonAccepted": {
+          "default": false,
+          "title": "Singletonaccepted",
+          "type": "boolean"
+        }
+      },
+      "title": "ChartOfAccountsProfile",
+      "type": "object"
+    },
+    "CoaRoleMapping": {
+      "additionalProperties": false,
+      "description": "One chart's COA role -> physical-column-name binding.\n\nValues are physical column names (e.g. ``CodeCombinationSegment4``), not\ninteger positions -- so the binding survives non-conventional column\nnaming and can be existence-validated against the bronze contract.",
+      "properties": {
+        "balancingSegment": {
+          "title": "Balancingsegment",
+          "type": "string"
+        },
+        "costCenterSegment": {
+          "title": "Costcentersegment",
+          "type": "string"
+        },
+        "naturalAccountSegment": {
+          "title": "Naturalaccountsegment",
+          "type": "string"
+        }
+      },
+      "required": [
+        "balancingSegment",
+        "costCenterSegment",
+        "naturalAccountSegment"
+      ],
+      "title": "CoaRoleMapping",
+      "type": "object"
+    },
+    "ColumnAlias": {
+      "additionalProperties": false,
+      "description": "Same logical column, different physical names across tenants.\n\nBootstrap walks ``candidates`` in priority order and pins the first that\nexists on the tenant.",
+      "properties": {
+        "appliesTo": {
+          "title": "Appliesto",
+          "type": "string"
+        },
+        "candidates": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "resolution": {
+          "default": "columnExistence",
+          "enum": [
+            "columnExistence",
+            "semanticRole"
+          ],
+          "title": "Resolution",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        }
+      },
+      "required": [
+        "appliesTo",
+        "candidates"
+      ],
+      "title": "ColumnAlias",
+      "type": "object"
+    },
+    "ForkedFrom": {
+      "additionalProperties": false,
+      "description": "Provenance fingerprints a ``replaceNode`` overlay was forked from.\n\nA same-id silver/gold full replacement *shadows* the base ``<id>.sql`` and\nthe base node YAML contract; silver/gold have no drift gate against the base,\nso a later starter-pack fix to the base mart would be silently missed. These\nfingerprints, recomputed at ``content-pack validate``, convert that *silent*\nstaleness into a *loud* one (``AIDPF-2064``):\n\n* ``sql_sha256`` \u2014 the base SQL template text + the referenced\n  ``{{ semantic.* }}`` candidate lists (pack-owned render inputs).\n* ``contract_sha256`` \u2014 the base node YAML contract (``outputSchema`` incl.\n  ``pii``, ``requiredColumns``, ``quality.tests``). A base change that touches\n  only the YAML (e.g. a PII reclassification) trips ``AIDPF-2064`` too.\n* ``pack_version`` \u2014 the base pack version at fork time (recorded provenance).\n\nBoth fingerprints are profile-independent and validate-time computable. Keys\nare camelCase in YAML (``sqlSha256`` / ``contractSha256`` / ``packVersion``),\nmatching ``outputSchema`` / ``requiredColumns``.",
+      "properties": {
+        "contractSha256": {
+          "minLength": 1,
+          "title": "Contractsha256",
+          "type": "string"
+        },
+        "packVersion": {
+          "minLength": 1,
+          "title": "Packversion",
+          "type": "string"
+        },
+        "sqlSha256": {
+          "minLength": 1,
+          "title": "Sqlsha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sqlSha256",
+        "contractSha256",
+        "packVersion"
+      ],
+      "title": "ForkedFrom",
+      "type": "object"
+    },
+    "IncrementalImpact": {
+      "additionalProperties": false,
+      "description": "Per-VP impact analysis recorded on both the overlay and the\nevidence snapshot.\n\nThe medallion-author skill populates this when drafting an overlay;\nbootstrap mirrors it into the per-resolution evidence on the\n``--refresh`` commit and on initial commit when the overlay is\nskill-authored.",
+      "properties": {
+        "affectedNodes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Affectednodes",
+          "type": "array"
+        },
+        "changeKind": {
+          "enum": [
+            "initial",
+            "promotion",
+            "demotion"
+          ],
+          "title": "Changekind",
+          "type": "string"
+        },
+        "newCandidate": {
+          "title": "Newcandidate",
+          "type": "string"
+        },
+        "priorPinned": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Priorpinned"
+        },
+        "remediation": {
+          "$ref": "#/$defs/RemediationRecord"
+        },
+        "riskLabel": {
+          "enum": [
+            "likely-rename",
+            "likely-different-semantics",
+            "unknown"
+          ],
+          "title": "Risklabel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "changeKind",
+        "newCandidate",
+        "riskLabel",
+        "remediation"
+      ],
+      "title": "IncrementalImpact",
+      "type": "object"
+    },
+    "OutputSchemaColumnOverride": {
+      "additionalProperties": false,
+      "description": "One column entry in an overlay's ``outputSchema`` override.\n\nDistinct from :class:`OutputSchemaColumn`: ``name`` is the merge key and is\nrequired, while ``type``/``nullable``/``pii`` are **optional** so a *matched*\n(retype) column may override only the fields it changes and inherit the rest\nfrom the base column. A *matched* column must still set at least one mutable\nfield (a name-only entry is a no-op and is rejected). Appended columns (a name\nabsent from the base) must carry full ``type`` + ``pii`` \u2014 enforced in the\nmerge step, where base-vs-overlay membership is known.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nullable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nullable"
+        },
+        "pii": {
+          "anyOf": [
+            {
+              "enum": [
+                "high",
+                "medium",
+                "low",
+                "none"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pii"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "OutputSchemaColumnOverride",
+      "type": "object"
+    },
+    "OutputSchemaOverride": {
+      "additionalProperties": false,
+      "description": "An overlay's ``outputSchema`` override: a name-keyed, partial merge into\nthe base node's columns.\n\nDeclare only the columns you change. Matched columns are retyped; with\n``extendColumns: true`` a new column may be appended (full ``type`` + ``pii``\nrequired, enforced at merge). Base columns not listed are preserved.",
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/OutputSchemaColumnOverride"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "extendColumns": {
+          "default": false,
+          "title": "Extendcolumns",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "title": "OutputSchemaOverride",
+      "type": "object"
+    },
+    "OverrideEntry": {
+      "additionalProperties": false,
+      "description": "Per-node override declared by an overlay pack.\n\nMerge rules:\n\n* ``profile:`` -- scalar replace.\n* ``sql:`` -- full-file replace; the named SQL path lives in the overlay.\n* ``quality:`` -- nested ``tests:`` list extends base.\n* ``outputSchema:`` -- name-keyed partial merge of a bronze node's\n  output columns (retype matched columns; append with ``extendColumns``).\n  Bronze targets only; enforced at merge.\n* ``requiredColumns:`` -- additive per-source union into a bronze node's\n  required columns (adds only; never removes). Bronze targets only.\n* ``relaxRequiredColumns:`` -- acknowledged per-source REMOVAL of a bronze\n  node's required columns (each entry carries a mandatory ``reason``).\n  Bronze targets only; this is the *only* sanctioned removal path.\n* ``replaceNode:`` -- acknowledged same-id silver/gold full replacement\n  (`.yaml` + `.sql`). Silver/gold targets only; mutually exclusive with every\n  other key (the replacement files carry the new schema/SQL). See\n  :class:`ReplaceNode`.\n\nUnknown keys fail closed (``extra=\"forbid\"``) with an actionable\nAIDPF-2001 message.",
+      "properties": {
+        "outputSchema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutputSchemaOverride"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile"
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Quality"
+        },
+        "relaxRequiredColumns": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "$ref": "#/$defs/RelaxRequiredColumn"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relaxrequiredcolumns"
+        },
+        "replaceNode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplaceNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "requiredColumns": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requiredcolumns"
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sql"
+        }
+      },
+      "title": "OverrideEntry",
+      "type": "object"
+    },
+    "PackCompatibility": {
+      "additionalProperties": false,
+      "description": "Minimum environment requirements declared by the pack.",
+      "properties": {
+        "aidp": {
+          "$ref": "#/$defs/PackCompatibilityAidp"
+        },
+        "fusionFamilies": {
+          "items": {
+            "enum": [
+              "ERP",
+              "HCM",
+              "SCM"
+            ],
+            "type": "string"
+          },
+          "title": "Fusionfamilies",
+          "type": "array"
+        },
+        "pluginMinVersion": {
+          "description": "SemVer 2.0.0 version string (e.g., 0.1.0)",
+          "title": "Pluginminversion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pluginMinVersion"
+      ],
+      "title": "PackCompatibility",
+      "type": "object"
+    },
+    "PackCompatibilityAidp": {
+      "additionalProperties": false,
+      "description": "AIDP runtime capability requirements declared by the pack.",
+      "properties": {
+        "requiresDelta": {
+          "default": true,
+          "title": "Requiresdelta",
+          "type": "boolean"
+        }
+      },
+      "title": "PackCompatibilityAidp",
+      "type": "object"
+    },
+    "PackDefaults": {
+      "additionalProperties": false,
+      "description": "Pack-wide defaults applied to every node unless overridden.",
+      "properties": {
+        "identifierPolicy": {
+          "const": "validated-three-part",
+          "default": "validated-three-part",
+          "title": "Identifierpolicy",
+          "type": "string"
+        },
+        "runIdColumn": {
+          "$ref": "#/$defs/RunIdColumnDefaults"
+        },
+        "sqlDialect": {
+          "const": "spark-sql",
+          "default": "spark-sql",
+          "title": "Sqldialect",
+          "type": "string"
+        }
+      },
+      "title": "PackDefaults",
+      "type": "object"
+    },
+    "PackProfileDefaults": {
+      "additionalProperties": true,
+      "description": "One named profile's defaults declared by the pack.\n\nThe pack ships sensible defaults; tenant profiles (``profiles/<tenant>.yaml``)\noverride per-key during bootstrap. Schema is intentionally extensible --\narbitrary typed knobs can be added under nested dicts.",
+      "properties": {
+        "calendar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CalendarProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "chartOfAccounts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChartOfAccountsProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "PackProfileDefaults",
+      "type": "object"
+    },
+    "PackProvenance": {
+      "additionalProperties": true,
+      "description": "Optional provenance block stamped by the medallion-author skill (ADR-0019).\n\nSkill-authored packs (overlays, in particular) record the skill version,\nmodel identity, generation timestamp, and reason. Hand-authored packs may\nomit this block entirely.\n\nSkill-specific fields use explicit camelCase ``Field(alias=...)`` values\nso overlay YAML keys parse consistently and bootstrap can detect\nskill-authored proposals.",
+      "properties": {
+        "diagnosticRunId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diagnosticrunid"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence"
+        },
+        "generatedAt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generatedat"
+        },
+        "generatedBy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generatedby"
+        },
+        "incrementalImpact": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/IncrementalImpact"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Incrementalimpact"
+        },
+        "modelId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Modelid"
+        },
+        "operatorInputId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operatorinputid"
+        },
+        "proposals": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/SkillProposalRecord"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Proposals"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "skillId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skillid"
+        },
+        "skillVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skillversion"
+        },
+        "trigger": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger"
+        }
+      },
+      "title": "PackProvenance",
+      "type": "object"
+    },
+    "RelaxRequiredColumn": {
+      "additionalProperties": false,
+      "description": "One acknowledged removal of a bronze node's ``requiredColumns`` entry.\n\nRemoving a required column *weakens* a live safety gate (the per-node\npreflight assertion + PVO-drift watch stop covering it), so it is allowed\nonly behind an explicit, audited acknowledgement: the ``reason`` is\nmandatory and must be non-blank \u2014 it is the *only* control on the\ngate-weakening op. A missing key, ``\"\"``, or whitespace-only string all fail\nclosed (a bare ``min_length`` would accept ``\"   \"``).",
+      "properties": {
+        "column": {
+          "minLength": 1,
+          "title": "Column",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "reason"
+      ],
+      "title": "RelaxRequiredColumn",
+      "type": "object"
+    },
+    "RemediationRecord": {
+      "additionalProperties": false,
+      "description": "The remediation choice recorded for one variation-point change.",
+      "properties": {
+        "operatorChose": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "title": "Operatorchose",
+          "type": "string"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "recommended": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "title": "Recommended",
+          "type": "string"
+        }
+      },
+      "required": [
+        "recommended",
+        "operatorChose",
+        "rationale"
+      ],
+      "title": "RemediationRecord",
+      "type": "object"
+    },
+    "ReplaceNode": {
+      "additionalProperties": false,
+      "description": "Acknowledged same-id silver/gold full replacement (`.yaml` + `.sql`).\n\nSame-id silver/gold replacement is rejected by default (``AIDPF-2001``); a\n``replaceNode`` block makes it legal \u2014 opt-in and audited, mirroring the\n``relaxRequiredColumns`` precedent. The overlay ships a complete new\n``<layer>/<id>.yaml`` + ``<id>.sql`` for a shipped SQL mart, keeping its id so\ndownstream ``dependsOn`` consumers are not re-pointed. Add, remove, and\nrewrite of columns/logic all go through this one shape; only identity changes\n(``layer`` / ``target`` / ``dependsOn`` edges / ``refresh``) remain new-mart-id.",
+      "properties": {
+        "forkedFrom": {
+          "$ref": "#/$defs/ForkedFrom"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "forkedFrom"
+      ],
+      "title": "ReplaceNode",
+      "type": "object"
+    },
+    "RunIdColumnDefaults": {
+      "additionalProperties": false,
+      "description": "Audit column names per medallion layer.",
+      "properties": {
+        "bronze": {
+          "default": "_run_id",
+          "title": "Bronze",
+          "type": "string"
+        },
+        "gold": {
+          "default": "gold_run_id",
+          "title": "Gold",
+          "type": "string"
+        },
+        "silver": {
+          "default": "silver_run_id",
+          "title": "Silver",
+          "type": "string"
+        }
+      },
+      "title": "RunIdColumnDefaults",
+      "type": "object"
+    },
+    "SemanticVariant": {
+      "additionalProperties": false,
+      "description": "Same logical concept, different SQL shape across tenants.",
+      "properties": {
+        "appliesTo": {
+          "title": "Appliesto",
+          "type": "string"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/SemanticVariantCandidate"
+          },
+          "minItems": 1,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "appliesTo",
+        "candidates"
+      ],
+      "title": "SemanticVariant",
+      "type": "object"
+    },
+    "SemanticVariantCandidate": {
+      "additionalProperties": false,
+      "description": "One semantic-shape candidate.",
+      "properties": {
+        "detect": {
+          "$ref": "#/$defs/SemanticVariantDetect"
+        },
+        "fragment": {
+          "title": "Fragment",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "detect",
+        "fragment"
+      ],
+      "title": "SemanticVariantCandidate",
+      "type": "object"
+    },
+    "SemanticVariantDetect": {
+      "additionalProperties": false,
+      "description": "How to recognise that this candidate applies to a tenant.",
+      "properties": {
+        "columnExists": {
+          "title": "Columnexists",
+          "type": "string"
+        }
+      },
+      "required": [
+        "columnExists"
+      ],
+      "title": "SemanticVariantDetect",
+      "type": "object"
+    },
+    "SkillProposalRecord": {
+      "additionalProperties": false,
+      "description": "One per-VP proposal the medallion-author skill captured at\noverlay-draft time.\n\nBootstrap reads ``candidate_added`` to detect AutoResolved-on-skill-\nproposed-candidate at commit time. The initial-onboarding flow must\nrecord ``mechanism: skill_proposed`` when the walker AutoResolves on a\ncandidate the skill added.",
+      "properties": {
+        "candidateAdded": {
+          "title": "Candidateadded",
+          "type": "string"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "reasoning": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reasoning"
+        }
+      },
+      "required": [
+        "candidateAdded"
+      ],
+      "title": "SkillProposalRecord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level schema for ``pack.yaml``.\n\nNode definitions live in separate per-node YAML files under\n``silver/`` and ``gold/`` and are validated by :class:`NodeYaml`\nwhen the content pack is loaded.\n``PackYaml`` covers pack identity, compatibility, defaults, profile\ndefaults, variation-point declarations, overlay coordination, and\nprovenance.",
+  "properties": {
+    "columnAliases": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ColumnAlias"
+      },
+      "title": "Columnaliases",
+      "type": "object"
+    },
+    "compatibility": {
+      "$ref": "#/$defs/PackCompatibility"
+    },
+    "defaults": {
+      "$ref": "#/$defs/PackDefaults"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "extends": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Extends"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "overrides": {
+      "additionalProperties": {
+        "$ref": "#/$defs/OverrideEntry"
+      },
+      "title": "Overrides",
+      "type": "object"
+    },
+    "profiles": {
+      "additionalProperties": {
+        "$ref": "#/$defs/PackProfileDefaults"
+      },
+      "title": "Profiles",
+      "type": "object"
+    },
+    "provenance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PackProvenance"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "semanticVariants": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SemanticVariant"
+      },
+      "title": "Semanticvariants",
+      "type": "object"
+    },
+    "version": {
+      "description": "SemVer 2.0.0 version string (e.g., 0.1.0)",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "compatibility"
+  ],
+  "title": "PackYaml",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "EMPLOYEES": {
+    "schema": "EMP_ID decimal(10,0), EMP_NAME string, MGR_ID decimal(10,0), SALARY decimal(10,2), DEPT_ID decimal(10,0)",
+    "rows": [
+      [1, "Ada", null, 200000.00, 10],
+      [2, "Ben", 1,    150000.00, 10],
+      [3, "Cal", 1,    120000.00, 20],
+      [4, "Dee", 2,    160000.00, 10],
+      [5, "Eve", 3,     60000.00, 20],
+      [6, "Fox", 99,    50000.00, 30],
+      [7, "Gus", 8,     70000.00, 30],
+      [8, "Hal", 1,    null,      30]
+    ]
+  }
+}

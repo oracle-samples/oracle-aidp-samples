@@ -1,0 +1,167 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Card with a single Text child",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewCard_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewCardText_v1",
+          "component": "Text",
+          "text": "Simple card body text",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard_v1",
+          "component": "Card",
+          "child": "tpl_previewCardText_v1"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Multiple cards in a Row",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewCardsRow_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewCardText1_v2",
+          "component": "Text",
+          "text": "North Region",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard1_v2",
+          "component": "Card",
+          "child": "tpl_previewCardText1_v2"
+        },
+        {
+          "id": "tpl_previewCardText2_v2",
+          "component": "Text",
+          "text": "Central Region",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard2_v2",
+          "component": "Card",
+          "child": "tpl_previewCardText2_v2"
+        },
+        {
+          "id": "tpl_previewCardText3_v2",
+          "component": "Text",
+          "text": "South Region",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard3_v2",
+          "component": "Card",
+          "child": "tpl_previewCardText3_v2"
+        },
+        {
+          "id": "tpl_previewCardsRow_v2",
+          "component": "Row",
+          "children": [
+            "tpl_previewCard1_v2",
+            "tpl_previewCard2_v2",
+            "tpl_previewCard3_v2"
+          ],
+          "justify": "start",
+          "align": "center"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Multiple cards in a Column",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewCardsColumn_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewCardText1_v3",
+          "component": "Text",
+          "text": "Plan",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard1_v3",
+          "component": "Card",
+          "child": "tpl_previewCardText1_v3"
+        },
+        {
+          "id": "tpl_previewCardText2_v3",
+          "component": "Text",
+          "text": "Build",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard2_v3",
+          "component": "Card",
+          "child": "tpl_previewCardText2_v3"
+        },
+        {
+          "id": "tpl_previewCardText3_v3",
+          "component": "Text",
+          "text": "Launch",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewCard3_v3",
+          "component": "Card",
+          "child": "tpl_previewCardText3_v3"
+        },
+        {
+          "id": "tpl_previewCardsColumn_v3",
+          "component": "Column",
+          "children": [
+            "tpl_previewCard1_v3",
+            "tpl_previewCard2_v3",
+            "tpl_previewCard3_v3"
+          ],
+          "justify": "start",
+          "align": "stretch"
+        }
+      ]
+    }
+  }
+]

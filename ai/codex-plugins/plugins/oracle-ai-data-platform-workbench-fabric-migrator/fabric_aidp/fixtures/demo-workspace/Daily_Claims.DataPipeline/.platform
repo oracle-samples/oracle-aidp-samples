@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-700099555713"
+  },
+  "metadata": {
+    "type": "DataPipeline",
+    "displayName": "Daily_Claims",
+    "description": "Acme demo datapipeline"
+  }
+}

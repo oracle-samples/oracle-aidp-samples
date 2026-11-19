@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-389160624526"
+  },
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "06_Sql_Summary",
+    "description": "Acme demo notebook"
+  }
+}

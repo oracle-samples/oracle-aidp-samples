@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "infa2aidp"
+version = "0.1.0"
+description = "Migrate current Informatica ETL (IDMC/IICS, PowerCenter 10.5) to Spark on Oracle AI Data Platform"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Oracle AIDP Team"},
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "requests>=2.28",
+    # --schedule-timezone is checked against the IANA tz database, which
+    # Python on Windows (and slim containers) do not have. Unconditional:
+    # zoneinfo prefers a system database where there is one.
+    "tzdata",
+]
+
+[project.optional-dependencies]
+llm = ["anthropic>=0.40"]
+reconcile = ["jaydebeapi>=1.2", "oracledb>=2.0"]
+crawl = ["oracledb>=2.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+# Test-only, and deliberately NOT in `all`. The shipped package must import
+# without pyspark: generated notebooks run on an AIDP cluster, and
+# infa_compat defers every pyspark import into a function body so demo.sh
+# and the suite work with no cluster. Installing this enables
+# tests/test_expression_execution.py, which runs converted expressions
+# against a local Spark and asserts the RESULT rather than the emitted
+# string -- the only thing that catches a translation that reads correctly
+# and does not run. Without it those tests skip.
+spark = ["pyspark>=3.5"]
+all = [
+    "anthropic>=0.40",
+    "jaydebeapi>=1.2",
+    "oracledb>=2.0",
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+infa2aidp = "infa2aidp.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "engine"}
+
+[tool.setuptools.packages.find]
+where = ["engine"]
+include = ["infa2aidp*", "infa_compat*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+pythonpath = ["engine"]

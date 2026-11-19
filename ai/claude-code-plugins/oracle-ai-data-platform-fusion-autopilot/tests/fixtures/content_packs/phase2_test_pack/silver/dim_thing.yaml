@@ -1,0 +1,47 @@
+id: dim_thing
+layer: silver
+implementation:
+  type: sql
+  sql: silver/dim_thing.sql
+target: dim_thing
+
+dependsOn:
+  bronze:
+    - id: erp_thing
+      role: primary
+      watermark:
+        column: _extract_ts
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    naturalKey: [thing_id]
+    watermark:
+      source: erp_thing
+      column: _extract_ts
+    reason: |
+      Row-grain silver dim. Single primary source; matches PLAN §11.10
+      defaults.
+
+requiredColumns:
+  erp_thing:
+    - thing_id
+    - thing_name
+    - _extract_ts
+
+outputSchema:
+  columns:
+    - name: thing_id
+      type: string
+      nullable: false
+      pii: none
+    - name: thing_name
+      type: string
+      nullable: true
+      pii: low
+    - name: _extract_ts
+      type: timestamp
+      nullable: true
+      pii: none

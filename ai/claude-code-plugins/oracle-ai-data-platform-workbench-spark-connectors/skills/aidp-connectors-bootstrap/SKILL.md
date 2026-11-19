@@ -1,4 +1,5 @@
 ---
+name: aidp-connectors-bootstrap
 description: First-time setup. Use when the user wants to install/upload the AIDP Spark connectors helper package into their AIDP workspace, or has just installed this plugin and asks "how do I set it up", "first-time setup", "install the helpers", "bootstrap aidp connectors". Drives the AIDP MCP tools to push the helper package to /Workspace/Shared/ and runs a sanity import.
 allowed-tools: Read, Bash
 ---
@@ -15,15 +16,16 @@ allowed-tools: Read, Bash
 - The user has run `examples/00_bootstrap_helpers.ipynb` once and it printed `BOOTSTRAP OK`.
 - From that point on, every connector skill works without further setup.
 
-## What you (Claude) should do
+## What the assistant should do
 
 ### Step 1 — locate the plugin's `scripts/` directory on disk
 
 The plugin lives wherever the user installed it. Common locations:
 - `~/.claude/plugins/<marketplace>/oracle-ai-data-platform-workbench-spark-connectors/scripts/oracle_ai_data_platform_connectors/`
-- A local clone (when developing): the path printed by `claude --plugin-dir <path>`.
+- `~/.codex/plugins/<marketplace>/oracle-ai-data-platform-workbench-spark-connectors/scripts/oracle_ai_data_platform_connectors/`
+- A local clone or repo checkout when developing.
 
-Run `find ~/.claude/plugins -type d -name oracle_ai_data_platform_connectors 2>/dev/null` (or the platform equivalent) to discover it. Confirm with the user before uploading.
+Search the installed plugin cache and the local repo checkout for `scripts/oracle_ai_data_platform_connectors/`. Confirm the source and destination paths with the user before uploading.
 
 ### Step 2 — create the destination directory in AIDP
 

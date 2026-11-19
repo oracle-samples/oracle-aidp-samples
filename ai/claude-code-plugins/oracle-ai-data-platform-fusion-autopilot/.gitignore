@@ -1,0 +1,114 @@
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+.env
+.env.*
+!.env.example
+
+.venv/
+venv/
+ENV/
+
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Live test artifacts (rendered with real pod data)
+tests/live/results/*.json
+tests/live/results/*.png
+!tests/live/results/.gitkeep
+
+# Locally-built bundle snapshot (release artifact, ships separately — not in repo)
+*.bar
+oac/bundle-*.bar
+
+# Private working notes & environment-specific scripts — kept locally only.
+# These contain hardcoded cluster IDs, vault OCIDs, internal pod URLs, and
+# step-level details that must NEVER be pushed to a public branch.
+# Canonical home: dev/ (all PLAN/DECISION/DESIGN/RESEARCH/BOOTSTRAP files
+# moved there 2026-05-17). The patterns below remain as a safety net for
+# any new working notes accidentally created at the repo root.
+dev/
+PLAN_*.md
+BLOCKER_*.md
+LIMITS.md
+OVERVIEW_*.md
+BOOTSTRAP_*.py
+FIX_*.py
+
+# Exception: scripts/dev/ is where shipped dev tools live (e.g.
+# transcribe_v1_registry.py — the v1-parity-baseline transcription tool
+# used by Phase 4's dual-runner gate). The `dev/` rule above targets the
+# top-level working-notes directory, not anywhere named dev.
+!scripts/dev/
+!scripts/dev/**
+TC*_runner.py
+TC_*_runner.py
+
+# Phase 5 — diagnostic artefacts written by the readiness / drift gates
+# when tests run against fixture bundles. The path comes from
+# `bundle_path.resolve().parent / ".aidp" / "diagnostics"` in the
+# gate helpers; the fixture-side writes are transient noise.
+tests/fixtures/**/.aidp/
+
+# local tenant coords (real OCIDs/keys) — never commit
+aidp.config.yaml
+
+# local tenant bundle (real pod URL / user / contentPack) — never commit
+bundle.yaml
+
+# local tenant profiles (bootstrap-pinned fingerprints) — never commit
+profiles/
+
+# ...but the SHIPPED example scaffolds under examples/ ARE source. The global
+# ignores above (bundle.yaml / aidp.config.yaml / profiles/) would otherwise
+# silently drop them — exactly why examples/full-finance-starter/ went missing
+# and `init` defaulted to a non-existent template. Re-include them explicitly.
+!examples/**/bundle.yaml
+!examples/**/aidp.config.yaml
+!examples/profiles/
+!examples/profiles/**
+
+# Same story for the `init` scaffold templates shipped INSIDE the package
+# (scripts/.../_scaffold/). These are package-data source — the global
+# bundle.yaml / aidp.config.yaml ignores would drop the full-finance-starter
+# and minimal-bundle templates from the wheel, breaking `init` for pip
+# customers. Re-include them explicitly.
+!**/_scaffold/**/bundle.yaml
+!**/_scaffold/**/aidp.config.yaml
+
+# OAC workbook authoring (workbooks/<name>/) — the generated workbook JSON and
+# any *bound* request carry the OAC host / dataset UUID / session tokens. Keep
+# those raw artifacts local; commit only *.redacted.json (and your request.json
+# spec). See skills/workbook-authoring + docs/oac_workbook_authoring_e2e.md.
+workbooks/**/workbook*.json
+workbooks/**/*bound*.json
+!workbooks/**/*.redacted.json

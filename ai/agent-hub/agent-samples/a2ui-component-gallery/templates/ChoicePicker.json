@@ -1,0 +1,215 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4",
+            "tpl_variant_wrapper_v5"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "MultipleChoice literal selection (single-select chips)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewMultipleChoice_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewMultipleChoice_v1",
+          "component": "ChoicePicker",
+          "options": [
+            {
+              "label": "Apple",
+              "value": "apple"
+            },
+            {
+              "label": "Banana",
+              "value": "banana"
+            },
+            {
+              "label": "Cherry",
+              "value": "cherry"
+            }
+          ],
+          "value": [
+            "banana"
+          ],
+          "displayStyle": "chips",
+          "variant": "mutuallyExclusive"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "MultipleChoice literal selection (multi-select checkbox)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewMultipleChoice_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewMultipleChoice_v2",
+          "component": "ChoicePicker",
+          "options": [
+            {
+              "label": "Email",
+              "value": "email"
+            },
+            {
+              "label": "SMS",
+              "value": "sms"
+            },
+            {
+              "label": "Push",
+              "value": "push"
+            }
+          ],
+          "value": [
+            "email",
+            "sms"
+          ],
+          "displayStyle": "checkbox",
+          "variant": "multipleSelection"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "MultipleChoice path-backed selections",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewMultipleChoice_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewMultipleChoice_v3",
+          "component": "ChoicePicker",
+          "options": [
+            {
+              "label": "Core",
+              "value": "core"
+            },
+            {
+              "label": "Analytics",
+              "value": "analytics"
+            },
+            {
+              "label": "AI",
+              "value": "ai"
+            }
+          ],
+          "value": {
+            "path": "/demo/multipleChoice/selections"
+          },
+          "variant": "multipleSelection"
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "MultipleChoice filterable chips",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_previewMultipleChoice_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewMultipleChoice_v4",
+          "component": "ChoicePicker",
+          "options": [
+            {
+              "label": "Seattle",
+              "value": "seattle"
+            },
+            {
+              "label": "San Francisco",
+              "value": "sanfrancisco"
+            },
+            {
+              "label": "Austin",
+              "value": "austin"
+            },
+            {
+              "label": "New York",
+              "value": "newyork"
+            }
+          ],
+          "filterable": true,
+          "value": [],
+          "displayStyle": "chips",
+          "variant": "multipleSelection"
+        },
+        {
+          "id": "tpl_variant_header_v5",
+          "component": "Text",
+          "text": "MultipleChoice mutuallyExclusive with default displayStyle",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v5",
+            "tpl_previewMultipleChoice_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewMultipleChoice_v5",
+          "component": "ChoicePicker",
+          "options": [
+            {
+              "label": "Basic",
+              "value": "basic"
+            },
+            {
+              "label": "Pro",
+              "value": "pro"
+            },
+            {
+              "label": "Enterprise",
+              "value": "enterprise"
+            }
+          ],
+          "value": [
+            "pro"
+          ],
+          "variant": "mutuallyExclusive"
+        }
+      ]
+    }
+  }
+]

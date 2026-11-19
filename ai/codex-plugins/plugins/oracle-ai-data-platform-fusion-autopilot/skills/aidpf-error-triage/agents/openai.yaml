@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDPF Error Triage"
+  short_description: "Route AIDP Fusion errors to recovery"
+  default_prompt: "Use $aidpf-error-triage to explain this AIDPF error and select a recovery path."

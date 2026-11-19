@@ -1,0 +1,229 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Slider demo card with volume brightness and temperature",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_sliderDemoCard_v1"
+          ]
+        },
+        {
+          "id": "tpl_sliderVolume_v1",
+          "component": "Slider",
+          "label": "Volume",
+          "value": 30,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "tpl_sliderBrightness_v1",
+          "component": "Slider",
+          "label": "Brightness",
+          "value": 70,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "tpl_sliderTemperature_v1",
+          "component": "Slider",
+          "label": "Temperature (\u00b0C)",
+          "value": 22,
+          "min": 10,
+          "max": 40
+        },
+        {
+          "id": "tpl_sliderMainColumn_v1",
+          "component": "Column",
+          "children": [
+            "tpl_sliderVolume_v1",
+            "tpl_sliderBrightness_v1",
+            "tpl_sliderTemperature_v1"
+          ],
+          "justify": "start",
+          "align": "stretch"
+        },
+        {
+          "id": "tpl_sliderDemoCard_v1",
+          "component": "Card",
+          "child": "tpl_sliderMainColumn_v1"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Slider test values at low range edges",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_sliderLowTestCard_v2"
+          ]
+        },
+        {
+          "id": "tpl_sliderLowVolume_v2",
+          "component": "Slider",
+          "label": "Volume low",
+          "value": 0,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "tpl_sliderLowBrightness_v2",
+          "component": "Slider",
+          "label": "Brightness low",
+          "value": 5,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "tpl_sliderLowTemperature_v2",
+          "component": "Slider",
+          "label": "Temperature low",
+          "value": 10,
+          "min": 10,
+          "max": 40
+        },
+        {
+          "id": "tpl_sliderLowTestColumn_v2",
+          "component": "Column",
+          "children": [
+            "tpl_sliderLowVolume_v2",
+            "tpl_sliderLowBrightness_v2",
+            "tpl_sliderLowTemperature_v2"
+          ],
+          "justify": "start",
+          "align": "stretch"
+        },
+        {
+          "id": "tpl_sliderLowTestCard_v2",
+          "component": "Card",
+          "child": "tpl_sliderLowTestColumn_v2"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Slider test values at high range edges",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_sliderHighTestCard_v3"
+          ]
+        },
+        {
+          "id": "tpl_sliderHighVolume_v3",
+          "component": "Slider",
+          "label": "Volume high",
+          "value": 100,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "tpl_sliderHighBrightness_v3",
+          "component": "Slider",
+          "label": "Brightness high",
+          "value": 99,
+          "min": 0,
+          "max": 100
+        },
+        {
+          "id": "tpl_sliderHighTemperature_v3",
+          "component": "Slider",
+          "label": "Temperature high",
+          "value": 40,
+          "min": 10,
+          "max": 40
+        },
+        {
+          "id": "tpl_sliderHighTestColumn_v3",
+          "component": "Column",
+          "children": [
+            "tpl_sliderHighVolume_v3",
+            "tpl_sliderHighBrightness_v3",
+            "tpl_sliderHighTemperature_v3"
+          ],
+          "justify": "start",
+          "align": "stretch"
+        },
+        {
+          "id": "tpl_sliderHighTestCard_v3",
+          "component": "Card",
+          "child": "tpl_sliderHighTestColumn_v3"
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "Slider path based value with tuned temperature band",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_sliderPathValueCard_v4"
+          ]
+        },
+        {
+          "id": "tpl_sliderPathValue_v4",
+          "component": "Slider",
+          "label": "Path backed slider",
+          "value": {
+            "path": "/demo/slider/value"
+          },
+          "min": 10,
+          "max": 40
+        },
+        {
+          "id": "tpl_sliderPathValueCard_v4",
+          "component": "Card",
+          "child": "tpl_sliderPathValue_v4"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "label": "Template slider label from data model path",
+        "value": 30
+      },
+      "path": "/demo/slider"
+    }
+  }
+]

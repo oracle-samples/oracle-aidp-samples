@@ -1,0 +1,17 @@
+id: fix-supplier-id-types-file
+version: 0.1.0
+extends: fusion-finance-starter@0.1.0
+description: |
+  Bronze type-overlay (SAME-ID FILE mechanism) fixing the supplier-ID overflow
+  on bronze.erp_suppliers — the same fix as fix-supplier-id-types-block, but
+  authored as a full-node replacement file (bronze/erp_suppliers.yaml). The file
+  redeclares the WHOLE node with the four IDs retyped to decimal(18,0); the
+  filename stem must equal the node id, and the merge guard rejects any change to
+  identity fields (grain/naturalKey/target/PVO/refresh/requiredColumns) or any
+  dropped outputSchema/quality.tests entry — so it can only retype/extend.
+compatibility:
+  pluginMinVersion: 0.3.0
+  fusionFamilies:
+    - ERP
+  aidp:
+    requiresDelta: true

@@ -1,0 +1,189 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_action_card_v1",
+            "tpl_variant_wrapper_action_card_v2",
+            "tpl_variant_wrapper_action_card_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_action_card_v1",
+          "component": "Text",
+          "text": "OAActionCard with child text",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_action_card_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_action_card_v1",
+            "tpl_previewOAActionCard_v1"
+          ]
+        },
+        {
+          "id": "tpl_actionCardChildText_v1",
+          "component": "Text",
+          "text": "Open deployment details",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOAActionCard_v1",
+          "component": "OAActionCard",
+          "child": "tpl_actionCardChildText_v1",
+          "action": {
+            "event": {
+              "name": "preview_oaactioncard_action",
+              "context": {
+                "selectedComponent": "OAActionCard",
+                "source": "oa-action-card-v1",
+                "variant": "single-child"
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_variant_header_action_card_v2",
+          "component": "Text",
+          "text": "OAActionCard with multiple children",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_action_card_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_action_card_v2",
+            "tpl_previewOAActionCard_v2"
+          ]
+        },
+        {
+          "id": "tpl_actionCardTitle_v2",
+          "component": "Text",
+          "text": "Weekly summary",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_actionCardBody_v2",
+          "component": "Text",
+          "text": "5 workflows completed",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_actionCardStatus_v2",
+          "component": "Row",
+          "children": [
+            "tpl_actionCardIcon_v2",
+            "tpl_actionCardStatusText_v2"
+          ],
+          "justify": "start",
+          "align": "center"
+        },
+        {
+          "id": "tpl_actionCardIcon_v2",
+          "component": "Icon",
+          "name": "check"
+        },
+        {
+          "id": "tpl_actionCardStatusText_v2",
+          "component": "Text",
+          "text": "Ready for review",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewOAActionCard_v2",
+          "component": "OAActionCard",
+          "children": [
+            "tpl_actionCardTitle_v2",
+            "tpl_actionCardBody_v2",
+            "tpl_actionCardStatus_v2"
+          ],
+          "action": {
+            "event": {
+              "name": "preview_oaactioncard_action",
+              "context": {
+                "selectedComponent": "OAActionCard",
+                "source": "oa-action-card-v2",
+                "variant": "multiple-children",
+                "completedWorkflows": 5
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_variant_header_action_card_v3",
+          "component": "Text",
+          "text": "OAActionCard with data-bound child and context",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_action_card_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_action_card_v3",
+            "tpl_previewOAActionCard_v3"
+          ]
+        },
+        {
+          "id": "tpl_actionCardPathTitle_v3",
+          "component": "Text",
+          "text": {
+            "path": "/demo/oaActionCard/title"
+          },
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOAActionCard_v3",
+          "component": "OAActionCard",
+          "child": "tpl_actionCardPathTitle_v3",
+          "action": {
+            "event": {
+              "name": "preview_oaactioncard_action",
+              "context": {
+                "selectedComponent": "OAActionCard",
+                "source": "oa-action-card-v3",
+                "variant": "path-backed-child",
+                "title": {
+                  "path": "/demo/oaActionCard/title"
+                },
+                "requiresFollowUp": true
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oaActionCard",
+      "value": {
+        "title": "Path-backed OAActionCard title"
+      }
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oaActionCardAction",
+      "value": {
+        "explanation": ""
+      }
+    }
+  }
+]

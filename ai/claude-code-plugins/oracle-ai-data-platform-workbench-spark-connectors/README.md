@@ -3,31 +3,24 @@
 > **Canonical home:** [`oracle-samples/oracle-aidp-samples/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors`](https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-spark-connectors).
 > This repository is now a personal development mirror. End users should install via Anthropic's community marketplace (see below), which sources from the canonical Oracle-org location.
 
-A Claude Code plugin that ships **23 model-invokable skills** for connecting Oracle AI Data Platform Workbench Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
+A Claude Code plugin that ships **27 model-invokable skills** for connecting Oracle AI Data Platform Workbench Apache Spark notebooks to every data source these notebooks commonly need. Each skill produces plain Python (Spark JDBC, Spark structured streaming, Spark `oci://`/`s3a://`/`abfss://`, or REST → Spark DataFrame) that runs in the notebook without any additional runtime.
 
-**v0.5.0** adds 5 new connectors (Oracle Database, PeopleSoft, Siebel, Salesforce, Hive) plus the new pushdown.sql / catalog.id / manifest.path patterns from [oracle-samples/oracle-aidp-samples PR #46](https://github.com/oracle-samples/oracle-aidp-samples/pull/46).
+**v0.8.0** adds Google BigQuery guidance for AIDP 5.1: service-account authentication, ingestion reads, SQL pushdown, `catalog.id`, and external-catalog reads. GBQ is read-only.
 
 All connectors wrap the official AIDP `aidataplatform` Spark format handler (or, where applicable, Spark JDBC / structured streaming / `oci://`/`s3a://`/`abfss://`) — same patterns shown in the upstream [`oracle-samples/oracle-aidp-samples`](https://github.com/oracle-samples/oracle-aidp-samples) connector notebooks.
 
 ## Install
 
-From Anthropic's community plugin marketplace (recommended):
+From Anthropic's community plugin marketplace:
 
 ```
 /plugin marketplace add anthropics/claude-plugins-community
 /plugin install oracle-ai-data-platform-workbench-spark-connectors
 ```
 
-Or from this development mirror (gets the latest pre-release commits):
-
-```
-/plugin marketplace add ahmedawan-oracle/claude-code-plugins
-/plugin install oracle-ai-data-platform-workbench-spark-connectors@aidp-connectors
-```
-
 ## What's in here
 
-25 skills total (23 connectors + 1 bootstrap + 1 routing).
+29 skills total (27 connectors + 1 bootstrap + 1 routing).
 
 ### Oracle / OCI sources
 | Skill | Target | Transport | Recommended auth |
@@ -35,10 +28,10 @@ Or from this development mirror (gets the latest pre-release commits):
 | `aidp-connectors-overview` | (router) | — | — |
 | `aidp-connectors-bootstrap` | one-time setup | — | — |
 | `aidp-alh` | Oracle Autonomous DB family (ALH / ADW / ATP) | Spark JDBC | Wallet (mTLS), IAM DB-Token, or API key |
-| `aidp-oracle-db` ⭐ NEW | Generic Oracle DB (Compute / Base DB / on-prem / 19c-26ai non-Autonomous) | `aidataplatform` (`type=ORACLE_DB`) | Plain user/password |
+| `aidp-oracle-db` | Generic Oracle DB (Compute / Base DB / on-prem / 19c-26ai non-Autonomous) | `aidataplatform` (`type=ORACLE_DB`) | Plain user/password |
 | `aidp-exacs` | Exadata Cloud Service | Spark JDBC (TCP 1521 + NNE AES256) | Plain user/password |
-| `aidp-peoplesoft` ⭐ NEW | Oracle PeopleSoft | `aidataplatform` (`type=ORACLE_PEOPLESOFT`) | Plain user/password (read-only) |
-| `aidp-siebel` ⭐ NEW | Oracle Siebel CRM | `aidataplatform` (`type=ORACLE_SIEBEL`) | Plain user/password (read-only) |
+| `aidp-peoplesoft` | Oracle PeopleSoft | `aidataplatform` (`type=ORACLE_PEOPLESOFT`) | Plain user/password (read-only) |
+| `aidp-siebel` | Oracle Siebel CRM | `aidataplatform` (`type=ORACLE_SIEBEL`) | Plain user/password (read-only) |
 | `aidp-fusion-rest` | Fusion ERP/HCM/SCM | REST → DataFrame | HTTP Basic |
 | `aidp-fusion-bicc` | Fusion BICC bulk extracts | `aidataplatform` (`type=FUSION_BICC`) | HTTP Basic |
 | `aidp-epm-cloud` | EPM Cloud Planning | REST → DataFrame | HTTP Basic (`tenancy.user@domain`) |
@@ -52,20 +45,24 @@ Or from this development mirror (gets the latest pre-release commits):
 |---|---|---|---|
 | `aidp-postgresql` | PostgreSQL | Spark JDBC (runtime-loaded driver) for SSL targets, `aidataplatform` `type=POSTGRESQL` for non-SSL | Plain user/password |
 | `aidp-mysql` | MySQL / OCI MySQL HeatWave | `aidataplatform` (`type=MYSQL` or `MYSQL_HEATWAVE`) | Plain user/password |
-| `aidp-sqlserver` | Microsoft SQL Server / Azure SQL DB | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
-| `aidp-hive` ⭐ NEW | Apache Hive (HiveServer2, non-Kerberos) | `aidataplatform` (`type=HIVE`) | Plain user/password |
+| `aidp-sqlserver` | Microsoft SQL Server | `aidataplatform` (`type=SQLSERVER`) | Plain user/password |
+| `aidp-azuresql` | Azure SQL Database | `aidataplatform` (`type=AZURE_SQLSERVER`) | Plain user/password |
+| `aidp-db2` | IBM Db2 | `aidataplatform` (`type=DB2`) | Plain user/password |
+| `aidp-hive` | Apache Hive (HiveServer2, non-Kerberos) | `aidataplatform` (`type=HIVE`) | Plain user/password |
 
 ### SaaS
 | Skill | Target | Transport | Recommended auth |
 |---|---|---|---|
-| `aidp-salesforce` ⭐ NEW | Salesforce (Sales/Service Cloud, custom sObjects) | `aidataplatform` (`type=SFORCE`) | Username + password+security-token (read-only) |
+| `aidp-salesforce` | Salesforce (Sales/Service Cloud, custom sObjects) | `aidataplatform` (`type=SFORCE`) | Username + password+security-token (read-only) |
+| `aidp-netsuite` | NetSuite SuiteAnalytics Connect (read-only) | `aidataplatform` (`type=NETSUITE`) | Username/password or OAuth access token |
 
 ### Multi-cloud + escape hatches
 | Skill | Target | Transport | Recommended auth |
 |---|---|---|---|
-| `aidp-snowflake` | Snowflake | `format("snowflake")` (Snowflake Spark connector) | sfUser/sfPassword |
+| `aidp-snowflake` | Snowflake (read-only) | `aidataplatform` (`type=SNOWFLAKE`) | Basic or KeyPair |
+| `aidp-google-bigquery` ⭐ NEW | Google BigQuery (read-only) | `aidataplatform` (`type=GOOGLE_BIGQUERY`) | Service account (full JSON from AIDP secret) |
 | `aidp-azure-adls` | Azure ADLS Gen2 | Spark `abfss://` | OAuth client-credentials (Service Principal) |
-| `aidp-aws-s3` | AWS S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
+| `aidp-aws-s3` | Amazon S3 | Spark `s3a://` (runtime-loaded `hadoop-aws` + `aws-java-sdk-bundle`) | AWS access keys |
 | `aidp-rest-generic` | Any REST API with a manifest URL or Volume `manifest.path` | `aidataplatform` (`type=GENERIC_REST`) | HTTP Basic |
 | `aidp-jdbc-custom` | Any DB with a JDBC driver | Spark `format("jdbc")` (runtime-loaded driver) | Driver-specific |
 | `aidp-excel` | `.xlsx` files in Volumes / Object Storage | stdlib `zipfile` + XML parser (no extra deps) | None (file-based) |
@@ -119,7 +116,7 @@ from oracle_ai_data_platform_connectors.rest.epm import (
 )
 
 # EPM_USERNAME MUST be in identity-domain form: tenancy.user@domain
-# (e.g. epmloaner622.first.last@oracle.com — the bare email returns 401)
+# (e.g. mytenancy.first.last@example.com — the bare email returns 401)
 session = http_basic_session(
     username=os.environ["EPM_USERNAME"],
     password=os.environ["EPM_PASSWORD"],
@@ -164,6 +161,14 @@ The `aidp-epm-cloud` skill prints exactly this snippet (with your env vars and g
 The skills surface these as a known limitation and route users to **API Key + inline PEM** (`aidp_connectors.auth.oci_config.from_inline_pem`) instead. Background: https://github.com/oracle-samples/oracle-aidp-samples and the workbench team's notebook-auth investigation.
 
 ## Plugin development
+
+The `skills/` directory is a materialized copy of the shared source in
+[`../../shared-plugin-content/oracle-ai-data-platform-workbench-spark-connectors/skills`](../../shared-plugin-content/oracle-ai-data-platform-workbench-spark-connectors/skills).
+Edit shared skills there first, then run:
+
+```bash
+python3 ai/shared-plugin-content/oracle-ai-data-platform-workbench-spark-connectors/sync_skills.py
+```
 
 ```bash
 # Validate plugin shape

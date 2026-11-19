@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Seed"
+  short_description: "Run guarded Fusion medallion seed jobs"
+  default_prompt: "Use $aidp-fusion-seed to safely seed the requested medallion layers."

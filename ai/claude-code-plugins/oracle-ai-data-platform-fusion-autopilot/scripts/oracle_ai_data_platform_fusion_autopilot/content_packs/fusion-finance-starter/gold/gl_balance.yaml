@@ -1,0 +1,176 @@
+id: gl_balance
+layer: gold
+implementation:
+  type: sql
+  sql: gold/gl_balance.sql
+target: gl_balance
+
+dependsOn:
+  bronze:
+    - id: gl_period_balances
+      role: primary
+      watermark:
+        column: _extract_ts
+  silver:
+    - id: dim_account
+      role: lookup
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: gl_period_balances
+      column: _extract_ts
+    naturalKey:
+      - ledger_id
+      - account_id
+      - period_year
+      - period_num
+      - currency_code
+      - actual_flag
+      - translated_flag
+    reason: |
+      Multi-source node. bronze.gl_period_balances is the primary
+      (fact-side mutations); silver.dim_account is lookup (re-read fresh each
+      cycle). Dimension-only changes propagate on the next fact-side rerun.
+
+# Declared inputs (AIDPF-2084): every upstream column gl_balance.sql reads,
+# alias-qualified in the SQL (b.<col> from gl_period_balances, da.<col> from
+# dim_account).
+requiredColumns:
+  gl_period_balances:
+    - BalanceLedgerId
+    - BalanceCodeCombinationId
+    - BalancePeriodYear
+    - BalancePeriodNum
+    - BalancePeriodName
+    - BalanceCurrencyCode
+    - BalanceActualFlag
+    - BalanceTranslatedFlag
+    - BalancePeriodNetCr
+    - BalancePeriodNetDr
+    - BalanceBeginBalanceCr
+    - BalanceBeginBalanceDr
+    - _extract_ts
+  dim_account:
+    - account_id
+    - code_combination
+    - account_type
+    - company
+    - cost_center
+    - account
+    - subaccount
+    - product
+    - intercompany
+
+# Output schema matches v1 build_gl_balance_sql with DEFAULT_COA_SEGMENT_MAP
+# (transforms/gold/gl_balance.py:225-271) — 24 columns including the
+# six semantic COA aliases sourced via LEFT JOIN dim_account.
+outputSchema:
+  columns:
+    - name: ledger_id
+      type: bigint
+      nullable: false
+      pii: none
+    - name: account_id
+      type: bigint
+      nullable: false
+      pii: none
+    - name: code_combination
+      type: string
+      nullable: true
+      pii: none
+    - name: account_type
+      type: string
+      nullable: true
+      pii: none
+    - name: company
+      type: string
+      nullable: true
+      pii: none
+    - name: cost_center
+      type: string
+      nullable: true
+      pii: none
+    - name: natural_account
+      type: string
+      nullable: true
+      pii: none
+    - name: subaccount
+      type: string
+      nullable: true
+      pii: none
+    - name: product
+      type: string
+      nullable: true
+      pii: none
+    - name: intercompany
+      type: string
+      nullable: true
+      pii: none
+    - name: period_year
+      type: bigint
+      nullable: false
+      pii: none
+    - name: period_num
+      type: bigint
+      nullable: false
+      pii: none
+    - name: period_name
+      type: string
+      nullable: true
+      pii: none
+    - name: currency_code
+      type: string
+      nullable: false
+      pii: none
+    - name: actual_flag
+      type: string
+      nullable: false
+      pii: none
+    - name: translated_flag
+      type: string
+      nullable: false
+      pii: none
+    - name: begin_balance_dr
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: begin_balance_cr
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: period_net_dr
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: period_net_cr
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: closing_balance
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: gold_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: gold_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: not_null
+      columns: [ledger_id, account_id, period_year, period_num]
+    - type: accepted_values
+      column: actual_flag
+      values: ["A", "B", "E"]

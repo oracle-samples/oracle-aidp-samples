@@ -1,0 +1,11 @@
+{
+  "export": "m_txn_classify_split_merge.xml",
+  "notes": [
+    "Split-transform-merge: RTR_TXN_TYPE (groups PAYMENT: TXN_TYPE = 'PAY', REFUND: TXN_TYPE = 'REF', LARGE: AMT >= 1000, plus DEFAULT1) -> one Expression per group (EXP_PAYMENT / EXP_REFUND / EXP_LARGE / EXP_OTHER) -> UN_TXN (Union = Custom Transformation, TEMPLATENAME 'Union Transformation', four input groups) -> one target.",
+    "Router semantics: a row goes to EVERY group whose condition is TRUE, so a large payment/refund (3, 6) lands in its type group AND in LARGE and appears twice in the target; DEFAULT gets a row only when no group condition is TRUE.",
+    "A NULL condition is not TRUE: TXN 5 (NULL type, 20) and TXN 7 ('XFR', NULL amount -> AMT >= 1000 is NULL) go to DEFAULT only; TXN 8 ('PAY', NULL amount) is PAYMENT only with a NULL SIGNED_AMT.",
+    "Union is UNION ALL: no de-duplication; rows are matched to the output ports by the connectors (the branch ports are named SIGNED_AMT / NEG_AMT / NET_AMT / ZERO_AMT and each lands in the group's SIGNED_AMTn port -> output SIGNED_AMT).",
+    "Branch expressions: PAYMENT keeps AMT; REFUND -1 * AMT; LARGE ROUND(AMT * 0.99, 2) (1500 -> 1485.00, 2000 -> 1980.00); DEFAULT 'OTHER:' || TXN_TYPE, or 'UNKNOWN' for a NULL type, with amount 0.",
+    "Target has no key (the same TXN_ID can appear twice); session is Insert-only."
+  ]
+}

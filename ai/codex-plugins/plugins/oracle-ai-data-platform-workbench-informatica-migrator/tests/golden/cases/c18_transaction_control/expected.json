@@ -1,0 +1,41 @@
+{
+  "TGT_ORDER_LINES": {
+    "rows": [
+      {
+        "ORDER_BATCH": 10,
+        "LINE_SEQ": 1,
+        "AMT": 100.0
+      },
+      {
+        "ORDER_BATCH": 10,
+        "LINE_SEQ": 2,
+        "AMT": 50.0
+      },
+      {
+        "ORDER_BATCH": 10,
+        "LINE_SEQ": 3,
+        "AMT": 25.5
+      },
+      {
+        "ORDER_BATCH": 30,
+        "LINE_SEQ": 1,
+        "AMT": 5.0
+      },
+      {
+        "ORDER_BATCH": 30,
+        "LINE_SEQ": 2,
+        "AMT": 7.25
+      },
+      {
+        "ORDER_BATCH": 40,
+        "LINE_SEQ": 3,
+        "AMT": 3.0
+      },
+      {
+        "ORDER_BATCH": 50,
+        "LINE_SEQ": 1,
+        "AMT": 9.99
+      }
+    ]
+  }
+}

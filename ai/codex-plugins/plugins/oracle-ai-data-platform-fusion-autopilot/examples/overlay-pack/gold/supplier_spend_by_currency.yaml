@@ -1,0 +1,66 @@
+id: supplier_spend_by_currency
+layer: gold
+implementation:
+  type: sql
+  sql: gold/supplier_spend_by_currency.sql
+target: supplier_spend_by_currency
+
+dependsOn:
+  bronze:
+    - id: ap_invoices
+      role: primary
+      watermark:
+        column: _extract_ts
+  silver:
+    - id: dim_supplier
+      role: lookup
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: replace
+    reason: |
+      Aggregate grain is currency_code. Replace is correctness-preserving until
+      aggregate_merge is available for partial aggregate refresh.
+
+outputSchema:
+  columns:
+    - name: currency_code
+      type: string
+      nullable: false
+      pii: none
+    - name: supplier_count
+      type: bigint
+      nullable: false
+      pii: none
+    - name: invoice_count
+      type: bigint
+      nullable: false
+      pii: none
+    - name: total_invoice_amount
+      type: decimal(20,2)
+      nullable: true
+      pii: none
+    - name: total_paid
+      type: decimal(20,2)
+      nullable: true
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: true
+      pii: none
+    - name: gold_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: gold_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: row_count_min
+      min: 1
+      whenSourceNonEmpty: bronze.ap_invoices

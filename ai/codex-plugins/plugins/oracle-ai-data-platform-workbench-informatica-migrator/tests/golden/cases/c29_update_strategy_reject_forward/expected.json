@@ -1,0 +1,31 @@
+{
+  "TGT_ACCOUNT": {
+    "rows": [
+      {
+        "ACCT_ID": 100,
+        "BAL": 60.0,
+        "STATUS": "ACTIVE"
+      },
+      {
+        "ACCT_ID": 200,
+        "BAL": 75.0,
+        "STATUS": "OPEN"
+      },
+      {
+        "ACCT_ID": 400,
+        "BAL": 5.0,
+        "STATUS": "OPEN"
+      },
+      {
+        "ACCT_ID": 500,
+        "BAL": 0.0,
+        "STATUS": "OPEN"
+      },
+      {
+        "ACCT_ID": 600,
+        "BAL": 20.0,
+        "STATUS": "OPEN"
+      }
+    ]
+  }
+}

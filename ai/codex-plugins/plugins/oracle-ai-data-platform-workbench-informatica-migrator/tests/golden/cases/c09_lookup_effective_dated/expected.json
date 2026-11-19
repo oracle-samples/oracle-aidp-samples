@@ -1,0 +1,62 @@
+{
+  "TGT_SALES_PRICED": {
+    "rows": [
+      {
+        "SALE_ID": 1,
+        "PRODUCT_ID": 10,
+        "SALE_DATE": "2026-02-15T00:00:00",
+        "QTY": 2,
+        "UNIT_PRICE": 5.0,
+        "EXT_AMOUNT": 10.0
+      },
+      {
+        "SALE_ID": 2,
+        "PRODUCT_ID": 10,
+        "SALE_DATE": "2026-04-01T00:00:00",
+        "QTY": 3,
+        "UNIT_PRICE": 5.5,
+        "EXT_AMOUNT": 16.5
+      },
+      {
+        "SALE_ID": 3,
+        "PRODUCT_ID": 10,
+        "SALE_DATE": "2026-03-31T00:00:00",
+        "QTY": 1,
+        "UNIT_PRICE": 5.0,
+        "EXT_AMOUNT": 5.0
+      },
+      {
+        "SALE_ID": 4,
+        "PRODUCT_ID": 20,
+        "SALE_DATE": "2026-07-01T00:00:00",
+        "QTY": 4,
+        "UNIT_PRICE": 11.0,
+        "EXT_AMOUNT": 44.0
+      },
+      {
+        "SALE_ID": 5,
+        "PRODUCT_ID": 30,
+        "SALE_DATE": "2026-04-15T00:00:00",
+        "QTY": 1,
+        "UNIT_PRICE": null,
+        "EXT_AMOUNT": null
+      },
+      {
+        "SALE_ID": 6,
+        "PRODUCT_ID": 99,
+        "SALE_DATE": "2026-04-15T00:00:00",
+        "QTY": 2,
+        "UNIT_PRICE": null,
+        "EXT_AMOUNT": null
+      },
+      {
+        "SALE_ID": 7,
+        "PRODUCT_ID": 20,
+        "SALE_DATE": "2026-06-30T00:00:00",
+        "QTY": 5,
+        "UNIT_PRICE": 12.0,
+        "EXT_AMOUNT": 60.0
+      }
+    ]
+  }
+}

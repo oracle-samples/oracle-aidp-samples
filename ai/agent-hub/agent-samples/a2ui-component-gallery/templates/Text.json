@@ -1,0 +1,383 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4",
+            "tpl_variant_wrapper_v5",
+            "tpl_variant_wrapper_v6",
+            "tpl_variant_wrapper_v7",
+            "tpl_variant_wrapper_v8",
+            "tpl_variant_wrapper_v9",
+            "tpl_variant_wrapper_v10",
+            "tpl_variant_wrapper_v11",
+            "tpl_variant_wrapper_v12",
+            "tpl_variant_wrapper_v13",
+            "tpl_variant_wrapper_v14",
+            "tpl_variant_wrapper_v15",
+            "tpl_variant_wrapper_v16"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Text literal (no usageHint)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewText_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v1",
+          "component": "Text",
+          "text": "Template text_literal_no_usage"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Text literal (h1)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewText_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v2",
+          "component": "Text",
+          "text": "Template text_literal_h1",
+          "variant": "h1"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Text literal (h2)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewText_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v3",
+          "component": "Text",
+          "text": "Template text_literal_h2",
+          "variant": "h2"
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "Text literal (h3)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_previewText_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v4",
+          "component": "Text",
+          "text": "Template text_literal_h3",
+          "variant": "h3"
+        },
+        {
+          "id": "tpl_variant_header_v5",
+          "component": "Text",
+          "text": "Text literal (h4)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v5",
+            "tpl_previewText_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v5",
+          "component": "Text",
+          "text": "Template text_literal_h4",
+          "variant": "h4"
+        },
+        {
+          "id": "tpl_variant_header_v6",
+          "component": "Text",
+          "text": "Text literal (h5)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v6",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v6",
+            "tpl_previewText_v6"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v6",
+          "component": "Text",
+          "text": "Template text_literal_h5",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_variant_header_v7",
+          "component": "Text",
+          "text": "Text literal (caption)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v7",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v7",
+            "tpl_previewText_v7"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v7",
+          "component": "Text",
+          "text": "Template text_literal_caption",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_header_v8",
+          "component": "Text",
+          "text": "Text literal (body)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v8",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v8",
+            "tpl_previewText_v8"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v8",
+          "component": "Text",
+          "text": "Template text_literal_body",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_variant_header_v9",
+          "component": "Text",
+          "text": "Text path (no usageHint)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v9",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v9",
+            "tpl_previewText_v9"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v9",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v10",
+          "component": "Text",
+          "text": "Text path (h1)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v10",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v10",
+            "tpl_previewText_v10"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v10",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "h1"
+        },
+        {
+          "id": "tpl_variant_header_v11",
+          "component": "Text",
+          "text": "Text path (h2)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v11",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v11",
+            "tpl_previewText_v11"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v11",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "h2"
+        },
+        {
+          "id": "tpl_variant_header_v12",
+          "component": "Text",
+          "text": "Text path (h3)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v12",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v12",
+            "tpl_previewText_v12"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v12",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "h3"
+        },
+        {
+          "id": "tpl_variant_header_v13",
+          "component": "Text",
+          "text": "Text path (h4)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v13",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v13",
+            "tpl_previewText_v13"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v13",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "h4"
+        },
+        {
+          "id": "tpl_variant_header_v14",
+          "component": "Text",
+          "text": "Text path (h5)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v14",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v14",
+            "tpl_previewText_v14"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v14",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_variant_header_v15",
+          "component": "Text",
+          "text": "Text path (caption)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v15",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v15",
+            "tpl_previewText_v15"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v15",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_header_v16",
+          "component": "Text",
+          "text": "Text path (body)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v16",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v16",
+            "tpl_previewText_v16"
+          ]
+        },
+        {
+          "id": "tpl_previewText_v16",
+          "component": "Text",
+          "text": {
+            "path": "/demo/text/value"
+          },
+          "variant": "body"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "value": "Template text from data model path"
+      },
+      "path": "/demo/text"
+    }
+  }
+]

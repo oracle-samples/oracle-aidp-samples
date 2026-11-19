@@ -1,0 +1,4 @@
+oracledb
+oci
+pyyaml
+cryptography

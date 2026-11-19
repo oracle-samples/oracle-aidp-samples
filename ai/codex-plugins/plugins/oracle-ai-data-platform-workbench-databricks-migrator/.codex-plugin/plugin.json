@@ -1,0 +1,69 @@
+{
+  "name": "oracle-ai-data-platform-workbench-databricks-migrator",
+  "version": "0.2.0",
+  "description": "Drive the Oracle AI Data Platform (AIDP) Databricks Migration Toolkit in natural language. Self-contained for Codex: the OpenAI-based Python migration engine ships bundled under engine/ and is staged by the SessionStart hook to ~/.aidp-migrator/engine. Teaches Codex how to plan and execute an automated end-to-end migration of Databricks (Unity Catalog / HMS) notebooks, jobs, schedules, and catalog DDL onto AIDP - Pass-1 dependency resolution plus Pass-2 cell-by-cell execute/verify/fix on a live AIDP cluster using an OpenAI model with tool use. Covers job_migrate.py orchestration, catalog migration, workflow DAG manifest building, fixup_cell rewind, pre-migration data-availability checks, write-redirect sandbox schema, and the acceptance-contract pattern for batch/streaming convergence.",
+  "author": {
+    "name": "Oracle"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "databricks",
+    "migration",
+    "spark",
+    "spark-sql",
+    "delta",
+    "unity-catalog",
+    "hive-metastore",
+    "notebooks",
+    "jobs",
+    "workflow",
+    "dag",
+    "catalog",
+    "ddl",
+    "rewriter",
+    "agentic",
+    "automated-migration",
+    "cell-by-cell",
+    "verify-and-fix",
+    "fixup-cell",
+    "redirect-schema",
+    "data-safety",
+    "acceptance-contract",
+    "streaming-convergence",
+    "fuse",
+    "volumes",
+    "oci",
+    "lakehouse",
+    "rest-api",
+    "openai",
+    "bundled-engine",
+    "self-contained"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Oracle AIDP Migrator for Databricks",
+    "shortDescription": "Self-contained Databricks to Oracle AIDP migrations from Codex.",
+    "longDescription": "Plan and execute automated Databricks to Oracle AIDP migrations from Codex. The plugin bundles the OpenAI-based Python engine and stages it to ~/.aidp-migrator/engine on SessionStart, so no separate migrator clone is required. Pass-1 rewrites Databricks APIs in dependency notebooks; Pass-2 executes each task cell-by-cell on a live AIDP cluster with 4-way verify (exception / stderr / Spark logs / model eval) and up to 10 fix attempts per cell. Handles Unity Catalog / HMS DDL via deterministic rewrite rules, workflow DAG manifest building, write-redirect sandbox schema for data safety, resume-from-cache, and acceptance contracts for streaming or batch convergence.",
+    "developerName": "Oracle",
+    "category": "Engineering",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://www.oracle.com/data-platform/",
+    "privacyPolicyURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/codex-plugins/plugins/oracle-ai-data-platform-workbench-databricks-migrator/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/LICENSE.txt",
+    "defaultPrompt": [
+      "Use aidp-migrator-overview to pick the right skill for migrating a Databricks job, Unity Catalog DDL, a data check, or a prior run resume.",
+      "Use aidp-migrator-bootstrap on first-time setup to confirm ~/.aidp-migrator/engine, Python deps, ~/.oci/config, an ACTIVE AIDP cluster, OPENAI_API_KEY, and the env-coords scaffold.",
+      "Use migrate-job-flow for the full guided end-to-end migration with checkpoints between phases."
+    ],
+    "brandColor": "#C74634",
+    "screenshots": []
+  }
+}

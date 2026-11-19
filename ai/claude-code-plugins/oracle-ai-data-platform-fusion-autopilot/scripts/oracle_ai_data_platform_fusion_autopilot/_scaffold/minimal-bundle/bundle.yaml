@@ -1,0 +1,50 @@
+apiVersion: aidp-fusion-autopilot/v1
+version: "0.2.0"
+project: my-fusion-lake
+
+contentPack:
+  name: fusion-finance-starter
+  profile: finance-default
+
+variables:
+  team: finance-analytics
+
+fusion:
+  serviceUrl: ${FUSION_BICC_BASE_URL}
+  username: ${FUSION_BICC_USER}
+  password: ${env:FUSION_BICC_PASSWORD}
+  externalStorage: ${FUSION_BICC_EXTERNAL_STORAGE}
+
+aidp:
+  catalog: fusion_catalog
+  bronzeSchema: bronze
+  silverSchema: silver
+  goldSchema: gold
+  storageFormat: delta
+
+# Minimal chain for the shipped supplier_spend gold mart:
+#   bronze.ap_invoices + bronze.erp_suppliers -> silver.dim_supplier -> gold.supplier_spend
+datasets:
+  - id: ap_invoices
+    mode: incremental
+  - id: erp_suppliers
+    mode: full
+
+dimensions:
+  build:
+    - dim_supplier
+
+gold:
+  marts:
+    - supplier_spend
+
+oac:
+  enabled: true
+  url: ${OAC_URL}
+  dataSourceName: aidp_fusion_jdbc
+
+incremental:
+  watermarkSafetyWindowSeconds: 3600
+
+notifications:
+  onFailure: []

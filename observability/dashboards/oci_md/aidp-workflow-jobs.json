@@ -6,7 +6,7 @@
     "dashboardId": "aidp-jobs",
     "compartmentId": "__COMPARTMENT_OCID__",
     "displayName": "OCI AIDP \u2014 Workflow Jobs",
-    "description": "Workflow job & workspace run durations for the AI Data Platform. Pick an AIDP Instance + Job to isolate. JobRunDuration is dimensioned by job; WorkspaceRunDuration records the same run duration at the workspace/instance scope. Duration is ms.",
+    "description": "Workflow job run durations and status for the AI Data Platform. Pick an AIDP Instance + Job to isolate. Charts use JobRunDuration (dimensioned by job; ms) \u2014 Run Duration, Duration by Status, and Run count by Status. WorkspaceRunDuration records the same value at workspace/instance scope and is not charted here, to avoid duplication.",
     "isOobDashboard": false,
     "isShowInHome": false,
     "isFavorite": false,

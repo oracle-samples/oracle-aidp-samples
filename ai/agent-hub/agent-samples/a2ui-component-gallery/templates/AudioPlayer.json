@@ -1,0 +1,156 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4",
+            "tpl_variant_wrapper_v5"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "AudioPlayer literal url only",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewAudioPlayer_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewAudioPlayer_v1",
+          "component": "AudioPlayer",
+          "url": "https://www.w3schools.com/html/horse.mp3"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "AudioPlayer literal url and literal description",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewAudioPlayer_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewAudioPlayer_v2",
+          "component": "AudioPlayer",
+          "url": "https://samplelib.com/lib/preview/mp3/sample-3s.mp3",
+          "description": "Literal metadata sample clip"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "AudioPlayer path url and path description",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewAudioPlayer_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewAudioPlayer_v3",
+          "component": "AudioPlayer",
+          "url": {
+            "path": "/demo/audio/primaryUrl"
+          },
+          "description": {
+            "path": "/demo/audio/primaryDescription"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "AudioPlayer literal url with path description",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_previewAudioPlayer_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewAudioPlayer_v4",
+          "component": "AudioPlayer",
+          "url": "https://samplelib.com/lib/preview/mp3/sample-6s.mp3",
+          "description": {
+            "path": "/demo/audio/pathDescription"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v5",
+          "component": "Text",
+          "text": "AudioPlayer in card with fully path backed binding",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v5",
+            "tpl_audioCard_v5"
+          ]
+        },
+        {
+          "id": "tpl_audioCard_v5",
+          "component": "Card",
+          "child": "tpl_previewAudioPlayer_v5"
+        },
+        {
+          "id": "tpl_previewAudioPlayer_v5",
+          "component": "AudioPlayer",
+          "url": {
+            "path": "/demo/audio/secondaryUrl"
+          },
+          "description": {
+            "path": "/demo/audio/secondaryDescription"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "primaryUrl": "https://samplelib.com/lib/preview/mp3/sample-3s.mp3",
+        "primaryDescription": "Path backed short audio sample",
+        "pathDescription": "Description loaded from data model",
+        "secondaryUrl": "https://www.w3schools.com/html/horse.mp3",
+        "secondaryDescription": "Card embedded path backed audio player"
+      },
+      "path": "/demo/audio"
+    }
+  }
+]

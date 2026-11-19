@@ -169,7 +169,12 @@ def refresh_on_executors(
 
 def _write_world_readable(path: Path, data: bytes) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    fd = os.open(str(path), flags, 0o666)
+    # Default 0o666 is what the FUSE-mounted notebook needs when the JDBC
+    # driver runs as a different UID; it also makes a private key or wallet
+    # readable by every process on the host. AIDP_CRED_FILE_MODE (octal,
+    # e.g. 600) narrows it wherever the driver runs as the notebook's user.
+    mode = int(os.environ.get("AIDP_CRED_FILE_MODE", "666"), 8)
+    fd = os.open(str(path), flags, mode)
     try:
         os.write(fd, data)
     finally:

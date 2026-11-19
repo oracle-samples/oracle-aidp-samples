@@ -1,0 +1,12 @@
+dist/
+vendor/
+node_modules/
+qa-live-result.json
+qa-runs/
+
+# Filled-in local credentials. README's setup does
+# `cp examples/aidp.env.sample ./aidp.env` — that file holds a real AIDP
+# instance OCID + workspace/cluster keys and must never be committed. The
+# committed placeholder template is examples/aidp.env.sample.
+aidp.env
+*.aidp.env

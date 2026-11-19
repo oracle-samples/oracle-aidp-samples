@@ -34,7 +34,7 @@ prompt APPLICATION 116 - APEX Chat Plugin
 --   Application:     116
 --   Name:            APEX Chat Plugin
 --   Date and Time:   18:18 Friday March 20, 2026
---   Exported By:     DAN.MCGHAN@ORACLE.COM
+--   Exported By:     APEX_CHAT_PLUGIN
 --   Flashback:       0
 --   Export Type:     Component Export
 --   Manifest

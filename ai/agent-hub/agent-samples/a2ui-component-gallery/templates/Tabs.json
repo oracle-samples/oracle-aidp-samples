@@ -1,0 +1,171 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Tabs literal titles with two panels",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewTabs_v1"
+          ]
+        },
+        {
+          "id": "tpl_tabsOverviewText_v1",
+          "component": "Text",
+          "text": "Overview tab content",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_tabsDetailsText_v1",
+          "component": "Text",
+          "text": "Details tab content",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewTabs_v1",
+          "component": "Tabs",
+          "tabs": [
+            {
+              "title": "Overview",
+              "child": "tpl_tabsOverviewText_v1"
+            },
+            {
+              "title": "Details",
+              "child": "tpl_tabsDetailsText_v1"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Tabs path-backed titles",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewTabs_v2"
+          ]
+        },
+        {
+          "id": "tpl_tabsPathOverviewText_v2",
+          "component": "Text",
+          "text": "First tab body from path title",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_tabsPathDetailsText_v2",
+          "component": "Text",
+          "text": "Second tab body from path title",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewTabs_v2",
+          "component": "Tabs",
+          "tabs": [
+            {
+              "title": {
+                "path": "/demo/tabs/titleOne"
+              },
+              "child": "tpl_tabsPathOverviewText_v2"
+            },
+            {
+              "title": {
+                "path": "/demo/tabs/titleTwo"
+              },
+              "child": "tpl_tabsPathDetailsText_v2"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Tabs literal titles with three panels",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewTabs_v3"
+          ]
+        },
+        {
+          "id": "tpl_tabsOneText_v3",
+          "component": "Text",
+          "text": "Summary content",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_tabsTwoText_v3",
+          "component": "Text",
+          "text": "Usage content",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_tabsThreeText_v3",
+          "component": "Text",
+          "text": "Advanced content",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewTabs_v3",
+          "component": "Tabs",
+          "tabs": [
+            {
+              "title": "Summary",
+              "child": "tpl_tabsOneText_v3"
+            },
+            {
+              "title": "Usage",
+              "child": "tpl_tabsTwoText_v3"
+            },
+            {
+              "title": "Advanced",
+              "child": "tpl_tabsThreeText_v3"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "titleOne": "Overview",
+        "titleTwo": "Details"
+      },
+      "path": "/demo/tabs"
+    }
+  }
+]

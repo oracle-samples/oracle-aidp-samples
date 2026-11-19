@@ -1,4 +1,5 @@
 ---
+name: aidp-siebel
 description: Read from Oracle Siebel CRM into a Spark DataFrame in an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions Siebel, Siebel CRM, S_CONTACT, S_ORG_EXT, or has a Siebel host/port. Auth is host/port + database name + user/password. Read-only.
 allowed-tools: Read, Write, Edit, Bash
 ---

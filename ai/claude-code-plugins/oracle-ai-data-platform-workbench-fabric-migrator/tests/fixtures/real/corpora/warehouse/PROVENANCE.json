@@ -1,0 +1,79 @@
+{
+ "description": "Real Fabric warehouse exports collected from public GitHub repositories. Only files whose source repository carries a permissive licence are vendored here; see licence per file.",
+ "count": 9,
+ "files": [
+  {
+   "file": "002.sql",
+   "repo": "alisonpezzott/pyfabricops-examples",
+   "path": "src/_pyfabricops_synced/workspace/Storage/WareSecondary.Warehouse/dbo/Tables/CurrentDate.sql",
+   "url": "https://github.com/alisonpezzott/pyfabricops-examples/blob/15c33093d94ccb57e101c1f9d9f51decce6aad24/src/_pyfabricops_synced/workspace/Storage/WareSecondary.Warehouse/dbo/Tables/CurrentDate.sql",
+   "licence": "MIT",
+   "sha": "15c33093d94ccb57e101c1f9d9f51decce6aad24"
+  },
+  {
+   "file": "003.sql",
+   "repo": "alisonpezzott/pyfabricops-examples",
+   "path": "src/fabric/Storage/WareSecondary.Warehouse/dbo/Tables/CurrentDate.sql",
+   "url": "https://github.com/alisonpezzott/pyfabricops-examples/blob/15c33093d94ccb57e101c1f9d9f51decce6aad24/src/fabric/Storage/WareSecondary.Warehouse/dbo/Tables/CurrentDate.sql",
+   "licence": "MIT",
+   "sha": "15c33093d94ccb57e101c1f9d9f51decce6aad24"
+  },
+  {
+   "file": "039.sql",
+   "repo": "misantibanez/fabric_cicd",
+   "path": "wh_fabric_cicd.Warehouse/dbo/Tables/squirrel_data.sql",
+   "url": "https://github.com/misantibanez/fabric_cicd/blob/09ec7cb0b06478f2f48175b8dda7fedb1fc6596c/wh_fabric_cicd.Warehouse/dbo/Tables/squirrel_data.sql",
+   "licence": "MIT",
+   "sha": "09ec7cb0b06478f2f48175b8dda7fedb1fc6596c"
+  },
+  {
+   "file": "040.sql",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/WorldWideImporters.Warehouse/dbo/Tables/DimCustomer.sql",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/WorldWideImporters.Warehouse/dbo/Tables/DimCustomer.sql",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "041.sql",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/WorldWideImporters.Warehouse/dbo/Tables/dimension_city.sql",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/WorldWideImporters.Warehouse/dbo/Tables/dimension_city.sql",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "042.sql",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/WorldWideImporters.Warehouse/dbo/Tables/dimension_customer.sql",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/WorldWideImporters.Warehouse/dbo/Tables/dimension_customer.sql",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "043.sql",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/WorldWideImporters.Warehouse/dbo/Tables/fact_sale.sql",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/WorldWideImporters.Warehouse/dbo/Tables/fact_sale.sql",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "044.sql",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/health_warehouse.Warehouse/dbo/Tables/employee.sql",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/health_warehouse.Warehouse/dbo/Tables/employee.sql",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  },
+  {
+   "file": "045.sql",
+   "repo": "ryanMicrosoftTest/fabric-data-engineering-ws",
+   "path": "fabric_items/on-prem-to-data-warehouse/on-prem-warehouse-test-wh.Warehouse/dbo/Tables/synthetic_orders.sql",
+   "url": "https://github.com/ryanMicrosoftTest/fabric-data-engineering-ws/blob/f79a1e93fb8a96ce52ae5dfb23eecc5799e47414/fabric_items/on-prem-to-data-warehouse/on-prem-warehouse-test-wh.Warehouse/dbo/Tables/synthetic_orders.sql",
+   "licence": "MIT",
+   "sha": "f79a1e93fb8a96ce52ae5dfb23eecc5799e47414"
+  }
+ ],
+ "verified_against": "each repository's HEAD at the time of the run"
+}

@@ -1,0 +1,2 @@
+# Only needed to regenerate diagram assets; not required by the AIDP notebooks.
+Pillow>=10.0.0,<13.0.0

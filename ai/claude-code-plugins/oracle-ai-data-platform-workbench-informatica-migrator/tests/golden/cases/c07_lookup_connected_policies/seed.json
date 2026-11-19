@@ -1,0 +1,144 @@
+{
+  "SALES": {
+    "schema": "SALE_ID decimal(10,0), CUST_ID decimal(10,0), COUNTRY_CODE string, STATE_CODE string, AMOUNT decimal(10,2)",
+    "rows": [
+      [
+        1,
+        1,
+        "US",
+        "CA",
+        100.0
+      ],
+      [
+        2,
+        2,
+        "US",
+        "NY",
+        50.0
+      ],
+      [
+        3,
+        3,
+        "CA",
+        "ON",
+        75.0
+      ],
+      [
+        4,
+        9,
+        "US",
+        "TX",
+        20.0
+      ],
+      [
+        5,
+        null,
+        "CA",
+        "QC",
+        10.0
+      ],
+      [
+        6,
+        1,
+        "US",
+        null,
+        30.0
+      ],
+      [
+        7,
+        2,
+        "MX",
+        "CA",
+        40.0
+      ]
+    ]
+  },
+  "CUST_SEGMENT": {
+    "schema": "CUST_ID decimal(10,0), SEGMENT string",
+    "rows": [
+      [
+        1,
+        "SILVER"
+      ],
+      [
+        2,
+        "BRONZE"
+      ],
+      [
+        3,
+        "PLATINUM"
+      ],
+      [
+        1,
+        "GOLD"
+      ],
+      [
+        3,
+        "BRONZE"
+      ],
+      [
+        3,
+        "GOLD"
+      ]
+    ]
+  },
+  "REGION_DIM": {
+    "schema": "COUNTRY_CODE string, STATE_CODE string, REGION_NAME string",
+    "rows": [
+      [
+        "US",
+        "CA",
+        "WEST"
+      ],
+      [
+        "US",
+        "NY",
+        "EAST"
+      ],
+      [
+        "CA",
+        "ON",
+        "CENTRAL"
+      ],
+      [
+        "CA",
+        "QC",
+        "EAST_CA"
+      ],
+      [
+        "MX",
+        "CA",
+        "MX_NORTE"
+      ]
+    ]
+  },
+  "ACCOUNTS": {
+    "schema": "ACCT_ID decimal(10,0), CUST_ID decimal(10,0), ACCT_MGR string, STATUS string",
+    "rows": [
+      [
+        100,
+        1,
+        "OLD_MGR",
+        "C"
+      ],
+      [
+        101,
+        1,
+        "ANNA",
+        "A"
+      ],
+      [
+        102,
+        2,
+        "BRUNO",
+        "A"
+      ],
+      [
+        103,
+        3,
+        "CHEN",
+        "I"
+      ]
+    ]
+  }
+}

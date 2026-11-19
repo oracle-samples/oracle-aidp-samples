@@ -1,0 +1,8 @@
+{
+  "username": "ocid1.user.oc1..u",
+  "tenancy": "ocid1.tenancy.oc1..t",
+  "region": "us-ashburn-1",
+  "fingerprint": "fp",
+  "idl-ocid": "ocid1.aidataplatform.oc1.iad..d",
+  "dsn": "jdbc:spark://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/default;SparkServerType=AIDP;httpPath=cliservice/ck"
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "OAC Dataset Advisor"
+  short_description: "Plan OAC datasets from live AIDP gold"
+  default_prompt: "Use $oac-dataset-advisor to plan an OAC dataset from my live AIDP gold tables."

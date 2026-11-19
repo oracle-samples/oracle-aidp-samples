@@ -1,0 +1,113 @@
+bronze_extract_metadata:
+  ap_invoices:
+    dataset_id: ap_invoices
+    pvo_id: ap_invoices
+  ap_payments:
+    dataset_id: ap_payments
+    pvo_id: ap_payments
+  ar_invoices:
+    dataset_id: ar_invoices
+    pvo_id: ar_invoices
+  ar_receipts:
+    dataset_id: ar_receipts
+    pvo_id: ar_receipts
+  erp_suppliers:
+    dataset_id: erp_suppliers
+    pvo_id: erp_suppliers
+  gl_coa:
+    dataset_id: gl_coa
+    pvo_id: gl_coa
+  gl_journal_lines:
+    dataset_id: gl_journal_lines
+    pvo_id: gl_journal_lines
+  gl_period_balances:
+    dataset_id: gl_period_balances
+    pvo_id: gl_period_balances
+  po_orders:
+    dataset_id: po_orders
+    pvo_id: po_orders
+  po_receipts:
+    dataset_id: po_receipts
+    pvo_id: po_receipts
+  scm_items:
+    dataset_id: scm_items
+    pvo_id: scm_items
+deferred:
+  datasets:
+    ap_aging_periods: BACKLOG P1.10b — bronze for AgingPeriodHeader bucket configs;
+      gold ap_aging mart computed downstream from ap_invoices + ap_payments + bucket
+      configs
+    hcm_worker_assignments: BACKLOG P2.11 — saas-batch REST extractor (kind=SAAS_BATCH),
+      not BICC
+  dims:
+    dim_item: P1.6 — inventory item dim, no shipped consumer yet
+    dim_org: P1.7 — HCM org dim, blocked on customer HCM pod (P3.8)
+  marts:
+    ar_aging: P1.10 — accounts-receivable aging gold mart, not yet shipped
+    po_backlog: P1.11 — open POs by supplier × due date, not yet shipped
+gold_mart_metadata:
+  ap_aging:
+    dataset_id: ap_aging
+    depends_on_bronze:
+    - ap_invoices
+    depends_on_silver:
+    - dim_supplier
+    incremental_capable: false
+    natural_key:
+    - vendor_id
+    - currency_code
+    - supplier_number
+    - supplier_name
+    - business_relationship
+    - aging_bucket
+  gl_balance:
+    dataset_id: gl_balance
+    depends_on_bronze:
+    - gl_period_balances
+    depends_on_silver:
+    - dim_account
+    incremental_capable: true
+    natural_key:
+    - ledger_id
+    - account_id
+    - period_year
+    - period_num
+    - currency_code
+    - actual_flag
+    - translated_flag
+  supplier_spend:
+    dataset_id: supplier_spend
+    depends_on_bronze:
+    - ap_invoices
+    depends_on_silver:
+    - dim_supplier
+    incremental_capable: false
+    natural_key:
+    - vendor_id
+    - currency_code
+    - supplier_number
+    - supplier_name
+    - business_relationship
+    - approval_status
+provenance:
+  branch: P1.5ε-fix5
+  branch_head: 650d6909655fd30618f56edbbded6e4b81d6cc3b
+  file_blob: 02ec45a7fae7c1fa5b94a3940144727da69dcc13
+  note: Test fixture transcribed from v1 reference branch. See tests/fixtures/README.md.
+    Engine never imports this file.
+  source_path_on_v1: ./scripts/oracle_ai_data_platform_fusion_autopilot/schema/registry_metadata.py
+silver_dim_metadata:
+  dim_account:
+    dataset_id: dim_account
+    depends_on_bronze:
+    - gl_coa
+    natural_key: account_id
+  dim_calendar:
+    dataset_id: dim_calendar
+    depends_on_bronze: []
+    natural_key: ''
+  dim_supplier:
+    dataset_id: dim_supplier
+    depends_on_bronze:
+    - erp_suppliers
+    natural_key: supplier_number

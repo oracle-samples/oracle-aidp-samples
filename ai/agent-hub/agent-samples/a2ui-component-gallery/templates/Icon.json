@@ -1,0 +1,205 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Icon literal names in a row",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_iconRow_v1"
+          ]
+        },
+        {
+          "id": "tpl_icon_v1_1",
+          "component": "Icon",
+          "name": "home"
+        },
+        {
+          "id": "tpl_icon_v1_2",
+          "component": "Icon",
+          "name": "search"
+        },
+        {
+          "id": "tpl_icon_v1_3",
+          "component": "Icon",
+          "name": "settings"
+        },
+        {
+          "id": "tpl_icon_v1_4",
+          "component": "Icon",
+          "name": "notifications"
+        },
+        {
+          "id": "tpl_iconRow_v1",
+          "component": "Row",
+          "children": [
+            "tpl_icon_v1_1",
+            "tpl_icon_v1_2",
+            "tpl_icon_v1_3",
+            "tpl_icon_v1_4"
+          ],
+          "justify": "spaceBetween",
+          "align": "center"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Icon list with labels",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_iconList_v2"
+          ]
+        },
+        {
+          "id": "tpl_iconInfoRow_v2_1",
+          "component": "Row",
+          "children": [
+            "tpl_iconInfoIcon_v2_1",
+            "tpl_iconInfoText_v2_1"
+          ],
+          "justify": "start",
+          "align": "center"
+        },
+        {
+          "id": "tpl_iconInfoIcon_v2_1",
+          "component": "Icon",
+          "name": "info"
+        },
+        {
+          "id": "tpl_iconInfoText_v2_1",
+          "component": "Text",
+          "text": "Info",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_iconInfoRow_v2_2",
+          "component": "Row",
+          "children": [
+            "tpl_iconInfoIcon_v2_2",
+            "tpl_iconInfoText_v2_2"
+          ],
+          "justify": "start",
+          "align": "center"
+        },
+        {
+          "id": "tpl_iconInfoIcon_v2_2",
+          "component": "Icon",
+          "name": "warning"
+        },
+        {
+          "id": "tpl_iconInfoText_v2_2",
+          "component": "Text",
+          "text": "Warning",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_iconInfoRow_v2_3",
+          "component": "Row",
+          "children": [
+            "tpl_iconInfoIcon_v2_3",
+            "tpl_iconInfoText_v2_3"
+          ],
+          "justify": "start",
+          "align": "center"
+        },
+        {
+          "id": "tpl_iconInfoIcon_v2_3",
+          "component": "Icon",
+          "name": "favorite"
+        },
+        {
+          "id": "tpl_iconInfoText_v2_3",
+          "component": "Text",
+          "text": "Favorite",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_iconList_v2",
+          "component": "List",
+          "children": [
+            "tpl_iconInfoRow_v2_1",
+            "tpl_iconInfoRow_v2_2",
+            "tpl_iconInfoRow_v2_3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Icon name from data-model path",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_iconPathRow_v3"
+          ]
+        },
+        {
+          "id": "tpl_iconPath_v3",
+          "component": "Icon",
+          "name": {
+            "path": "/demo/icon/name"
+          }
+        },
+        {
+          "id": "tpl_iconPathLabel_v3",
+          "component": "Text",
+          "text": "Path-backed icon",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_iconPathRow_v3",
+          "component": "Row",
+          "children": [
+            "tpl_iconPath_v3",
+            "tpl_iconPathLabel_v3"
+          ],
+          "justify": "start",
+          "align": "center"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "name": "check"
+      },
+      "path": "/demo/icon"
+    }
+  }
+]

@@ -1,0 +1,248 @@
+{
+  "manifestVersion": 1,
+  "contractVersion": "v2",
+  "modes": [
+    "auto",
+    "off",
+    "strict"
+  ],
+  "defaults": {
+    "modeByGenerationStrategy": {
+      "compose_ootb": "auto",
+      "passthrough_bound": "auto"
+    },
+    "titlePolicy": "question_oriented",
+    "styleTokenSetId": "neutral_v2",
+    "layoutArchetypeByFilterMode": {
+      "filter_bar": "filter_bar",
+      "filter_viz": "filter_rail"
+    },
+    "fallbackLayoutArchetype": "content_grid"
+  },
+  "titlePolicies": [
+    "question_oriented",
+    "preserve_input"
+  ],
+  "neutralTheme": {
+    "tokenSetId": "neutral_v2",
+    "canvas": {
+      "backgroundColor": "#F8FAFC",
+      "titleColor": "#0F172A"
+    },
+    "panel": {
+      "backgroundColor": "#FFFFFF",
+      "borderColor": "#D0D7DE"
+    },
+    "text": {
+      "titleStyle": "question_oriented"
+    },
+    "filter": {
+      "preferredPresentation": "filter_bar"
+    },
+    "table": {
+      "preferredViewportHeightPx": 420
+    }
+  },
+  "layoutArchetypes": {
+    "executive_dashboard": {
+      "canvasWidthPx": 1200,
+      "viewportHeightPx": 780,
+      "topOffsetPx": 84,
+      "leftPaddingPx": 24,
+      "rightPaddingPx": 24,
+      "bottomPaddingPx": 24,
+      "gutterXPx": 24,
+      "gutterYPx": 24,
+      "maxColumns": 2,
+      "minCellHeightPx": 260,
+      "minCellWidthPx": 260,
+      "primaryDataRowWeight": 1.35
+    },
+    "filter_bar": {
+      "canvasWidthPx": 1200,
+      "viewportHeightPx": 780,
+      "topOffsetPx": 84,
+      "leftPaddingPx": 24,
+      "rightPaddingPx": 24,
+      "bottomPaddingPx": 24,
+      "gutterXPx": 24,
+      "gutterYPx": 24,
+      "maxColumns": 2,
+      "minCellHeightPx": 240,
+      "minCellWidthPx": 260,
+      "primaryDataRowWeight": 1.45
+    },
+    "filter_rail": {
+      "canvasWidthPx": 1200,
+      "viewportHeightPx": 780,
+      "topOffsetPx": 24,
+      "leftPaddingPx": 24,
+      "rightPaddingPx": 24,
+      "bottomPaddingPx": 24,
+      "gutterXPx": 20,
+      "gutterYPx": 20,
+      "maxColumns": 2,
+      "minCellHeightPx": 240,
+      "minCellWidthPx": 260,
+      "railWidthPx": 260,
+      "primaryDataRowWeight": 1.45
+    },
+    "content_grid": {
+      "canvasWidthPx": 1200,
+      "viewportHeightPx": 760,
+      "topOffsetPx": 24,
+      "leftPaddingPx": 24,
+      "rightPaddingPx": 24,
+      "bottomPaddingPx": 24,
+      "gutterXPx": 24,
+      "gutterYPx": 24,
+      "maxColumns": 2,
+      "minCellHeightPx": 220,
+      "minCellWidthPx": 240,
+      "primaryDataRowWeight": 1.35
+    },
+    "cover": {
+      "canvasWidthPx": 1200,
+      "viewportHeightPx": 740,
+      "topOffsetPx": 24,
+      "leftPaddingPx": 24,
+      "rightPaddingPx": 24,
+      "bottomPaddingPx": 24,
+      "gutterXPx": 24,
+      "gutterYPx": 24,
+      "maxColumns": 1,
+      "minCellHeightPx": 520,
+      "minCellWidthPx": 900,
+      "primaryDataRowWeight": 1.0
+    }
+  },
+  "layoutPolicies": {
+    "primaryDataFamilies": [
+      "table",
+      "pivot"
+    ],
+    "primaryDataMinHeightPx": 400,
+    "primaryDataRowWeight": 1.45,
+    "minCellWidthPx": 240,
+    "compactValueTableMaxHeightPx": 240,
+    "duplicateTitleVerticalGapMaxPx": 96,
+    "duplicateTitleMinHorizontalOverlapRatio": 0.45
+  },
+  "styleOverlaysByRuntimeFamily": {
+    "chart_autoviz": [
+      {
+        "path": "viewConfig.settings.viz:chart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": true,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ],
+    "chart_combo_multilayer": [
+      {
+        "path": "viewConfig.settings.viz:chart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": true,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ],
+    "table": [
+      {
+        "path": "viewConfig.settings.viz:chart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": false,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ],
+    "pivot": [
+      {
+        "path": "viewConfig.settings.viz:chart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": false,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ],
+    "map": [
+      {
+        "path": "viewConfig.settings.viz:chart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": true,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ],
+    "network_graph": [
+      {
+        "path": "viewConfig.settings.viz:networkchart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": true,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ],
+    "performance_tile": [
+      {
+        "path": "viewConfig.settings.viz:common",
+        "createPathIfMissing": false,
+        "overlay": {
+          "isAutoViewSuggestEnabled": "true"
+        }
+      },
+      {
+        "path": "viewConfig.settings.viz:chart",
+        "createPathIfMissing": false,
+        "overlay": {
+          "numberFormat": {
+            "useGrouping": true,
+            "useAbbreviation": true,
+            "negativeValuesStyle": "default"
+          }
+        }
+      }
+    ]
+  },
+  "uxLint": {
+    "warningRuleIDs": [
+      "UX_GUTTER_INCONSISTENT",
+      "UX_CANVAS_TITLE_MISSING",
+      "UX_PALETTE_RUNTIME_MIX"
+    ],
+    "severeRuleIDs": [
+      "UX_FILTER_RAIL_TOO_NARROW",
+      "UX_PRIMARY_TABLE_VIEWPORT_TOO_SMALL"
+    ],
+    "thresholds": {
+      "gutterTolerancePx": 6,
+      "minRailWidthPx": 220,
+      "minPrimaryTableHeightPx": 400,
+      "paletteFamilyWarningThreshold": 4
+    }
+  }
+}

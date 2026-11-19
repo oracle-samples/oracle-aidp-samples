@@ -1,0 +1,12 @@
+{
+  "export": "m_sales_cust_lookups.xml",
+  "notes": [
+    "Connected Lookup, no match (CUST_ID 9, US/TX): every returned port is NULL and the input row is kept.",
+    "A NULL input key (SALE 5 CUST_ID, SALE 6 STATE_CODE) matches nothing; the lookup tables hold no NULL keys, so this does not depend on how the IS compares NULLs.",
+    "Cached lookup multiple-match: the IS builds the cache with a generated ORDER BY over the lookup ports (CUST_ID, SEGMENT), so 'Use First Value' returns the lowest SEGMENT per key (1->GOLD, 3->BRONZE) and 'Use Last Value' the highest (1->SILVER, 3->PLATINUM) -- independent of the physical row order in CUST_SEGMENT, which is seeded out of sort order on purpose.",
+    "Two-column condition COUNTRY_CODE = IN_COUNTRY_CODE AND STATE_CODE = IN_STATE_CODE: MX/CA must not pick up US/CA (WEST).",
+    "Lookup Sql Override with WHERE STATUS = 'A': the lookup cache holds only active accounts, so CUST 1 gets ANNA (not the closed OLD_MGR row -- no multiple match, so 'Report Error' does not fire) and CUST 3 (inactive account only) gets NULL.",
+    "Report Error on REGION_DIM/ACCOUNTS never fires: after the override WHERE, no key has two rows.",
+    "Two lookups on the same table both expose a port named SEGMENT (a relational lookup's port names are the table's column names); the connectors rename them to SEG_FIRST / SEG_LAST at the target."
+  ]
+}

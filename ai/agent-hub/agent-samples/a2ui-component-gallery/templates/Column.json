@@ -1,0 +1,168 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Column start/start with text stack",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewColumn_v1"
+          ]
+        },
+        {
+          "id": "tpl_colText1_v1",
+          "component": "Text",
+          "text": "Morning checks",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_colText2_v1",
+          "component": "Text",
+          "text": "Deploy canary",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_colText3_v1",
+          "component": "Text",
+          "text": "Review metrics",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewColumn_v1",
+          "component": "Column",
+          "children": [
+            "tpl_colText1_v1",
+            "tpl_colText2_v1",
+            "tpl_colText3_v1"
+          ],
+          "justify": "start",
+          "align": "start"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Column spaceBetween/stretch with cards",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewColumn_v2"
+          ]
+        },
+        {
+          "id": "tpl_colCardText1_v2",
+          "component": "Text",
+          "text": "Queue depth",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_colCard1_v2",
+          "component": "Card",
+          "child": "tpl_colCardText1_v2"
+        },
+        {
+          "id": "tpl_colCardText2_v2",
+          "component": "Text",
+          "text": "Latency",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_colCard2_v2",
+          "component": "Card",
+          "child": "tpl_colCardText2_v2"
+        },
+        {
+          "id": "tpl_colCardText3_v2",
+          "component": "Text",
+          "text": "Error rate",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_colCard3_v2",
+          "component": "Card",
+          "child": "tpl_colCardText3_v2"
+        },
+        {
+          "id": "tpl_previewColumn_v2",
+          "component": "Column",
+          "children": [
+            "tpl_colCard1_v2",
+            "tpl_colCard2_v2",
+            "tpl_colCard3_v2"
+          ],
+          "justify": "spaceBetween",
+          "align": "stretch"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Column nested in a card (centered)",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewCard_v3"
+          ]
+        },
+        {
+          "id": "tpl_colCentered1_v3",
+          "component": "Text",
+          "text": "Center one",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_colCentered2_v3",
+          "component": "Text",
+          "text": "Center two",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewColumn_v3",
+          "component": "Column",
+          "children": [
+            "tpl_colCentered1_v3",
+            "tpl_colCentered2_v3"
+          ],
+          "justify": "center",
+          "align": "center"
+        },
+        {
+          "id": "tpl_previewCard_v3",
+          "component": "Card",
+          "child": "tpl_previewColumn_v3"
+        }
+      ]
+    }
+  }
+]

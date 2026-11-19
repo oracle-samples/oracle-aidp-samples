@@ -1,0 +1,98 @@
+id: dim_calendar
+layer: silver
+implementation:
+  type: builtin
+  callable: oracle_ai_data_platform_fusion_autopilot.dimensions.dim_calendar:build
+target: dim_calendar
+
+# Parameter-driven; no bronze source (ADR-0011). The orchestrator's
+# builtin runner consumes pack.profiles.<name>.calendar to materialise.
+dependsOn:
+  bronze: []
+  silver: []
+
+refresh:
+  seed:
+    strategy: replace
+  # No incremental block — dim_calendar is rebuilt every cycle.
+
+# outputSchema must match what dim_calendar.build_dim_calendar_sql actually
+# emits (dim_calendar.py:94-138); otherwise the materialized-schema
+# assertion in execute_node fails every run.
+outputSchema:
+  columns:
+    - name: calendar_key
+      type: bigint
+      nullable: false
+      pii: none
+    - name: calendar_date
+      type: date
+      nullable: false
+      pii: none
+    - name: year
+      type: int
+      nullable: false
+      pii: none
+    - name: quarter
+      type: int
+      nullable: false
+      pii: none
+    - name: month
+      type: int
+      nullable: false
+      pii: none
+    - name: month_name
+      type: string
+      nullable: false
+      pii: none
+    - name: day_of_month
+      type: int
+      nullable: false
+      pii: none
+    - name: day_of_week
+      type: int
+      nullable: false
+      pii: none
+    - name: day_name
+      type: string
+      nullable: false
+      pii: none
+    - name: week_of_year
+      type: int
+      nullable: false
+      pii: none
+    - name: is_weekend
+      type: boolean
+      nullable: false
+      pii: none
+    - name: fiscal_year
+      type: int
+      nullable: false
+      pii: none
+    - name: fiscal_period
+      type: int
+      nullable: false
+      pii: none
+    - name: fiscal_quarter
+      type: int
+      nullable: false
+      pii: none
+    - name: silver_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: silver_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: not_null
+      columns: [calendar_date]
+    - type: unique
+      columns: [calendar_date]
+    - type: not_null
+      columns: [calendar_key]
+    - type: unique
+      columns: [calendar_key]

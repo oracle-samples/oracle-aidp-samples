@@ -1,0 +1,10 @@
+{
+    "manifestVersion": 1,
+    "minimumSupportedVersion": "26.01",
+    "defaultTargetVersion": "26.07",
+    "installedVersions": [
+        "26.05",
+        "26.07",
+        "26.09"
+    ]
+}

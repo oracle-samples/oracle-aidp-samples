@@ -1,0 +1,43 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "name": "RunIngest",
+        "type": "TridentNotebook",
+        "typeProperties": {
+          "notebookName": "01_Ingest_Claims"
+        }
+      },
+      {
+        "name": "RunAggregates",
+        "type": "TridentNotebook",
+        "dependsOn": [
+          {
+            "activity": "RunIngest",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "notebookName": "02_Build_Aggregates"
+        }
+      },
+      {
+        "name": "RunReport",
+        "type": "TridentNotebook",
+        "dependsOn": [
+          {
+            "activity": "RunAggregates",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "notebookName": "03_Report_Claims"
+        }
+      }
+    ]
+  }
+}

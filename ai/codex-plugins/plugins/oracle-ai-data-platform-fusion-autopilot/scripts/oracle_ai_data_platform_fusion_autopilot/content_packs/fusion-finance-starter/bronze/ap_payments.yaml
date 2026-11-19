@@ -1,0 +1,41 @@
+id: ap_payments
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.FinExtractAM.ApBiccExtractAM.PaymentHistoryDistributionExtractPVO
+  pvo_id: FscmTopModelAM.FinExtractAM.ApBiccExtractAM.PaymentHistoryDistributionExtractPVO
+  biccSchema: Financial
+  schemaOverride: null
+  incrementalCapable: true
+  auditColumnsMode: bronze_v1
+target: ap_payments
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: ap_payments
+      column: ApPaymentHistDistsLastUpdateDate
+    naturalKey: [ApPaymentHistDistsInvoicePaymentId, ApPaymentHistDistsPaymentHistDistId]
+requiredColumns:
+  ap_payments:
+    - ApPaymentHistDistsInvoicePaymentId
+    - ApPaymentHistDistsPaymentHistDistId
+    - ApPaymentHistDistsAmount
+    - ApPaymentHistDistsLastUpdateDate
+outputSchema:
+  columns:
+    - { name: ApPaymentHistDistsInvoicePaymentId, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: ApPaymentHistDistsPaymentHistDistId, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: ApPaymentHistDistsAmount, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: ApPaymentHistDistsLastUpdateDate, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

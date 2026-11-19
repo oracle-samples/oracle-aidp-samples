@@ -1,0 +1,13 @@
+{
+  "export": "m_txn_running_total.xml",
+  "notes": [
+    "SQ_TXNS Number Of Sorted Ports = 2: ORDER BY CUST_ID, TXN_DATE (first two qualifier ports); the seed is shuffled. Order: 50; 100 x3 (01-01, 01-02, 01-03); 200; 300 x2.",
+    "EXP_RUNNING evaluates ports row by row: input ports, then variable ports top to bottom, then output ports. A variable port keeps its value from the previous row until it is re-evaluated.",
+    "v_PREV_CUST = v_CURR_CUST is declared ABOVE v_CURR_CUST = CUST_ID, so it reads v_CURR_CUST before this row updates it: the PREVIOUS row's CUST_ID (the standard previous-row idiom).",
+    "Variable ports start at their datatype's initial value -- 0 for numeric ports, not NULL -- so the first row's PREV_CUST is 0, and CUST_ID = v_PREV_CUST is FALSE on the first row.",
+    "v_RUNNING_TOTAL = IIF(CUST_ID = v_PREV_CUST, v_RUNNING_TOTAL + AMT, AMT) is self-referencing: v_RUNNING_TOTAL on the right is its value from the previous row. Customer 100: 10, 30, 35.",
+    "v_ROW_NUM = IIF(CUST_ID = v_PREV_CUST, v_ROW_NUM + 1, 1): row number within customer (100: 1, 2, 3).",
+    "Output ports read the CURRENT row's variable values: RUNNING_TOTAL, ROW_IN_CUST, PREV_CUST, IS_FIRST = IIF(v_ROW_NUM = 1, 'Y', 'N').",
+    "Variable ports use PORTTYPE=\"LOCAL VARIABLE\", the spelling PowerCenter exports write."
+  ]
+}

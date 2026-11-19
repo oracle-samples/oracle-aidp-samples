@@ -1,0 +1,10 @@
+{
+  "export": "m_rank_and_sorter.xml",
+  "notes": [
+    "Rank RNK_TOP2 uses the real PowerCenter export shape: TABLEATTRIBUTEs 'Top/Bottom' = 'Top' and 'Number Of Ranks' = '2'; the group-by port REGION carries EXPRESSIONTYPE=\"GROUPBY\"; the rank port AMT is flagged in PORTTYPE (\"INPUT/OUTPUT/MASTER\" -- the Designer's 'R' flag); RANKINDEX is an OUTPUT port. There are no 'Rank Data Port', 'Group By Port' or 'Rank Order' attributes in a real export.",
+    "Top 2 per REGION by AMT descending. Ties: Informatica gives equal rank values the same RANKINDEX and skips the next value, so WEST (400, 400, 200) yields RANKINDEX 1 and 1 for reps 5 and 6, and 200 (rank 3) is dropped. No tie sits at the rank-2 boundary, so the SET of output rows is the same under either tie rule; only RANKINDEX shows the tie rule.",
+    "A NULL REGION is one group (reps 9, 10, 12): 90 and 90 tie at RANKINDEX 1, 80 is rank 3 and dropped. A single-row group (NORTH) keeps its row with RANKINDEX 1.",
+    "Sorter SRT_REGION_AMT: sort keys are per-port (ISSORTKEY=\"YES\", SORTDIRECTION=\"ASCENDING\" on REGION then \"DESCENDING\" on AMT); 'Distinct' = 'YES' removes rows duplicated across ALL sorter ports (WEST/400 twice -> once; NULL/90 twice -> once, NULLs compare equal for distinct).",
+    "The harness compares rows order-insensitively, so the Sorter's output ORDER (REGION asc with NULL last because 'Null Treated Low' = NO, then AMT desc) is not asserted; only the distinct set is."
+  ]
+}

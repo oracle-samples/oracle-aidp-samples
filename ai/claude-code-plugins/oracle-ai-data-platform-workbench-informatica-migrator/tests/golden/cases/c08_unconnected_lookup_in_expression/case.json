@@ -1,0 +1,10 @@
+{
+  "export": "m_txn_to_usd.xml",
+  "notes": [
+    "Unconnected Lookup: no CONNECTORs to or from LKP_FX_RATE; it is invoked as :LKP.LKP_FX_RATE(CURRENCY_CODE) and returns its RETURN port (RATE_TO_USD).",
+    "The call argument binds positionally to the lookup's INPUT port IN_CURRENCY_CODE; the condition is CURRENCY_CODE = IN_CURRENCY_CODE.",
+    "No match (CHF) and a NULL argument both return NULL, so FX_RATE is NULL and IIF(ISNULL(...), 1, ...) falls back to rate 1: AMOUNT_USD = AMOUNT.",
+    "One expression calls the same lookup twice; both calls return the same value for the row.",
+    "ROUND(x, 2) on values with no tie at the third decimal (217.00, 12.70, 100.50)."
+  ]
+}

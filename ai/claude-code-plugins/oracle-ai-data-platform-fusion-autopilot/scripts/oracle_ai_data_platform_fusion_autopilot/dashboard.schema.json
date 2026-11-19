@@ -1,0 +1,482 @@
+{
+  "$defs": {
+    "DashboardConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/DashboardConnectionSource"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "DashboardConnection",
+      "type": "object"
+    },
+    "DashboardConnectionSource": {
+      "additionalProperties": false,
+      "properties": {
+        "requiredPrivileges": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Requiredprivileges",
+          "type": "array"
+        },
+        "schemaPattern": {
+          "title": "Schemapattern",
+          "type": "string"
+        },
+        "type": {
+          "const": "aidp-delta",
+          "default": "aidp-delta",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaPattern"
+      ],
+      "title": "DashboardConnectionSource",
+      "type": "object"
+    },
+    "DashboardDelivery": {
+      "additionalProperties": false,
+      "description": "How the dashboard reaches OAC.",
+      "properties": {
+        "barObject": {
+          "title": "Barobject",
+          "type": "string"
+        },
+        "oac": {
+          "$ref": "#/$defs/DashboardDeliveryOac"
+        },
+        "type": {
+          "const": "oac-snapshot",
+          "default": "oac-snapshot",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "barObject",
+        "oac"
+      ],
+      "title": "DashboardDelivery",
+      "type": "object"
+    },
+    "DashboardDeliveryOac": {
+      "additionalProperties": false,
+      "description": "OAC-specific delivery options.",
+      "properties": {
+        "connectionName": {
+          "title": "Connectionname",
+          "type": "string"
+        },
+        "folderPath": {
+          "title": "Folderpath",
+          "type": "string"
+        },
+        "importMode": {
+          "default": "replace",
+          "enum": [
+            "replace",
+            "merge",
+            "preserve-customizations"
+          ],
+          "title": "Importmode",
+          "type": "string"
+        },
+        "projectName": {
+          "title": "Projectname",
+          "type": "string"
+        },
+        "refreshMode": {
+          "default": "live",
+          "enum": [
+            "live",
+            "cached",
+            "on-demand"
+          ],
+          "title": "Refreshmode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectName",
+        "folderPath",
+        "connectionName"
+      ],
+      "title": "DashboardDeliveryOac",
+      "type": "object"
+    },
+    "DashboardMetadata": {
+      "additionalProperties": true,
+      "properties": {
+        "audience": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Audience",
+          "type": "array"
+        },
+        "refreshSchedule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DashboardRefreshSchedule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        },
+        "workbooks": {
+          "items": {
+            "$ref": "#/$defs/DashboardWorkbook"
+          },
+          "title": "Workbooks",
+          "type": "array"
+        }
+      },
+      "title": "DashboardMetadata",
+      "type": "object"
+    },
+    "DashboardRefreshSchedule": {
+      "additionalProperties": false,
+      "properties": {
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        },
+        "suggestedCron": {
+          "title": "Suggestedcron",
+          "type": "string"
+        }
+      },
+      "required": [
+        "suggestedCron"
+      ],
+      "title": "DashboardRefreshSchedule",
+      "type": "object"
+    },
+    "DashboardRequires": {
+      "additionalProperties": false,
+      "description": "The dashboard's gold contract requirements.",
+      "properties": {
+        "columns": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/RequiredColumn"
+            },
+            "type": "array"
+          },
+          "title": "Columns",
+          "type": "object"
+        },
+        "freshness": {
+          "additionalProperties": {
+            "$ref": "#/$defs/FreshnessRequirement"
+          },
+          "title": "Freshness",
+          "type": "object"
+        },
+        "pack": {
+          "$ref": "#/$defs/DashboardRequiresPack"
+        },
+        "tables": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Tables",
+          "type": "array"
+        }
+      },
+      "required": [
+        "pack",
+        "tables"
+      ],
+      "title": "DashboardRequires",
+      "type": "object"
+    },
+    "DashboardRequiresPack": {
+      "additionalProperties": false,
+      "description": "Pack-version compatibility for this dashboard.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "maxVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maxversion"
+        },
+        "minVersion": {
+          "title": "Minversion",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "minVersion"
+      ],
+      "title": "DashboardRequiresPack",
+      "type": "object"
+    },
+    "DashboardSecurity": {
+      "additionalProperties": false,
+      "description": "PII firewall for the dashboard.\n\n`allowedColumns` declares which gold columns the dashboard intends to\ndisplay. Validators (orchestrator/content_pack_validators.py) cross-check\neach entry against the source gold node's `outputSchema.pii` field and\nreject `pii: high` columns with AIDPF-8002.",
+      "properties": {
+        "allowedColumns": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Allowedcolumns",
+          "type": "object"
+        }
+      },
+      "title": "DashboardSecurity",
+      "type": "object"
+    },
+    "DashboardWorkbook": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "pages": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "DashboardWorkbook",
+      "type": "object"
+    },
+    "FreshnessRequirement": {
+      "additionalProperties": false,
+      "description": "How fresh a required table must be at install time.",
+      "properties": {
+        "maxAgeHours": {
+          "minimum": 1,
+          "title": "Maxagehours",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maxAgeHours"
+      ],
+      "title": "FreshnessRequirement",
+      "type": "object"
+    },
+    "RequiredColumn": {
+      "additionalProperties": false,
+      "description": "One column the dashboard depends on, with its expected Spark type.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "RequiredColumn",
+      "type": "object"
+    },
+    "ValidationQuery": {
+      "additionalProperties": false,
+      "description": "One pre-install sanity-check SQL query.",
+      "properties": {
+        "expect": {
+          "$ref": "#/$defs/ValidationQueryExpectation"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "sql": {
+          "title": "Sql",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "sql",
+        "expect"
+      ],
+      "title": "ValidationQuery",
+      "type": "object"
+    },
+    "ValidationQueryExpectation": {
+      "additionalProperties": false,
+      "description": "Numeric expectations for a validation query result.",
+      "properties": {
+        "row_count_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Row Count Max"
+        },
+        "row_count_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Row Count Min"
+        },
+        "value_max": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Max"
+        },
+        "value_min": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Min"
+        }
+      },
+      "title": "ValidationQueryExpectation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Top-level schema for a dashboard pack YAML file.",
+  "properties": {
+    "connection": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DashboardConnection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "delivery": {
+      "$ref": "#/$defs/DashboardDelivery"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/DashboardMetadata"
+    },
+    "requires": {
+      "$ref": "#/$defs/DashboardRequires"
+    },
+    "security": {
+      "$ref": "#/$defs/DashboardSecurity"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "validationQueries": {
+      "items": {
+        "$ref": "#/$defs/ValidationQuery"
+      },
+      "title": "Validationqueries",
+      "type": "array"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "version",
+    "delivery",
+    "requires"
+  ],
+  "title": "DashboardYaml",
+  "type": "object"
+}

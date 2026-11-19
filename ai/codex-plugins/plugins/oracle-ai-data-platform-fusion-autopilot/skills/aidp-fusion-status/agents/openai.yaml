@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Status"
+  short_description: "Check Fusion pipeline health and freshness"
+  default_prompt: "Use $aidp-fusion-status to report pipeline health, freshness, and stale marts."

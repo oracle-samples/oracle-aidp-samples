@@ -1,0 +1,107 @@
+id: supplier_spend
+layer: gold
+implementation:
+  type: sql
+  sql: gold/supplier_spend.sql
+target: supplier_spend
+
+dependsOn:
+  bronze:
+    - id: ap_invoices
+      watermark:
+        column: _extract_ts
+  silver:
+    - id: dim_supplier
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: replace
+    reason: |
+      Aggregate grain mixes mutable `approval_status`. Row-level merge
+      leaves stale (PENDING) aggregate rows on a status flip. The
+      correctness-preserving incremental pattern is an aggregate-aware merge,
+      deferred until `replace` hits a wall-clock or cost ceiling. Until then,
+      `replace` is the safe default.
+
+# Declared inputs (AIDPF-2084): upstream columns supplier_spend.sql reads —
+# inv.<col> from ap_invoices, ds.<col> from dim_supplier.
+requiredColumns:
+  ap_invoices:
+    - ApInvoicesVendorId
+    - $column.invoice_currency_code
+    - ApInvoicesApprovalStatus
+    - ApInvoicesInvoiceAmount
+    - ApInvoicesAmountPaid
+    - ApInvoicesInvoiceDate
+    - _extract_ts
+  dim_supplier:
+    - vendor_id
+    - supplier_number
+    - supplier_name
+    - business_relationship
+
+# Output schema matches v1 build_supplier_spend_sql
+# (transforms/gold/supplier_spend.py:125-167) — 14 columns including
+# invoice_count, total_paid, last_invoice_date, bronze_extract_ts.
+outputSchema:
+  columns:
+    - name: vendor_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: currency_code
+      type: string
+      nullable: false
+      pii: none
+    - name: supplier_number
+      type: string
+      nullable: true
+      pii: low
+    - name: supplier_name
+      type: string
+      nullable: true
+      pii: medium
+    - name: business_relationship
+      type: string
+      nullable: true
+      pii: none
+    - name: approval_status
+      type: string
+      nullable: true
+      pii: none
+    - name: invoice_count
+      type: bigint
+      nullable: false
+      pii: none
+    - name: total_invoice_amount
+      type: decimal(20,2)
+      nullable: true
+      pii: none
+    - name: total_paid
+      type: decimal(20,2)
+      nullable: true
+      pii: none
+    - name: last_invoice_date
+      type: date
+      nullable: true
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: true
+      pii: none
+    - name: gold_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: gold_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: row_count_min
+      min: 1
+      whenSourceNonEmpty: bronze.ap_invoices

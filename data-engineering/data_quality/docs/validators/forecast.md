@@ -60,7 +60,7 @@ Prophet models these patterns and generates **prediction bands** — if the curr
 ## Prerequisites
 
 ```bash
-pip install 'qualifire[forecast]'
+pip install -e '.[forecast]'
 ```
 
 Requires a **system table** with at least 10 historical data points for the metric.

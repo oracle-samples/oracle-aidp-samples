@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Orchestration fixture: a workflow that exercises every construct the
+  generator must either translate or report.
+
+    - a <SCHEDULER>/<SCHEDULEINFO> with a daily DELTAVALUE and a STARTTIME
+    - a Worklet task instance (its own sessions are NOT in this workflow)
+    - a Command task (no notebook equivalent)
+    - a conditional <WORKFLOWLINK>
+    - two sessions that DO become job tasks
+
+  Hand-authored from the PowerCenter export schema, not captured from a
+  live repository; see references/test-artifact-checklist.md.
+-->
+<POWERMART CREATION_DATE="01/15/2026 09:00:00" REPOSITORY_VERSION="189.96">
+<REPOSITORY NAME="REP_DEV" VERSION="189" CODEPAGE="UTF-8" DATABASETYPE="Oracle">
+<FOLDER NAME="SALES" GROUP="" OWNER="dev" SHARED="NOTSHARED">
+
+  <WORKFLOW NAME="wf_nightly_sales" SERVERNAME="DEV_SVC" ISENABLED="YES"
+            DESCRIPTION="Nightly sales load">
+    <SCHEDULER NAME="Sched_Nightly" REUSABLE="YES" DESCRIPTION="Daily at 03:30">
+      <SCHEDULEINFO SCHEDULETYPE="CUSTOMRUN"
+                    STARTTIME="01/15/2026 03:30:00"
+                    DELTAVALUE="86400"
+                    RUNOPTIONS="2"
+                    ENDOPTIONS="0"/>
+    </SCHEDULER>
+
+    <TASKINSTANCE NAME="Start"            TASKNAME="Start"            TASKTYPE="Start"/>
+    <TASKINSTANCE NAME="s_load_customers" TASKNAME="s_load_customers" TASKTYPE="Session"/>
+    <TASKINSTANCE NAME="s_load_orders"    TASKNAME="s_load_orders"    TASKTYPE="Session"/>
+    <TASKINSTANCE NAME="wl_enrich"        TASKNAME="wl_enrich"        TASKTYPE="Worklet"/>
+    <TASKINSTANCE NAME="cmd_archive"      TASKNAME="cmd_archive"      TASKTYPE="Command"/>
+
+    <WORKFLOWLINK FROMTASK="Start"            TOTASK="s_load_customers" CONDITION=""/>
+    <WORKFLOWLINK FROMTASK="s_load_customers" TOTASK="s_load_orders"
+                  CONDITION="$s_load_customers.Status = SUCCEEDED"/>
+  </WORKFLOW>
+
+  <WORKFLOW NAME="wf_on_demand" SERVERNAME="DEV_SVC" ISENABLED="YES"
+            DESCRIPTION="Started by hand">
+    <SCHEDULER NAME="Sched_Demand" REUSABLE="NO">
+      <SCHEDULEINFO SCHEDULETYPE="ONDEMAND" STARTTIME="01/15/2026 00:00:00"/>
+    </SCHEDULER>
+    <TASKINSTANCE NAME="Start"         TASKNAME="Start"         TASKTYPE="Start"/>
+    <TASKINSTANCE NAME="s_load_adhoc"  TASKNAME="s_load_adhoc"  TASKTYPE="Session"/>
+    <WORKFLOWLINK FROMTASK="Start" TOTASK="s_load_adhoc" CONDITION=""/>
+  </WORKFLOW>
+
+  <WORKFLOW NAME="wf_unschedulable" SERVERNAME="DEV_SVC" ISENABLED="YES"
+            DESCRIPTION="Interval a cron cannot express exactly">
+    <SCHEDULER NAME="Sched_Odd" REUSABLE="NO">
+      <SCHEDULEINFO SCHEDULETYPE="CUSTOMRUN"
+                    STARTTIME="01/15/2026 00:00:00"
+                    DELTAVALUE="25200"
+                    RUNOPTIONS="2"/>
+    </SCHEDULER>
+    <TASKINSTANCE NAME="Start"      TASKNAME="Start"      TASKTYPE="Start"/>
+    <TASKINSTANCE NAME="s_load_odd" TASKNAME="s_load_odd" TASKTYPE="Session"/>
+    <WORKFLOWLINK FROMTASK="Start" TOTASK="s_load_odd" CONDITION=""/>
+  </WORKFLOW>
+
+</FOLDER>
+</REPOSITORY>
+</POWERMART>

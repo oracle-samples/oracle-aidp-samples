@@ -1,4 +1,5 @@
 ---
+name: aidp-oracle-db
 description: Read or write an Oracle Database (Compute / Base DB / on-prem / Oracle 19c, 21c, 23ai, 26ai non-Autonomous) from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions Oracle Database, generic Oracle DB, on-prem Oracle, plain Oracle JDBC, port 1521, non-Autonomous Oracle. Read-write. Auth is host/port + database name + user/password.
 allowed-tools: Read, Write, Edit, Bash
 ---
@@ -22,7 +23,7 @@ For non-Autonomous Oracle DBs — Oracle on Compute, Base DB, on-prem, customer-
 2. Network: cluster must reach the Oracle DB host on the listener port (typically 1521). For private DBs in customer VCNs, VCN peering is required.
 3. Env vars / OCI Vault secrets:
    - `ORADB_HOST`, `ORADB_PORT` (typically `1521`)
-   - `ORADB_DATABASE_NAME` (Oracle SID or service name)
+   - `ORADB_DATABASE_NAME` (Oracle service name) or `ORADB_DATABASE_SID`
    - `ORADB_USER`, `ORADB_PASSWORD`
    - `ORADB_SCHEMA`, `ORADB_TABLE`
 
@@ -43,6 +44,16 @@ opts = aidataplatform_options(
     password=os.environ["ORADB_PASSWORD"],
     schema=os.environ["ORADB_SCHEMA"],
     table=os.environ["ORADB_TABLE"],
+    extra={
+        # Optional official connector options:
+        # "database.sid": os.environ["ORADB_DATABASE_SID"],
+        # "row.limit": "1000",
+        # "fetch.size": "10000",
+        # "partition.column": "ID",
+        # "partition.num": "8",
+        # "partition.lower": "1",
+        # "partition.upper": "1000000",
+    },
 )
 df = spark.read.format(AIDP_FORMAT).options(**opts).load()
 df.show(10)
@@ -60,7 +71,15 @@ opts = aidataplatform_options(
     password=os.environ["ORADB_PASSWORD"],
     schema=os.environ["ORADB_SCHEMA"],
     table=os.environ["ORADB_TARGET_TABLE"],
-    extra={"write.mode": "APPEND"},   # CREATE | APPEND | OVERWRITE
+    extra={
+        "write.mode": "APPEND",   # CREATE | APPEND | OVERWRITE | MERGE
+        # "write.merge.keys": "ID",
+        # "write.batch.size": "10000",
+        # "write.empty.value.as.null": "true",
+        # "preserve.oracle.column.types": "EMBEDDING VECTOR(512, FLOAT32), DOC JSON",
+        # "oracle.write.native.boolean": "true",
+        # "oracle.append.hint.enabled": "true",
+    },
 )
 df.write.format(AIDP_FORMAT).options(**opts).save()
 ```
@@ -113,11 +132,25 @@ df = spark.read.format(AIDP_FORMAT).options(**opts).load()
 df.show()
 ```
 
+## External catalog pushdown
+
+```python
+df = spark.read.table(
+    f"{os.environ['ORADB_CATALOG_ID']}.{os.environ['ORADB_SCHEMA']}.{os.environ['ORADB_TABLE']}"
+)
+df.select("DEPARTMENT_ID", "SALARY").filter("DEPARTMENT_ID = 10").limit(100).show()
+
+df.write.option("write.mode", "MERGE").option("write.merge.keys", "EMPLOYEE_ID").insertInto(
+    f"{os.environ['ORADB_CATALOG_ID']}.{os.environ['ORADB_SCHEMA']}.{os.environ['ORADB_TARGET_TABLE']}"
+)
+```
+
 ## Gotchas
-- **`database.name` is the Oracle SID or service name**, not the schema. Easy mix-up.
-- **Plain user/password only.** Wallets and IAM DB-Tokens are Autonomous-DB-only — for those, use `aidp-alh`.
+- **`database.name` is the Oracle service name; `database.sid` is the SID.** Both are supported by the official sample option table; don't confuse either with `schema`.
+- **Wallet options exist for Oracle DB in the AIDP connector** (`wallet.content`, `wallet.path`, `wallet.password`), but plain user/password is the default sample path. For Autonomous DB, use `aidp-alh`.
 - **Network reachability** is the most common failure. From the cluster: `socket.create_connection((host, 1521), timeout=8)`. Failure = network problem (NSG / route table / DNS), not auth.
-- **Write modes** — `CREATE` (fail if exists), `APPEND`, `OVERWRITE`. Use `MERGE` only via `pushdown.sql` (`MERGE INTO ... WHEN MATCHED ...`) or three-part `saveAsTable` with `write.merge.keys`.
+- **Write modes** — `CREATE`, `APPEND`, `OVERWRITE`, and `MERGE`. For `MERGE`, pass `write.merge.keys`.
+- **Oracle write controls** — the sample exposes `preserve.oracle.column.types`, `oracle.write.native.boolean`, `oracle.append.hint.enabled`, `overwrite.with.recreate`, and merge filters. Surface these when the user asks about vectors, JSON, booleans, append performance, or upserts.
 - **NLS settings.** Default Oracle dates can come back with timezone surprises. Set `extra={"oracle.jdbc.timezoneAsRegion": "false"}` if you see TZ drift.
 
 ## References

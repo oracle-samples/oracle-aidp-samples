@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# snowmig — the entry point. CREATES NO FOLDERS. Leaves nothing behind.
+#
+# THE RULE THIS SCRIPT EXISTS TO KEEP: the migrator is self-contained. It does
+# not install a virtualenv into your home directory, it does not leave a cache
+# beside the plugin, and it does not add a folder anywhere that you then have
+# to know about and clean up. Everything it writes outside the plugin is a
+# TEMPORARY directory that is removed when the process exits, on success, on
+# failure and on interrupt.
+#
+# HOW IT RUNS THE ENGINE, in order of preference:
+#
+#   1. The current interpreter, if it already imports the dependencies.
+#      This is the common case on a set-up machine and it creates NOTHING.
+#   2. A throwaway venv under $TMPDIR, built for this invocation and deleted
+#      by the EXIT trap.
+#
+# Nothing persists between runs by design. Step 2 pays a dependency install
+# each time it is used, which is the honest price of leaving no folder behind;
+# if that cost matters for a tight loop, install the requirements into the
+# interpreter you already use and step 1 takes over:
+#
+#   python3 -m pip install -r engine/requirements.txt
+set -euo pipefail
+# No __pycache__ beside the plugin: bytecode is not written.
+export PYTHONDONTWRITEBYTECODE=1
+
+PLUGIN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ENGINE="${PLUGIN_ROOT}/engine/snowmig.py"
+REQUIREMENTS="${PLUGIN_ROOT}/engine/requirements.txt"
+
+die() { printf 'snowmig: %s\n' "$1" >&2; exit 1; }
+
+[ -f "${ENGINE}" ] || die "engine not found at ${ENGINE}.
+  A missing engine is a broken install, not a reason to improvise a
+  migration. Reinstall the plugin rather than running stages by hand."
+
+has_deps() { "$1" -c 'import yaml, snowflake.connector' >/dev/null 2>&1; }
+
+# A usable interpreter that ALREADY has what the engine needs.
+find_ready_python() {
+  for candidate in "${SNOWMIG_PYTHON:-}" python3 python3.14 python3.13 python3.12 python3.11 python3.10 python; do
+    [ -n "${candidate}" ] || continue
+    command -v "${candidate}" >/dev/null 2>&1 || continue
+    if has_deps "${candidate}"; then printf '%s' "${candidate}"; return 0; fi
+  done
+  return 1
+}
+
+# Any interpreter new enough to BUILD the throwaway env. The engine uses
+# 3.10+ syntax, so an older one is refused here rather than failing later
+# with a confusing SyntaxError.
+find_base_python() {
+  for candidate in "${SNOWMIG_PYTHON:-}" python3.13 python3.12 python3.11 python3.14 python3.10 python3 python; do
+    [ -n "${candidate}" ] || continue
+    command -v "${candidate}" >/dev/null 2>&1 || continue
+    if "${candidate}" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+      printf '%s' "${candidate}"; return 0
+    fi
+  done
+  return 1
+}
+
+PY="$(find_ready_python || true)"
+
+if [ -z "${PY}" ]; then
+  base="$(find_base_python || true)"
+  [ -n "${base}" ] || die "no python3 >= 3.10 on PATH. The engine needs 3.10 or newer."
+
+  # The ONLY thing this script ever creates, and it does not outlive the run.
+  SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/snowmig.XXXXXXXX")"
+  trap 'rm -rf "${SCRATCH}"' EXIT INT TERM
+
+  printf 'snowmig: dependencies not importable; building a throwaway environment (removed on exit)\n' >&2
+  # The venv module's own message (Debian prints it on stdout) says why.
+  "${base}" -m venv "${SCRATCH}/venv" >&2 \
+    || die "could not create a temporary venv in ${SCRATCH} (on Debian/Ubuntu: apt install python3-venv)"
+  PY="${SCRATCH}/venv/bin/python"
+  # A venv on Windows (Git Bash) puts the interpreter under Scripts/.
+  [ -x "${PY}" ] || PY="${SCRATCH}/venv/Scripts/python.exe"
+  "${PY}" -m pip install --quiet --upgrade pip >/dev/null 2>&1 || true
+  if [ -f "${REQUIREMENTS}" ]; then
+    "${PY}" -m pip install --quiet -r "${REQUIREMENTS}" \
+      || die "dependency install failed. Install them into your own interpreter instead:
+  python3 -m pip install -r ${REQUIREMENTS}"
+  fi
+  has_deps "${PY}" || die "the temporary environment still cannot import the dependencies"
+fi
+
+# `exec` would discard the EXIT trap, leaving the scratch dir behind, so the
+# engine is run as a child and the trap fires after it returns.
+"${PY}" "${ENGINE}" "$@"

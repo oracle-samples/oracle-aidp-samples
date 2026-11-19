@@ -1,0 +1,725 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_chart",
+            "tpl_variant_wrapper_chart_date_currency"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_chart_date_currency",
+          "component": "Text",
+          "text": "OAChart with date axis and currency formatting",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_chart",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_chart",
+            "tpl_chartTypeLabel1",
+            "tpl_chartTypeSelector1",
+            "tpl_chartOrientationCheckbox1",
+            "tpl_chartStackCheckbox1",
+            "tpl_chartVerticalReferenceObjectLabel1",
+            "tpl_chartVerticalReferenceObjectSelector1",
+            "tpl_chartVerticalReferenceLineValueLabel1",
+            "tpl_chartVerticalReferenceLineValueInput1",
+            "tpl_chartVerticalReferenceAreaLowLabel1",
+            "tpl_chartVerticalReferenceAreaLowInput1",
+            "tpl_chartVerticalReferenceAreaHighLabel1",
+            "tpl_chartVerticalReferenceAreaHighInput1",
+            "tpl_chartVerticalReferenceObjectColorInput1",
+            "tpl_chartVerticalReferenceObjectLineStyleLabel1",
+            "tpl_chartVerticalReferenceObjectLineStyleInput1",
+            "tpl_chartHorizontalReferenceObjectLabel1",
+            "tpl_chartHorizontalReferenceObjectSelector1",
+            "tpl_chartHorizontalReferenceLineValueInput1",
+            "tpl_chartHorizontalReferenceAreaLowInput1",
+            "tpl_chartHorizontalReferenceAreaHighInput1",
+            "tpl_chartHorizontalVariedReferenceLineDataInput1",
+            "tpl_chartHorizontalVariedReferenceAreaDataInput1",
+            "tpl_chartHorizontalReferenceObjectColorInput1",
+            "tpl_chartHorizontalReferenceObjectLineStyleLabel1",
+            "tpl_chartHorizontalReferenceObjectLineStyleInput1",
+            "tpl_chartTitleInput1",
+            "tpl_updateChartButton1",
+            "tpl_previewOAChart"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_chart",
+          "component": "Text",
+          "text": "OAChart preview",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_chartTypeLabel1",
+          "component": "Text",
+          "text": "Select chart type",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartTypeSelector1",
+          "component": "ChoicePicker",
+          "variant": "mutuallyExclusive",
+          "options": [
+            {
+              "label": "Line",
+              "value": "line"
+            },
+            {
+              "label": "Bar",
+              "value": "bar"
+            },
+            {
+              "label": "Area",
+              "value": "area"
+            },
+            {
+              "label": "Bubble",
+              "value": "bubble"
+            },
+            {
+              "label": "Funnel",
+              "value": "funnel"
+            },
+            {
+              "label": "Pie",
+              "value": "pie"
+            },
+            {
+              "label": "Pyramid",
+              "value": "pyramid"
+            },
+            {
+              "label": "Scatter",
+              "value": "scatter"
+            }
+          ],
+          "value": {
+            "path": "/demo/oachart/selectedTypes"
+          }
+        },
+        {
+          "id": "tpl_chartOrientationCheckbox1",
+          "component": "CheckBox",
+          "label": "Horizontal orientation",
+          "value": {
+            "path": "/demo/oachart/useHorizontal"
+          }
+        },
+        {
+          "id": "tpl_chartStackCheckbox1",
+          "component": "CheckBox",
+          "label": "Stack mode",
+          "value": {
+            "path": "/demo/oachart/useStack"
+          }
+        },
+        {
+          "id": "tpl_chartVerticalReferenceObjectLabel1",
+          "component": "Text",
+          "text": "Vertical reference object",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartVerticalReferenceObjectSelector1",
+          "component": "OARadioSet",
+          "labelEdge": "none",
+          "options": [
+            {
+              "label": "Reference line",
+              "value": "line"
+            },
+            {
+              "label": "Reference area",
+              "value": "area"
+            },
+            {
+              "label": "None",
+              "value": "none"
+            }
+          ],
+          "selections": {
+            "path": "/demo/oachart/verticalReferenceObjectTypes"
+          },
+          "selectedChangedAction": {
+            "event": {
+              "name": "update_chart_reference_controls",
+              "context": {
+                "selectedChartType": {
+                  "path": "/demo/oachart/currentType"
+                },
+                "selectedChartVerticalReferenceObjectType": {
+                  "path": "/demo/oachart/verticalReferenceObjectTypes"
+                },
+                "selectedChartHorizontalReferenceObjectType": {
+                  "path": "/demo/oachart/horizontalReferenceObjectTypes"
+                },
+                "selectedChartReferenceObjectAxis": "vertical"
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_chartVerticalReferenceLineValueLabel1",
+          "component": "Text",
+          "text": "Value",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartVerticalReferenceLineValueInput1",
+          "component": "OACombobox",
+          "placeholder": "Select an x-axis value",
+          "selections": {
+            "path": "/demo/oachart/verticalReferenceLineValue"
+          },
+          "options": [
+            {
+              "label": "Jan",
+              "value": "Jan"
+            },
+            {
+              "label": "Feb",
+              "value": "Feb"
+            },
+            {
+              "label": "Mar",
+              "value": "Mar"
+            },
+            {
+              "label": "Apr",
+              "value": "Apr"
+            }
+          ]
+        },
+        {
+          "id": "tpl_chartVerticalReferenceAreaLowLabel1",
+          "component": "Text",
+          "text": "Low",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartVerticalReferenceAreaLowInput1",
+          "component": "OACombobox",
+          "placeholder": "Select the low x-axis value",
+          "selections": {
+            "path": "/demo/oachart/verticalReferenceAreaLow"
+          },
+          "options": [
+            {
+              "label": "Jan",
+              "value": "Jan"
+            },
+            {
+              "label": "Feb",
+              "value": "Feb"
+            },
+            {
+              "label": "Mar",
+              "value": "Mar"
+            },
+            {
+              "label": "Apr",
+              "value": "Apr"
+            }
+          ]
+        },
+        {
+          "id": "tpl_chartVerticalReferenceAreaHighLabel1",
+          "component": "Text",
+          "text": "High",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartVerticalReferenceAreaHighInput1",
+          "component": "OACombobox",
+          "placeholder": "Select the high x-axis value",
+          "selections": {
+            "path": "/demo/oachart/verticalReferenceAreaHigh"
+          },
+          "options": [
+            {
+              "label": "Jan",
+              "value": "Jan"
+            },
+            {
+              "label": "Feb",
+              "value": "Feb"
+            },
+            {
+              "label": "Mar",
+              "value": "Mar"
+            },
+            {
+              "label": "Apr",
+              "value": "Apr"
+            }
+          ]
+        },
+        {
+          "id": "tpl_chartVerticalReferenceObjectColorInput1",
+          "component": "TextField",
+          "label": "Color",
+          "value": {
+            "path": "/demo/oachart/verticalReferenceObjectColor"
+          },
+          "variant": "shortText"
+        },
+        {
+          "id": "tpl_chartVerticalReferenceObjectLineStyleLabel1",
+          "component": "Text",
+          "text": "Line style",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartVerticalReferenceObjectLineStyleInput1",
+          "component": "OACombobox",
+          "placeholder": "Select a line style",
+          "options": [
+            {
+              "label": "Solid",
+              "value": "solid"
+            },
+            {
+              "label": "Dashed",
+              "value": "dashed"
+            },
+            {
+              "label": "Dotted",
+              "value": "dotted"
+            }
+          ],
+          "selections": {
+            "path": "/demo/oachart/verticalReferenceObjectLineStyle"
+          }
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceObjectLabel1",
+          "component": "Text",
+          "text": "Horizontal reference object",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceObjectSelector1",
+          "component": "OARadioSet",
+          "labelEdge": "none",
+          "options": [
+            {
+              "label": "Reference line",
+              "value": "line"
+            },
+            {
+              "label": "Reference area",
+              "value": "area"
+            },
+            {
+              "label": "Varied reference line (trendline)",
+              "value": "variedLine"
+            },
+            {
+              "label": "Varied reference area",
+              "value": "variedArea"
+            },
+            {
+              "label": "None",
+              "value": "none"
+            }
+          ],
+          "selections": {
+            "path": "/demo/oachart/horizontalReferenceObjectTypes"
+          },
+          "selectedChangedAction": {
+            "event": {
+              "name": "update_chart_reference_controls",
+              "context": {
+                "selectedChartType": {
+                  "path": "/demo/oachart/currentType"
+                },
+                "selectedChartVerticalReferenceObjectType": {
+                  "path": "/demo/oachart/verticalReferenceObjectTypes"
+                },
+                "selectedChartHorizontalReferenceObjectType": {
+                  "path": "/demo/oachart/horizontalReferenceObjectTypes"
+                },
+                "selectedChartReferenceObjectAxis": "horizontal"
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceLineValueInput1",
+          "component": "TextField",
+          "label": "Value",
+          "value": {
+            "path": "/demo/oachart/horizontalReferenceLineValue"
+          },
+          "variant": "number"
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceAreaLowInput1",
+          "component": "TextField",
+          "label": "Low",
+          "value": {
+            "path": "/demo/oachart/horizontalReferenceAreaLow"
+          },
+          "variant": "number"
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceAreaHighInput1",
+          "component": "TextField",
+          "label": "High",
+          "value": {
+            "path": "/demo/oachart/horizontalReferenceAreaHigh"
+          },
+          "variant": "number"
+        },
+        {
+          "id": "tpl_chartHorizontalVariedReferenceLineDataInput1",
+          "component": "TextField",
+          "label": "Varied data (value or x:value)",
+          "value": {
+            "path": "/demo/oachart/horizontalVariedReferenceLineData"
+          },
+          "variant": "shortText"
+        },
+        {
+          "id": "tpl_chartHorizontalVariedReferenceAreaDataInput1",
+          "component": "TextField",
+          "label": "Varied data (low:high or x:low:high)",
+          "value": {
+            "path": "/demo/oachart/horizontalVariedReferenceAreaData"
+          },
+          "variant": "shortText"
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceObjectColorInput1",
+          "component": "TextField",
+          "label": "Color",
+          "value": {
+            "path": "/demo/oachart/horizontalReferenceObjectColor"
+          },
+          "variant": "shortText"
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceObjectLineStyleLabel1",
+          "component": "Text",
+          "text": "Line style",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_chartHorizontalReferenceObjectLineStyleInput1",
+          "component": "OACombobox",
+          "placeholder": "Select a line style",
+          "options": [
+            {
+              "label": "Solid",
+              "value": "solid"
+            },
+            {
+              "label": "Dashed",
+              "value": "dashed"
+            },
+            {
+              "label": "Dotted",
+              "value": "dotted"
+            }
+          ],
+          "selections": {
+            "path": "/demo/oachart/horizontalReferenceObjectLineStyle"
+          }
+        },
+        {
+          "id": "tpl_chartTitleInput1",
+          "component": "TextField",
+          "label": "Chart title",
+          "value": {
+            "path": "/demo/oachart/title"
+          },
+          "variant": "shortText"
+        },
+        {
+          "id": "tpl_updateChartLabel1",
+          "component": "Text",
+          "text": "Update Chart",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_updateChartButton1",
+          "component": "Button",
+          "child": "tpl_updateChartLabel1",
+          "action": {
+            "event": {
+              "name": "update_chart_preview",
+              "context": {
+                "selectedComponent": "OAChart",
+                "selectedChartType": {
+                  "path": "/demo/oachart/selectedTypes"
+                },
+                "selectedChartTypeFallback": {
+                  "path": "/demo/oachart/currentType"
+                },
+                "selectedChartOrientation": {
+                  "path": "/demo/oachart/useHorizontal"
+                },
+                "selectedChartStack": {
+                  "path": "/demo/oachart/useStack"
+                },
+                "selectedChartVerticalReferenceObjectType": {
+                  "path": "/demo/oachart/verticalReferenceObjectTypes"
+                },
+                "selectedChartVerticalReferenceLineValue": {
+                  "path": "/demo/oachart/verticalReferenceLineValue"
+                },
+                "selectedChartVerticalReferenceAreaLow": {
+                  "path": "/demo/oachart/verticalReferenceAreaLow"
+                },
+                "selectedChartVerticalReferenceAreaHigh": {
+                  "path": "/demo/oachart/verticalReferenceAreaHigh"
+                },
+                "selectedChartVerticalReferenceObjectColor": {
+                  "path": "/demo/oachart/verticalReferenceObjectColor"
+                },
+                "selectedChartVerticalReferenceObjectLineStyle": {
+                  "path": "/demo/oachart/verticalReferenceObjectLineStyle"
+                },
+                "selectedChartHorizontalReferenceObjectType": {
+                  "path": "/demo/oachart/horizontalReferenceObjectTypes"
+                },
+                "selectedChartHorizontalReferenceLineValue": {
+                  "path": "/demo/oachart/horizontalReferenceLineValue"
+                },
+                "selectedChartHorizontalReferenceAreaLow": {
+                  "path": "/demo/oachart/horizontalReferenceAreaLow"
+                },
+                "selectedChartHorizontalReferenceAreaHigh": {
+                  "path": "/demo/oachart/horizontalReferenceAreaHigh"
+                },
+                "selectedChartHorizontalVariedReferenceLineData": {
+                  "path": "/demo/oachart/horizontalVariedReferenceLineData"
+                },
+                "selectedChartHorizontalVariedReferenceAreaData": {
+                  "path": "/demo/oachart/horizontalVariedReferenceAreaData"
+                },
+                "selectedChartHorizontalReferenceObjectColor": {
+                  "path": "/demo/oachart/horizontalReferenceObjectColor"
+                },
+                "selectedChartHorizontalReferenceObjectLineStyle": {
+                  "path": "/demo/oachart/horizontalReferenceObjectLineStyle"
+                },
+                "selectedChartTitle": {
+                  "path": "/demo/oachart/title"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_previewOAChart",
+          "component": "OAChart",
+          "title": "Chart Preview",
+          "type": "line",
+          "orientation": "vertical",
+          "stack": "off",
+          "items": [
+            {
+              "id": 1,
+              "seriesId": "Series",
+              "groupId": "Point",
+              "value": 1,
+              "label": "Point"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_wrapper_chart_date_currency",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_chart_date_currency",
+            "tpl_previewOAChart_date_currency"
+          ]
+        },
+        {
+          "id": "tpl_previewOAChart_date_currency",
+          "component": "OAChart",
+          "title": "Daily revenue trend",
+          "type": "line",
+          "orientation": "vertical",
+          "stack": "off",
+          "timeAxisType": "enabled",
+          "xAxis": {
+            "title": "Day",
+            "tickLabel": {
+              "formatter": {
+                "call": "formatDate",
+                "args": {
+                  "format": "MMM d, yyyy"
+                }
+              }
+            }
+          },
+          "yAxis": {
+            "title": "Revenue",
+            "tickLabel": {
+              "formatter": {
+                "call": "formatCurrency",
+                "args": {
+                  "currency": "USD",
+                  "decimals": 2,
+                  "grouping": true
+                }
+              }
+            }
+          },
+          "valueFormats": {
+            "value": {
+              "formatter": {
+                "call": "formatCurrency",
+                "args": {
+                  "currency": "USD",
+                  "decimals": 2,
+                  "grouping": true
+                }
+              },
+              "scaling": "auto",
+              "tooltipDisplay": "auto",
+              "tooltipLabel": "Revenue"
+            }
+          },
+          "items": [
+            {
+              "id": 1,
+              "seriesId": "North",
+              "groupId": "2026-06-14T00:00:00",
+              "value": 1200.25,
+              "label": "North"
+            },
+            {
+              "id": 2,
+              "seriesId": "South",
+              "groupId": "2026-06-14T00:00:00",
+              "value": 980.1,
+              "label": "South"
+            },
+            {
+              "id": 3,
+              "seriesId": "North",
+              "groupId": "2026-06-15T00:00:00",
+              "value": 1345.5,
+              "label": "North"
+            },
+            {
+              "id": 4,
+              "seriesId": "South",
+              "groupId": "2026-06-15T00:00:00",
+              "value": 1105.75,
+              "label": "South"
+            },
+            {
+              "id": 5,
+              "seriesId": "North",
+              "groupId": "2026-06-16T00:00:00",
+              "value": 1288.75,
+              "label": "North"
+            },
+            {
+              "id": 6,
+              "seriesId": "South",
+              "groupId": "2026-06-16T00:00:00",
+              "value": 1188.4,
+              "label": "South"
+            },
+            {
+              "id": 7,
+              "seriesId": "North",
+              "groupId": "2026-06-17T00:00:00",
+              "value": 1499.2,
+              "label": "North"
+            },
+            {
+              "id": 8,
+              "seriesId": "South",
+              "groupId": "2026-06-17T00:00:00",
+              "value": 1260.35,
+              "label": "South"
+            },
+            {
+              "id": 9,
+              "seriesId": "North",
+              "groupId": "2026-06-18T00:00:00",
+              "value": 1422.4,
+              "label": "North"
+            },
+            {
+              "id": 10,
+              "seriesId": "South",
+              "groupId": "2026-06-18T00:00:00",
+              "value": 1315.9,
+              "label": "South"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oachart",
+      "value": {
+        "title": "Chart Preview",
+        "selectedTypes": [
+          "line"
+        ],
+        "currentType": "line",
+        "useHorizontal": false,
+        "useStack": false,
+        "verticalReferenceObjectTypes": [
+          "line"
+        ],
+        "verticalReferenceObjectType": "line",
+        "verticalReferenceLineValue": [
+          "Mar"
+        ],
+        "verticalReferenceAreaLow": [
+          "Feb"
+        ],
+        "verticalReferenceAreaHigh": [
+          "Apr"
+        ],
+        "verticalReferenceObjectColor": "#CC161513",
+        "verticalReferenceObjectLineStyle": [
+          "solid"
+        ],
+        "horizontalReferenceObjectTypes": [
+          "line"
+        ],
+        "horizontalReferenceObjectType": "line",
+        "horizontalReferenceLineValue": "60",
+        "horizontalReferenceAreaLow": "40",
+        "horizontalReferenceAreaHigh": "80",
+        "horizontalVariedReferenceLineData": "Jan:45,Feb:50,Mar:55,Apr:60",
+        "horizontalVariedReferenceAreaData": "Jan:35:55,Feb:40:60,Mar:45:65,Apr:50:70",
+        "horizontalReferenceObjectColor": "#CC161513",
+        "horizontalReferenceObjectLineStyle": [
+          "solid"
+        ]
+      }
+    }
+  }
+]

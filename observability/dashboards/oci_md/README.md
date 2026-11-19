@@ -69,6 +69,13 @@ After import, open **Observability & Management → Dashboards** (filter to your
   driver, 1, 2…`). With both filters on *All*, the view is dense — pick an AIDP + Cluster to focus.
 - **AI Compute uniqueness:** AI panels group by `computeClusterId` so AI Computes that share a name stay
   distinct lines (the engine has no AIDP dimension to label them by).
+- **AI Platform coverage & region-dependent metrics:** the AI Platform dashboard charts both success **and**
+  failure counters (GenAI API, RAG Tool, SQL Tool, SQL connection pool) and the LLM- and agent-scope token
+  counters, matching the Grafana pack. A few of these series — notably the **agent-scope token counters**
+  (`total_tokens_input_to_agent`, `total_tokens_output_from_agent`) and some **`*_failure_counter`** series —
+  are only emitted by certain runtime versions / in certain regions. They are **kept in the shipped sample for
+  completeness**; where the runtime doesn't publish a metric, its panel simply renders **no data** (this is
+  expected, not a misconfiguration).
 - **Distinct dropdown values:** dimension dropdowns set `preventDefaultTransform: true` so each value
   appears **once** per namespace (a cluster name shared across many AIDPs isn't repeated per metric
   stream). *Known cosmetic quirk:* the Cluster dropdown **unions** `oracle_aidataplatform` (current) and

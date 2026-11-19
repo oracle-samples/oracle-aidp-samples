@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Incremental"
+  short_description: "Run guarded incremental Fusion refreshes"
+  default_prompt: "Use $aidp-fusion-incremental to safely refresh my selected Fusion datasets."

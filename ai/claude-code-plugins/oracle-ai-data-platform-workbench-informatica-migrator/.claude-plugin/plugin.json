@@ -1,0 +1,27 @@
+{
+  "name": "oracle-ai-data-platform-workbench-informatica-migrator",
+  "version": "0.1.0",
+  "description": "Migrate Informatica ETL (IDMC/IICS cloud mapping JSON, PowerCenter 10.x XML) to Oracle AI Data Platform: mappings become PySpark notebooks, workflows become AIDP jobs with the session dependency graph and Quartz schedules. Deterministic transformation compiler with an optional LLM-assisted path; anything it cannot convert safely is reported with a named reason and a rebuild path, never guessed.",
+  "author": {
+    "name": "Oracle AI Data Platform",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/oracle-ai-data-platform-workbench-informatica-migrator",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "aidp",
+    "oracle",
+    "informatica",
+    "powercenter",
+    "idmc",
+    "iics",
+    "migration",
+    "etl",
+    "pyspark",
+    "spark",
+    "notebooks",
+    "workflow"
+  ],
+  "commands": "./commands/"
+}

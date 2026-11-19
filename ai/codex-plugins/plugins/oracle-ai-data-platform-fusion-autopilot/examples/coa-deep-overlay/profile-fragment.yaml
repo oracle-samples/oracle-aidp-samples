@@ -1,0 +1,24 @@
+# SAMPLE profile fragment for a deep-COA tenant using the coa-deep-overlay.
+#
+# Goes in the tenant's `profiles/<tenant>.yaml` under `profile:`. Pins the
+# role->column MEANING (canonical). `bootstrap --refresh` derives
+# `resolved.column.coa_*` from this — NEVER hand-write resolved.column.coa_*.
+#
+# Single-COA tenant: use `default` only. Multi-COA tenant: add `byChart` arms
+# keyed by CodeCombinationChartOfAccountsId; different charts may bind different
+# segments (here chart 5023's natural account is at Segment10).
+profile:
+  chartOfAccounts:
+    default:
+      balancingSegment: CodeCombinationSegment1
+      costCenterSegment: CodeCombinationSegment2
+      naturalAccountSegment: CodeCombinationSegment10
+    byChart:
+      "101":
+        balancingSegment: CodeCombinationSegment1
+        costCenterSegment: CodeCombinationSegment2
+        naturalAccountSegment: CodeCombinationSegment10
+      "5023":
+        balancingSegment: CodeCombinationSegment4
+        costCenterSegment: CodeCombinationSegment2
+        naturalAccountSegment: CodeCombinationSegment10

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A workflow whose non-session tasks carry their <TASK> definitions, as a
+     real PowerCenter export does. TASKINSTANCE only names a task; the
+     settings an operator needs to rebuild it live in <TASK>/<ATTRIBUTE>. -->
+<POWERMART REPOSITORY_VERSION="189.1">
+  <REPOSITORY NAME="REP" VERSION="189" CODEPAGE="UTF-8" DATABASETYPE="Oracle">
+    <FOLDER NAME="OPS" GROUP="" OWNER="dev" SHARED="NOTSHARED">
+
+      <TASK NAME="cmd_archive" TYPE="Command" REUSABLE="NO" VERSIONNUMBER="1">
+        <ATTRIBUTE NAME="Command" VALUE="mv /infa/tgt/*.out /infa/archive/"/>
+        <ATTRIBUTE NAME="Fail Task if Any Command Fails" VALUE="YES"/>
+      </TASK>
+      <TASK NAME="em_load_failed" TYPE="Email" REUSABLE="NO" VERSIONNUMBER="1">
+        <ATTRIBUTE NAME="Email User Name" VALUE="dw-oncall@example.invalid"/>
+        <ATTRIBUTE NAME="Email Subject" VALUE="Nightly load FAILED"/>
+      </TASK>
+      <TASK NAME="dec_month_end" TYPE="Decision" REUSABLE="NO" VERSIONNUMBER="1">
+        <ATTRIBUTE NAME="Decision Expression" VALUE="$$RUN_MODE = 'MONTH_END'"/>
+      </TASK>
+      <TASK NAME="tmr_wait" TYPE="Timer" REUSABLE="NO" VERSIONNUMBER="1">
+        <ATTRIBUTE NAME="Timer Type" VALUE="Absolute Time"/>
+        <ATTRIBUTE NAME="Absolute Time" VALUE="04:00:00"/>
+      </TASK>
+      <TASK NAME="ctl_stop" TYPE="Control" REUSABLE="NO" VERSIONNUMBER="1">
+        <ATTRIBUTE NAME="Control Option" VALUE="Fail parent"/>
+      </TASK>
+      <TASK NAME="asg_batch" TYPE="Assignment" REUSABLE="NO" VERSIONNUMBER="1">
+        <ATTRIBUTE NAME="User Defined Variable" VALUE="$$BATCH_ID"/>
+        <ATTRIBUTE NAME="Assignment Expression" VALUE="$$BATCH_ID + 1"/>
+      </TASK>
+      <!-- Deliberately has NO <TASK> definition, to exercise the
+           "settings not available" path. -->
+
+      <WORKFLOW NAME="wf_ops_nightly" SERVERNAME="PROD_SVC" ISENABLED="YES"
+                DESCRIPTION="Non-session tasks with their attributes">
+        <TASKINSTANCE NAME="Start" TASKNAME="Start" TASKTYPE="Start"/>
+        <TASKINSTANCE NAME="asg_batch" TASKNAME="asg_batch" TASKTYPE="Assignment"/>
+        <TASKINSTANCE NAME="tmr_wait" TASKNAME="tmr_wait" TASKTYPE="Timer"/>
+        <TASKINSTANCE NAME="s_load_main" TASKNAME="s_load_main" TASKTYPE="Session"/>
+        <TASKINSTANCE NAME="dec_month_end" TASKNAME="dec_month_end" TASKTYPE="Decision"/>
+        <TASKINSTANCE NAME="cmd_archive" TASKNAME="cmd_archive" TASKTYPE="Command"/>
+        <TASKINSTANCE NAME="em_load_failed" TASKNAME="em_load_failed" TASKTYPE="Email"/>
+        <TASKINSTANCE NAME="ctl_stop" TASKNAME="ctl_stop" TASKTYPE="Control"/>
+        <TASKINSTANCE NAME="ew_file" TASKNAME="ew_file" TASKTYPE="Event-Wait"/>
+        <WORKFLOWLINK FROMTASK="Start" TOTASK="asg_batch" CONDITION=""/>
+        <WORKFLOWLINK FROMTASK="asg_batch" TOTASK="tmr_wait" CONDITION=""/>
+        <WORKFLOWLINK FROMTASK="tmr_wait" TOTASK="s_load_main" CONDITION=""/>
+        <WORKFLOWLINK FROMTASK="s_load_main" TOTASK="dec_month_end"
+                      CONDITION="$s_load_main.Status = SUCCEEDED"/>
+        <WORKFLOWLINK FROMTASK="dec_month_end" TOTASK="cmd_archive" CONDITION=""/>
+        <WORKFLOWLINK FROMTASK="s_load_main" TOTASK="em_load_failed"
+                      CONDITION="$s_load_main.Status = FAILED"/>
+      </WORKFLOW>
+    </FOLDER>
+  </REPOSITORY>
+</POWERMART>

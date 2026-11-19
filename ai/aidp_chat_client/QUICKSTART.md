@@ -123,7 +123,7 @@ https://gateway.aidp.{region}.oci.oraclecloud.com/agentendpoint/{agent-id}/chat
 
 Example:
 ```
-https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/agentendpoint/13e012d7002943d9969587a237564d8d/chat
+https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/agentendpoint/<agent-endpoint-id>/chat
 ```
 
 ## Next Steps

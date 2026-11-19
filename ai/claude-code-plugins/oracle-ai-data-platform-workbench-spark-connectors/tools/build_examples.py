@@ -331,7 +331,7 @@ def epm_planning_basic() -> List[dict]:
     return [
         md(
             "# `aidp-epm-cloud` live test — HTTP Basic (default for v0.1)\n",
-            "**Live-test row 11.** Username MUST be in `tenancy.user@domain` form (e.g. `epmloaner622.first.last@oracle.com`).\n",
+            "**Live-test row 11.** Username MUST be in `tenancy.user@domain` form (e.g. `mytenancy.first.last@example.com`).\n",
         ),
         sys_path_setup(),
         code(

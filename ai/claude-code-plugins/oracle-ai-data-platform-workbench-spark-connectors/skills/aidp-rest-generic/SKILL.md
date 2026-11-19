@@ -1,4 +1,5 @@
 ---
+name: aidp-rest-generic
 description: Pull data from any REST API into a Spark DataFrame using the AIDP `aidataplatform` Generic REST connector. Use when the user has a non-Fusion / non-EPM / non-Essbase REST endpoint with a `manifest.url` describing the schema. Auth is HTTP Basic with derived properties driving query parameters.
 allowed-tools: Read, Write, Edit, Bash
 ---

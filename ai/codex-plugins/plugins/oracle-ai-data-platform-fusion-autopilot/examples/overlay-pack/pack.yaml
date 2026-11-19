@@ -1,0 +1,13 @@
+id: supplier-currency-summary
+version: 0.1.0
+extends: fusion-finance-starter@0.1.0
+description: |
+  Example additive overlay that creates a gold mart summarizing supplier spend
+  by currency. It reads existing bronze/silver sources from the starter pack and
+  does not modify the base pack.
+compatibility:
+  pluginMinVersion: 0.3.0
+  fusionFamilies:
+    - ERP
+  aidp:
+    requiresDelta: true

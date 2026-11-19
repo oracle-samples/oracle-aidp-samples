@@ -1,0 +1,35 @@
+apiVersion: aidp-fusion-autopilot/v1
+project: cecl-finance-lake
+
+defaults:
+  region: us-ashburn-1
+  workspaceRoot: Shared
+
+environments:
+  dev:
+    workspaceKey: WORKSPACE-UUID-PLACEHOLDER
+    region: us-ashburn-1
+    ociProfile: AIDP_SESSION                # local OCI session token (oci session authenticate)
+
+    # P1.5ε — dispatch coords for `aidp-fusion-autopilot run` (no --inline).
+    # Find aiDataPlatformId via the AIDP console URL when you open the workspace.
+    # Find clusterKey via:
+    #   oci raw-request --http-method GET --target-uri \
+    #     "https://datalake.<region>.oci.oraclecloud.com/20260430/aiDataPlatforms/<aidp-id>/workspaces/<workspace-key>/clusters"
+    aiDataPlatformId: ocid1.datalake.oc1.iad.AIDP-ID-PLACEHOLDER
+    clusterKey: CLUSTER-UUID-PLACEHOLDER
+    clusterName: fusion_autopilot_dev
+    biccSecretName: fusion_bicc_password   # AIDP credential-store entry name (default)
+    # biccSecretKey: password              # key within the entry (default)
+
+  prod:
+    workspaceKey: 9a2f-PROD-PLACEHOLDER
+    region: us-ashburn-1
+    ociProfile: AIDP_PROD                  # P1.5ε rejects `auth.mode: vault` at preflight;
+                                           # use a profile-based signer until P1.5ε-fix6 ships
+                                           # cloud-side signers (vault / resource-principal).
+
+    aiDataPlatformId: ocid1.datalake.oc1.iad.PROD-AIDP-PLACEHOLDER
+    clusterKey: PROD-CLUSTER-UUID-PLACEHOLDER
+    clusterName: fusion_autopilot_prod
+    biccSecretName: fusion_bicc_password_prod  # tenant-isolated secret name

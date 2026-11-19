@@ -1,0 +1,117 @@
+id: dim_supplier
+layer: silver
+implementation:
+  type: sql
+  sql: silver/dim_supplier.sql
+target: dim_supplier
+
+dependsOn:
+  bronze:
+    - id: erp_suppliers
+      watermark:
+        column: _extract_ts
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: erp_suppliers
+      column: _extract_ts
+    naturalKey:
+      - supplier_number
+    reason: |
+      Row-grain silver dim. xxhash64 surrogate ensures determinism under
+      MERGE. Single bronze source; role: primary defaults apply.
+
+requiredColumns:
+  erp_suppliers:
+    - $column.supplier_natural_key
+    - $column.vendor_id
+    - PARTYID
+    - PARENTVENDORID
+    - PARENTPARTYID
+    - BUSINESSRELATIONSHIP
+    - AlternateNamePartyName
+    - AliasPartyName
+    - TaxReportingName
+    - CREATIONDATE
+    - ENDDATEACTIVE
+    - LASTUPDATEDATE
+    - _extract_ts
+    - _source_pvo
+
+# Output schema matches dim_supplier.sql's 15-column projection (v1
+# `_projection_select_sql` at dimensions/dim_supplier.py:76-121). The
+# declared schema must stay aligned with the SQL projection so the
+# materialized-schema assertion (AIDPF-4070) passes.
+outputSchema:
+  columns:
+    - name: supplier_key
+      type: bigint
+      nullable: false
+      pii: none
+    - name: supplier_number
+      type: string
+      nullable: false
+      pii: low
+    - name: supplier_name
+      type: string
+      nullable: true
+      pii: low
+    - name: vendor_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: party_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: parent_vendor_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: parent_party_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: business_relationship
+      type: string
+      nullable: true
+      pii: none
+    - name: inactive_date
+      type: date
+      nullable: true
+      pii: none
+    - name: creation_date
+      type: timestamp
+      nullable: true
+      pii: none
+    - name: last_update_date
+      type: timestamp
+      nullable: true
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: bronze_source_pvo
+      type: string
+      nullable: false
+      pii: none
+    - name: silver_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: silver_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: not_null
+      columns: [supplier_number]
+    - type: unique
+      columns: [supplier_number]

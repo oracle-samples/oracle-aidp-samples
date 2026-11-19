@@ -1,0 +1,100 @@
+apiVersion: aidp-fusion-autopilot/v1
+version: "0.2.0"
+project: my-fusion-lake
+
+# Default customer scaffold written by `aidp-fusion-autopilot init` (no --template).
+# Enables the full shipped finance starter scope: all bronze extracts, the
+# conformed silver dimensions, and every gold mart. Pare this file down to the
+# datasets/dimensions/marts you actually need, or start narrow with
+# `aidp-fusion-autopilot init --template minimal-bundle`.
+
+# v2 content-pack wiring (Phase 3) — declares which pack + active tenant
+# profile the orchestrator resolves under `--execution-backend content-pack`.
+# The companion profile YAML lives at `<bundle.yaml.parent>/profiles/<profile>.yaml`.
+contentPack:
+  name: fusion-finance-starter
+  profile: finance-default
+
+variables:
+  team: finance-analytics
+
+fusion:
+  serviceUrl: ${FUSION_BICC_BASE_URL}
+  username: ${FUSION_BICC_USER}
+  # Cluster loads this from the AIDP credential store (biccSecretName in
+  # aidp.config.yaml); locally it resolves from $FUSION_BICC_PASSWORD in .env.
+  password: ${env:FUSION_BICC_PASSWORD}
+  externalStorage: ${FUSION_BICC_EXTERNAL_STORAGE}
+
+aidp:
+  catalog: fusion_catalog
+  bronzeSchema: bronze
+  silverSchema: silver
+  goldSchema: gold
+  storageFormat: delta
+
+# Bronze extracts the starter pack declares. Keep IDs in sync with
+# content_packs/fusion-finance-starter/bronze/*.yaml.
+datasets:
+  # General Ledger
+  - id: gl_journal_lines
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: gl_period_balances
+    mode: full
+    schedule: "0 3 1 * *"
+  - id: gl_coa
+    mode: full
+  # Payables
+  - id: ap_invoices
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: ap_payments
+    mode: incremental
+    schedule: "0 2 * * *"
+  # Receivables
+  - id: ar_invoices
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: ar_receipts
+    mode: incremental
+    schedule: "0 2 * * *"
+  # Procurement
+  - id: po_orders
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: po_receipts
+    mode: incremental
+    schedule: "0 2 * * *"
+  # Suppliers / Items
+  - id: erp_suppliers
+    mode: full
+  - id: scm_items
+    mode: full
+
+# Conformed silver dimensions shipped by the pack
+# (content_packs/fusion-finance-starter/silver/*.yaml).
+dimensions:
+  build:
+    - dim_account
+    - dim_calendar
+    - dim_supplier
+
+# Gold marts shipped by the pack
+# (content_packs/fusion-finance-starter/gold/*.yaml).
+gold:
+  marts:
+    - supplier_spend
+    - ap_aging
+    - gl_balance
+
+oac:
+  enabled: true
+  url: ${OAC_URL}
+  dataSourceName: aidp_fusion_jdbc
+
+incremental:
+  watermarkSafetyWindowSeconds: 3600
+
+notifications:
+  onFailure: []

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workbook Authoring"
+  short_description: "Generate and save validated OAC workbooks"
+  default_prompt: "Use $workbook-authoring to generate, validate, and save this OAC workbook."

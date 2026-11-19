@@ -1,0 +1,41 @@
+id: gl_journal_lines
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.JournalHeaderExtractPVO
+  pvo_id: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.JournalHeaderExtractPVO
+  biccSchema: Financial
+  schemaOverride: null
+  incrementalCapable: true
+  auditColumnsMode: bronze_v1
+target: gl_journal_headers
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: gl_journal_lines
+      column: GlJeHeadersLastUpdateDate
+    naturalKey: [JeHeaderId]
+requiredColumns:
+  gl_journal_lines:
+    - JeHeaderId
+    - GlJeHeadersLedgerId
+    - GlJeHeadersPeriodName
+    - GlJeHeadersLastUpdateDate
+outputSchema:
+  columns:
+    - { name: JeHeaderId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: GlJeHeadersLedgerId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: GlJeHeadersPeriodName, type: string, nullable: true, pii: none }
+    - { name: GlJeHeadersLastUpdateDate, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

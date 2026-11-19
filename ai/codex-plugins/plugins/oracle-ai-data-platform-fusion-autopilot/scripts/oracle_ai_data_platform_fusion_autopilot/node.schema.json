@@ -1,0 +1,780 @@
+{
+  "$defs": {
+    "AffectedPartitionsFrom": {
+      "additionalProperties": false,
+      "description": "Maps source delta to target partitions (replace_partition strategy).",
+      "properties": {
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "sourceColumns": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourcecolumns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "sourceColumns"
+      ],
+      "title": "AffectedPartitionsFrom",
+      "type": "object"
+    },
+    "BronzeExtractImpl": {
+      "additionalProperties": false,
+      "description": "``implementation.type: bronze_extract`` -- BICC PVO extraction.\n\nDeclares a content-pack-driven bronze node. Carries everything the\nruntime needs to construct a BICC ``PvoEntry``-equivalent descriptor\nWITHOUT depending on the curated ``fusion_catalog.py`` \u2014 pack YAML is\nself-contained so customer overlay packs can declare new PVOs without\na plugin release.\n\nPVO resolution contract:\n\n1. The adapter constructs a ``PvoEntry``-equivalent descriptor directly\n   from the YAML fields (``datastore``, ``bicc_schema``, ``natural_key``\n   from ``refresh.incremental``, ``incremental_capable``).\n2. The descriptor is passed to ``extract_pvo()`` unchanged.\n3. At pack-load time, validators cross-reference\n   ``implementation.pvo_id`` against the curated catalog for a WARN\n   only. The BICC drift gate (``AIDPF-2072``) catches typo'd PVOs at\n   extract-preflight time.",
+      "properties": {
+        "auditColumnsMode": {
+          "const": "bronze_v1",
+          "default": "bronze_v1",
+          "title": "Auditcolumnsmode",
+          "type": "string"
+        },
+        "biccSchema": {
+          "title": "Biccschema",
+          "type": "string"
+        },
+        "datastore": {
+          "title": "Datastore",
+          "type": "string"
+        },
+        "incrementalCapable": {
+          "default": true,
+          "title": "Incrementalcapable",
+          "type": "boolean"
+        },
+        "pvo_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pvo Id"
+        },
+        "schemaOverride": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schemaoverride"
+        },
+        "type": {
+          "const": "bronze_extract",
+          "default": "bronze_extract",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "datastore",
+        "biccSchema"
+      ],
+      "title": "BronzeExtractImpl",
+      "type": "object"
+    },
+    "BuiltinImpl": {
+      "additionalProperties": false,
+      "description": "`implementation.type: builtin` \u2014 engine-owned helper (e.g., `dim_calendar`, ADR-0011).",
+      "properties": {
+        "callable": {
+          "title": "Callable",
+          "type": "string"
+        },
+        "type": {
+          "const": "builtin",
+          "default": "builtin",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "callable"
+      ],
+      "title": "BuiltinImpl",
+      "type": "object"
+    },
+    "DependsOn": {
+      "additionalProperties": false,
+      "description": "Per-node upstream dependencies.",
+      "properties": {
+        "bronze": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Bronze",
+          "type": "array"
+        },
+        "silver": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Silver",
+          "type": "array"
+        }
+      },
+      "title": "DependsOn",
+      "type": "object"
+    },
+    "IncrementalWatermark": {
+      "additionalProperties": false,
+      "description": "Watermark configuration for incremental-mode merge / replace_partition.",
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "column"
+      ],
+      "title": "IncrementalWatermark",
+      "type": "object"
+    },
+    "OutputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/OutputSchemaColumn"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "title": "OutputSchema",
+      "type": "object"
+    },
+    "OutputSchemaColumn": {
+      "additionalProperties": false,
+      "description": "One column in a node's declared output schema.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "nullable": {
+          "default": true,
+          "title": "Nullable",
+          "type": "boolean"
+        },
+        "pii": {
+          "enum": [
+            "high",
+            "medium",
+            "low",
+            "none"
+          ],
+          "title": "Pii",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "pii"
+      ],
+      "title": "OutputSchemaColumn",
+      "type": "object"
+    },
+    "QualitySection": {
+      "additionalProperties": false,
+      "description": "Per-node `quality:` block.",
+      "properties": {
+        "tests": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "accepted_values": "#/$defs/QualityTestAcceptedValues",
+                "custom": "#/$defs/QualityTestCustom",
+                "freshness": "#/$defs/QualityTestFreshness",
+                "not_null": "#/$defs/QualityTestNotNull",
+                "reconcile_to": "#/$defs/QualityTestReconcileTo",
+                "referential_integrity": "#/$defs/QualityTestReferentialIntegrity",
+                "row_count_delta": "#/$defs/QualityTestRowCountDelta",
+                "row_count_min": "#/$defs/QualityTestRowCountMin",
+                "unique": "#/$defs/QualityTestUnique"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/QualityTestNotNull"
+              },
+              {
+                "$ref": "#/$defs/QualityTestUnique"
+              },
+              {
+                "$ref": "#/$defs/QualityTestAcceptedValues"
+              },
+              {
+                "$ref": "#/$defs/QualityTestRowCountMin"
+              },
+              {
+                "$ref": "#/$defs/QualityTestRowCountDelta"
+              },
+              {
+                "$ref": "#/$defs/QualityTestFreshness"
+              },
+              {
+                "$ref": "#/$defs/QualityTestReconcileTo"
+              },
+              {
+                "$ref": "#/$defs/QualityTestReferentialIntegrity"
+              },
+              {
+                "$ref": "#/$defs/QualityTestCustom"
+              }
+            ]
+          },
+          "title": "Tests",
+          "type": "array"
+        }
+      },
+      "title": "QualitySection",
+      "type": "object"
+    },
+    "QualityTestAcceptedValues": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "type": {
+          "const": "accepted_values",
+          "default": "accepted_values",
+          "title": "Type",
+          "type": "string"
+        },
+        "values": {
+          "items": {},
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "column",
+        "values"
+      ],
+      "title": "QualityTestAcceptedValues",
+      "type": "object"
+    },
+    "QualityTestCustom": {
+      "additionalProperties": false,
+      "description": "Third-party quality test.",
+      "properties": {
+        "args": {
+          "additionalProperties": true,
+          "title": "Args",
+          "type": "object"
+        },
+        "implementation": {
+          "title": "Implementation",
+          "type": "string"
+        },
+        "type": {
+          "const": "custom",
+          "default": "custom",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "implementation"
+      ],
+      "title": "QualityTestCustom",
+      "type": "object"
+    },
+    "QualityTestFreshness": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "maxAgeHours": {
+          "minimum": 1,
+          "title": "Maxagehours",
+          "type": "integer"
+        },
+        "type": {
+          "const": "freshness",
+          "default": "freshness",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "maxAgeHours"
+      ],
+      "title": "QualityTestFreshness",
+      "type": "object"
+    },
+    "QualityTestNotNull": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "type": {
+          "const": "not_null",
+          "default": "not_null",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "title": "QualityTestNotNull",
+      "type": "object"
+    },
+    "QualityTestReconcileTo": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregate": {
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "tolerance": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Tolerance",
+          "type": "number"
+        },
+        "type": {
+          "const": "reconcile_to",
+          "default": "reconcile_to",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "aggregate"
+      ],
+      "title": "QualityTestReconcileTo",
+      "type": "object"
+    },
+    "QualityTestReferentialIntegrity": {
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        },
+        "references": {
+          "title": "References",
+          "type": "string"
+        },
+        "type": {
+          "const": "referential_integrity",
+          "default": "referential_integrity",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "references"
+      ],
+      "title": "QualityTestReferentialIntegrity",
+      "type": "object"
+    },
+    "QualityTestRowCountDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "tolerancePct": {
+          "minimum": 0,
+          "title": "Tolerancepct",
+          "type": "number"
+        },
+        "type": {
+          "const": "row_count_delta",
+          "default": "row_count_delta",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tolerancePct"
+      ],
+      "title": "QualityTestRowCountDelta",
+      "type": "object"
+    },
+    "QualityTestRowCountMin": {
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "minimum": 0,
+          "title": "Min",
+          "type": "integer"
+        },
+        "type": {
+          "const": "row_count_min",
+          "default": "row_count_min",
+          "title": "Type",
+          "type": "string"
+        },
+        "whenSourceNonEmpty": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Whensourcenonempty"
+        }
+      },
+      "required": [
+        "min"
+      ],
+      "title": "QualityTestRowCountMin",
+      "type": "object"
+    },
+    "QualityTestUnique": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "type": {
+          "const": "unique",
+          "default": "unique",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "columns"
+      ],
+      "title": "QualityTestUnique",
+      "type": "object"
+    },
+    "RefreshIncremental": {
+      "additionalProperties": false,
+      "description": "Incremental-mode refresh strategy.",
+      "properties": {
+        "affectedPartitionsFrom": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AffectedPartitionsFrom"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "naturalKey": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Naturalkey",
+          "type": "array"
+        },
+        "partitionColumns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Partitioncolumns",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "strategy": {
+          "enum": [
+            "replace",
+            "merge",
+            "append",
+            "replace_partition",
+            "custom",
+            "aggregate_merge",
+            "snapshot",
+            "scd2"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        },
+        "trackedColumns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Trackedcolumns",
+          "type": "array"
+        },
+        "watermark": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IncrementalWatermark"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "title": "RefreshIncremental",
+      "type": "object"
+    },
+    "RefreshSeed": {
+      "additionalProperties": false,
+      "description": "Seed-mode refresh strategy. Typically `replace` for all v0.3 nodes.",
+      "properties": {
+        "strategy": {
+          "enum": [
+            "replace",
+            "merge",
+            "append",
+            "replace_partition",
+            "custom"
+          ],
+          "title": "Strategy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "strategy"
+      ],
+      "title": "RefreshSeed",
+      "type": "object"
+    },
+    "RefreshSpec": {
+      "additionalProperties": false,
+      "description": "Both seed and incremental refresh strategies.",
+      "properties": {
+        "incremental": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefreshIncremental"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seed": {
+          "$ref": "#/$defs/RefreshSeed"
+        }
+      },
+      "required": [
+        "seed"
+      ],
+      "title": "RefreshSpec",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "description": "One entry in ``dependsOn.bronze[]`` or ``dependsOn.silver[]``.\n\n``role`` declares whether the dependency is the primary watermark source\nor a lookup source.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "anyOf": [
+            {
+              "enum": [
+                "primary",
+                "lookup"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role"
+        },
+        "watermark": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WatermarkSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "SqlImpl": {
+      "additionalProperties": false,
+      "description": "`implementation.type: sql` \u2014 a SQL template file.",
+      "properties": {
+        "sql": {
+          "title": "Sql",
+          "type": "string"
+        },
+        "type": {
+          "const": "sql",
+          "default": "sql",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sql"
+      ],
+      "title": "SqlImpl",
+      "type": "object"
+    },
+    "WatermarkSpec": {
+      "additionalProperties": false,
+      "description": "Per-source watermark column for incremental filtering.",
+      "properties": {
+        "column": {
+          "title": "Column",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column"
+      ],
+      "title": "WatermarkSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Schema for ``silver/<name>.yaml`` and ``gold/<name>.yaml`` files.\n\nEnforces the strategy validation matrix. Each rule violation raises a\n`ValueError` with a specific AIDPF code so the CLI's\n`content-pack validate` surfaces actionable remediation.",
+  "properties": {
+    "dependsOn": {
+      "$ref": "#/$defs/DependsOn"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "implementation": {
+      "discriminator": {
+        "mapping": {
+          "bronze_extract": "#/$defs/BronzeExtractImpl",
+          "builtin": "#/$defs/BuiltinImpl",
+          "sql": "#/$defs/SqlImpl"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SqlImpl"
+        },
+        {
+          "$ref": "#/$defs/BuiltinImpl"
+        },
+        {
+          "$ref": "#/$defs/BronzeExtractImpl"
+        }
+      ],
+      "title": "Implementation"
+    },
+    "layer": {
+      "enum": [
+        "bronze",
+        "silver",
+        "gold"
+      ],
+      "title": "Layer",
+      "type": "string"
+    },
+    "outputSchema": {
+      "$ref": "#/$defs/OutputSchema"
+    },
+    "quality": {
+      "$ref": "#/$defs/QualitySection"
+    },
+    "refresh": {
+      "$ref": "#/$defs/RefreshSpec"
+    },
+    "requiredColumns": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "Requiredcolumns",
+      "type": "object"
+    },
+    "target": {
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "layer",
+    "implementation",
+    "target",
+    "refresh",
+    "outputSchema"
+  ],
+  "title": "NodeYaml",
+  "type": "object"
+}

@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-618755680642"
+  },
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "02_Build_Aggregates",
+    "description": "Acme demo notebook"
+  }
+}

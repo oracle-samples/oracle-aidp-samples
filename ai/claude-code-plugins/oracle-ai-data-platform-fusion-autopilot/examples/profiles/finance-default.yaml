@@ -1,0 +1,71 @@
+# Finance-default tenant profile for the fusion-finance-starter content pack.
+#
+# Resolved at bootstrap; frozen for subsequent runs. Authored values mirror
+# the demo-pod demo pod's PVO shapes.
+#
+# COA segments: dim_account.sql substitutes three role-aliased columns
+# (`balancing` / `cost_center` / `natural_account`) via {{ coa.<role> }}
+# tokens, which read `profile.chartOfAccounts` (canonical). bootstrap also
+# derives `resolved.column.coa_*` from it. A non-conventional tenant (e.g.
+# balancing at CodeCombinationSegment4) declares its own `chartOfAccounts`
+# here; the COA resolver records honest provenance and the M2 preflight gate
+# data-checks the binding. The other three roles (`subaccount` / `product` /
+# `intercompany`) stay positional in the SQL.
+#
+# Field aliases match scripts/oracle_ai_data_platform_fusion_autopilot/schema/tenant_profile.py.
+schemaVersion: 1
+tenant: finance-default
+pinnedAt: 2026-06-05T00:00:00+00:00
+
+# Placeholder fingerprint — the §11.6 drift gate compares this against the
+# live bronze schema each run. Re-run `aidp-fusion-autopilot bootstrap` on a
+# real tenant to capture the actual sha256.
+bronzeSchemaFingerprint: "sha256:placeholder-finance-default-2026-06-05"
+
+# Variation-point resolutions referenced by starter-pack SQL templates.
+# The renderer raises AIDPF-5003 at sql_renderer.py:474 / :507 if any of
+# these is missing — see docs/v2-phase-3-variation-catalog.md for the
+# per-knob audit.
+resolved:
+  column:
+    # dim_supplier
+    supplier_natural_key: SEGMENT1
+    vendor_id: VENDORID
+    # supplier_spend + ap_aging
+    invoice_currency_code: ApInvoicesInvoiceCurrencyCode
+    # dim_account — three role-aliased COA source columns. Hand-authored
+    # until feature `v2-phase-3a-bootstrap-variation-resolver` ships;
+    # bootstrap's first auto-resolve on a clean demo-pod run produces
+    # these byte-identical values (each role's single conventional
+    # candidate exists in bronze).
+    coa_balancing_segment: CodeCombinationSegment1
+    coa_cost_center_segment: CodeCombinationSegment2
+    coa_natural_account_segment: CodeCombinationSegment3
+  semantic:
+    # ap_aging cancelled-invoice detection. The `cancelled_date` candidate
+    # uses ApInvoicesCancelledDate IS NULL; the alternative `cancelled_flag`
+    # candidate uses COALESCE(...CancelledFlag, 'N') != 'Y' for tenants
+    # whose extract omits the date column.
+    cancelled_status: cancelled_date
+
+# Free-form profile block — consumed by the renderer's `{{ profile.<key> }}`,
+# `{{ snapshot_date }}` tokens, and the dim_calendar builtin adapter.
+#
+# Delete or comment-out `snapshotDate` to use CURRENT_DATE() in production
+# (Phase 3 Step 2 fallback contract). The `calendar:` block here overrides
+# pack-level defaults; omitting it falls back to
+# pack.pack.profiles.finance-default.calendar.
+profile:
+  snapshotDate: '2026-06-05'
+  calendar:
+    startDate: '2020-01-01'
+    endDate: '2030-12-31'
+    fiscalStartMonth: 1
+  # COA role->column mapping (canonical). {{ coa.<role> }} reads this;
+  # bootstrap derives resolved.column.coa_* above from it. Conventional
+  # Segment1/2/3 layout for demo-pod.
+  chartOfAccounts:
+    default:
+      balancingSegment: CodeCombinationSegment1
+      costCenterSegment: CodeCombinationSegment2
+      naturalAccountSegment: CodeCombinationSegment3

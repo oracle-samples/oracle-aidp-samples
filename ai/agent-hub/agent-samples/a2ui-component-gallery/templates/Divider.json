@@ -1,0 +1,175 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Divider default between two text blocks",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewDividerColumn_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewTopText_v1",
+          "component": "Text",
+          "text": "Section above default divider",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewDivider_v1",
+          "component": "Divider"
+        },
+        {
+          "id": "tpl_previewBottomText_v1",
+          "component": "Text",
+          "text": "Section below default divider",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewDividerColumn_v1",
+          "component": "Column",
+          "children": [
+            "tpl_previewTopText_v1",
+            "tpl_previewDivider_v1",
+            "tpl_previewBottomText_v1"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Divider explicit horizontal between captions",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewDividerHorizontalColumn_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewHorizontalTop_v2",
+          "component": "Text",
+          "text": "Horizontal top",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewDividerHorizontal_v2",
+          "component": "Divider",
+          "axis": "horizontal"
+        },
+        {
+          "id": "tpl_previewHorizontalBottom_v2",
+          "component": "Text",
+          "text": "Horizontal bottom",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewDividerHorizontalColumn_v2",
+          "component": "Column",
+          "children": [
+            "tpl_previewHorizontalTop_v2",
+            "tpl_previewDividerHorizontal_v2",
+            "tpl_previewHorizontalBottom_v2"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Divider explicit vertical between left and right text",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewDividerVerticalRow_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewLeftTop_v3",
+          "component": "Text",
+          "text": "Left top",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewLeftBottom_v3",
+          "component": "Text",
+          "text": "Left bottom",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewLeftColumn_v3",
+          "component": "Column",
+          "children": [
+            "tpl_previewLeftTop_v3",
+            "tpl_previewLeftBottom_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewDividerVertical_v3",
+          "component": "Divider",
+          "axis": "vertical"
+        },
+        {
+          "id": "tpl_previewRightTop_v3",
+          "component": "Text",
+          "text": "Right top",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewRightBottom_v3",
+          "component": "Text",
+          "text": "Right bottom",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewRightColumn_v3",
+          "component": "Column",
+          "children": [
+            "tpl_previewRightTop_v3",
+            "tpl_previewRightBottom_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewDividerVerticalRow_v3",
+          "component": "Row",
+          "children": [
+            "tpl_previewLeftColumn_v3",
+            "tpl_previewDividerVertical_v3",
+            "tpl_previewRightColumn_v3"
+          ],
+          "align": "center",
+          "justify": "spaceBetween"
+        }
+      ]
+    }
+  }
+]

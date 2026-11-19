@@ -1,0 +1,630 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_popup_intro",
+            "tpl_variant_wrapper_popup_v1",
+            "tpl_variant_wrapper_popup_v2",
+            "tpl_variant_wrapper_popup_v3",
+            "tpl_variant_wrapper_popup_v4"
+          ]
+        },
+        {
+          "id": "tpl_popup_intro",
+          "component": "Text",
+          "text": "OAPopup wires a launcher component to popup content. These variants show different launcher types and popup child types.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_variant_header_popup_v1",
+          "component": "Text",
+          "text": "OAPopup with Text launcher and Text child",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_popup_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_popup_v1",
+            "tpl_previewOAPopup_v1"
+          ]
+        },
+        {
+          "id": "tpl_popupLauncherText_v1",
+          "component": "Text",
+          "text": "Text launcher: account status",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupChildText_v1",
+          "component": "Text",
+          "text": "The account is active and synced.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOAPopup_v1",
+          "component": "OAPopup",
+          "launcher": "tpl_popupLauncherText_v1",
+          "child": "tpl_popupChildText_v1",
+          "position": {
+            "my": {
+              "horizontal": "center",
+              "vertical": "bottom"
+            },
+            "at": {
+              "horizontal": "center",
+              "vertical": "top"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_variant_header_popup_v2",
+          "component": "Text",
+          "text": "OAPopup with Button launcher and Card child",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_popup_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_popup_v2",
+            "tpl_previewOAPopup_v2"
+          ]
+        },
+        {
+          "id": "tpl_popupButtonLabel_v2",
+          "component": "Text",
+          "text": "Open metrics popup",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupLauncherButton_v2",
+          "component": "Button",
+          "child": "tpl_popupButtonLabel_v2",
+          "action": {
+            "event": {
+              "name": "preview_popup_launcher",
+              "context": {
+                "selectedComponent": "OAPopup",
+                "source": "popup-button-launcher"
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_popupCardTitle_v2",
+          "component": "Text",
+          "text": "Metrics snapshot",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_popupCardBody_v2",
+          "component": "Text",
+          "text": "Pipeline latency is 42 ms, with 99.9% availability.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupCardColumn_v2",
+          "component": "Column",
+          "children": [
+            "tpl_popupCardTitle_v2",
+            "tpl_popupCardBody_v2"
+          ]
+        },
+        {
+          "id": "tpl_popupChildCard_v2",
+          "component": "Card",
+          "child": "tpl_popupCardColumn_v2"
+        },
+        {
+          "id": "tpl_previewOAPopup_v2",
+          "component": "OAPopup",
+          "launcher": "tpl_popupLauncherButton_v2",
+          "child": "tpl_popupChildCard_v2",
+          "position": {
+            "my": {
+              "horizontal": "center",
+              "vertical": "top"
+            },
+            "at": {
+              "horizontal": "center",
+              "vertical": "bottom"
+            },
+            "offset": {
+              "y": 8
+            },
+            "collision": "flipfit"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_variant_header_popup_v3",
+          "component": "Text",
+          "text": "OAPopup with Card launcher and Text child",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_popup_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_popup_v3",
+            "tpl_previewOAPopup_v3"
+          ]
+        },
+        {
+          "id": "tpl_popupLauncherCardTitle_v3",
+          "component": "Text",
+          "text": "Deployment window",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_popupLauncherCardBody_v3",
+          "component": "Text",
+          "text": "Click this card for schedule details.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupLauncherCardColumn_v3",
+          "component": "Column",
+          "children": [
+            "tpl_popupLauncherCardTitle_v3",
+            "tpl_popupLauncherCardBody_v3"
+          ]
+        },
+        {
+          "id": "tpl_popupLauncherCard_v3",
+          "component": "Card",
+          "child": "tpl_popupLauncherCardColumn_v3"
+        },
+        {
+          "id": "tpl_popupChildText_v3",
+          "component": "Text",
+          "text": "The deployment window starts Friday at 8 PM.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOAPopup_v3",
+          "component": "OAPopup",
+          "launcher": "tpl_popupLauncherCard_v3",
+          "child": "tpl_popupChildText_v3",
+          "position": {
+            "my": {
+              "horizontal": "end",
+              "vertical": "top"
+            },
+            "at": {
+              "horizontal": "start",
+              "vertical": "bottom"
+            },
+            "collision": "flipfit"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_variant_header_popup_v4",
+          "component": "Text",
+          "text": "OAPopup common positions with button launchers",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_popup_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_popup_v4",
+            "tpl_popupPositionCard_v4"
+          ]
+        },
+        {
+          "id": "tpl_popupPositionCardTitle_v4",
+          "component": "Text",
+          "text": "Common positions",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_popupPositionCardBody_v4",
+          "component": "Text",
+          "text": "Each button opens a popup using a common position pairing.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_01",
+          "component": "Text",
+          "text": "Top start",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_01",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_01"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_01",
+          "component": "Text",
+          "text": "Top start",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_01",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_01",
+          "child": "tpl_popupPositionText_v4_01",
+          "position": {
+            "at": {
+              "horizontal": "start",
+              "vertical": "top"
+            },
+            "my": {
+              "horizontal": "end",
+              "vertical": "bottom"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_02",
+          "component": "Text",
+          "text": "Top",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_02",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_02"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_02",
+          "component": "Text",
+          "text": "Top",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_02",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_02",
+          "child": "tpl_popupPositionText_v4_02",
+          "position": {
+            "at": {
+              "horizontal": "center",
+              "vertical": "top"
+            },
+            "my": {
+              "horizontal": "center",
+              "vertical": "bottom"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_03",
+          "component": "Text",
+          "text": "Top end",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_03",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_03"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_03",
+          "component": "Text",
+          "text": "Top end",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_03",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_03",
+          "child": "tpl_popupPositionText_v4_03",
+          "position": {
+            "at": {
+              "horizontal": "end",
+              "vertical": "top"
+            },
+            "my": {
+              "horizontal": "start",
+              "vertical": "bottom"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_04",
+          "component": "Text",
+          "text": "Start",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_04",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_04"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_04",
+          "component": "Text",
+          "text": "Start",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_04",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_04",
+          "child": "tpl_popupPositionText_v4_04",
+          "position": {
+            "at": {
+              "horizontal": "start",
+              "vertical": "center"
+            },
+            "my": {
+              "horizontal": "end",
+              "vertical": "center"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_05",
+          "component": "Text",
+          "text": "End",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_05",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_05"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_05",
+          "component": "Text",
+          "text": "End",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_05",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_05",
+          "child": "tpl_popupPositionText_v4_05",
+          "position": {
+            "at": {
+              "horizontal": "end",
+              "vertical": "center"
+            },
+            "my": {
+              "horizontal": "start",
+              "vertical": "center"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_06",
+          "component": "Text",
+          "text": "Bottom start",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_06",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_06"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_06",
+          "component": "Text",
+          "text": "Bottom start",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_06",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_06",
+          "child": "tpl_popupPositionText_v4_06",
+          "position": {
+            "at": {
+              "horizontal": "start",
+              "vertical": "bottom"
+            },
+            "my": {
+              "horizontal": "end",
+              "vertical": "top"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_07",
+          "component": "Text",
+          "text": "Bottom",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_07",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_07"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_07",
+          "component": "Text",
+          "text": "Bottom",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_07",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_07",
+          "child": "tpl_popupPositionText_v4_07",
+          "position": {
+            "at": {
+              "horizontal": "center",
+              "vertical": "bottom"
+            },
+            "my": {
+              "horizontal": "center",
+              "vertical": "top"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonLabel_v4_08",
+          "component": "Text",
+          "text": "Bottom end",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionButton_v4_08",
+          "component": "Card",
+          "child": "tpl_popupPositionButtonLabel_v4_08"
+        },
+        {
+          "id": "tpl_popupPositionText_v4_08",
+          "component": "Text",
+          "text": "Bottom end",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionPreview_v4_08",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionButton_v4_08",
+          "child": "tpl_popupPositionText_v4_08",
+          "position": {
+            "at": {
+              "horizontal": "end",
+              "vertical": "bottom"
+            },
+            "my": {
+              "horizontal": "start",
+              "vertical": "top"
+            },
+            "collision": "none"
+          },
+          "tail": "simple",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionWindowButtonLabel_v4",
+          "component": "Text",
+          "text": "Center on window",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionWindowButton_v4",
+          "component": "Card",
+          "child": "tpl_popupPositionWindowButtonLabel_v4"
+        },
+        {
+          "id": "tpl_popupPositionWindowText_v4",
+          "component": "Text",
+          "text": "Centered on the window",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_popupPositionWindowPreview_v4",
+          "component": "OAPopup",
+          "launcher": "tpl_popupPositionWindowButton_v4",
+          "child": "tpl_popupPositionWindowText_v4",
+          "position": {
+            "at": {
+              "horizontal": "center",
+              "vertical": "center"
+            },
+            "my": {
+              "horizontal": "center",
+              "vertical": "center"
+            },
+            "of": "window",
+            "collision": "none"
+          },
+          "tail": "none",
+          "initialFocus": "none",
+          "autoDismiss": "focusLoss"
+        },
+        {
+          "id": "tpl_popupPositionButtonRow1_v4",
+          "component": "Row",
+          "children": [
+            "tpl_popupPositionPreview_v4_01",
+            "tpl_popupPositionPreview_v4_02",
+            "tpl_popupPositionPreview_v4_03"
+          ]
+        },
+        {
+          "id": "tpl_popupPositionButtonRow2_v4",
+          "component": "Row",
+          "children": [
+            "tpl_popupPositionPreview_v4_04",
+            "tpl_popupPositionPreview_v4_05",
+            "tpl_popupPositionPreview_v4_06"
+          ]
+        },
+        {
+          "id": "tpl_popupPositionButtonRow3_v4",
+          "component": "Row",
+          "children": [
+            "tpl_popupPositionPreview_v4_07",
+            "tpl_popupPositionPreview_v4_08",
+            "tpl_popupPositionWindowPreview_v4"
+          ]
+        },
+        {
+          "id": "tpl_popupPositionCardColumn_v4",
+          "component": "Column",
+          "children": [
+            "tpl_popupPositionCardTitle_v4",
+            "tpl_popupPositionCardBody_v4",
+            "tpl_popupPositionButtonRow1_v4",
+            "tpl_popupPositionButtonRow2_v4",
+            "tpl_popupPositionButtonRow3_v4"
+          ]
+        },
+        {
+          "id": "tpl_popupPositionCard_v4",
+          "component": "Card",
+          "child": "tpl_popupPositionCardColumn_v4"
+        }
+      ]
+    }
+  }
+]

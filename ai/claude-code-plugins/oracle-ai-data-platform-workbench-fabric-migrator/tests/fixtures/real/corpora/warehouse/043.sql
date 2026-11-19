@@ -1,0 +1,27 @@
+CREATE TABLE [dbo].[fact_sale] (
+
+	[SaleKey] bigint NULL, 
+	[CityKey] int NULL, 
+	[CustomerKey] int NULL, 
+	[BillToCustomerKey] int NULL, 
+	[StockItemKey] int NULL, 
+	[InvoiceDateKey] datetime2(6) NULL, 
+	[DeliveryDateKey] datetime2(6) NULL, 
+	[SalespersonKey] int NULL, 
+	[WWIInvoiceID] int NULL, 
+	[Description] varchar(8000) NULL, 
+	[Package] varchar(8000) NULL, 
+	[Quantity] int NULL, 
+	[UnitPrice] decimal(18,2) NULL, 
+	[TaxRate] decimal(18,3) NULL, 
+	[TotalExcludingTax] decimal(29,2) NULL, 
+	[TaxAmount] decimal(38,6) NULL, 
+	[Profit] decimal(18,2) NULL, 
+	[TotalIncludingTax] decimal(38,6) NULL, 
+	[TotalDryItems] int NULL, 
+	[TotalChillerItems] int NULL, 
+	[LineageKey] int NULL, 
+	[Month] int NULL, 
+	[Year] int NULL, 
+	[Quarter] int NULL
+);

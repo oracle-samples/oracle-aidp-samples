@@ -1,0 +1,11 @@
+{
+  "TXN": {
+    "schema": "ID decimal(10,0), D timestamp, D2 timestamp, S_DATE_STR string, CODE string, ADDR string, EMAIL string, FIRST_NM string, LAST_NM string, NUM_STR string, SPACES_STR string, PAD_STR string, N decimal(10,3), N_INT decimal(10,0), STATUS string",
+    "rows": [
+      [1, "2026-01-31T10:15:30", "2026-03-31T10:15:30", "20260315", "AB-12/34", "12 Main Street",    "john.doe@x.com",   "John", "Doe", "123.45",   "   ", "000123", 12.345,  10, "A"],
+      [2, "2024-02-29T00:00:00", "2023-12-29T00:00:00", "20240229", "XYZ123",   "5  Oak   street ", "noatsign",         "Ann",  null,  "12a",      "a ",  "0100",  -12.345,  9, "I"],
+      [3, "2026-12-15T23:59:59", "2027-06-15T23:59:59", "20261301", "ABC12-x",  "9 Street Street",   " Mixed@Case.ORG ", null,   "Lee", "-3.45e+3", " x ", "12300",   0.999,  7, "X"],
+      [4, null, null, null, null, null, null, null, null, null, null, null, null, null, null]
+    ]
+  }
+}

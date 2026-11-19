@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fusion Drift Doctor"
+  short_description: "Diagnose Fusion schema and plan drift"
+  default_prompt: "Use $fusion-drift-doctor to diagnose this Fusion schema or plan-drift failure."

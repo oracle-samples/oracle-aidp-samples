@@ -1,0 +1,27 @@
+{
+  "TGT_ACCOUNT": {
+    "rows": [
+      {
+        "ACCT_NO": 123,
+        "HOLDER": "Alice",
+        "BALANCE": 1234.56,
+        "OPENED": "2026-01-05T00:00:00",
+        "BAL_BAND": "POS"
+      },
+      {
+        "ACCT_NO": 456,
+        "HOLDER": "Bob",
+        "BALANCE": 0.0,
+        "OPENED": "2026-02-28T00:00:00",
+        "BAL_BAND": "ZERO"
+      },
+      {
+        "ACCT_NO": 789,
+        "HOLDER": "Carol Ann",
+        "BALANCE": -50.25,
+        "OPENED": null,
+        "BAL_BAND": "NEG"
+      }
+    ]
+  }
+}

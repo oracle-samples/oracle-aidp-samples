@@ -1,0 +1,65 @@
+id: gl_period_balances
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.BalanceExtractPVO
+  pvo_id: FscmTopModelAM.FinExtractAM.GlBiccExtractAM.BalanceExtractPVO
+  biccSchema: Financial
+  schemaOverride: null
+  # gl_period_balances revises retroactively; LastUpdateDate doesn't track
+  # meaningful change events monotonically; payload-diff-gated MERGE handles
+  # unchanged rows.
+  incrementalCapable: false
+  auditColumnsMode: bronze_v1
+target: gl_period_balances
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: gl_period_balances
+      column: BalanceLastUpdateDate
+    naturalKey:
+      - BalanceLedgerId
+      - BalanceCodeCombinationId
+      - BalancePeriodYear
+      - BalancePeriodNum
+      - BalanceCurrencyCode
+      - BalanceActualFlag
+      - BalanceTranslatedFlag
+requiredColumns:
+  gl_period_balances:
+    - BalanceLedgerId
+    - BalanceCodeCombinationId
+    - BalancePeriodYear
+    - BalancePeriodNum
+    - BalanceCurrencyCode
+    - BalanceActualFlag
+    - BalanceTranslatedFlag
+    - BalancePeriodNetCr
+    - BalancePeriodNetDr
+outputSchema:
+  columns:
+    - { name: BalanceLedgerId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: BalanceCodeCombinationId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: BalancePeriodYear, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: BalancePeriodNum, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: BalancePeriodName, type: string, nullable: true, pii: none }
+    - { name: BalanceCurrencyCode, type: string, nullable: true, pii: none }
+    - { name: BalanceActualFlag, type: string, nullable: true, pii: none }
+    - { name: BalanceTranslatedFlag, type: string, nullable: true, pii: none }
+    - { name: BalancePeriodNetCr, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: BalancePeriodNetDr, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: BalanceBeginBalanceCr, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: BalanceBeginBalanceDr, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: BalanceLastUpdateDate, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

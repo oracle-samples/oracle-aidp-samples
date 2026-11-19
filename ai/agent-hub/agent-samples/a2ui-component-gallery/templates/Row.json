@@ -1,0 +1,146 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Row start/start with three text nodes",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewRow_v1"
+          ]
+        },
+        {
+          "id": "tpl_rowText1_v1",
+          "component": "Text",
+          "text": "Alpha",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_rowText2_v1",
+          "component": "Text",
+          "text": "Beta",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_rowText3_v1",
+          "component": "Text",
+          "text": "Gamma",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewRow_v1",
+          "component": "Row",
+          "children": [
+            "tpl_rowText1_v1",
+            "tpl_rowText2_v1",
+            "tpl_rowText3_v1"
+          ],
+          "justify": "start",
+          "align": "start"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Row spaceBetween/center with summary values",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewRow_v2"
+          ]
+        },
+        {
+          "id": "tpl_rowLabel_v2",
+          "component": "Text",
+          "text": "Requests",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_rowValue_v2",
+          "component": "Text",
+          "text": "12,481",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_previewRow_v2",
+          "component": "Row",
+          "children": [
+            "tpl_rowLabel_v2",
+            "tpl_rowValue_v2"
+          ],
+          "justify": "spaceBetween",
+          "align": "center"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Row inside a card with end alignment",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewCard_v3"
+          ]
+        },
+        {
+          "id": "tpl_rowCardLeft_v3",
+          "component": "Text",
+          "text": "Disk",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_rowCardRight_v3",
+          "component": "Text",
+          "text": "78%",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewRow_v3",
+          "component": "Row",
+          "children": [
+            "tpl_rowCardLeft_v3",
+            "tpl_rowCardRight_v3"
+          ],
+          "justify": "end",
+          "align": "end"
+        },
+        {
+          "id": "tpl_previewCard_v3",
+          "component": "Card",
+          "child": "tpl_previewRow_v3"
+        }
+      ]
+    }
+  }
+]

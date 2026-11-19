@@ -1,0 +1,18 @@
+{
+  "REP_SALES": {
+    "schema": "REP_ID decimal(10,0), REGION string, AMT decimal(10,2)",
+    "rows": [
+      [1,  "EAST",  500.00],
+      [2,  "EAST",  300.00],
+      [3,  "EAST",  700.00],
+      [4,  "EAST",  100.00],
+      [5,  "WEST",  400.00],
+      [6,  "WEST",  400.00],
+      [7,  "WEST",  200.00],
+      [8,  "NORTH",  50.00],
+      [9,  null,     80.00],
+      [10, null,     90.00],
+      [12, null,     90.00]
+    ]
+  }
+}

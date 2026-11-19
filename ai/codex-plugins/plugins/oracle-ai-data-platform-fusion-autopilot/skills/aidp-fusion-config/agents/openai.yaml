@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Config"
+  short_description: "Resolve AIDP config from workspace names"
+  default_prompt: "Use $aidp-fusion-config to create aidp.config.yaml from my workspace and cluster names."

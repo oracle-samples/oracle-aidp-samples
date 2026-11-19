@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mart Author"
+  short_description: "Author additive medallion marts and nodes"
+  default_prompt: "Use $mart-author to design an additive medallion node for this business need."

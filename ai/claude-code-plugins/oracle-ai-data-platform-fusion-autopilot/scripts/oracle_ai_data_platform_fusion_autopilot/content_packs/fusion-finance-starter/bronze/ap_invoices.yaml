@@ -1,0 +1,48 @@
+id: ap_invoices
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.FinExtractAM.ApBiccExtractAM.InvoiceHeaderExtractPVO
+  pvo_id: FscmTopModelAM.FinExtractAM.ApBiccExtractAM.InvoiceHeaderExtractPVO
+  biccSchema: Financial
+  schemaOverride: null
+  incrementalCapable: true
+  auditColumnsMode: bronze_v1
+target: ap_invoices
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: ap_invoices
+      column: ApInvoicesLastUpdateDate
+    naturalKey: [ApInvoicesInvoiceId]
+requiredColumns:
+  ap_invoices:
+    - ApInvoicesInvoiceId
+    - ApInvoicesVendorId
+    - ApInvoicesInvoiceAmount
+    - ApInvoicesInvoiceDate
+    - ApInvoicesInvoiceCurrencyCode
+    - ApInvoicesLastUpdateDate
+outputSchema:
+  columns:
+    - { name: ApInvoicesInvoiceId, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: ApInvoicesVendorId, type: "decimal(18,0)", nullable: true, pii: low }
+    - { name: ApInvoicesInvoiceAmount, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: ApInvoicesAmountPaid, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: ApInvoicesApprovalStatus, type: string, nullable: true, pii: none }
+    - { name: ApInvoicesCancelledDate, type: date, nullable: true, pii: none }
+    - { name: ApInvoicesInvoiceDate, type: date, nullable: true, pii: none }
+    - { name: ApInvoicesInvoiceCurrencyCode, type: string, nullable: true, pii: none }
+    - { name: ApInvoicesLastUpdateDate, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

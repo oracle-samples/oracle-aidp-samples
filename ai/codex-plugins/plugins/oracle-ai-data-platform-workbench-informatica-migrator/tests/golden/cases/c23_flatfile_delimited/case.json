@@ -1,0 +1,11 @@
+{
+  "export": "m_customers_file.xml",
+  "notes": [
+    "Source customers_in is DATABASETYPE='Flat File': comma-delimited, QUOTE_CHARACTER DOUBLE, SKIPROWS 1 (a header line). The session's File Reader names the file ($PMSourceFileDir\\crm\\customers_20260929.csv); on AIDP the path is a job parameter, which the harness sets to a local file.",
+    "\"Smith, John\" is one field: the comma is inside double quotes.",
+    "An empty field is NULL: customer 2's CREDIT, customer 3's CITY, customer 4's SIGNUP_DT.",
+    "The file is text; ports are typed: CREDIT number(12,2), SIGNUP_DT datetime in the default MM/DD/YYYY HH24:MI:SS format.",
+    "TIER: CREDIT >= 1000 -> GOLD; NULL CREDIT -> NONE (IIF(NULL >= 1000) is not true, then ISNULL); else STD. TO_CHAR(NULL date, 'YYYY') is NULL.",
+    "Flat-file target customers_out: pipe-delimited, QUOTE_CHARACTER NONE, 'Header Options' = Output Field Names (a header line), not appended. number(12,2) is written with two decimals, a date/time as MM/DD/YYYY HH24:MI:SS, NULL as an empty field."
+  ]
+}

@@ -1,0 +1,4782 @@
+{
+  "catalogId": "agent-hub-catalog-v1-v08",
+  "components": {
+    "OAChart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "title": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ],
+          "description": "Chart title text."
+        },
+        "id": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ],
+          "description": "Unique chart identifier."
+        },
+        "type": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "line",
+                "bar",
+                "area",
+                "bubble",
+                "funnel",
+                "pie",
+                "pyramid",
+                "scatter"
+              ],
+              "description": "Switches items schema. Bubble/Scatter (x,y,z) vs Other."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "line",
+                    "bar",
+                    "area",
+                    "bubble",
+                    "funnel",
+                    "pie",
+                    "pyramid",
+                    "scatter"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "orientation": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "horizontal",
+                "vertical"
+              ],
+              "description": "Bar/Line/Area/Funnel only."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "horizontal",
+                    "vertical"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "stack": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "on",
+                "off"
+              ],
+              "description": "Bar/Line/Area only."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "on",
+                    "off"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "timeAxisType": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "enabled",
+                "mixedFrequency",
+                "skipGaps"
+              ],
+              "description": "Enables time-axis handling for date-based group or x values."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "enabled",
+                    "mixedFrequency",
+                    "skipGaps"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "description": "Flexible row-based chart data. Required item fields depend on chart type.",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "xAxis": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "title": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "literalString": {
+                      "type": "string"
+                    },
+                    "literal": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "anyOf": [
+                    {
+                      "required": [
+                        "literalString"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literal"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "path"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "description": "Axis title text."
+            },
+            "titleStyle": {
+              "type": "object",
+              "description": "CSS style object for the axis title.",
+              "additionalProperties": true
+            },
+            "referenceObjects": {
+              "type": "array",
+              "description": "Constant vertical reference lines and bands.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "line",
+                      "area"
+                    ],
+                    "description": "Reference object type. Defaults to line when omitted."
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalString": {
+                            "type": "string"
+                          },
+                          "literalNumber": {
+                            "type": "number"
+                          },
+                          "literal": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalString"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literalNumber"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Constant x-axis value for a vertical reference line."
+                  },
+                  "low": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalString": {
+                            "type": "string"
+                          },
+                          "literalNumber": {
+                            "type": "number"
+                          },
+                          "literal": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalString"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literalNumber"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Constant x-axis lower bound for a vertical reference band."
+                  },
+                  "high": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalString": {
+                            "type": "string"
+                          },
+                          "literalNumber": {
+                            "type": "number"
+                          },
+                          "literal": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalString"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literalNumber"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Constant x-axis upper bound for a vertical reference band."
+                  },
+                  "color": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalString": {
+                            "type": "string"
+                          },
+                          "literal": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalString"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "The color of the reference object."
+                  },
+                  "lineStyle": {
+                    "type": "string",
+                    "enum": [
+                      "solid",
+                      "dashed",
+                      "dotted"
+                    ],
+                    "description": "The line style of the line reference object."
+                  }
+                },
+                "if": {
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "line"
+                      ]
+                    }
+                  }
+                },
+                "then": {},
+                "else": {}
+              }
+            }
+          },
+          "description": "Optional OAChart xAxis configuration."
+        },
+        "yAxis": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "title": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "literalString": {
+                      "type": "string"
+                    },
+                    "literal": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "anyOf": [
+                    {
+                      "required": [
+                        "literalString"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literal"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "path"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "description": "Axis title text."
+            },
+            "titleStyle": {
+              "type": "object",
+              "description": "CSS style object for the axis title.",
+              "additionalProperties": true
+            },
+            "referenceObjects": {
+              "type": "array",
+              "description": "Constant and varying horizontal reference lines and bands.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "line",
+                      "area"
+                    ],
+                    "description": "Reference object type. Defaults to line when omitted."
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalNumber": {
+                            "type": "number"
+                          },
+                          "literal": {
+                            "type": "number"
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalNumber"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Constant y-axis value for a horizontal reference line."
+                  },
+                  "low": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalNumber": {
+                            "type": "number"
+                          },
+                          "literal": {
+                            "type": "number"
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalNumber"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Constant y-axis lower bound for a horizontal reference band."
+                  },
+                  "high": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalNumber": {
+                            "type": "number"
+                          },
+                          "literal": {
+                            "type": "number"
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalNumber"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "Constant y-axis upper bound for a horizontal reference band."
+                  },
+                  "color": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "literalString": {
+                            "type": "string"
+                          },
+                          "literal": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          }
+                        },
+                        "anyOf": [
+                          {
+                            "required": [
+                              "literalString"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "literal"
+                            ]
+                          },
+                          {
+                            "required": [
+                              "path"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "description": "The color of the reference object."
+                  },
+                  "lineStyle": {
+                    "type": "string",
+                    "enum": [
+                      "solid",
+                      "dashed",
+                      "dotted"
+                    ],
+                    "description": "The line style of the line reference object."
+                  },
+                  "items": {
+                    "type": "array",
+                    "description": "Points defining a varying reference object."
+                  }
+                },
+                "if": {
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "line"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "description": "Points defining a varying line reference object.",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "x": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "literalString": {
+                                    "type": "string"
+                                  },
+                                  "literalNumber": {
+                                    "type": "number"
+                                  },
+                                  "literal": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      }
+                                    ]
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  }
+                                },
+                                "anyOf": [
+                                  {
+                                    "required": [
+                                      "literalString"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literalNumber"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literal"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "path"
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The x value of this point."
+                          },
+                          "value": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "literalNumber": {
+                                    "type": "number"
+                                  },
+                                  "literal": {
+                                    "type": "number"
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  }
+                                },
+                                "anyOf": [
+                                  {
+                                    "required": [
+                                      "literalNumber"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literal"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "path"
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The value of this point of a varying line reference object."
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "description": "Points defining a varying area reference object.",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "x": {
+                            "oneOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "literalString": {
+                                    "type": "string"
+                                  },
+                                  "literalNumber": {
+                                    "type": "number"
+                                  },
+                                  "literal": {
+                                    "oneOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "number"
+                                      }
+                                    ]
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  }
+                                },
+                                "anyOf": [
+                                  {
+                                    "required": [
+                                      "literalString"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literalNumber"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literal"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "path"
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The x value of this point."
+                          },
+                          "low": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "literalNumber": {
+                                    "type": "number"
+                                  },
+                                  "literal": {
+                                    "type": "number"
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  }
+                                },
+                                "anyOf": [
+                                  {
+                                    "required": [
+                                      "literalNumber"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literal"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "path"
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The low value of this point of a varying area reference object."
+                          },
+                          "high": {
+                            "oneOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "literalNumber": {
+                                    "type": "number"
+                                  },
+                                  "literal": {
+                                    "type": "number"
+                                  },
+                                  "path": {
+                                    "type": "string"
+                                  }
+                                },
+                                "anyOf": [
+                                  {
+                                    "required": [
+                                      "literalNumber"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "literal"
+                                    ]
+                                  },
+                                  {
+                                    "required": [
+                                      "path"
+                                    ]
+                                  }
+                                ]
+                              }
+                            ],
+                            "description": "The high value of this point of a varying area reference object."
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Optional OAChart yAxis configuration."
+        },
+        "colors": {
+          "type": "array",
+          "description": "Series color ramp. Assigns colors by seriesId appearance, loops the palette after the last color.",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "literalString": {
+                    "type": "string"
+                  },
+                  "literal": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "anyOf": [
+                  {
+                    "required": [
+                      "literalString"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "literal"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "path"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "bubble",
+                      "scatter"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "literalString"
+                    ],
+                    "properties": {
+                      "literalString": {
+                        "enum": [
+                          "bubble",
+                          "scatter"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "Bubble and scatter chart rows require id, seriesId, groupId, x, y, and z is optional.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "seriesId",
+                    "groupId",
+                    "x",
+                    "y"
+                  ],
+                  "properties": {
+                    "id": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "type": "number"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Unique row identifier."
+                    },
+                    "seriesId": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Series key used to group items into the same plotted series."
+                    },
+                    "groupId": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Group or category key used on the chart grouping axis."
+                    },
+                    "color": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional per-item color override."
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literal": {
+                              "type": "string"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional per-item display label."
+                    },
+                    "x": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Required x value."
+                    },
+                    "y": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "type": "number"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Required y value."
+                    },
+                    "z": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "type": "number"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional bubble size value."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "items": {
+                "type": "array",
+                "description": "Non-bubble and non-scatter chart rows require id, seriesId, groupId, and value.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "seriesId",
+                    "groupId",
+                    "value"
+                  ],
+                  "properties": {
+                    "id": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Unique row identifier."
+                    },
+                    "seriesId": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Series key used to group items into the same plotted series."
+                    },
+                    "groupId": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Group or category key used on the chart grouping axis."
+                    },
+                    "color": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional per-item color override."
+                    },
+                    "label": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literal": {
+                              "type": "string"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional per-item display label."
+                    },
+                    "value": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Primary value."
+                    },
+                    "x": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalString": {
+                              "type": "string"
+                            },
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "oneOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalString"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional x value."
+                    },
+                    "y": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "type": "number"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional y value."
+                    },
+                    "z": {
+                      "oneOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "literalNumber": {
+                              "type": "number"
+                            },
+                            "literal": {
+                              "type": "number"
+                            },
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "anyOf": [
+                            {
+                              "required": [
+                                "literalNumber"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "literal"
+                              ]
+                            },
+                            {
+                              "required": [
+                                "path"
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "description": "Optional z value."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OADataGrid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "properties": {
+        "rowHeaderKeys": {
+          "type": "array",
+          "description": "Optional keys rendered in the separate row-header region. Use only for crosstab or spreadsheet-like tables.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "maxRows": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalNumber": {
+                  "type": "number"
+                },
+                "literal": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalNumber"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ],
+          "description": "Optional row-count cap used to compute the grid's maximum height before vertical scrolling. Defaults to 10."
+        },
+        "presentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "column": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "resizable": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "height": {
+                              "type": "string",
+                              "enum": [
+                                "enable",
+                                "disable"
+                              ]
+                            },
+                            "width": {
+                              "type": "string",
+                              "enum": [
+                                "enable",
+                                "disable"
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "row": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "resizable": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "height": {
+                              "type": "string",
+                              "enum": [
+                                "enable",
+                                "disable"
+                              ]
+                            },
+                            "width": {
+                              "type": "string",
+                              "enum": [
+                                "enable",
+                                "disable"
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "label": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literal": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalString"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "body",
+                  "rowHeader"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "label"
+            ]
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literalNumber": {
+                        "type": "number"
+                      },
+                      "literal": {
+                        "oneOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalString"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literalNumber"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "literalString": {
+                      "type": "string"
+                    },
+                    "literalNumber": {
+                      "type": "number"
+                    },
+                    "literalBoolean": {
+                      "type": "boolean"
+                    },
+                    "literal": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "boolean"
+                        }
+                      ]
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "anyOf": [
+                    {
+                      "required": [
+                        "literalString"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literalNumber"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literalBoolean"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literal"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "path"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "OACombobox": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "placeholder": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "disabled": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "readonly": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "required": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "value"
+            ],
+            "properties": {
+              "label": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literal": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalString"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "selections": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "literalArray": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "itemLabelText": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "OAListView": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "ariaLabel": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "noDataMessage": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "className": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "display": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "card",
+                    "list"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "selectionMode": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "single",
+                    "multiple"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "explicitList": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "template": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "componentId": {
+                  "type": "string"
+                },
+                "dataBinding": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "componentId",
+                "dataBinding"
+              ]
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "explicitList"
+              ]
+            },
+            {
+              "required": [
+                "template"
+              ]
+            }
+          ]
+        },
+        "selections": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "literalArray": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "gridlines": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "item": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "literalString": {
+                      "type": "string",
+                      "enum": [
+                        "visible",
+                        "visibleExceptLast",
+                        "hidden"
+                      ]
+                    },
+                    "literal": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "anyOf": [
+                    {
+                      "required": [
+                        "literalString"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literal"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "path"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "top": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "literalString": {
+                      "type": "string",
+                      "enum": [
+                        "visible",
+                        "visibleExceptLast",
+                        "hidden"
+                      ]
+                    },
+                    "literal": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "anyOf": [
+                    {
+                      "required": [
+                        "literalString"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literal"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "path"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "bottom": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "literalString": {
+                      "type": "string",
+                      "enum": [
+                        "visible",
+                        "visibleExceptLast",
+                        "hidden"
+                      ]
+                    },
+                    "literal": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "anyOf": [
+                    {
+                      "required": [
+                        "literalString"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "literal"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "path"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "selectedChangedAction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literalNumber": {
+                        "type": "number"
+                      },
+                      "literalBoolean": {
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OAProgressBar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "edge": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "none",
+                "top"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "max": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalNumber": {
+                  "type": "number"
+                },
+                "literal": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalNumber"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalNumber": {
+                  "type": "number"
+                },
+                "literal": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalNumber"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "OAProgressCircle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "max": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalNumber": {
+                  "type": "number"
+                },
+                "literal": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalNumber"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "size": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalNumber": {
+                  "type": "number"
+                },
+                "literal": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalNumber"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "OARadioSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "disabled": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "readonly": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "required": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "value"
+            ],
+            "properties": {
+              "label": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literal": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalString"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "assistiveText": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literal": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalString"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "selections": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "literalArray": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "direction": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "row",
+                    "column"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "labelEdge": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "selectedChangedAction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literalNumber": {
+                        "type": "number"
+                      },
+                      "literalBoolean": {
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OASwitch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "disabled": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "labelHint": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "readonly": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "OACollapsible": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "componentId",
+              "header"
+            ],
+            "properties": {
+              "componentId": {
+                "type": "string",
+                "title": "ComponentId"
+              },
+              "header": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literal": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalString"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "disabled": {
+                "oneOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalBoolean": {
+                        "type": "boolean"
+                      },
+                      "literal": {
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalBoolean"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "expanded": {
+                "oneOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalBoolean": {
+                        "type": "boolean"
+                      },
+                      "literal": {
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    },
+                    "anyOf": [
+                      {
+                        "required": [
+                          "literalBoolean"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "literal"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "path"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "expandedItems": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "literalArray": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        },
+        "multiple": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalBoolean": {
+                  "type": "boolean"
+                },
+                "literal": {
+                  "type": "boolean"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalBoolean"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "expandedChangedAction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literalNumber": {
+                        "type": "number"
+                      },
+                      "literalBoolean": {
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "OATruncatingText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "not": {
+        "required": [
+          "truncation",
+          "lineClamp"
+        ]
+      },
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string"
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "variant": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "primary",
+                    "secondary",
+                    "disabled",
+                    "danger",
+                    "warning",
+                    "success",
+                    "inherit"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "size": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "2xs",
+                    "xs",
+                    "sm",
+                    "md",
+                    "lg",
+                    "xl",
+                    "inherit"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "weight": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "semiBold",
+                    "bold",
+                    "inherit"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "overflowWrap": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "breakWord",
+                    "anywhere"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "hyphens": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "none"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "truncation": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalString": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "clip",
+                    "ellipsis"
+                  ]
+                },
+                "literal": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalString"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "lineClamp": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "literalNumber": {
+                  "type": "number"
+                },
+                "literal": {
+                  "type": "number"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "literalNumber"
+                  ]
+                },
+                {
+                  "required": [
+                    "literal"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "OAActionCard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "child": {
+          "type": "string"
+        },
+        "children": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "explicitList": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "template": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "componentId": {
+                  "type": "string"
+                },
+                "dataBinding": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "componentId",
+                "dataBinding"
+              ]
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "explicitList"
+              ]
+            },
+            {
+              "required": [
+                "template"
+              ]
+            }
+          ]
+        },
+        "action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "context": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "literalString": {
+                        "type": "string"
+                      },
+                      "literalNumber": {
+                        "type": "number"
+                      },
+                      "literalBoolean": {
+                        "type": "boolean"
+                      },
+                      "path": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "child"
+          ]
+        },
+        {
+          "required": [
+            "children"
+          ]
+        }
+      ]
+    }
+  }
+}

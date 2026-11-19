@@ -1,0 +1,55 @@
+id: payables
+title: Payables Dashboard
+version: 0.1.0
+description: |
+  AP-focused operational dashboard delivered through the OAC snapshot flow.
+
+delivery:
+  type: oac-snapshot
+  barObject: dashboards/payables.bar
+  oac:
+    projectName: Payables
+    folderPath: /Shared Folders/AIDP Fusion/Finance
+    connectionName: aidp-fusion-gold
+    refreshMode: live
+    importMode: replace
+
+requires:
+  pack:
+    id: fusion-finance-starter
+    minVersion: 0.1.0
+  tables:
+    - gold.ap_aging
+    - gold.supplier_spend
+  columns:
+    gold.ap_aging:
+      - name: supplier_number
+        type: string
+      - name: aging_bucket
+        type: string
+      - name: open_amount
+        type: decimal(28,2)
+    gold.supplier_spend:
+      - name: supplier_number
+        type: string
+      - name: total_invoice_amount
+        type: decimal(20,2)
+
+validationQueries:
+  - id: ap_aging_has_data
+    sql: |
+      SELECT COUNT(*) AS row_count
+      FROM {{ catalog }}.{{ gold_schema }}.ap_aging
+    expect:
+      row_count_min: 1
+    severity: error
+
+security:
+  allowedColumns:
+    gold.ap_aging:
+      - supplier_number
+      - aging_bucket
+      - open_amount
+    gold.supplier_spend:
+      - supplier_number
+      - total_invoice_amount

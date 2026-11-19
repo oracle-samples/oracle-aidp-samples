@@ -1,0 +1,221 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_switch_v1",
+            "tpl_variant_wrapper_switch_v2",
+            "tpl_variant_wrapper_switch_v3",
+            "tpl_variant_wrapper_switch_v4",
+            "tpl_variant_wrapper_switch_v5",
+            "tpl_variant_wrapper_switch_v6",
+            "tpl_variant_wrapper_switch_v7",
+            "tpl_variant_wrapper_switch_v8"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_switch_v1",
+          "component": "Text",
+          "text": "OASwitch enabled on",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v1",
+            "tpl_previewOASwitch_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v1",
+          "component": "OASwitch",
+          "value": true,
+          "labelHint": "Enabled on"
+        },
+        {
+          "id": "tpl_variant_header_switch_v2",
+          "component": "Text",
+          "text": "OASwitch enabled off",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v2",
+            "tpl_previewOASwitch_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v2",
+          "component": "OASwitch",
+          "value": false,
+          "labelHint": "Enabled off"
+        },
+        {
+          "id": "tpl_variant_header_switch_v3",
+          "component": "Text",
+          "text": "OASwitch disabled on",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v3",
+            "tpl_previewOASwitch_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v3",
+          "component": "OASwitch",
+          "value": true,
+          "disabled": true,
+          "labelHint": "Disabled on"
+        },
+        {
+          "id": "tpl_variant_header_switch_v4",
+          "component": "Text",
+          "text": "OASwitch disabled off",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v4",
+            "tpl_previewOASwitch_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v4",
+          "component": "OASwitch",
+          "value": false,
+          "disabled": true,
+          "labelHint": "Disabled off"
+        },
+        {
+          "id": "tpl_variant_header_switch_v5",
+          "component": "Text",
+          "text": "OASwitch readonly on",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v5",
+            "tpl_previewOASwitch_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v5",
+          "component": "OASwitch",
+          "value": true,
+          "readonly": true,
+          "labelHint": "Readonly on"
+        },
+        {
+          "id": "tpl_variant_header_switch_v6",
+          "component": "Text",
+          "text": "OASwitch readonly off",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v6",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v6",
+            "tpl_previewOASwitch_v6"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v6",
+          "component": "OASwitch",
+          "value": false,
+          "readonly": true,
+          "labelHint": "Readonly off"
+        },
+        {
+          "id": "tpl_variant_header_switch_v7",
+          "component": "Text",
+          "text": "OASwitch path-bound value writeback",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v7",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v7",
+            "tpl_previewOASwitch_v7"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v7",
+          "component": "OASwitch",
+          "value": {
+            "path": "/demo/oaSwitch/boundValue"
+          },
+          "labelHint": "Path-bound value"
+        },
+        {
+          "id": "tpl_variant_header_switch_v8",
+          "component": "Text",
+          "text": "OASwitch dynamic value, label, disabled, and readonly",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_switch_v8",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_switch_v8",
+            "tpl_previewOASwitch_v8"
+          ]
+        },
+        {
+          "id": "tpl_previewOASwitch_v8",
+          "component": "OASwitch",
+          "value": {
+            "path": "/demo/oaSwitch/dynamicValue"
+          },
+          "labelHint": {
+            "path": "/demo/oaSwitch/dynamicLabelHint"
+          },
+          "disabled": {
+            "path": "/demo/oaSwitch/dynamicDisabled"
+          },
+          "readonly": {
+            "path": "/demo/oaSwitch/dynamicReadonly"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oaSwitch",
+      "value": {
+        "boundValue": true,
+        "dynamicValue": false,
+        "dynamicLabelHint": "Dynamic switch",
+        "dynamicDisabled": false,
+        "dynamicReadonly": false
+      }
+    }
+  }
+]

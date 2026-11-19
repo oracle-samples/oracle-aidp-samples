@@ -1,0 +1,418 @@
+[
+   {
+      "version": "v0.9",
+      "createSurface": {
+         "surfaceId": "template-surface",
+         "catalogId": "/a2ui_specification/1.0.0/agent_hub_a2ui_custom_component_catalog.json"
+      }
+   },
+   {
+      "version": "v0.9",
+      "updateComponents": {
+         "surfaceId": "template-surface",
+         "components": [
+            {
+               "id": "templatePreviewVariants",
+               "component": "Column",
+               "children": [
+                  "tpl_variant_wrapper_listview_v1",
+                  "tpl_variant_wrapper_listview_v2",
+                  "tpl_variant_wrapper_listview_v3",
+                  "tpl_variant_wrapper_listview_v7",
+                  "tpl_variant_wrapper_listview_v4",
+                  "tpl_variant_wrapper_listview_v5",
+                  "tpl_variant_wrapper_listview_v6"
+               ]
+            },
+            {
+               "id": "tpl_variant_header_listview_v1",
+               "component": "Text",
+               "text": "OAListView with explicit rows, multiple selection, and gridlines",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v1",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v1", "tpl_previewOAListView_v1"]
+            },
+            {
+               "id": "tpl_listview_region_phx_v1",
+               "component": "Text",
+               "text": "US West (Phoenix)",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_region_iad_v1",
+               "component": "Text",
+               "text": "US East (Ashburn)",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_region_lhr_v1",
+               "component": "Text",
+               "text": "UK South (London)",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_previewOAListView_v1",
+               "component": "OAListView",
+               "label": "Suggested regions",
+               "ariaLabel": "Suggested regions",
+               "display": "list",
+               "selectionMode": "multiple",
+               "items": [
+                  "tpl_listview_region_phx_v1",
+                  "tpl_listview_region_iad_v1",
+                  "tpl_listview_region_lhr_v1"
+               ],
+               "selections": {
+                  "path": "/demo/oaListView/regionSelections"
+               },
+               "gridlines": {
+                  "item": "visibleExceptLast",
+                  "top": "hidden",
+                  "bottom": "visible"
+               }
+            },
+            {
+               "id": "tpl_variant_header_listview_v2",
+               "component": "Text",
+               "text": "OAListView with v0.9 child-list template rows",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v2",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v2", "tpl_previewOAListView_v2"]
+            },
+            {
+               "id": "tpl_listview_template_severity_v2",
+               "component": "Text",
+               "text": {
+                  "path": "severity"
+               },
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_listview_template_title_v2",
+               "component": "Text",
+               "text": {
+                  "path": "title"
+               },
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_template_row_v2",
+               "component": "Row",
+               "children": ["tpl_listview_template_severity_v2", "tpl_listview_template_title_v2"],
+               "justify": "start",
+               "align": "center"
+            },
+            {
+               "id": "tpl_previewOAListView_v2",
+               "component": "OAListView",
+               "label": "Dynamic alerts",
+               "display": "list",
+               "selectionMode": "single",
+               "items": {
+                  "componentId": "tpl_listview_template_row_v2",
+                  "path": "/demo/oaListView/templateRows"
+               },
+               "selections": {
+                  "path": "/demo/oaListView/templateSelections"
+               },
+               "noDataMessage": "No alerts."
+            },
+            {
+               "id": "tpl_variant_header_listview_v3",
+               "component": "Text",
+               "text": "OAListView list display with Card items",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v3",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v3", "tpl_previewOAListView_v3"]
+            },
+            {
+               "id": "tpl_listview_card_title_1_v3",
+               "component": "Text",
+               "text": "Review deployment policy changes",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_card_1_v3",
+               "component": "Card",
+               "child": "tpl_listview_card_title_1_v3"
+            },
+            {
+               "id": "tpl_listview_card_title_2_v3",
+               "component": "Text",
+               "text": "Approve pending production rollout",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_card_2_v3",
+               "component": "Card",
+               "child": "tpl_listview_card_title_2_v3"
+            },
+            {
+               "id": "tpl_listview_card_title_3_v3",
+               "component": "Text",
+               "text": "Run post-release smoke tests",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_card_3_v3",
+               "component": "Card",
+               "child": "tpl_listview_card_title_3_v3"
+            },
+            {
+               "id": "tpl_previewOAListView_v3",
+               "component": "OAListView",
+               "label": "Recommended actions",
+               "display": "list",
+               "selectionMode": "single",
+               "items": [
+                  "tpl_listview_card_1_v3",
+                  "tpl_listview_card_2_v3",
+                  "tpl_listview_card_3_v3"
+               ],
+               "selections": {
+                  "path": "/demo/oaListView/cardItemSelections"
+               },
+               "gridlines": {
+                  "item": "hidden",
+                  "top": "hidden",
+                  "bottom": "hidden"
+               }
+            },
+            {
+               "id": "tpl_variant_header_listview_v7",
+               "component": "Text",
+               "text": "OAListView card display",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v7",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v7", "tpl_previewOAListView_v7"]
+            },
+            {
+               "id": "tpl_listview_card_display_1_v7",
+               "component": "Text",
+               "text": "Review deployment policy changes",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_card_display_2_v7",
+               "component": "Text",
+               "text": "Approve pending production rollout",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_card_display_3_v7",
+               "component": "Text",
+               "text": "Run post-release smoke tests",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_previewOAListView_v7",
+               "component": "OAListView",
+               "label": "Recommended action cards",
+               "display": "card",
+               "selectionMode": "single",
+               "items": [
+                  "tpl_listview_card_display_1_v7",
+                  "tpl_listview_card_display_2_v7",
+                  "tpl_listview_card_display_3_v7"
+               ],
+               "selections": {
+                  "path": "/demo/oaListView/cardDisplaySelections"
+               },
+               "gridlines": {
+                  "item": "hidden",
+                  "top": "hidden",
+                  "bottom": "hidden"
+               }
+            },
+            {
+               "id": "tpl_variant_header_listview_v4",
+               "component": "Text",
+               "text": "OAListView with selection disabled",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v4",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v4", "tpl_previewOAListView_v4"]
+            },
+            {
+               "id": "tpl_listview_status_1_v4",
+               "component": "Text",
+               "text": "Control plane: healthy",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_status_2_v4",
+               "component": "Text",
+               "text": "Queue depth: normal",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_status_3_v4",
+               "component": "Text",
+               "text": "Backups: completed",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_previewOAListView_v4",
+               "component": "OAListView",
+               "label": "Read-only health summary",
+               "selectionMode": "none",
+               "items": [
+                  "tpl_listview_status_1_v4",
+                  "tpl_listview_status_2_v4",
+                  "tpl_listview_status_3_v4"
+               ],
+               "className": "tpl-listview-no-selection"
+            },
+            {
+               "id": "tpl_variant_header_listview_v5",
+               "component": "Text",
+               "text": "OAListView empty state with noDataMessage",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v5",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v5", "tpl_previewOAListView_v5"]
+            },
+            {
+               "id": "tpl_listview_empty_template_v5",
+               "component": "Text",
+               "text": {
+                  "path": "name"
+               },
+               "variant": "body"
+            },
+            {
+               "id": "tpl_previewOAListView_v5",
+               "component": "OAListView",
+               "label": "Escalations",
+               "items": {
+                  "componentId": "tpl_listview_empty_template_v5",
+                  "path": "/demo/oaListView/emptyRows"
+               },
+               "noDataMessage": "No escalations are currently assigned."
+            },
+            {
+               "id": "tpl_variant_header_listview_v6",
+               "component": "Text",
+               "text": "OAListView demonstrating selectedChangedAction with data-bound display, selection mode, gridlines, and selections",
+               "variant": "caption"
+            },
+            {
+               "id": "tpl_variant_wrapper_listview_v6",
+               "component": "Column",
+               "children": ["tpl_variant_header_listview_v6", "tpl_previewOAListView_v6"]
+            },
+            {
+               "id": "tpl_listview_dynamic_ops_v6",
+               "component": "Text",
+               "text": "Operations review",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_listview_dynamic_security_v6",
+               "component": "Text",
+               "text": "Security approval",
+               "variant": "body"
+            },
+            {
+               "id": "tpl_previewOAListView_v6",
+               "component": "OAListView",
+               "label": {
+                  "path": "/demo/oaListView/dynamic/label"
+               },
+               "ariaLabel": {
+                  "path": "/demo/oaListView/dynamic/ariaLabel"
+               },
+               "display": {
+                  "path": "/demo/oaListView/dynamic/display"
+               },
+               "selectionMode": {
+                  "path": "/demo/oaListView/dynamic/selectionMode"
+               },
+               "items": ["tpl_listview_dynamic_ops_v6", "tpl_listview_dynamic_security_v6"],
+               "selections": {
+                  "path": "/demo/oaListView/dynamicSelections"
+               },
+               "gridlines": {
+                  "item": {
+                     "path": "/demo/oaListView/dynamic/gridlines/item"
+                  },
+                  "top": {
+                     "path": "/demo/oaListView/dynamic/gridlines/top"
+                  },
+                  "bottom": {
+                     "path": "/demo/oaListView/dynamic/gridlines/bottom"
+                  }
+               },
+               "selectedChangedAction": {
+                  "event": {
+                     "name": "render_preview",
+                     "context": {
+                        "selectedComponent": "OAListView",
+                        "source": "oa-listview-selection-action",
+                        "dynamicSelections": {
+                           "path": "/demo/oaListView/dynamicSelections"
+                        }
+                     }
+                  }
+               }
+            }
+         ]
+      }
+   },
+   {
+      "version": "v0.9",
+      "updateDataModel": {
+         "surfaceId": "template-surface",
+         "path": "/demo/oaListView",
+         "value": {
+            "regionSelections": ["tpl_listview_region_phx_v1", "tpl_listview_region_iad_v1"],
+            "templateRows": [
+               {
+                  "severity": "Critical",
+                  "title": "Production deployment pending approval"
+               },
+               {
+                  "severity": "Warning",
+                  "title": "High queue depth in us-phoenix-1"
+               },
+               {
+                  "severity": "Info",
+                  "title": "Backup completed successfully"
+               }
+            ],
+            "templateSelections": ["tpl_listview_template_row_v2:/demo/oaListView/templateRows/0"],
+            "cardItemSelections": ["tpl_listview_card_1_v3"],
+            "cardDisplaySelections": ["tpl_listview_card_display_1_v7"],
+            "emptyRows": [],
+            "dynamic": {
+               "label": "Dynamic review queue",
+               "ariaLabel": "Dynamic review queue",
+               "display": "list",
+               "selectionMode": "multiple",
+               "gridlines": {
+                  "item": "visible",
+                  "top": "visible",
+                  "bottom": "visibleExceptLast"
+               }
+            },
+            "dynamicSelections": ["tpl_listview_dynamic_ops_v6"]
+         }
+      }
+   }
+]

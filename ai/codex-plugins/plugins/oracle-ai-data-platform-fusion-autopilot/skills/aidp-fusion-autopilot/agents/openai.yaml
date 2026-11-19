@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Fusion Autopilot"
+  short_description: "Drive Fusion-to-AIDP dashboards end to end"
+  default_prompt: "Use $aidp-fusion-autopilot to build my Fusion analytics dashboard end to end."

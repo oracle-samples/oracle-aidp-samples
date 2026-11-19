@@ -1,1 +1,5 @@
+# Cluster library for slowly_changing_dimension_template.ipynb (Cluster -> Libraries ->
+# install from requirements.txt). Keep this to what the notebook itself needs: pyspark and
+# delta-spark are the cluster's own runtime and must not be installed over it.
+# Local test dependencies live in requirements-test.txt.
 jinja2

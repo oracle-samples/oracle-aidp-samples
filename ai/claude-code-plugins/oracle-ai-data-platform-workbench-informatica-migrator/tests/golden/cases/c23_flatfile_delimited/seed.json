@@ -1,0 +1,11 @@
+{
+  "customers_in": {
+    "lines": [
+      "CUST_ID,NAME,SIGNUP_DT,CREDIT,CITY",
+      "1,\"Smith, John\",01/15/2026 10:30:00,1500.50,Boston",
+      "2,Ann Lee,02/01/2026 00:00:00,,Austin",
+      "3,O'Brien,03/10/2026 08:00:00,99.99,",
+      "4,Bob,,250,Denver"
+    ]
+  }
+}

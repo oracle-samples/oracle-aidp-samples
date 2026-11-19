@@ -1,0 +1,62 @@
+{
+  "TGT_REGION_CHANNEL_SALES": {
+    "rows": [
+      {
+        "REGION": "EAST",
+        "CHANNEL": "WEB",
+        "REGION_NAME": "East Coast",
+        "TOTAL_AMT": 150.0,
+        "SALE_CNT": 2,
+        "MAX_AMT": 100.0
+      },
+      {
+        "REGION": "EAST",
+        "CHANNEL": "STORE",
+        "REGION_NAME": "East Coast",
+        "TOTAL_AMT": 200.0,
+        "SALE_CNT": 1,
+        "MAX_AMT": 200.0
+      },
+      {
+        "REGION": "EAST",
+        "CHANNEL": null,
+        "REGION_NAME": "East Coast",
+        "TOTAL_AMT": 10.0,
+        "SALE_CNT": 1,
+        "MAX_AMT": 10.0
+      },
+      {
+        "REGION": "WEST",
+        "CHANNEL": "WEB",
+        "REGION_NAME": "West Coast",
+        "TOTAL_AMT": 70.0,
+        "SALE_CNT": 1,
+        "MAX_AMT": 70.0
+      },
+      {
+        "REGION": null,
+        "CHANNEL": "WEB",
+        "REGION_NAME": null,
+        "TOTAL_AMT": 50.0,
+        "SALE_CNT": 2,
+        "MAX_AMT": 30.0
+      },
+      {
+        "REGION": null,
+        "CHANNEL": null,
+        "REGION_NAME": null,
+        "TOTAL_AMT": 5.0,
+        "SALE_CNT": 1,
+        "MAX_AMT": 5.0
+      },
+      {
+        "REGION": "NORTH",
+        "CHANNEL": "STORE",
+        "REGION_NAME": null,
+        "TOTAL_AMT": 40.0,
+        "SALE_CNT": 1,
+        "MAX_AMT": 40.0
+      }
+    ]
+  }
+}

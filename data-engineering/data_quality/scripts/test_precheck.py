@@ -39,7 +39,7 @@ def main() -> int:
         parts.append(
             "Missing pyspark — install separately: "
             "pip install 'pyspark>=3.5' "
-            "(or pip install 'qualifire[spark]'). "
+            "(or pip install -e '.[spark]'). "
             "pyspark is intentionally not in [all] so AIDP installs "
             "do not overwrite the pre-provisioned runtime"
         )

@@ -1,0 +1,58 @@
+schemaVersion: 1
+
+# Known Fusion-release column deltas the medallion-author skill uses
+# to rank candidate proposals. Hand-seeded for v0.1.0; grows over time
+# as new variants surface (each new entry bumps SKILL_VERSION).
+#
+# Format (per entry):
+#
+#   - id: <stable identifier>             # for tests + audit
+#     variationPoint: <pack-vp-name OR glob>
+#     kind: columnAliases | semanticVariants
+#     pattern: <fnmatch glob OR regex>    # match against observed bronze col names
+#     priority: high | medium | low       # influences reasoner ranking
+#     notes: |
+#       Operator-facing rationale shown alongside the proposal.
+
+deltas:
+  - id: ap-cancel-status-cancel-date-variant
+    variationPoint: cancelled_status
+    kind: semanticVariants
+    pattern: ApInvoicesCancelDate
+    priority: high
+    notes: |
+      Fusion 22D renamed ApInvoicesCancelledDate → ApInvoicesCancelDate
+      on some pods. Surface as a third candidate when artifact shows
+      observed cancel-date column without the "led" suffix. The
+      starter pack already declares cancelled_date + cancelled_flag
+      candidates; this delta extends the cancelled_date detect-clause
+      to recognise the shorter spelling.
+
+  - id: currency-code-casing-variants
+    variationPoint: invoice_currency_code
+    kind: columnAliases
+    pattern: "*CurrencyCode|*CcyCode|*XCurrCode"
+    priority: high
+    notes: |
+      Fusion 23A/23B/25C renamed and re-cased the AP invoice currency
+      column across releases:
+        - 23A: ApInvoicesCurrencyCode
+        - 23B: ApInvoicesInvoiceCurrencyCode
+        - 25C: ApInvoicesXCurrCode (multi-currency tenants only)
+      Surface any column matching the pattern as a candidate
+      extension. Operator confirms the semantic equivalence at
+      review.
+
+  - id: coa-deeper-than-6-segments
+    variationPoint: "coa_*_segment"
+    kind: columnAliases
+    pattern: "CodeCombinationSegment[7-9]|CodeCombinationSegment[12][0-9]|CodeCombinationSegment30"
+    priority: medium
+    notes: |
+      Default starter pack declares segments 1-6 (the conventional
+      Fusion COA depth). Some COA designs use up to 30 segments
+      (regulated-industry / multi-entity configurations). Skill
+      drafts overlays adding the observed positions when the
+      artifact shows them. Operator MUST confirm the role-to-segment
+      mapping is correct for their COA — segment numbers are
+      tenant-defined, not Fusion-fixed.

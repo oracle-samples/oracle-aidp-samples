@@ -1,9 +1,10 @@
 ---
-description: Connect from an AIDP notebook to Oracle Exadata Cloud Service (ExaCS) via Spark JDBC. Use when the user mentions ExaCS, Exadata, Exadata Cloud, RAC SCAN listener, or has a private-subnet Oracle DB. Auth is plain user/password on TCP 1521 with server-enforced AES256 Native Network Encryption (live-validated against Oracle 23ai). Wallet TCPS and IAM DB-Token are not supported by AIDP notebooks for ExaCS.
+name: aidp-exacs
+description: Read or write Oracle Exadata Cloud Service (ExaCS) from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions ExaCS, Exadata, Exadata Cloud, RAC SCAN listener, or has a private-subnet Oracle DB. Prefer the official `ORACLE_EXADATA` connector sample with catalog.id, pushdown.sql, and connector write modes.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
-# `aidp-exacs` — Oracle Exadata Cloud Service via Spark JDBC
+# `aidp-exacs` — Oracle Exadata Cloud Service via AIDP `aidataplatform`
 
 ## When to use
 - User wants to read or write an ExaCS PDB from an AIDP notebook.
@@ -38,67 +39,75 @@ ip = socket.gethostbyname(SCAN_HOST)            # should be Class-E (255.x) or R
 with socket.create_connection((SCAN_HOST, 1521), timeout=15): pass
 ```
 
-## Auth: plain user/password on TCP 1521 + server-enforced NNE (live-validated)
+## Read (inline connector options)
 
-This is the **only supported auth path** for ExaCS from AIDP notebooks. Wallet/TCPS and IAM DB-Token are not workable in the AIDP notebook environment for ExaCS clusters and have been intentionally removed from this skill.
-
-ExaCS deployments commonly enforce **Oracle Native Network Encryption (NNE)** server-side:
-`SQLNET.ENCRYPTION_SERVER=REQUIRED` + `SQLNET.ENCRYPTION_TYPES_SERVER=AES256`. The Oracle thin
-driver complies automatically — no client-side `oracle.net.encryption_*` options needed. The
-encrypted session can be verified after connect via `v$session_connect_info.network_service_banner`
-(see snippet below).
+Use the official AIDP Exadata connector first:
 
 ```python
 import os
-from oracle_ai_data_platform_connectors.jdbc import (
-    build_oracle_jdbc_url, spark_jdbc_options_password,
+from oracle_ai_data_platform_connectors.aidataplatform import (
+    AIDP_FORMAT, aidataplatform_options,
 )
 
-url = build_oracle_jdbc_url(
-    host=os.environ["EXACS_HOST"],            # SCAN FQDN or host
+opts = aidataplatform_options(
+    type="ORACLE_EXADATA",
+    host=os.environ["EXACS_HOST"],
     port=int(os.environ.get("EXACS_PORT", "1521")),
-    service_name=os.environ["EXACS_SERVICE_NAME"],
-    use_tcps=False,                           # plain TCP — encryption is via NNE, not TLS
-)
-opts = spark_jdbc_options_password(
-    url=url,
+    database_name=os.environ["EXACS_DATABASE_NAME"],
     user=os.environ["EXACS_USER"],
     password=os.environ["EXACS_PASSWORD"],
+    schema=os.environ["EXACS_SCHEMA"],
+    table=os.environ["EXACS_TABLE"],
 )
-df = (spark.read.format("jdbc").options(**opts)
-        .option("dbtable", os.environ["EXACS_TABLE_FOR_TEST"]).load())
-df.show(5)
+df = spark.read.format(AIDP_FORMAT).options(**opts).load()
+df.show()
 ```
 
-**SYS / SYSDBA logon** (admin scripts only; not for app workloads):
+## Write
 
 ```python
-opts["oracle.jdbc.internal_logon"] = "sysdba"
+opts["table"] = os.environ["EXACS_TARGET_TABLE"]
+opts["write.mode"] = os.environ.get("EXACS_WRITE_MODE", "APPEND")  # CREATE | APPEND | OVERWRITE | MERGE
+df.write.format(AIDP_FORMAT).options(**opts).save()
 ```
 
-**Verify in-transit encryption is active** (run once per environment):
+## Use `catalog.id`
 
 ```python
-enc_q = ("SELECT network_service_banner FROM v$session_connect_info "
-         "WHERE sid = SYS_CONTEXT('USERENV','SID')")
-banners = (spark.read.format("jdbc").options(**opts)
-             .option("query", enc_q).load().collect())
-for r in banners:
-    print(r[0])
-# Expect lines including:
-#   AES256 Encryption service adapter for Linux: Version ...
-#   Crypto-checksumming service for Linux: Version ...
+catalog_opts = aidataplatform_options(
+    type="ORACLE_EXADATA",
+    schema=os.environ["EXACS_SCHEMA"],
+    table=os.environ["EXACS_TABLE"],
+    extra={"catalog.id": os.environ["EXACS_CATALOG_ID"]},
+)
+df = spark.read.format(AIDP_FORMAT).options(**catalog_opts).load()
+```
+
+## Pushdown
+
+```python
+pushdown_opts = aidataplatform_options(
+    type="ORACLE_EXADATA",
+    host=os.environ["EXACS_HOST"],
+    port=int(os.environ.get("EXACS_PORT", "1521")),
+    database_name=os.environ["EXACS_DATABASE_NAME"],
+    user=os.environ["EXACS_USER"],
+    password=os.environ["EXACS_PASSWORD"],
+    extra={
+        "pushdown.sql": "SELECT * FROM HR.EMPLOYEES WHERE DEPARTMENT_ID = 10",
+    },
+)
+df = spark.read.format(AIDP_FORMAT).options(**pushdown_opts).load()
 ```
 
 ## Gotchas
 
 - **`scanDetails` is the #1 cause of ORA-17820.** If the JDBC URL points at the SCAN listener on a RAC cluster but the workspace doesn't have the SCAN FQDN registered, the redirect fails silently. See "Critical infrastructure prerequisites" above.
-- **Port 1521 is NOT plain unencrypted.** With NNE configured server-side, port-1521 TCP is AES256 encrypted on the wire. Confirm via `v$session_connect_info` after the first connect — don't assume.
+- **Port 1521 is often encrypted by server-side NNE.** The `ORACLE_EXADATA` connector is the preferred path; fall back to raw JDBC only for diagnostics that the built-in connector cannot express.
 - **No IMDS access from AIDP notebooks** — Instance Principal / Resource Principal flows that work elsewhere on OCI compute fail here. Use API Key + inline PEM if you need OCI SDK calls.
-- **No wallet/TCPS or IAM DB-Token paths for ExaCS** in this skill. Customer ExaCS deployments do not commonly expose TCPS listeners and AIDP notebooks do not support IAM DB-Token against ExaCS. The AIDP notebook environment connects via Native Network Encryption on plain TCP 1521. If you need wallet+TCPS or IAM DB-Token to an Autonomous DB, use the [`aidp-alh`](../aidp-alh/SKILL.md) skill instead.
-- **Driver class name** — `oracle.jdbc.OracleDriver` is canonical. The legacy alias `oracle.jdbc.driver.OracleDriver` also works but is deprecated.
+- If you need wallet+TCPS or IAM DB-Token to an Autonomous DB, use the [`aidp-alh`](../aidp-alh/SKILL.md) skill instead.
 
 ## References
-- Helpers: [scripts/oracle_ai_data_platform_connectors/jdbc/oracle.py](../../scripts/oracle_ai_data_platform_connectors/jdbc/oracle.py)
-- Live-validated reference notebook (the source of the Option A pattern): [`exacs_intransit_encryption_demo.ipynb`](https://github.com/ahmedawan-oracle/oracle-ai-data-platform-workbench-spark-connectors) on workspace `exacs-private-test` — proves AES256 NNE end-to-end on a customer ExaCS cluster running Oracle 23ai.
+- Helper: [scripts/oracle_ai_data_platform_connectors/aidataplatform.py](../../scripts/oracle_ai_data_platform_connectors/aidataplatform.py)
+- Official Exadata sample: [data-engineering/ingestion/Read_Write_Oracle_Ecosystem_Connectors/Oracle_Exadata.ipynb](../../../../../data-engineering/ingestion/Read_Write_Oracle_Ecosystem_Connectors/Oracle_Exadata.ipynb)
 - AIDP private endpoint design (PE-ARCH 1a–3c, SCAN Proxy): see workspace memory `oci_private_endpoint_design.md`.

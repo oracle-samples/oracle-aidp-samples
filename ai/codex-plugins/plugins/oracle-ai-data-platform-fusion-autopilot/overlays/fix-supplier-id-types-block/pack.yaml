@@ -1,0 +1,25 @@
+id: fix-supplier-id-types-block
+version: 0.1.0
+extends: fusion-finance-starter@0.1.0
+description: |
+  Bronze type-overlay (BLOCK mechanism) fixing the supplier-ID overflow on
+  bronze.erp_suppliers. The starter pack declares the four supplier surrogate-ID
+  columns as decimal(38,30) (only 8 integer digits), so 15-digit Fusion IDs
+  overflow to NULL on extract and the supplier_spend join matches nothing. This
+  overlay retypes the four IDs to decimal(18,0) (proven correct by the working
+  ap_invoices.ApInvoicesVendorId) — declaring ONLY the changed columns; every
+  other column (SEGMENT1, LASTUPDATEDATE, audit columns) is inherited unchanged.
+compatibility:
+  pluginMinVersion: 0.3.0
+  fusionFamilies:
+    - ERP
+  aidp:
+    requiresDelta: true
+overrides:
+  bronze/erp_suppliers:
+    outputSchema:
+      columns:
+        - { name: VENDORID, type: "decimal(18,0)" }
+        - { name: PARTYID, type: "decimal(18,0)" }
+        - { name: PARENTVENDORID, type: "decimal(18,0)" }
+        - { name: PARENTPARTYID, type: "decimal(18,0)" }

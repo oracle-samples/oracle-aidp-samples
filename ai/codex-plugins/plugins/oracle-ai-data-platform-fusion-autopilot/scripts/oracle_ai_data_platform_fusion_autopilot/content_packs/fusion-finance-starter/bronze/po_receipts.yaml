@@ -1,0 +1,45 @@
+id: po_receipts
+layer: bronze
+implementation:
+  type: bronze_extract
+  datastore: FscmTopModelAM.ScmExtractAM.RcvBiccExtractAM.ReceivingReceiptTransactionExtractPVO
+  pvo_id: FscmTopModelAM.ScmExtractAM.RcvBiccExtractAM.ReceivingReceiptTransactionExtractPVO
+  # PVO lives under ScmExtractAM in the AM-hierarchy but BICC publishes
+  # under "Financial" in some tenants. Tenant-dependent; set
+  # bundle.fusion.schemaOverrides.po_receipts to override.
+  biccSchema: Financial
+  schemaOverride: null
+  incrementalCapable: true
+  auditColumnsMode: bronze_v1
+target: po_receipts
+dependsOn:
+  bronze: []
+  silver: []
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: po_receipts
+      column: RcvngRcptTrnsctnExtrctPEOLastUpdateDate
+    naturalKey: [RcvngRcptTrnsctnExtrctPEOTransactionId]
+requiredColumns:
+  po_receipts:
+    - RcvngRcptTrnsctnExtrctPEOTransactionId
+    - RcvngRcptTrnsctnExtrctPEOPoHeaderId
+    - RcvngRcptTrnsctnExtrctPEOQuantity
+    - RcvngRcptTrnsctnExtrctPEOLastUpdateDate
+outputSchema:
+  columns:
+    - { name: RcvngRcptTrnsctnExtrctPEOTransactionId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: RcvngRcptTrnsctnExtrctPEOPoHeaderId, type: "decimal(18,0)", nullable: true, pii: none }
+    - { name: RcvngRcptTrnsctnExtrctPEOQuantity, type: "decimal(38,30)", nullable: true, pii: low }
+    - { name: RcvngRcptTrnsctnExtrctPEOTransactionDate, type: timestamp, nullable: true, pii: none }
+    - { name: RcvngRcptTrnsctnExtrctPEOLastUpdateDate, type: timestamp, nullable: true, pii: none }
+    - { name: _extract_ts, type: timestamp, nullable: false, pii: none }
+    - { name: _source_pvo, type: string, nullable: false, pii: none }
+    - { name: _run_id, type: string, nullable: false, pii: none }
+    - { name: _watermark_used, type: timestamp, nullable: true, pii: none }
+quality:
+  tests: []

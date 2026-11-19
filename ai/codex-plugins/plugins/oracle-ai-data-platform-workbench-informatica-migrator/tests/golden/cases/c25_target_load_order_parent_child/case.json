@@ -1,0 +1,13 @@
+{
+  "export": "m_load_dept_then_emp.xml",
+  "notes": [
+    "One mapping, two pipelines (two Source Qualifiers): SQ_STG_DEPT -> EXP_DEPT -> DIM_DEPT (parent) and SQ_STG_EMP -> LKP_DIM_DEPT -> EXP_EMP -> FACT_EMP (child, DEPT_SK is a FOREIGN KEY to DIM_DEPT.DEPT_SK).",
+    "Target Load Plan: <TARGETLOADORDER ORDER=\"1\" DIM_DEPT/> then ORDER=\"2\" FACT_EMP. PowerCenter processes target load order groups SEQUENTIALLY: the DIM_DEPT pipeline reads, loads and commits (Commit On End Of File) before the FACT_EMP pipeline's reader starts.",
+    "BEHAVIOUR PINNED: target load order wins over 'cache built at session start'. LKP_DIM_DEPT is a static (cached, non-dynamic) lookup on the parent table with 'Pre-build lookup cache' = 'Always disallowed', so the Integration Service builds its cache when the FIRST row reaches the Lookup, i.e. inside pipeline 2, after pipeline 1 has committed DIM_DEPT. The cache therefore contains the two departments inserted by this run (30 -> 1030, 40 -> 1040).",
+    "With 'Pre-build lookup cache' = Auto/Always allowed and concurrent lookup-cache pipelines, the IS MAY build the cache before pipeline 1 finishes; that is why the export disallows pre-build -- it removes the ambiguity. An uncached lookup would give the same rows (it queries the committed table per row).",
+    "Bob (dept 30) and Ed (dept 40) therefore get 1030 / 1040, not the -1 an up-front snapshot of DIM_DEPT would give; Ann/Fay get the pre-existing 1010/1020.",
+    "Cy (dept 50, in neither DIM_DEPT nor STG_DEPT) -> no match -> -1. Di has a NULL DEPT_ID: a NULL lookup key never matches -> -1.",
+    "Session config override on CONFIGREFERENCE: 'Constraint based load ordering' = YES. It only orders parent/child targets that share one active source in one target connection group, so it does not change anything here (two independent pipelines); the Target Load Plan is what orders them.",
+    "DEPT_NAME is UPPER(LTRIM(RTRIM(...))): ' finance ' -> 'FINANCE'. Both writers are Insert only (Treat source rows as = Insert); DIM_DEPT keeps its two pre-existing rows."
+  ]
+}

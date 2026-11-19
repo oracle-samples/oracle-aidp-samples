@@ -1,0 +1,192 @@
+# coa-deep-overlay replaceNode replacement for silver/dim_account (same id —
+# downstream dependsOn consumers are not re-pointed). Two deltas vs the
+# starter, both in service of deep COA role bindings (Segment7-10):
+#   1. requiredColumns.gl_coa additionally declares Segment7-10 (the SQL's
+#      inner projection reads them so a deep coa role CASE can resolve);
+#   2. implementation.sql points at the overlay's dim_account.sql.
+# The outputSchema is byte-identical to the starter: no new output columns.
+#
+# NOTE: the .sql template itself is deliberately comment-free — the renderer
+# forbids `--` / `/* */` anywhere in RENDERED SQL (AIDPF-5010, comment-
+# smuggling defense), so template commentary lives HERE, not in the SQL
+# (live-observed render_failed, 2026-08-06). The template's only difference
+# from the starter is the inner projection carrying Segment7-10.
+id: dim_account
+layer: silver
+implementation:
+  type: sql
+  sql: silver/dim_account.sql
+target: dim_account
+
+dependsOn:
+  bronze:
+    - id: gl_coa
+      watermark:
+        column: _extract_ts
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: merge
+    watermark:
+      source: gl_coa
+      column: _extract_ts
+    naturalKey:
+      - account_id
+
+requiredColumns:
+  gl_coa:
+    - CodeCombinationCodeCombinationId
+    - CodeCombinationChartOfAccountsId
+    # Segment1-6: the starter COA semantic-role domain (read explicitly as
+    # segment_01..06 + subaccount/product/intercompany, and the binding targets
+    # of the $coa.* roles below).
+    - CodeCombinationSegment1
+    - CodeCombinationSegment2
+    - CodeCombinationSegment3
+    - CodeCombinationSegment4
+    - CodeCombinationSegment5
+    - CodeCombinationSegment6
+    # Segment7-10: the overlay's extended role domain. The gl_coa outputSchema
+    # override guarantees these land; the inner projection reads them so a
+    # deep role binding (e.g. cost center at Segment9) is renderable.
+    - CodeCombinationSegment7
+    - CodeCombinationSegment8
+    - CodeCombinationSegment9
+    - CodeCombinationSegment10
+    - CodeCombinationAccountType
+    - CodeCombinationEnabledFlag
+    - CodeCombinationSummaryFlag
+    - CodeCombinationDetailPostingAllowedFlag
+    - CodeCombinationFinancialCategory
+    - CodeCombinationStartDateActive
+    - CodeCombinationEndDateActive
+    # $coa.<role> expands to the UNION of that role's column across the
+    # chartOfAccounts default + every byChart arm (feature
+    # coa-role-segment-resolution). Single-COA tenants resolve to one column.
+    - $coa.balancing
+    - $coa.cost_center
+    - $coa.natural_account
+    - _extract_ts
+    - _source_pvo
+
+# Output schema is IDENTICAL to the starter's dim_account: the overlay extends
+# only what reaches the render scope, never the output contract.
+outputSchema:
+  columns:
+    - name: account_key
+      type: bigint
+      nullable: false
+      pii: none
+    - name: account_id
+      type: bigint
+      nullable: false
+      pii: none
+    - name: chart_of_accounts_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: code_combination
+      type: string
+      nullable: true
+      pii: none
+    - name: segment_01
+      type: string
+      nullable: true
+      pii: none
+    - name: segment_02
+      type: string
+      nullable: true
+      pii: none
+    - name: segment_03
+      type: string
+      nullable: true
+      pii: none
+    - name: segment_04
+      type: string
+      nullable: true
+      pii: none
+    - name: segment_05
+      type: string
+      nullable: true
+      pii: none
+    - name: segment_06
+      type: string
+      nullable: true
+      pii: none
+    - name: company
+      type: string
+      nullable: true
+      pii: none
+    - name: cost_center
+      type: string
+      nullable: true
+      pii: none
+    - name: account
+      type: string
+      nullable: true
+      pii: none
+    - name: subaccount
+      type: string
+      nullable: true
+      pii: none
+    - name: product
+      type: string
+      nullable: true
+      pii: none
+    - name: intercompany
+      type: string
+      nullable: true
+      pii: none
+    - name: account_type
+      type: string
+      nullable: true
+      pii: none
+    - name: enabled_flag
+      type: string
+      nullable: true
+      pii: none
+    - name: summary_flag
+      type: string
+      nullable: true
+      pii: none
+    - name: detail_posting_allowed_flag
+      type: string
+      nullable: true
+      pii: none
+    - name: financial_category
+      type: string
+      nullable: true
+      pii: none
+    - name: start_date_active
+      type: date
+      nullable: true
+      pii: none
+    - name: end_date_active
+      type: date
+      nullable: true
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: bronze_source_pvo
+      type: string
+      nullable: false
+      pii: none
+    - name: silver_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: silver_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: not_null
+      columns: [account_id]
+    - type: unique
+      columns: [account_id]

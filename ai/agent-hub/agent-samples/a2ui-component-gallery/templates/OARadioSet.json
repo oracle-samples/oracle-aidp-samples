@@ -1,0 +1,555 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_radioset_v1",
+            "tpl_variant_wrapper_radioset_v2",
+            "tpl_variant_wrapper_radioset_v3",
+            "tpl_variant_wrapper_radioset_v4",
+            "tpl_variant_wrapper_radioset_v5",
+            "tpl_variant_wrapper_radioset_v6",
+            "tpl_variant_wrapper_radioset_v7",
+            "tpl_variant_wrapper_radioset_v8",
+            "tpl_variant_wrapper_radioset_v9",
+            "tpl_variant_wrapper_radioset_v10",
+            "tpl_variant_wrapper_radioset_v11"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v1",
+          "component": "Text",
+          "text": "OARadioSet column with top label and assistive text",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v1",
+            "tpl_previewOARadioSet_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v1",
+          "component": "OARadioSet",
+          "label": "Deployment region",
+          "direction": "column",
+          "labelEdge": "top",
+          "options": [
+            {
+              "value": "us-phoenix-1",
+              "label": "US West (Phoenix)",
+              "assistiveText": "Low latency for western US users",
+              "helpSourceLink": "https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm",
+              "helpSourceText": "Region guidance"
+            },
+            {
+              "value": "us-ashburn-1",
+              "label": "US East (Ashburn)",
+              "assistiveText": "Balanced east coast capacity"
+            },
+            {
+              "value": "uk-london-1",
+              "label": "UK South (London)",
+              "assistiveText": "Regional data residency"
+            }
+          ],
+          "selections": [
+            "us-phoenix-1"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v2",
+          "component": "Text",
+          "text": "OARadioSet row direction",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v2",
+            "tpl_previewOARadioSet_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v2",
+          "component": "OARadioSet",
+          "label": "Billing term",
+          "direction": "row",
+          "labelEdge": "top",
+          "options": [
+            {
+              "value": "monthly",
+              "label": "Monthly"
+            },
+            {
+              "value": "annual",
+              "label": "Annual"
+            },
+            {
+              "value": "prepaid",
+              "label": "Prepaid"
+            }
+          ],
+          "selections": [
+            "annual"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v3",
+          "component": "Text",
+          "text": "OARadioSet start label edge",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v3",
+            "tpl_previewOARadioSet_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v3",
+          "component": "OARadioSet",
+          "label": "Priority",
+          "direction": "column",
+          "labelEdge": "start",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low"
+            },
+            {
+              "value": "medium",
+              "label": "Medium"
+            },
+            {
+              "value": "high",
+              "label": "High"
+            }
+          ],
+          "selections": [
+            "medium"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v4",
+          "component": "Text",
+          "text": "OARadioSet inside label edge",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v4",
+            "tpl_previewOARadioSet_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v4",
+          "component": "OARadioSet",
+          "label": "Support plan",
+          "direction": "column",
+          "labelEdge": "inside",
+          "options": [
+            {
+              "value": "basic",
+              "label": "Basic"
+            },
+            {
+              "value": "business",
+              "label": "Business"
+            },
+            {
+              "value": "mission-critical",
+              "label": "Mission critical"
+            }
+          ],
+          "selections": [
+            "business"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v5",
+          "component": "Text",
+          "text": "OARadioSet none label edge",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v5",
+            "tpl_previewOARadioSet_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v5",
+          "component": "OARadioSet",
+          "label": "Environment type",
+          "direction": "row",
+          "labelEdge": "none",
+          "options": [
+            {
+              "value": "development",
+              "label": "Development"
+            },
+            {
+              "value": "test",
+              "label": "Test"
+            },
+            {
+              "value": "production",
+              "label": "Production"
+            }
+          ],
+          "selections": [
+            "production"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v6",
+          "component": "Text",
+          "text": "OARadioSet required with empty selection",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v6",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v6",
+            "tpl_previewOARadioSet_v6"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v6",
+          "component": "OARadioSet",
+          "label": "Maintenance window",
+          "direction": "column",
+          "labelEdge": "top",
+          "required": true,
+          "options": [
+            {
+              "value": "weekday",
+              "label": "Weekday"
+            },
+            {
+              "value": "weekend",
+              "label": "Weekend"
+            },
+            {
+              "value": "overnight",
+              "label": "Overnight"
+            }
+          ],
+          "selections": []
+        },
+        {
+          "id": "tpl_variant_header_radioset_v7",
+          "component": "Text",
+          "text": "OARadioSet disabled",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v7",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v7",
+            "tpl_previewOARadioSet_v7"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v7",
+          "component": "OARadioSet",
+          "label": "Locked shape",
+          "direction": "column",
+          "labelEdge": "top",
+          "disabled": true,
+          "options": [
+            {
+              "value": "small",
+              "label": "Small"
+            },
+            {
+              "value": "medium",
+              "label": "Medium"
+            },
+            {
+              "value": "large",
+              "label": "Large"
+            }
+          ],
+          "selections": [
+            "medium"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v8",
+          "component": "Text",
+          "text": "OARadioSet readonly",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v8",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v8",
+            "tpl_previewOARadioSet_v8"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v8",
+          "component": "OARadioSet",
+          "label": "Approved tier",
+          "direction": "column",
+          "labelEdge": "top",
+          "readonly": true,
+          "options": [
+            {
+              "value": "standard",
+              "label": "Standard"
+            },
+            {
+              "value": "premium",
+              "label": "Premium"
+            },
+            {
+              "value": "enterprise",
+              "label": "Enterprise"
+            }
+          ],
+          "selections": [
+            "premium"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_radioset_v9",
+          "component": "Text",
+          "text": "OARadioSet path-bound selections",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v9",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v9",
+            "tpl_previewOARadioSet_v9"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v9",
+          "component": "OARadioSet",
+          "label": "Runtime size",
+          "direction": "row",
+          "labelEdge": "top",
+          "options": [
+            {
+              "value": "oc3",
+              "label": "OC3"
+            },
+            {
+              "value": "oc4",
+              "label": "OC4"
+            },
+            {
+              "value": "oc5",
+              "label": "OC5"
+            }
+          ],
+          "selections": {
+            "path": "/demo/oaRadioSet/boundSelections"
+          }
+        },
+        {
+          "id": "tpl_variant_header_radioset_v10",
+          "component": "Text",
+          "text": "OARadioSet selectedChangedAction",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v10",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v10",
+            "tpl_previewOARadioSet_v10"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v10",
+          "component": "OARadioSet",
+          "label": "Action example",
+          "direction": "row",
+          "labelEdge": "top",
+          "options": [
+            {
+              "value": "alpha",
+              "label": "Alpha"
+            },
+            {
+              "value": "beta",
+              "label": "Beta"
+            },
+            {
+              "value": "gamma",
+              "label": "Gamma"
+            }
+          ],
+          "selections": [
+            "beta"
+          ],
+          "selectedChangedAction": {
+            "event": {
+              "name": "render_preview",
+              "context": {
+                "selectedComponent": "OARadioSet"
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_variant_header_radioset_v11",
+          "component": "Text",
+          "text": "OARadioSet dynamic label, booleans, direction, label edge, option labels, and selections",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_radioset_v11",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_radioset_v11",
+            "tpl_previewOARadioSet_v11"
+          ]
+        },
+        {
+          "id": "tpl_previewOARadioSet_v11",
+          "component": "OARadioSet",
+          "label": {
+            "path": "/demo/oaRadioSet/dynamicLabel"
+          },
+          "direction": {
+            "path": "/demo/oaRadioSet/dynamicDirection"
+          },
+          "labelEdge": {
+            "path": "/demo/oaRadioSet/dynamicLabelEdge"
+          },
+          "disabled": {
+            "path": "/demo/oaRadioSet/dynamicDisabled"
+          },
+          "readonly": {
+            "path": "/demo/oaRadioSet/dynamicReadonly"
+          },
+          "required": {
+            "path": "/demo/oaRadioSet/dynamicRequired"
+          },
+          "options": [
+            {
+              "value": "performance",
+              "label": {
+                "path": "/demo/oaRadioSet/dynamicOptionLabels/performance"
+              },
+              "assistiveText": {
+                "path": "/demo/oaRadioSet/dynamicAssistiveText/performance"
+              },
+              "helpSourceLink": {
+                "path": "/demo/oaRadioSet/dynamicHelpSourceLinks/performance"
+              },
+              "helpSourceText": {
+                "path": "/demo/oaRadioSet/dynamicHelpSourceText/performance"
+              }
+            },
+            {
+              "value": "cost",
+              "label": {
+                "path": "/demo/oaRadioSet/dynamicOptionLabels/cost"
+              },
+              "assistiveText": {
+                "path": "/demo/oaRadioSet/dynamicAssistiveText/cost"
+              },
+              "helpSourceLink": {
+                "path": "/demo/oaRadioSet/dynamicHelpSourceLinks/cost"
+              },
+              "helpSourceText": {
+                "path": "/demo/oaRadioSet/dynamicHelpSourceText/cost"
+              }
+            },
+            {
+              "value": "resilience",
+              "label": {
+                "path": "/demo/oaRadioSet/dynamicOptionLabels/resilience"
+              },
+              "assistiveText": {
+                "path": "/demo/oaRadioSet/dynamicAssistiveText/resilience"
+              },
+              "helpSourceLink": {
+                "path": "/demo/oaRadioSet/dynamicHelpSourceLinks/resilience"
+              },
+              "helpSourceText": {
+                "path": "/demo/oaRadioSet/dynamicHelpSourceText/resilience"
+              }
+            }
+          ],
+          "selections": {
+            "path": "/demo/oaRadioSet/dynamicSelections"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oaRadioSet",
+      "value": {
+        "boundSelections": [
+          "oc4"
+        ],
+        "dynamicLabel": "Optimization target",
+        "dynamicDirection": "column",
+        "dynamicLabelEdge": "top",
+        "dynamicDisabled": false,
+        "dynamicReadonly": false,
+        "dynamicRequired": true,
+        "dynamicSelections": [
+          "resilience"
+        ],
+        "dynamicOptionLabels": {
+          "performance": "Performance",
+          "cost": "Cost control",
+          "resilience": "Resilience"
+        },
+        "dynamicAssistiveText": {
+          "performance": "Prioritize throughput and low latency",
+          "cost": "Prioritize budget predictability",
+          "resilience": "Prioritize failover and redundancy"
+        },
+        "dynamicHelpSourceLinks": {
+          "performance": "https://docs.oracle.com/en-us/iaas/Content/Compute/home.htm",
+          "cost": "https://docs.oracle.com/en-us/iaas/Content/Billing/home.htm",
+          "resilience": "https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm"
+        },
+        "dynamicHelpSourceText": {
+          "performance": "Compute guidance",
+          "cost": "Billing guidance",
+          "resilience": "Region guidance"
+        }
+      }
+    }
+  }
+]

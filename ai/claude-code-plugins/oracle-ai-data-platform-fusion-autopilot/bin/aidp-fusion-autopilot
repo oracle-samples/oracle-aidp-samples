@@ -1,0 +1,39 @@
+#!/bin/sh
+# POSIX wrapper for the aidp-fusion-autopilot CLI (macOS / Linux).
+#
+# Claude Code adds a plugin's bin/ to the Bash tool PATH while enabled, so this
+# script provides the exact `aidp-fusion-autopilot` command the 16 skills call —
+# with no pip script dir required on PATH. It runs the package FROM SOURCE via
+# `python -m`; first invocation lazily installs deps (see __main__.py).
+#
+# Interpreter selection is version-gated: requires-python is >=3.10, but
+# run-from-source bypasses pip's requires-python guard, and the code crashes on
+# 3.9 (PEP 604 `X | None` in Pydantic models). So we pick the FIRST candidate
+# that reports >=3.10 rather than the first that merely exists.
+#
+# NOTE: no `py -3` here — that launcher is Windows-only and a "py -3" string
+# would break `exec "$PY"` (the space makes it one argv token). See the .cmd
+# wrapper for Windows.
+set -eu
+
+# Resolve the plugin root from this script's own location (no env dependency).
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+
+PY=""
+for cand in python3 python python3.13 python3.12 python3.11 python3.10; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        if "$cand" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+            PY="$cand"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PY" ]; then
+    echo "[aidp-fusion-autopilot] needs Python >= 3.10 on PATH (none found)." >&2
+    exit 1
+fi
+
+export PYTHONPATH="$ROOT/scripts${PYTHONPATH:+:$PYTHONPATH}"
+exec "$PY" -m oracle_ai_data_platform_fusion_autopilot "$@"

@@ -1,0 +1,26 @@
+{
+  "ORDERS_WEB": {
+    "schema": "ORDER_ID decimal(10,0), CUST_ID decimal(10,0), AMT decimal(10,2)",
+    "rows": [
+      [1, 10,   100.00],
+      [2, 11,     0.00],
+      [3, null,  50.00],
+      [4, 12,    25.50]
+    ]
+  },
+  "ORDERS_STORE": {
+    "schema": "SALE_AMT decimal(10,2), ORDER_ID decimal(10,0), CUST_ID decimal(10,0)",
+    "rows": [
+      [75.00, 5, 13],
+      [-5.00, 6, 14],
+      [25.50, 4, 12]
+    ]
+  },
+  "ORDERS_PHONE": {
+    "schema": "CUST_ID decimal(10,0), AMT decimal(10,2), ORDER_ID decimal(10,0)",
+    "rows": [
+      [15, 60.00, 7],
+      [16, null,  8]
+    ]
+  }
+}

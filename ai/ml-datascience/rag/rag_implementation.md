@@ -55,7 +55,7 @@ Answer + Citations
 ```python
 # OCI Bucket Configuration
 BUCKET = "test_doc"
-NAMESPACE = "idseylbmv0mm"
+NAMESPACE = "<namespace>"
 PREFIX = "documents/"
 
 # Model Configuration
@@ -238,13 +238,13 @@ The deployment requirements include:
 • **Network**: Load balancer with SSL/TLS support
 • **Monitoring**: Prometheus and Grafana for observability
 
-[Source 1] oci://test_doc@idseylbmv0mm/documents/deployment-guide.md
-[Source 2] oci://test_doc@idseylbmv0mm/documents/infrastructure-specs.txt
+[Source 1] oci://test_doc@<namespace>/documents/deployment-guide.md
+[Source 2] oci://test_doc@<namespace>/documents/infrastructure-specs.txt
 
 ===== SOURCES =====
 
-oci://test_doc@idseylbmv0mm/documents/deployment-guide.md
-oci://test_doc@idseylbmv0mm/documents/infrastructure-specs.txt
+oci://test_doc@<namespace>/documents/deployment-guide.md
+oci://test_doc@<namespace>/documents/infrastructure-specs.txt
 ```
 
 ## Advanced Configuration

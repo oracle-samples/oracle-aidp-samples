@@ -1,0 +1,4 @@
+interface:
+  display_name: "Incremental Mechanism"
+  short_description: "Choose safe, efficient refresh strategies"
+  default_prompt: "Use $incremental-mechanism to choose and verify the safest refresh strategy."

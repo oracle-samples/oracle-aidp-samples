@@ -1,0 +1,164 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4",
+            "tpl_variant_wrapper_v5"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Video literal url sample",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewVideo_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewVideo_v1",
+          "component": "Video",
+          "url": "https://www.w3schools.com/html/mov_bbb.mp4"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Video path bound url from data model",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewVideo_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewVideo_v2",
+          "component": "Video",
+          "url": {
+            "path": "/demo/video/featuredUrl"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Video in a card container using path bound url",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_videoCard_v3"
+          ]
+        },
+        {
+          "id": "tpl_videoCard_v3",
+          "component": "Card",
+          "child": "tpl_previewVideo_v3"
+        },
+        {
+          "id": "tpl_previewVideo_v3",
+          "component": "Video",
+          "url": {
+            "path": "/demo/video/cardUrl"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "Row layout with literal and path video sources",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_videoRow_v4"
+          ]
+        },
+        {
+          "id": "tpl_videoRow_v4",
+          "component": "Row",
+          "children": [
+            "tpl_videoRowLeft_v4",
+            "tpl_videoRowRight_v4"
+          ],
+          "justify": "spaceBetween",
+          "align": "start"
+        },
+        {
+          "id": "tpl_videoRowLeft_v4",
+          "component": "Video",
+          "url": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+        },
+        {
+          "id": "tpl_videoRowRight_v4",
+          "component": "Video",
+          "url": {
+            "path": "/demo/video/secondaryUrl"
+          }
+        },
+        {
+          "id": "tpl_variant_header_v5",
+          "component": "Text",
+          "text": "Video path using backup source for binding regression checks",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v5",
+            "tpl_previewVideo_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewVideo_v5",
+          "component": "Video",
+          "url": {
+            "path": "/demo/video/backupUrl"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "featuredUrl": "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
+        "cardUrl": "https://www.w3schools.com/html/movie.mp4",
+        "secondaryUrl": "https://www.w3schools.com/html/mov_bbb.mp4",
+        "backupUrl": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"
+      },
+      "path": "/demo/video"
+    }
+  }
+]

@@ -1,0 +1,88 @@
+{
+  "SALES": {
+    "schema": "SALE_ID decimal(10,0), REGION string, CHANNEL string, AMT decimal(10,2)",
+    "rows": [
+      [
+        1,
+        "EAST",
+        "WEB",
+        100.0
+      ],
+      [
+        2,
+        "EAST",
+        "WEB",
+        50.0
+      ],
+      [
+        3,
+        "EAST",
+        "STORE",
+        200.0
+      ],
+      [
+        4,
+        "WEST",
+        "WEB",
+        70.0
+      ],
+      [
+        5,
+        "WEST",
+        "WEB",
+        null
+      ],
+      [
+        6,
+        null,
+        "WEB",
+        30.0
+      ],
+      [
+        7,
+        null,
+        "WEB",
+        20.0
+      ],
+      [
+        8,
+        null,
+        null,
+        5.0
+      ],
+      [
+        9,
+        "NORTH",
+        "STORE",
+        40.0
+      ],
+      [
+        10,
+        "EAST",
+        null,
+        10.0
+      ]
+    ]
+  },
+  "REGION_REF": {
+    "schema": "REGION string, REGION_NAME string",
+    "rows": [
+      [
+        "EAST",
+        "East Coast"
+      ],
+      [
+        "WEST",
+        "West Coast"
+      ],
+      [
+        "SOUTH",
+        "South"
+      ],
+      [
+        null,
+        "Unassigned"
+      ]
+    ]
+  }
+}

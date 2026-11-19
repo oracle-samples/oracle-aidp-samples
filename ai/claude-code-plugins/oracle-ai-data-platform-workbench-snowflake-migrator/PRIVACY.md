@@ -1,0 +1,135 @@
+# Privacy Policy
+
+**Plugin:** `oracle-ai-data-platform-workbench-snowflake-migrator`
+**Effective:** 2026-10-10
+
+## Summary
+
+This plugin **does not collect, store, transmit or share any data with its
+authors**. There is no telemetry, no analytics and no usage reporting. It is
+self-contained: the migration engine ships under `engine/` and runs locally
+against **your** Snowflake account and **your** Oracle AI Data Platform (AIDP)
+tenancy, and — from `provision` on — as notebooks on **your** AIDP compute.
+Table rows never pass through the operator's machine.
+
+## What the plugin ships
+
+- **Skills and slash commands** (Markdown) under `skills/` and `commands/`.
+- **The Python engine** under `engine/` (runtime dependencies:
+  `snowflake-connector-python`, `cryptography`, `pyyaml`).
+- **Data-plane notebooks** under `data-migration-scripts/`, which `provision`
+  uploads to your AIDP workspace.
+- **Reference docs** under `references/`.
+
+No bundled credentials, no MCP server, no third-party network calls.
+
+## Where it connects
+
+1. **Your Snowflake account** — read-only, from your machine through
+   `snowflake-connector-python`, and from your AIDP cluster through the AIDP
+   Snowflake connector when the data-plane jobs run. The transport refuses
+   any statement that is not a read.
+2. **Your AIDP tenancy** — through the `aidp` CLI or `oci raw-request`, using
+   the OCI configuration already on your machine, over TLS. The plugin does
+   not read or transmit your OCI credentials.
+
+## Credentials
+
+- The Snowflake connection lives in one local file, `snowmig-config.yaml`.
+  The credential does not: the config names a separate file per secret
+  (`key_path:`, `key_passphrase_path:`, `password_path:`, `pat_path:`), and
+  an inline `password:`, `private_key:`, `key_passphrase:` or `token:` is
+  refused by every stage. Each credential file must be readable by its owner
+  alone (a group- or world-readable file is refused on POSIX; on Windows the
+  mode is not checked and the report says so). Secrets are never taken as
+  command-line flags, and every report names a credential by its file's
+  basename — never its value, never its directory.
+- Before any discovery, the session role's grants and future grants are read
+  back with `SHOW GRANTS TO ROLE` / `SHOW FUTURE GRANTS TO ROLE`, through
+  every role granted to it, through `PUBLIC`, and through every other role
+  granted to the service user (`SHOW GRANTS TO USER`), and the run stops if
+  the credential can write the source database (CREATE, ALTER, DROP, INSERT,
+  UPDATE, DELETE, MERGE, TRUNCATE, OWNERSHIP), holds a privilege that leads
+  to a write (MANAGE GRANTS, OWNERSHIP of a role, user, policy or tag, CREATE
+  ROLE, EXECUTE TASK, ... — in whatever database a row reports it), can run
+  an owner's-rights object in another database (OPERATE on a task, pipe,
+  alert or dynamic table, USAGE of a procedure there), is,
+  inherits or is granted a system role, or if the grants cannot be read or
+  the user listing does not name the role the session runs as. `preflight`
+  lists the grants it found, and skips the source checks after a failed
+  role check rather than reading the source.
+- The Snowflake credential reaches your AIDP tenancy in two ways, each only
+  with `--execute`:
+  1. `provision --execute --source-config <file>` uploads the credential
+     file(s) the config names to `backup-snowflake-migration/plan/<config
+     stem>.<field>` (`plan/snowmig-config.key_path`, for example) and the
+     `snowflake:` block, as JSON with its paths rewritten to the mount's, to
+     `backup-snowflake-migration/plan/<config stem>.json`
+     (`plan/snowmig-config.json` by default) so the data-plane jobs can reach
+     Snowflake. The `aidp:` block is not copied. Workspace access controls
+     who can read them.
+  2. `catalog --execute` registers the EXTERNAL catalog with the credential
+     in its `connectionDetails` (`SNOWFLAKE_PASSWORD` or
+     `SNOWFLAKE_PRIVATE_KEY_CONTENT`, read from the file at call time), sent
+     from a temporary file, never as a command-line argument.
+- Use a dedicated, read-only Snowflake user for the migration, behind SSO/MFA
+  and a network policy, and rotate its credential when the migration is
+  done. `teardown --scope credential --execute` removes the workspace copies.
+  Review the user's query history afterwards: this plugin only ever reads.
+
+## What it writes
+
+- **Locally**, to `--out-dir` (default `./migration-artifacts/` in your
+  working directory, with its own `.gitignore`): metadata about your estate —
+  object and column names, types, row counts, view SQL, generated DDL and
+  notebooks, and the AIDP coordinates a run used. No table rows. Treat these
+  files as sensitive as your schema.
+- **Token accounting**, in the same directory: each stage appends its start,
+  end and Claude Code session id to `run_log.jsonl`. `summary`, `tokens` and
+  the per-stage report read that session's transcripts under
+  `~/.claude/projects/` (usage fields only) and write the token counts and
+  the transcript file paths to `tokens.json`. With
+  `reporting.publish_each_stage: true`, or `publish --execute`, both files are
+  uploaded to the migration workspace with the reports.
+- **In your AIDP tenancy**, only with `--execute` (or, for `run`, when you
+  start a job): the migration workspace, cluster, folder, notebooks and jobs
+  (`provision --execute`); the catalogs (`catalog --execute`); the target
+  schemas and tables and, when you run a copy job, the rows — the copy job
+  reads every row of each in-scope table from Snowflake into your AIDP
+  catalog (`run`); a probe schema `snowmig_permission_probe_<suffix>`,
+  created and dropped (`smoke --write-probe --execute`). `notebook --upload`
+  is not a writer: it is a dry run, and refused with `--execute`.
+
+## What the plugin does not do
+
+- **No telemetry, no phone-home.** Every network call goes to your Snowflake
+  account or your AIDP tenancy.
+- **No writes to Snowflake.** Nothing is created in, changed in or dropped
+  from the source.
+- **No credential collection.** Credentials stay in your config file and
+  your OCI configuration, and reach AIDP only as described above.
+
+## Data flow
+
+```
+You (Claude Code) → plugin skills (Markdown)
+                  → engine on your machine ──► your Snowflake (read-only)
+                                           └─► your AIDP tenancy (dry run unless --execute)
+                  → notebooks on your AIDP cluster ──► your Snowflake (read-only) → your AIDP catalog
+```
+
+The skills instruct Claude, and the reports it generates are read back into
+your conversation, which is handled under the terms of the Claude product you
+use. The plugin never asks you to paste a secret into the conversation.
+
+## Removal
+
+Delete the plugin directory, `migration-artifacts/` (or your `--out-dir`) and
+`snowmig-config.yaml`. On AIDP, `teardown --scope all --execute` removes what
+the migration created (the INTERNAL catalog, which holds the migrated rows,
+only with `--include-data`).
+
+## Contact
+
+For questions about this policy, open an issue at
+<https://github.com/oracle-samples/oracle-aidp-samples/issues>.

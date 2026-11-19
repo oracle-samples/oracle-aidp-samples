@@ -15,11 +15,16 @@ oracle-aidp-samples repo):
 * ``ORACLE_PEOPLESOFT``  — Oracle PeopleSoft (read-only)
 * ``ORACLE_SIEBEL``      — Oracle Siebel CRM (read-only)
 * ``SFORCE``             — Salesforce (read-only)
+* ``NETSUITE``           — NetSuite SuiteAnalytics Connect (read-only)
 * ``HIVE``               — Apache Hive (read-write, non-Kerberos)
 * ``POSTGRESQL``         — PostgreSQL
 * ``MYSQL``              — MySQL
 * ``MYSQL_HEATWAVE``     — OCI MySQL HeatWave
 * ``SQLSERVER``          — Microsoft SQL Server
+* ``AZURE_SQLSERVER``    — Azure SQL Database
+* ``DB2``                — IBM DB2 (read-write ingestion)
+* ``GOOGLE_BIGQUERY``    — Google BigQuery (read-only ingestion / external catalog)
+* ``SNOWFLAKE``          — Snowflake (read-only)
 * ``KAFKA``              — Kafka via the format-handler shape
 * ``FUSION_BICC``        — Fusion BICC bulk extracts
 * ``GENERIC_REST``       — any REST API with a manifest

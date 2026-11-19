@@ -1,0 +1,60 @@
+{
+  "DIM_DEPT": {
+    "rows": [
+      {
+        "DEPT_SK": 1010,
+        "DEPT_ID": 10,
+        "DEPT_NAME": "SALES"
+      },
+      {
+        "DEPT_SK": 1020,
+        "DEPT_ID": 20,
+        "DEPT_NAME": "HR"
+      },
+      {
+        "DEPT_SK": 1030,
+        "DEPT_ID": 30,
+        "DEPT_NAME": "FINANCE"
+      },
+      {
+        "DEPT_SK": 1040,
+        "DEPT_ID": 40,
+        "DEPT_NAME": "OPS"
+      }
+    ]
+  },
+  "FACT_EMP": {
+    "rows": [
+      {
+        "EMP_ID": 1,
+        "EMP_NAME": "Ann",
+        "DEPT_SK": 1010
+      },
+      {
+        "EMP_ID": 2,
+        "EMP_NAME": "Bob",
+        "DEPT_SK": 1030
+      },
+      {
+        "EMP_ID": 3,
+        "EMP_NAME": "Cy",
+        "DEPT_SK": -1
+      },
+      {
+        "EMP_ID": 4,
+        "EMP_NAME": "Di",
+        "DEPT_SK": -1
+      },
+      {
+        "EMP_ID": 5,
+        "EMP_NAME": "Ed",
+        "DEPT_SK": 1040
+      },
+      {
+        "EMP_ID": 6,
+        "EMP_NAME": "Fay",
+        "DEPT_SK": 1020
+      }
+    ]
+  }
+}

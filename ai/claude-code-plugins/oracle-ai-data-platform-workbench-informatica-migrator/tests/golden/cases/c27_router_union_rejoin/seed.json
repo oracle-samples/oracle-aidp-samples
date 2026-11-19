@@ -1,0 +1,47 @@
+{
+  "TXN": {
+    "schema": "TXN_ID decimal(10,0), TXN_TYPE string, AMT decimal(10,2)",
+    "rows": [
+      [
+        1,
+        "PAY",
+        100.0
+      ],
+      [
+        2,
+        "REF",
+        40.0
+      ],
+      [
+        3,
+        "PAY",
+        1500.0
+      ],
+      [
+        4,
+        "FEE",
+        5.0
+      ],
+      [
+        5,
+        null,
+        20.0
+      ],
+      [
+        6,
+        "REF",
+        2000.0
+      ],
+      [
+        7,
+        "XFR",
+        null
+      ],
+      [
+        8,
+        "PAY",
+        null
+      ]
+    ]
+  }
+}

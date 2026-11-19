@@ -1,0 +1,17 @@
+id: phase2-test-pack
+version: 1.0.0
+description: |
+  Phase 2 fixture pack — used by tests/unit/test_sql_runner.py and
+  tests/integration/test_runner_e2e.py to exercise the content-pack
+  execution backend without committing the starter pack's still-
+  pending SQL files.
+
+compatibility:
+  pluginMinVersion: 0.3.0
+  fusionFamilies: [ERP]
+  aidp:
+    requiresDelta: true
+
+defaults:
+  sqlDialect: spark-sql
+  identifierPolicy: validated-three-part

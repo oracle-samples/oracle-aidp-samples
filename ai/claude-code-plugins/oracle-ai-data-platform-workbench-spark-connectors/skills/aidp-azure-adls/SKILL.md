@@ -1,4 +1,5 @@
 ---
+name: aidp-azure-adls
 description: Read and write Azure Data Lake Storage Gen2 (`abfss://`) from an AIDP notebook. Use when the user mentions ADLS, Azure Data Lake, abfss, or wants to ingest from a multi-cloud Azure source. Auth is OAuth client-credentials (Service Principal client_id + secret + tenant).
 allowed-tools: Read, Write, Edit, Bash
 ---

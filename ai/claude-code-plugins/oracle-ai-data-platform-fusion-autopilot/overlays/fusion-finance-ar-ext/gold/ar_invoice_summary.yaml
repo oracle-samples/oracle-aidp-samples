@@ -1,0 +1,75 @@
+id: ar_invoice_summary
+layer: gold
+implementation:
+  type: sql
+  sql: gold/ar_invoice_summary.sql
+target: ar_invoice_summary
+
+dependsOn:
+  bronze:
+    - id: ar_invoices
+      role: primary
+      watermark:
+        column: _extract_ts
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: replace
+    reason: |
+      Aggregate grain (currency_code, billing_month, org_id) — a partial
+      row-level MERGE leaves stale aggregate rows on key flips. Replace each
+      cycle until aggregate_merge ships (PLAN §10.8). Authored by mart-author
+      (rung-1, additive: reads bronze.ar_invoices, never rewrites it).
+
+# Declared inputs (AIDPF-2084): upstream columns ar_invoice_summary.sql reads,
+# alias-qualified as t.<col> from ar_invoices.
+requiredColumns:
+  ar_invoices:
+    - RaCustomerTrxInvoiceCurrencyCode
+    - RaCustomerTrxBillingDate
+    - RaCustomerTrxOrgId
+    - RaCustomerTrxBrAmount
+    - _extract_ts
+
+outputSchema:
+  columns:
+    - name: currency_code
+      type: string
+      nullable: false
+      pii: none
+    - name: billing_month
+      type: date
+      nullable: true
+      pii: none
+    - name: org_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: invoice_count
+      type: bigint
+      nullable: false
+      pii: none
+    - name: total_br_amount
+      type: decimal(20,2)
+      nullable: true
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: true
+      pii: none
+    - name: gold_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: gold_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    - type: row_count_min
+      min: 1
+      whenSourceNonEmpty: bronze.ar_invoices

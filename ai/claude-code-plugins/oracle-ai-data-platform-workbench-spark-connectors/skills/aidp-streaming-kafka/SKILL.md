@@ -1,4 +1,5 @@
 ---
+name: aidp-streaming-kafka
 description: Consume an OCI Streaming stream from an AIDP notebook via Spark structured streaming (Kafka-compat). Use when the user mentions OCI Streaming, Kafka on OCI, stream pool, structured streaming, or wants to read Kafka messages into Spark. Auth is SASL/PLAIN with an OCI auth token. Pattern matches the official Oracle AIDP sample.
 allowed-tools: Read, Write, Edit, Bash
 ---

@@ -1,0 +1,344 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_modal_intro",
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4",
+            "tpl_variant_wrapper_v5"
+          ]
+        },
+        {
+          "id": "tpl_modal_intro",
+          "component": "Text",
+          "text": "How Modal wiring works: `trigger` is the component you click to open the modal, and `content` is the UI shown inside the dialog after it opens. For triggers, common choices are `Button`, `Text`, `Card`, or any small clickable layout (`Row`/`Column`). For content, you can use simple components like `Text`, `CheckBox`, `AudioPlayer`, or richer layouts like `Card`, `Column`, and nested combinations.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "Modal with literal entry text and literal content",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewModal_v1"
+          ]
+        },
+        {
+          "id": "tpl_modalEntryText_v1",
+          "component": "Button",
+          "child": "tpl_modalEntryLabel_v1",
+          "action": {
+            "event": {
+              "name": "openModal"
+            }
+          }
+        },
+        {
+          "id": "tpl_modalEntryLabel_v1",
+          "component": "Text",
+          "text": "Open simple modal",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalContentTitle_v1",
+          "component": "Text",
+          "text": "Modal title literal",
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_modalContentBody_v1",
+          "component": "Text",
+          "text": "This modal variant uses static content values.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalContentColumn_v1",
+          "component": "Column",
+          "children": [
+            "tpl_modalContentTitle_v1",
+            "tpl_modalContentBody_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewModal_v1",
+          "component": "Modal",
+          "trigger": "tpl_modalEntryText_v1",
+          "content": "tpl_modalContentColumn_v1"
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "Modal with path entry text and path content text",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewModal_v2"
+          ]
+        },
+        {
+          "id": "tpl_modalEntryText_v2",
+          "component": "Button",
+          "child": "tpl_modalEntryLabel_v2",
+          "action": {
+            "event": {
+              "name": "openModal"
+            }
+          }
+        },
+        {
+          "id": "tpl_modalEntryLabel_v2",
+          "component": "Text",
+          "text": {
+            "path": "/demo/modal/entryLabel"
+          },
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalContentTitle_v2",
+          "component": "Text",
+          "text": {
+            "path": "/demo/modal/pathTitle"
+          },
+          "variant": "h5"
+        },
+        {
+          "id": "tpl_modalContentBody_v2",
+          "component": "Text",
+          "text": {
+            "path": "/demo/modal/pathBody"
+          },
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalContentColumn_v2",
+          "component": "Column",
+          "children": [
+            "tpl_modalContentTitle_v2",
+            "tpl_modalContentBody_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewModal_v2",
+          "component": "Modal",
+          "trigger": "tpl_modalEntryText_v2",
+          "content": "tpl_modalContentColumn_v2"
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "Modal with card entry and mixed content bindings",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewModal_v3"
+          ]
+        },
+        {
+          "id": "tpl_modalEntryLabel_v3",
+          "component": "Text",
+          "text": "Open card style modal",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalEntryCard_v3",
+          "component": "Card",
+          "child": "tpl_modalEntryLabel_v3"
+        },
+        {
+          "id": "tpl_modalContentSummary_v3",
+          "component": "Text",
+          "text": {
+            "path": "/demo/modal/summary"
+          },
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalContentTag_v3",
+          "component": "Text",
+          "text": "status: live",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_modalContentCard_v3",
+          "component": "Card",
+          "child": "tpl_modalContentStack_v3"
+        },
+        {
+          "id": "tpl_modalContentStack_v3",
+          "component": "Column",
+          "children": [
+            "tpl_modalContentSummary_v3",
+            "tpl_modalContentTag_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewModal_v3",
+          "component": "Modal",
+          "trigger": "tpl_modalEntryCard_v3",
+          "content": "tpl_modalContentCard_v3"
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "Modal with checkbox state from data model",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_previewModal_v4"
+          ]
+        },
+        {
+          "id": "tpl_modalEntryText_v4",
+          "component": "Button",
+          "child": "tpl_modalEntryLabel_v4",
+          "action": {
+            "event": {
+              "name": "openModal"
+            }
+          }
+        },
+        {
+          "id": "tpl_modalEntryLabel_v4",
+          "component": "Text",
+          "text": "Open preferences modal",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalCheckBox_v4",
+          "component": "CheckBox",
+          "label": {
+            "path": "/demo/modal/checkboxLabel"
+          },
+          "value": {
+            "path": "/demo/modal/receiveAlerts"
+          }
+        },
+        {
+          "id": "tpl_modalContentColumn_v4",
+          "component": "Column",
+          "children": [
+            "tpl_modalCheckBox_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewModal_v4",
+          "component": "Modal",
+          "trigger": "tpl_modalEntryText_v4",
+          "content": "tpl_modalContentColumn_v4"
+        },
+        {
+          "id": "tpl_variant_header_v5",
+          "component": "Text",
+          "text": "Modal with embedded audio player using path binding",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v5",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v5",
+            "tpl_previewModal_v5"
+          ]
+        },
+        {
+          "id": "tpl_modalEntryText_v5",
+          "component": "Button",
+          "child": "tpl_modalEntryLabel_v5",
+          "action": {
+            "event": {
+              "name": "openModal"
+            }
+          }
+        },
+        {
+          "id": "tpl_modalEntryLabel_v5",
+          "component": "Text",
+          "text": "Open media modal",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalAudioTitle_v5",
+          "component": "Text",
+          "text": {
+            "path": "/demo/modal/audioTitle"
+          },
+          "variant": "body"
+        },
+        {
+          "id": "tpl_modalAudioPlayer_v5",
+          "component": "AudioPlayer",
+          "url": {
+            "path": "/demo/modal/audioUrl"
+          },
+          "description": {
+            "path": "/demo/modal/audioDescription"
+          }
+        },
+        {
+          "id": "tpl_modalContentColumn_v5",
+          "component": "Column",
+          "children": [
+            "tpl_modalAudioTitle_v5",
+            "tpl_modalAudioPlayer_v5"
+          ]
+        },
+        {
+          "id": "tpl_previewModal_v5",
+          "component": "Modal",
+          "trigger": "tpl_modalEntryText_v5",
+          "content": "tpl_modalContentColumn_v5"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "entryLabel": "Open path bound modal",
+        "pathTitle": "Path backed modal title",
+        "pathBody": "Body text loaded from data model",
+        "summary": "Card modal summary from path",
+        "checkboxLabel": "Receive deployment alerts",
+        "receiveAlerts": true,
+        "audioTitle": "Embedded modal audio sample",
+        "audioUrl": "https://samplelib.com/lib/preview/mp3/sample-3s.mp3",
+        "audioDescription": "Audio description loaded from modal model"
+      },
+      "path": "/demo/modal"
+    }
+  }
+]

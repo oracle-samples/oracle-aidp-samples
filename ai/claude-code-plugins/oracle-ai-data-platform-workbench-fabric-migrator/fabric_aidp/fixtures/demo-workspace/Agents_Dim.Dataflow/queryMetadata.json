@@ -1,0 +1,14 @@
+{
+  "queriesMetadata": {
+    "dim_agent": {
+      "queryId": "3f1a2b4c-0001-4aaa-9bbb-000000000001",
+      "queryName": "dim_agent",
+      "loadEnabled": true
+    },
+    "ext_rates": {
+      "queryId": "3f1a2b4c-0002-4aaa-9bbb-000000000002",
+      "queryName": "ext_rates",
+      "loadEnabled": true
+    }
+  }
+}

@@ -1,0 +1,605 @@
+{
+    "manifestVersion": 1,
+    "contractVersion": "v1",
+    "entrypoint": {
+        "tool": "tools/regenerate-workbook.mjs",
+        "command": "node .workbook-authoring/tools/regenerate-workbook.mjs --request <request.json> [--target-version <YY.MM>] [--output <workbook.json>]",
+        "requiredArgs": [
+            "--request"
+        ],
+        "optionalArgs": [
+            "--target-version",
+            "--output",
+            "--viz-resolution-profiles",
+            "--schema-registry-profile",
+            "--schema-dir"
+        ]
+    },
+    "requestContract": {
+        "requiredTopLevelFields": [
+            "capabilities",
+            "adapterPayload"
+        ],
+        "executionMode": {
+            "field": "executionMode",
+            "default": "regenerate_workbook",
+            "allowed": [
+                "regenerate_workbook"
+            ]
+        },
+        "generationStrategy": {
+            "field": "generationStrategy",
+            "default": "auto",
+            "allowed": [
+                "auto",
+                "compose_ootb",
+                "passthrough_bound"
+            ],
+            "routingPolicy": [
+                "auto -> passthrough_bound when adapterPayload.binding.boundWorkbookJson or boundWorkbookPath is provided",
+                "auto -> compose_ootb when no bound workbook input is provided",
+                "compose_ootb requires topology synthesis inputs from analysisShape, or approved analysisRequirements.canvases that can bootstrap analysisShape",
+                "passthrough_bound requires adapterPayload.binding.boundWorkbookJson or boundWorkbookPath"
+            ]
+        },
+        "analysisShape": {
+            "requiredFields": [
+                "canvases"
+            ],
+            "canvasRequiredFields": [
+                "id",
+                "views"
+            ],
+            "canvasOptionalFields": [
+                "name",
+                "title"
+            ],
+            "analysisShapeOptionalFields": [
+                "filterMode",
+                "filterModeRequested"
+            ],
+            "viewRequiredFields": [
+                "id",
+                "pluginType"
+            ],
+            "viewRequiredFieldsForCompose": [
+                "purpose",
+                "grain",
+                "bindings",
+                "labels",
+                "filters",
+                "calculations",
+                "sort"
+            ],
+            "viewOptionalFieldsForCompose": [
+                "interactions"
+            ],
+            "notes": [
+                "analysisShape is an execution input. It may be provided explicitly, or bootstrapped from approved analysisRequirements.canvases for compose_ootb.",
+                "Recommend providing analysisShape.canvases[].name during initial generation when canvas intent labels are known.",
+                "Canvas naming inputs are optional. Omit them when names are unknown.",
+                "analysisShape.filterMode is optional and supports filter_bar (default) or filter_viz.",
+                "analysisShape.filterModeRequested is a backward-compatible alias for analysisShape.filterMode; do not provide conflicting values.",
+                "compose_ootb requires approved analysisRequirements. Per-view planning may use the detailed fields listed in viewRequiredFieldsForCompose or supported analysisRequirements shorthand that normalizes to those fields."
+            ],
+            "supportsMultiCanvas": true,
+            "supportsMultiVizPerCanvas": true
+        },
+        "analysisRequirements": {
+            "requiredFields": [
+                "approval",
+                "dataset",
+                "canvases"
+            ],
+            "approvalRequiredFields": [
+                "status",
+                "approvedBy",
+                "approvedAt"
+            ],
+            "approvalStatusAllowed": [
+                "approved"
+            ],
+            "datasetRequiredFields": [
+                "selectedDataModel",
+                "discoveryMethod"
+            ],
+            "canvasRequiredFields": [
+                "id",
+                "views"
+            ],
+            "viewRequiredFields": [
+                "id",
+                "purpose",
+                "grain",
+                "bindings",
+                "labels",
+                "filters",
+                "calculations",
+                "sort"
+            ],
+            "viewOptionalFields": [
+                "interactions"
+            ],
+            "workbookPlanningOptionalFields": [
+                "workbook",
+                "datasources",
+                "fields",
+                "calculations",
+                "filters",
+                "actions",
+                "dataActions",
+                "theme"
+            ],
+            "workbookPlanningPolicy": [
+                "analysisRequirements is the approved story/spec planning artifact for compose_ootb; do not introduce a separate YAML or compact DSL runtime.",
+                "analysisRequirements.workbook may provide workbook name and description intent; the driver mirrors them to save metadata when request.workbook is omitted.",
+                "analysisRequirements.datasources may define aliases for logical tables used by field sources.",
+                "analysisRequirements.fields may define reusable field aliases that resolve to adapterPayload.describe.columns or direct subject-area expressions.",
+                "analysisRequirements.calculations may define reusable calculation intent. Governed columns and COUNT(DISTINCT ...) style OAC expressions remain preferred for executable criteria bindings.",
+                "analysisRequirements.filters may define report/global filters. analysisRequirements.canvases[].filters may define canvas filters. Both normalize into per-view filter planning objects before compose validation.",
+                "analysisRequirements.actions or analysisRequirements.dataActions may define top-level BI Navigation or URL Navigation intent. Supported shorthand normalizes to source-backed top-level dataActions[].",
+                "analysisRequirements.theme may carry optional presentation hints; runtime workbook generation and validation remain authoritative."
+            ],
+            "viewShorthandFields": [
+                "type",
+                "viewType",
+                "visualization",
+                "title",
+                "x",
+                "y",
+                "category",
+                "value",
+                "metric",
+                "metrics",
+                "measure",
+                "measures",
+                "rows",
+                "columns",
+                "location",
+                "filter"
+            ],
+            "supportedCompactViewTypes": [
+                "area",
+                "bar",
+                "combo",
+                "donut",
+                "horizontal_bar",
+                "horizontal_stacked_bar",
+                "kpi",
+                "kpi_tile",
+                "line",
+                "map",
+                "performance_tile",
+                "pivot",
+                "scatter",
+                "stacked_bar",
+                "table",
+                "tile"
+            ],
+            "compactActionTypes": [
+                "navigate",
+                "bi_navigation",
+                "bi_nav",
+                "url",
+                "url_navigation"
+            ],
+            "advancedPlanningPolicy": [
+                "Agents may still provide exact pluginType, explicit bindings, exact calculations, interactions, and full data action metadata.",
+                "Supported shorthand never blocks detailed planning. If shorthand and explicit bindings disagree for the same semantic role, compose_ootb fails with an actionable INVALID_REQUEST_CONTRACT diagnostic.",
+                "Unsupported compact view/action shorthand must fail fast; do not silently degrade to another visualization."
+            ],
+            "filterRequiredFields": [
+                "filterID",
+                "columnID",
+                "location",
+                "scope",
+                "operator",
+                "default",
+                "planningOutcome"
+            ],
+            "composeGatePolicy": [
+                "compose_ootb fails when analysisRequirements is missing, malformed, or not explicitly approved.",
+                "compose_ootb preflight validates analysisRequirements.canvases[].views[].filters[] against filterRequiredFields and fails fast on missing fields with JSON-pointer diagnostics.",
+                "When compact filter shorthand is provided at report, canvas, or view scope, the driver normalizes it to filterRequiredFields before compose preflight.",
+                "passthrough_bound accepts analysisRequirements as optional context but does not require it."
+            ]
+        },
+        "composeFilterTolerance": {
+            "optional": true,
+            "defaultMode": "strict",
+            "allowedModes": [
+                "strict",
+                "tolerant"
+            ],
+            "policy": [
+                "strict (default): missing compose filter scope/default fields fail preflight.",
+                "tolerant: missing scope auto-fills to global; missing default is derived from adapterPayload.profiling.filterDecisionTrace.derivedDecisions when possible.",
+                "tolerant still fails fast when a required default cannot be derived deterministically."
+            ]
+        },
+        "capabilities": {
+            "requiredFields": [
+                "discoveryMethod",
+                "saveAvailable",
+                "exportAvailable"
+            ],
+            "discoveryMethodAllowed": [
+                "search_catalog",
+                "discover_data"
+            ],
+            "booleanFields": [
+                "saveAvailable",
+                "exportAvailable",
+                "exportRequested",
+                "traceRequested"
+            ]
+        },
+        "numberFormatting": {
+            "optional": true,
+            "defaultPolicy": "auto_safe",
+            "allowedPolicies": [
+                "none",
+                "auto_safe",
+                "explicit_only"
+            ],
+            "defaultScope": "all_supported_measure_views",
+            "allowedScopes": [
+                "all_supported_measure_views",
+                "requested_views",
+                "view_ids"
+            ],
+            "defaultValidationMode": "report_only",
+            "allowedValidationModes": [
+                "report_only",
+                "error_on_unformatted"
+            ],
+            "explicitFields": [
+                "explicitDefault",
+                "explicitByColumnID",
+                "explicitByLabel"
+            ],
+            "explicitNumberFormatEnums": {
+                "style": [
+                    "decimal",
+                    "percent",
+                    "same_as_measure",
+                    "currency"
+                ],
+                "abbreviationScale": [
+                    "off",
+                    "on",
+                    "thousand",
+                    "million",
+                    "billion",
+                    "trillion"
+                ],
+                "negativeValuesStyle": [
+                    "default",
+                    "accounting",
+                    "red",
+                    "red_accounting"
+                ],
+                "compatibilityAliases": {
+                    "abbreviationScale.auto": "on",
+                    "negativeValuesStyle.minus": "default"
+                }
+            },
+            "viewIDsField": "viewIDs",
+            "pluginFormatterMapping": {
+                "byRuntimeFamily": {
+                    "chart_autoviz": "viz:chart",
+                    "chart_combo_multilayer": "viz:chart",
+                    "table": "viz:chart",
+                    "pivot": "viz:chart",
+                    "performance_tile": "viz:chart",
+                    "map": "viz:chart",
+                    "network_graph": "viz:networkchart"
+                }
+            }
+        },
+        "presentationPolish": {
+            "optional": true,
+            "sourceContract": "model/presentation-polish-contracts.v1.json",
+            "defaultComposeMode": "auto",
+            "defaultNonComposeMode": "auto",
+            "allowedModes": [
+                "auto",
+                "off",
+                "strict"
+            ],
+            "layoutTemplateHints": {
+                "optional": true,
+                "fields": [
+                    "defaultArchetype",
+                    "byCanvasID",
+                    "byCanvasIndex"
+                ]
+            },
+            "titlePolicy": {
+                "optional": true,
+                "allowed": [
+                    "question_oriented",
+                    "preserve_input"
+                ]
+            }
+        },
+        "visualizationIntelligence": {
+            "optional": true,
+            "sourceContract": "model/dv-intelligence-contract.v1.json",
+            "defaultMode": "auto",
+            "allowedModes": [
+                "auto",
+                "off"
+            ],
+            "audienceProfile": {
+                "optional": true,
+                "allowedFields": [
+                    "role",
+                    "targetLevel"
+                ]
+            },
+            "policy": [
+                "Advisory-only scoring: visualization intelligence must not block generation/save.",
+                "When scoring fails, emit deterministic scoring-unavailable summary and continue."
+            ]
+        },
+        "versionSelectionReasonAllowed": [
+            "default_policy",
+            "user_requested_newer",
+            "required_newer_behavior",
+            "capability_heuristic_2607",
+            "capability_heuristic_2607_missing_fallback_latest",
+            "capability_heuristic_2605",
+            "capability_heuristic_2605_missing_fallback_latest",
+            "validation_fallback",
+            "session_sticky"
+        ],
+        "targetVersionSelection": {
+            "field": "targetVersion",
+            "format": "YY.MM",
+            "minimumSupported": "26.01",
+            "policy": [
+                "When targetVersion is provided, it must match an installed .workbook-authoring/<YY.MM> bundle.",
+                "When exactly one bundle is installed and targetVersion is omitted, runtime auto-selects it.",
+                "When multiple bundles are installed and targetVersion is omitted, runtime honors version-bundles.defaultTargetVersion when present.",
+                "Without an explicit manifest default, runtime prefers 26.07 when discoveryMethod=search_catalog and saveAvailable=true; otherwise runtime prefers 26.05 when installed, else latest.",
+                "When save validation payload indicates version mismatch signatures, runtime may fall back once to the next lower installed version before finalizing targetVersion."
+            ]
+        },
+        "requestedPluginTypePolicy": {
+            "optional": true,
+            "note": "Use only as single-anchor viz lock. Omit for multi-viz workbooks."
+        },
+        "workbookMetadataInput": {
+            "optional": true,
+            "field": "workbook",
+            "allowedFields": [
+                "name",
+                "description"
+            ],
+            "note": "workbook.name/description are save-layer metadata inputs only. They must not be persisted inside content.json workbook payload."
+        },
+        "semanticRoleMapInput": {
+            "optional": true,
+            "field": "adapterPayload.semanticRoleMap",
+            "sourceContract": "model/semantic-role-contracts.v1.json",
+            "policy": [
+                "When provided, semanticRoleMap is validated first and takes precedence over automatic role resolution.",
+                "Unresolved required roles still fail deterministically before save."
+            ]
+        }
+    },
+    "executionPipeline": [
+        "validate_request_contract",
+        "validate_adapter_contract",
+        "resolve_support_window_target",
+        "resolve_viz_resolution_profiles",
+        "bind_scaffold_or_use_adapter_bound_workbook",
+        "run_compose_requirements_preflight_lint",
+        "validate_filter_and_calculation_contract_inputs",
+        "run_requirements_trace_validation",
+        "run_runtime_preflight_canonicalize",
+        "run_runtime_preflight_strict",
+        "run_dv_intelligence_scoring",
+        "emit_response_summary"
+    ],
+    "responseContract": {
+        "requiredFields": [
+            "status",
+            "workbookPath",
+            "validationStatus",
+            "generationStrategyRequested",
+            "generationStrategyApplied",
+            "compositionCoverage",
+            "unsupportedTopologyReasons",
+            "saveAttempted",
+            "saveOutcome",
+            "viewUrl",
+            "exportOutcome",
+            "targetVersion",
+            "detectedTargetVersion",
+            "availableTargetVersions",
+            "executionMode",
+            "discoveryMethod",
+            "saveAvailable",
+            "exportAvailable",
+            "exportRequested",
+            "evidenceLevel",
+            "requirementsTraceSummary",
+            "analysisRequirementsPlanningNormalization",
+            "composeFilterToleranceSummary",
+            "filterPlanningSummary",
+            "componentGraphSummary",
+            "planningDataActionSummary",
+            "fallbackUsageSummary",
+            "numberFormattingSummary",
+            "presentationPolishSummary",
+            "dvIntelligenceSummary",
+            "saveMetadata"
+        ],
+        "traceFieldsWhenRequested": [
+            "resolutionTrace",
+            "filterDecisionTrace",
+            "executionCapabilityTrace",
+            "presentationPolishTrace",
+            "dvIntelligenceTrace"
+        ],
+        "numberFormattingSummary": {
+            "requiredFields": [
+                "policy",
+                "scope",
+                "validationMode",
+                "enabled",
+                "targetMeasureViewCount",
+                "targetMeasureColumnCount",
+                "formattedViewCount",
+                "formattedColumnCount",
+                "unformattedMeasureViewCount",
+                "unformattedMeasureViews"
+            ]
+        },
+        "presentationPolishSummary": {
+            "requiredFields": [
+                "mode",
+                "applied",
+                "styleTokenSetId",
+                "archetypesApplied",
+                "titlePolicy",
+                "uxLintSummary",
+                "effectiveChangeCount",
+                "layoutChangeCount",
+                "styleChangeCount",
+                "noOpReasons"
+            ],
+            "uxLintSummaryRequiredFields": [
+                "warningCount",
+                "severeCount",
+                "findings",
+                "strictViolation"
+            ]
+        },
+        "dvIntelligenceSummary": {
+            "requiredFields": [
+                "mode",
+                "status",
+                "overallScore",
+                "audienceLevel",
+                "dimensionScores",
+                "recommendations",
+                "evidenceCoverage",
+                "versionProfile"
+            ],
+            "optionalFields": [
+                "references"
+            ]
+        },
+        "saveMetadata": {
+            "requiredFields": [
+                "name",
+                "description"
+            ],
+            "nullableStringFields": [
+                "name",
+                "description"
+            ]
+        },
+        "requirementsTraceSummary": {
+            "requiredFields": [
+                "required",
+                "executed",
+                "valid",
+                "blockingMismatchCount",
+                "warningCount",
+                "mismatchCount",
+                "mismatches",
+                "blockingMismatches",
+                "warnings"
+            ],
+            "severityPolicy": [
+                "Blocking mismatches fail compose flows with REQUIREMENTS_TRACE_VALIDATION_FAILED.",
+                "Warnings are advisory-only and do not block generation."
+            ]
+        },
+        "analysisRequirementsPlanningNormalization": {
+            "requiredFields": [
+                "applied",
+                "fieldAliasCount",
+                "compactViewCount",
+                "expandedFilterCount",
+                "actionCount"
+            ],
+            "notes": [
+                "Reports whether concise analysisRequirements planning shorthand was normalized before compose validation.",
+                "Counts are telemetry only; runtime validation and requirements trace remain authoritative."
+            ]
+        },
+        "composeFilterToleranceSummary": {
+            "requiredFields": [
+                "mode",
+                "enabled",
+                "autoFillCount",
+                "autoFilledFilterFields",
+                "noAutoFillReasons"
+            ],
+            "notes": [
+                "Auto-fill applies only when composeFilterTolerance.mode=tolerant.",
+                "noAutoFillReasons is aggregated by deterministic reason key."
+            ]
+        },
+        "filterPlanningSummary": {
+            "requiredFields": [
+                "appliedCount",
+                "consideredNotGroundedCount",
+                "rejectedConflictCount",
+                "rejectedMissingFieldCount"
+            ]
+        },
+            "componentGraphSummary": {
+            "requiredFields": [
+                "filterControlCollectionCount",
+                "filterControlCount",
+                "parameterCount",
+                "dataActionCount",
+                "eventWiringCount",
+                "interactionCount"
+            ],
+            "sourceShapes": [
+                "parameterCount reads parameters.settings[]",
+                "dataActionCount reads top-level dataActions[]"
+            ]
+        },
+        "planningDataActionSummary": {
+            "requiredFields": [
+                "appliedCount"
+            ],
+            "notes": [
+                "Counts compact analysisRequirements actions/dataActions materialized into top-level workbook dataActions[]."
+            ]
+        },
+        "fallbackUsageSummary": {
+            "requiredFields": [
+                "semanticInferenceFallbackUsed",
+                "semanticInferenceFallbackCount",
+                "templateFallbackUsed",
+                "templateFallbackCount"
+            ]
+        },
+        "defaultOutputMode": "concise"
+    },
+    "errorCodes": [
+        "INVALID_REQUEST_CONTRACT",
+        "INVALID_ADAPTER_CONTRACT",
+        "UNRESOLVED_TARGET_VERSION",
+        "UNRESOLVED_PLUGIN_PROFILE",
+        "INCOMPATIBLE_ROLE_MAPPING",
+        "UNRESOLVED_CRITERIA_BINDING",
+        "UNSUPPORTED_SCAFFOLD_BINDING_TOPOLOGY",
+        "NUMBER_FORMATTING_VALIDATION_FAILED",
+        "PRESENTATION_POLISH_STRICT_FAILED",
+        "MISSING_APPROVED_ANALYSIS_REQUIREMENTS",
+        "REQUIREMENTS_TRACE_VALIDATION_FAILED",
+        "RUNTIME_VALIDATION_CHECK_CANONICALIZE_FAILED",
+        "RUNTIME_VALIDATION_CHECK_STRICT_FAILED",
+        "RUNTIME_VALIDATION_CHECK_OUTPUT_PARSE_FAILED"
+    ]
+}

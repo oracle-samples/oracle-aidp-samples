@@ -1,0 +1,123 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_v1",
+            "tpl_variant_wrapper_v2",
+            "tpl_variant_wrapper_v3",
+            "tpl_variant_wrapper_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_v1",
+          "component": "Text",
+          "text": "DateTimeInput literal date+time",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v1",
+            "tpl_previewDateTimeInput_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewDateTimeInput_v1",
+          "component": "DateTimeInput",
+          "value": "2026-05-01T14:30:00Z",
+          "enableDate": true,
+          "enableTime": true
+        },
+        {
+          "id": "tpl_variant_header_v2",
+          "component": "Text",
+          "text": "DateTimeInput literal date only",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v2",
+            "tpl_previewDateTimeInput_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewDateTimeInput_v2",
+          "component": "DateTimeInput",
+          "value": "2026-05-01",
+          "enableDate": true,
+          "enableTime": false
+        },
+        {
+          "id": "tpl_variant_header_v3",
+          "component": "Text",
+          "text": "DateTimeInput literal time only",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v3",
+            "tpl_previewDateTimeInput_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewDateTimeInput_v3",
+          "component": "DateTimeInput",
+          "value": "2026-05-01T09:45:00Z",
+          "enableDate": false,
+          "enableTime": true
+        },
+        {
+          "id": "tpl_variant_header_v4",
+          "component": "Text",
+          "text": "DateTimeInput path-backed value",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_v4",
+            "tpl_previewDateTimeInput_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewDateTimeInput_v4",
+          "component": "DateTimeInput",
+          "value": {
+            "path": "/demo/datetime/value"
+          },
+          "enableDate": true,
+          "enableTime": true
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "value": {
+        "value": "2026-04-30T09:30:00-07:00"
+      },
+      "path": "/demo/datetime"
+    }
+  }
+]

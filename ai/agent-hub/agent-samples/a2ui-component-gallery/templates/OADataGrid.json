@@ -1,0 +1,733 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_datagrid"
+          ]
+        },
+        {
+          "id": "tpl_variant_wrapper_datagrid",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_datagrid",
+            "tpl_dataGridMaxRowsLabel1",
+            "tpl_dataGridMaxRowsSelector1",
+            "tpl_updateDataGridLabel1",
+            "tpl_updateDataGridButton1",
+            "tpl_previewOADataGrid",
+            "tpl_variant_header_datagrid_height_overflow",
+            "tpl_previewOADataGridHeightOverflow",
+            "tpl_variant_header_datagrid_width_overflow",
+            "tpl_previewOADataGridWidthOverflow",
+            "tpl_variant_header_datagrid_multi_row_header",
+            "tpl_previewOADataGridMultiRowHeader",
+            "tpl_variant_header_datagrid_formatting",
+            "tpl_previewOADataGridFormatting"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_datagrid_formatting",
+          "component": "Text",
+          "text": "OADataGrid with number, currency, date, and percentage formatting",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_header_datagrid",
+          "component": "Text",
+          "text": "OADataGrid preview",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_dataGridMaxRowsLabel1",
+          "component": "Text",
+          "text": "Max visible rows",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_dataGridMaxRowsSelector1",
+          "component": "OACombobox",
+          "label": "Max visible rows",
+          "placeholder": "Default",
+          "selections": {
+            "path": "/demo/oadatagrid/selectedMaxRows"
+          },
+          "options": [
+            {
+              "label": "Default",
+              "value": "default"
+            },
+            {
+              "label": "3",
+              "value": "3"
+            },
+            {
+              "label": "6",
+              "value": "6"
+            },
+            {
+              "label": "9",
+              "value": "9"
+            },
+            {
+              "label": "12",
+              "value": "12"
+            }
+          ]
+        },
+        {
+          "id": "tpl_updateDataGridLabel1",
+          "component": "Text",
+          "text": "Update Grid",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_updateDataGridButton1",
+          "component": "Button",
+          "child": "tpl_updateDataGridLabel1",
+          "action": {
+            "event": {
+              "name": "update_grid_preview",
+              "context": {
+                "selectedComponent": "OADataGrid",
+                "selectedDataGridMaxRows": {
+                  "path": "/demo/oadatagrid/selectedMaxRows"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_previewOADataGrid",
+          "component": "OADataGrid",
+          "rowHeaderKeys": [
+            "metric"
+          ],
+          "presentation": {
+            "header": {
+              "column": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              },
+              "row": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              }
+            }
+          },
+          "columns": [
+            {
+              "key": "metric",
+              "label": "Metric",
+              "role": "rowHeader"
+            },
+            {
+              "key": "jan",
+              "label": "Jan"
+            },
+            {
+              "key": "feb",
+              "label": "Feb"
+            },
+            {
+              "key": "mar",
+              "label": "Mar"
+            },
+            {
+              "key": "apr",
+              "label": "Apr"
+            },
+            {
+              "key": "may",
+              "label": "May"
+            },
+            {
+              "key": "jun",
+              "label": "Jun"
+            },
+            {
+              "key": "jul",
+              "label": "Jul"
+            },
+            {
+              "key": "aug",
+              "label": "Aug"
+            },
+            {
+              "key": "sep",
+              "label": "Sep"
+            },
+            {
+              "key": "oct",
+              "label": "Oct"
+            },
+            {
+              "key": "nov",
+              "label": "Nov"
+            },
+            {
+              "key": "dec",
+              "label": "Dec"
+            }
+          ],
+          "rows": [
+            {
+              "id": "row-1",
+              "metric": "Revenue",
+              "jan": 42,
+              "feb": 45,
+              "mar": 48,
+              "apr": 52,
+              "may": 58,
+              "jun": 63,
+              "jul": 66,
+              "aug": 71,
+              "sep": 75,
+              "oct": 79,
+              "nov": 82,
+              "dec": 86
+            },
+            {
+              "id": "row-2",
+              "metric": "Pipeline",
+              "jan": 18,
+              "feb": 21,
+              "mar": 23,
+              "apr": 26,
+              "may": 29,
+              "jun": 31,
+              "jul": 35,
+              "aug": 38,
+              "sep": 41,
+              "oct": 44,
+              "nov": 47,
+              "dec": 51
+            },
+            {
+              "id": "row-3",
+              "metric": "Bookings",
+              "jan": 9,
+              "feb": 11,
+              "mar": 13,
+              "apr": 15,
+              "may": 18,
+              "jun": 19,
+              "jul": 22,
+              "aug": 24,
+              "sep": 27,
+              "oct": 29,
+              "nov": 31,
+              "dec": 34
+            },
+            {
+              "id": "row-4",
+              "metric": "Renewals",
+              "jan": 83,
+              "feb": 84,
+              "mar": 86,
+              "apr": 87,
+              "may": 88,
+              "jun": 90,
+              "jul": 91,
+              "aug": 92,
+              "sep": 94,
+              "oct": 95,
+              "nov": 96,
+              "dec": 97
+            },
+            {
+              "id": "row-5",
+              "metric": "Satisfaction",
+              "jan": 72,
+              "feb": 74,
+              "mar": 76,
+              "apr": 78,
+              "may": 80,
+              "jun": 81,
+              "jul": 83,
+              "aug": 85,
+              "sep": 87,
+              "oct": 88,
+              "nov": 90,
+              "dec": 91
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_datagrid_height_overflow",
+          "component": "Text",
+          "text": "OADataGrid height overflow preview",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewOADataGridHeightOverflow",
+          "component": "OADataGrid",
+          "rowHeaderKeys": [
+            "category"
+          ],
+          "presentation": {
+            "header": {
+              "column": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              },
+              "row": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              }
+            }
+          },
+          "columns": [
+            {
+              "key": "category",
+              "label": "Category",
+              "role": "rowHeader"
+            },
+            {
+              "key": "amount",
+              "label": "Amount"
+            },
+            {
+              "key": "note",
+              "label": "Note"
+            }
+          ],
+          "rows": [
+            {
+              "id": "height-row-1",
+              "category": "Hardware",
+              "amount": 1899,
+              "note": "Standard issue laptop"
+            },
+            {
+              "id": "height-row-2",
+              "category": "Accessories",
+              "amount": 350,
+              "note": "Dock, keyboard, and mouse"
+            },
+            {
+              "id": "height-row-3",
+              "category": "Warranty",
+              "amount": 250,
+              "note": "Three-year support"
+            },
+            {
+              "id": "height-row-4",
+              "category": "Software",
+              "amount": 180,
+              "note": "Productivity suite license"
+            },
+            {
+              "id": "height-row-5",
+              "category": "Shipping",
+              "amount": 65,
+              "note": "Expedited delivery"
+            },
+            {
+              "id": "height-row-6",
+              "category": "Training",
+              "amount": 420,
+              "note": "Two-day onboarding"
+            },
+            {
+              "id": "height-row-7",
+              "category": "Security",
+              "amount": 145,
+              "note": "Endpoint protection"
+            },
+            {
+              "id": "height-row-8",
+              "category": "Backup",
+              "amount": 90,
+              "note": "Cloud backup plan"
+            },
+            {
+              "id": "height-row-9",
+              "category": "Monitoring",
+              "amount": 125,
+              "note": "Device monitoring"
+            },
+            {
+              "id": "height-row-10",
+              "category": "Support",
+              "amount": 310,
+              "note": "Priority response"
+            },
+            {
+              "id": "height-row-11",
+              "category": "Consulting",
+              "amount": 640,
+              "note": "Configuration review"
+            },
+            {
+              "id": "height-row-12",
+              "category": "Migration",
+              "amount": 880,
+              "note": "Data migration assistance"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_datagrid_width_overflow",
+          "component": "Text",
+          "text": "OADataGrid width overflow preview",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewOADataGridWidthOverflow",
+          "component": "OADataGrid",
+          "rowHeaderKeys": [
+            "initiative"
+          ],
+          "presentation": {
+            "header": {
+              "column": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              },
+              "row": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              }
+            }
+          },
+          "columns": [
+            {
+              "key": "initiative",
+              "label": "Initiative",
+              "role": "rowHeader"
+            },
+            {
+              "key": "northAmericaEnterprise",
+              "label": "North America Enterprise"
+            },
+            {
+              "key": "emeaCommercial",
+              "label": "EMEA Commercial"
+            },
+            {
+              "key": "apacPublicSector",
+              "label": "APAC Public Sector"
+            },
+            {
+              "key": "latinAmericaPartners",
+              "label": "Latin America Partners"
+            },
+            {
+              "key": "globalStrategicAccounts",
+              "label": "Global Strategic Accounts"
+            }
+          ],
+          "rows": [
+            {
+              "id": "width-row-1",
+              "initiative": "Pipeline Coverage",
+              "northAmericaEnterprise": "High confidence coverage for tier-one renewals",
+              "emeaCommercial": "Moderate coverage with late-quarter acceleration",
+              "apacPublicSector": "Long procurement cycle with staged approvals",
+              "latinAmericaPartners": "Partner-led expansion with renewal upside",
+              "globalStrategicAccounts": "Executive-sponsored expansion under review"
+            },
+            {
+              "id": "width-row-2",
+              "initiative": "Forecast Risk",
+              "northAmericaEnterprise": "Low risk due to committed enterprise agreements",
+              "emeaCommercial": "Medium risk from multi-country legal review",
+              "apacPublicSector": "High risk pending security certification",
+              "latinAmericaPartners": "Medium risk from currency exposure",
+              "globalStrategicAccounts": "Low risk with approved procurement path"
+            },
+            {
+              "id": "width-row-3",
+              "initiative": "Next Action",
+              "northAmericaEnterprise": "Confirm executive sponsor and close plan",
+              "emeaCommercial": "Align commercial terms with legal stakeholders",
+              "apacPublicSector": "Prepare certification response package",
+              "latinAmericaPartners": "Review partner incentive proposal",
+              "globalStrategicAccounts": "Schedule expansion approval checkpoint"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_datagrid_multi_row_header",
+          "component": "Text",
+          "text": "OADataGrid multi row-header preview",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_previewOADataGridMultiRowHeader",
+          "component": "OADataGrid",
+          "rowHeaderKeys": [
+            "region",
+            "product"
+          ],
+          "presentation": {
+            "header": {
+              "column": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              },
+              "row": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              }
+            }
+          },
+          "columns": [
+            {
+              "key": "region",
+              "label": "Region",
+              "role": "rowHeader"
+            },
+            {
+              "key": "product",
+              "label": "Product",
+              "role": "rowHeader"
+            },
+            {
+              "key": "amount",
+              "label": "Amount"
+            }
+          ],
+          "rows": [
+            {
+              "id": "multi-row-header-1",
+              "region": "North America",
+              "product": "Enterprise Support Package",
+              "amount": 1899
+            },
+            {
+              "id": "multi-row-header-2",
+              "region": "EMEA",
+              "product": "Commercial Expansion Suite",
+              "amount": 1420
+            },
+            {
+              "id": "multi-row-header-3",
+              "region": "APAC Public Sector",
+              "product": "Security Certification Bundle",
+              "amount": 2360
+            }
+          ]
+        },
+        {
+          "id": "tpl_previewOADataGridFormatting",
+          "component": "OADataGrid",
+          "rowHeaderKeys": [
+            "id"
+          ],
+          "maxRows": 12,
+          "presentation": {
+            "header": {
+              "column": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              },
+              "row": {
+                "resizable": {
+                  "height": "enable",
+                  "width": "enable"
+                }
+              }
+            }
+          },
+          "formatting": {
+            "columns": [
+              {
+                "key": "createdAt",
+                "formatter": {
+                  "call": "formatDate",
+                  "args": {
+                    "format": "yyyy-MM-dd HH:mm"
+                  }
+                }
+              },
+              {
+                "key": "amount",
+                "formatter": {
+                  "call": "formatNumber",
+                  "args": {
+                    "decimals": 2,
+                    "grouping": true
+                  }
+                }
+              },
+              {
+                "key": "revenue",
+                "formatter": {
+                  "call": "formatCurrency",
+                  "args": {
+                    "currency": "USD",
+                    "decimals": 2,
+                    "grouping": true
+                  }
+                }
+              },
+              {
+                "key": "conversionRate",
+                "formatter": {
+                  "call": "formatPercent",
+                  "args": {
+                    "decimals": 1,
+                    "grouping": true
+                  }
+                }
+              }
+            ]
+          },
+          "columns": [
+            {
+              "key": "id",
+              "label": "ID",
+              "role": "rowHeader"
+            },
+            {
+              "key": "createdAt",
+              "label": "Created At"
+            },
+            {
+              "key": "status",
+              "label": "Status"
+            },
+            {
+              "key": "amount",
+              "label": "Amount"
+            },
+            {
+              "key": "revenue",
+              "label": "Revenue"
+            },
+            {
+              "key": "conversionRate",
+              "label": "Conversion Rate"
+            }
+          ],
+          "rows": [
+            {
+              "id": "row-null-number",
+              "createdAt": "2026-06-01T08:00:00",
+              "status": "number null",
+              "amount": null,
+              "revenue": 1842.55,
+              "conversionRate": 0.126
+            },
+            {
+              "id": "row-empty-number",
+              "createdAt": "2026-06-01T08:15:00",
+              "status": "number empty",
+              "amount": "",
+              "revenue": 1842.55,
+              "conversionRate": 0.126
+            },
+            {
+              "id": "row-null-currency",
+              "createdAt": "2026-06-01T08:30:00",
+              "status": "currency null",
+              "amount": 912.34,
+              "revenue": null,
+              "conversionRate": 0.126
+            },
+            {
+              "id": "row-empty-currency",
+              "createdAt": "2026-06-01T08:45:00",
+              "status": "currency empty",
+              "amount": 912.34,
+              "revenue": "",
+              "conversionRate": 0.126
+            },
+            {
+              "id": "row-null-percent",
+              "createdAt": "2026-06-01T09:00:00",
+              "status": "percent null",
+              "amount": 912.34,
+              "revenue": 1842.55,
+              "conversionRate": null
+            },
+            {
+              "id": "row-empty-percent",
+              "createdAt": "2026-06-01T09:15:00",
+              "status": "percent empty",
+              "amount": 912.34,
+              "revenue": 1842.55,
+              "conversionRate": ""
+            },
+            {
+              "id": "row-001",
+              "createdAt": "2026-06-02T09:07:00",
+              "status": "new",
+              "amount": 179.88,
+              "revenue": 365.74,
+              "conversionRate": 0.061
+            },
+            {
+              "id": "row-002",
+              "createdAt": "2026-06-03T10:14:00",
+              "status": "active",
+              "amount": 317.26,
+              "revenue": 696.9,
+              "conversionRate": 0.091
+            },
+            {
+              "id": "row-003",
+              "createdAt": "2026-06-04T11:21:00",
+              "status": "renewal",
+              "amount": 454.64,
+              "revenue": 1068.41,
+              "conversionRate": 0.121
+            },
+            {
+              "id": "row-004",
+              "createdAt": "2026-06-05T12:28:00",
+              "status": "expansion",
+              "amount": 592.02,
+              "revenue": 1486.97,
+              "conversionRate": 0.151
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oadatagrid",
+      "value": {
+        "selectedMaxRows": [
+          "default"
+        ]
+      }
+    }
+  }
+]

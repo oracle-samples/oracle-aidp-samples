@@ -1,0 +1,4 @@
+interface:
+  display_name: "Medallion Author"
+  short_description: "Draft tenant variation overlay fixes"
+  default_prompt: "Use $medallion-author to draft an overlay for this unresolved tenant variation."

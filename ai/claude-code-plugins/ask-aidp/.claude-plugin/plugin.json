@@ -1,0 +1,25 @@
+{
+  "name": "ask-aidp",
+  "version": "0.11.0",
+  "description": "Ask and operate Oracle AI Data Platform resources from Claude Code through aidp-cli, OCI-signed REST endpoints, and native SDK tools.",
+  "author": {
+    "name": "Oracle",
+    "url": "https://github.com/oracle-samples/oracle-aidp-samples"
+  },
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/claude-code-plugins/ask-aidp",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": [
+    "oracle",
+    "aidp",
+    "ai-data-platform",
+    "workbench",
+    "notebook",
+    "workflow",
+    "aidp-cli",
+    "mcp",
+    "agent",
+    "ai-compute",
+    "rest"
+  ]
+}

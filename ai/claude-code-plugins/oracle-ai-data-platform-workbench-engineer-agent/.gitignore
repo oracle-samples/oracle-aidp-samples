@@ -1,0 +1,26 @@
+# Secrets & live credentials — NEVER commit
+.env
+.env.*
+*.pem
+*.key
+oci_api_key*.pem
+**/.oci/
+
+# Filled MCP config (contains OCIDs / paths) — only the .template is committed
+.mcp.json
+
+# Local grounding cache (per-project, user-editable, not shipped)
+.aidp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Python (if any local tooling)
+__pycache__/
+*.pyc
+.venv/
+venv/

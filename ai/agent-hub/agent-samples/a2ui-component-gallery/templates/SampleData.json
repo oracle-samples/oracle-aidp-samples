@@ -1,0 +1,644 @@
+{
+   "line": {
+      "title": "Monthly Revenue Trend",
+      "type": "line",
+      "orientation": "vertical",
+      "stack": "off",
+      "xAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": "Mar",
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": "Feb",
+               "high": "Apr",
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "yAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 60,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 40,
+               "high": 80,
+               "color": "#14312D2A"
+            },
+            {
+               "type": "line",
+               "items": [
+                  {
+                     "x": "Jan",
+                     "value": 45
+                  },
+                  {
+                     "x": "Feb",
+                     "value": 50
+                  },
+                  {
+                     "x": "Mar",
+                     "value": 55
+                  },
+                  {
+                     "x": "Apr",
+                     "value": 60
+                  }
+               ],
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "items": [
+                  {
+                     "x": "Jan",
+                     "low": 35,
+                     "high": 55
+                  },
+                  {
+                     "x": "Feb",
+                     "low": 40,
+                     "high": 60
+                  },
+                  {
+                     "x": "Mar",
+                     "low": 45,
+                     "high": 65
+                  },
+                  {
+                     "x": "Apr",
+                     "low": 50,
+                     "high": 70
+                  }
+               ],
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "items": [
+         {
+            "id": 1,
+            "seriesId": "Revenue",
+            "groupId": "Jan",
+            "value": 42,
+            "label": "Jan"
+         },
+         {
+            "id": 2,
+            "seriesId": "Revenue",
+            "groupId": "Feb",
+            "value": 56,
+            "label": "Feb"
+         },
+         {
+            "id": 3,
+            "seriesId": "Revenue",
+            "groupId": "Mar",
+            "value": 49,
+            "label": "Mar"
+         },
+         {
+            "id": 4,
+            "seriesId": "Revenue",
+            "groupId": "Apr",
+            "value": 67,
+            "label": "Apr"
+         }
+      ]
+   },
+   "bar": {
+      "title": "Quarterly Sales",
+      "type": "bar",
+      "orientation": "vertical",
+      "stack": "off",
+      "xAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": "Q1",
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": "Q1",
+               "high": "Q2",
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "yAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 32,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 26,
+               "high": 36,
+               "color": "#14312D2A"
+            },
+            {
+               "type": "line",
+               "items": [
+                  {
+                     "x": "Q1",
+                     "value": 28
+                  },
+                  {
+                     "x": "Q2",
+                     "value": 34
+                  }
+               ],
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "items": [
+                  {
+                     "x": "Q1",
+                     "low": 25,
+                     "high": 32
+                  },
+                  {
+                     "x": "Q2",
+                     "low": 30,
+                     "high": 37
+                  }
+               ],
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "items": [
+         {
+            "id": 11,
+            "seriesId": "North",
+            "groupId": "Q1",
+            "value": 30,
+            "label": "North Q1"
+         },
+         {
+            "id": 12,
+            "seriesId": "South",
+            "groupId": "Q1",
+            "value": 24,
+            "label": "South Q1"
+         },
+         {
+            "id": 13,
+            "seriesId": "North",
+            "groupId": "Q2",
+            "value": 38,
+            "label": "North Q2"
+         },
+         {
+            "id": 14,
+            "seriesId": "South",
+            "groupId": "Q2",
+            "value": 31,
+            "label": "South Q2"
+         }
+      ]
+   },
+   "area": {
+      "title": "Active Users",
+      "type": "area",
+      "orientation": "vertical",
+      "stack": "off",
+      "xAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": "Week 3",
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": "Week 2",
+               "high": "Week 4",
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "yAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 160,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 140,
+               "high": 180,
+               "color": "#14312D2A"
+            },
+            {
+               "type": "line",
+               "items": [
+                  {
+                     "x": "Week 1",
+                     "value": 150
+                  },
+                  {
+                     "x": "Week 2",
+                     "value": 165
+                  },
+                  {
+                     "x": "Week 3",
+                     "value": 180
+                  },
+                  {
+                     "x": "Week 4",
+                     "value": 195
+                  }
+               ],
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "items": [
+                  {
+                     "x": "Week 1",
+                     "low": 140,
+                     "high": 160
+                  },
+                  {
+                     "x": "Week 2",
+                     "low": 155,
+                     "high": 175
+                  },
+                  {
+                     "x": "Week 3",
+                     "low": 165,
+                     "high": 190
+                  },
+                  {
+                     "x": "Week 4",
+                     "low": 180,
+                     "high": 205
+                  }
+               ],
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "items": [
+         {
+            "id": 21,
+            "seriesId": "Users",
+            "groupId": "Week 1",
+            "value": 120,
+            "label": "Week 1"
+         },
+         {
+            "id": 22,
+            "seriesId": "Users",
+            "groupId": "Week 2",
+            "value": 168,
+            "label": "Week 2"
+         },
+         {
+            "id": 23,
+            "seriesId": "Users",
+            "groupId": "Week 3",
+            "value": 154,
+            "label": "Week 3"
+         },
+         {
+            "id": 24,
+            "seriesId": "Users",
+            "groupId": "Week 4",
+            "value": 190,
+            "label": "Week 4"
+         }
+      ]
+   },
+   "bubble": {
+      "title": "Campaign Reach vs Conversion",
+      "type": "bubble",
+      "xAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 32,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 18,
+               "high": 45,
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "yAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 65,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 55,
+               "high": 80,
+               "color": "#14312D2A"
+            },
+            {
+               "type": "line",
+               "items": [
+                  {
+                     "x": 18,
+                     "value": 60
+                  },
+                  {
+                     "x": 32,
+                     "value": 70
+                  },
+                  {
+                     "x": 45,
+                     "value": 65
+                  }
+               ],
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "items": [
+                  {
+                     "x": 18,
+                     "low": 55,
+                     "high": 65
+                  },
+                  {
+                     "x": 32,
+                     "low": 65,
+                     "high": 80
+                  },
+                  {
+                     "x": 45,
+                     "low": 55,
+                     "high": 70
+                  }
+               ],
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "items": [
+         {
+            "id": 31,
+            "seriesId": "Campaign Performance",
+            "groupId": "Campaign A",
+            "x": 18,
+            "y": 64,
+            "z": 22,
+            "label": "Campaign A"
+         },
+         {
+            "id": 32,
+            "seriesId": "Campaign Performance",
+            "groupId": "Campaign B",
+            "x": 32,
+            "y": 78,
+            "z": 30,
+            "label": "Campaign B"
+         },
+         {
+            "id": 33,
+            "seriesId": "Campaign Performance",
+            "groupId": "Campaign C",
+            "x": 45,
+            "y": 58,
+            "z": 16,
+            "label": "Campaign C"
+         }
+      ]
+   },
+   "funnel": {
+      "title": "Lead Funnel",
+      "type": "funnel",
+      "items": [
+         {
+            "id": 41,
+            "seriesId": "Visited",
+            "groupId": "funnel",
+            "value": 1200,
+            "label": "Visited"
+         },
+         {
+            "id": 42,
+            "seriesId": "Signed Up",
+            "groupId": "funnel",
+            "value": 680,
+            "label": "Signed Up"
+         },
+         {
+            "id": 43,
+            "seriesId": "Trial",
+            "groupId": "funnel",
+            "value": 340,
+            "label": "Trial"
+         },
+         {
+            "id": 44,
+            "seriesId": "Paid",
+            "groupId": "funnel",
+            "value": 140,
+            "label": "Paid"
+         }
+      ]
+   },
+   "pie": {
+      "title": "Traffic Sources",
+      "type": "pie",
+      "items": [
+         {
+            "id": 51,
+            "seriesId": "Organic",
+            "groupId": "traffic",
+            "value": 44,
+            "label": "Organic"
+         },
+         {
+            "id": 52,
+            "seriesId": "Paid",
+            "groupId": "traffic",
+            "value": 27,
+            "label": "Paid"
+         },
+         {
+            "id": 53,
+            "seriesId": "Referral",
+            "groupId": "traffic",
+            "value": 18,
+            "label": "Referral"
+         },
+         {
+            "id": 54,
+            "seriesId": "Direct",
+            "groupId": "traffic",
+            "value": 11,
+            "label": "Direct"
+         }
+      ]
+   },
+   "pyramid": {
+      "title": "Age Segments",
+      "type": "pyramid",
+      "items": [
+         {
+            "id": 61,
+            "seriesId": "18-24",
+            "groupId": "age",
+            "value": 34,
+            "label": "18-24"
+         },
+         {
+            "id": 62,
+            "seriesId": "25-34",
+            "groupId": "age",
+            "value": 52,
+            "label": "25-34"
+         },
+         {
+            "id": 63,
+            "seriesId": "35-44",
+            "groupId": "age",
+            "value": 39,
+            "label": "35-44"
+         },
+         {
+            "id": 64,
+            "seriesId": "45+",
+            "groupId": "age",
+            "value": 21,
+            "label": "45+"
+         }
+      ]
+   },
+   "scatter": {
+      "title": "Store Score vs Revenue",
+      "type": "scatter",
+      "xAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 74,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 62,
+               "high": 83,
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "yAxis": {
+         "referenceObjects": [
+            {
+               "type": "line",
+               "value": 65,
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "low": 45,
+               "high": 85,
+               "color": "#14312D2A"
+            },
+            {
+               "type": "line",
+               "items": [
+                  {
+                     "x": 62,
+                     "value": 50
+                  },
+                  {
+                     "x": 74,
+                     "value": 65
+                  },
+                  {
+                     "x": 83,
+                     "value": 80
+                  }
+               ],
+               "color": "#CC161513",
+               "lineStyle": "solid"
+            },
+            {
+               "type": "area",
+               "items": [
+                  {
+                     "x": 62,
+                     "low": 45,
+                     "high": 55
+                  },
+                  {
+                     "x": 74,
+                     "low": 60,
+                     "high": 70
+                  },
+                  {
+                     "x": 83,
+                     "low": 75,
+                     "high": 85
+                  }
+               ],
+               "color": "#14312D2A"
+            }
+         ]
+      },
+      "items": [
+         {
+            "id": 71,
+            "seriesId": "Store Performance",
+            "groupId": "Store A",
+            "x": 62,
+            "y": 48,
+            "label": "Store A"
+         },
+         {
+            "id": 72,
+            "seriesId": "Store Performance",
+            "groupId": "Store B",
+            "x": 74,
+            "y": 67,
+            "label": "Store B"
+         },
+         {
+            "id": 73,
+            "seriesId": "Store Performance",
+            "groupId": "Store C",
+            "x": 83,
+            "y": 81,
+            "label": "Store C"
+         }
+      ]
+   }
+}

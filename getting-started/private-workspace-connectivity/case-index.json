@@ -1,0 +1,30 @@
+[
+  {
+    "case": "V01",
+    "title": "Amazon S3 through customer egress",
+    "notebook": "V01_Amazon_S3.ipynb",
+    "objective": "Read a small private S3 object from an AIDP workspace through your approved outbound network path.",
+    "kind": "csv"
+  },
+  {
+    "case": "V02",
+    "title": "Bucket and ADB access from the customer VCN",
+    "notebook": "V02_Customer_Network_Source.ipynb",
+    "objective": "Read a bucket under an IAM Network Source policy and query an ADB public endpoint under its VCN ACL, through the same customer network.",
+    "kind": "csv"
+  },
+  {
+    "case": "V03",
+    "title": "Cross-region OCI Object Storage",
+    "notebook": "V03_Cross_Region_Object_Storage.ipynb",
+    "objective": "Read a dataset in one OCI region while your AIDP workspace runs in another.",
+    "kind": "csv"
+  },
+  {
+    "case": "V04",
+    "title": "Private database connectivity before and after DNS edits",
+    "notebook": "V04_Service_Private_Endpoint.ipynb",
+    "objective": "Establish existing private database connectivity, then verify that unrelated Advanced DNS edits preserve the same database connection.",
+    "kind": "adb"
+  }
+]

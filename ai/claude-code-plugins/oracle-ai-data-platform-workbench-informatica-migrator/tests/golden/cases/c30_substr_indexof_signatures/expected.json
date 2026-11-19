@@ -1,0 +1,9 @@
+{
+  "TGT_CONTACT_PARTS": {"rows": [
+    {"CONTACT_ID": 1, "EMAIL_DOMAIN": "example.com",    "EMAIL_LOCAL": "ann",        "COLOUR_RANK": 1,    "ZIP3": "941"},
+    {"CONTACT_ID": 2, "EMAIL_DOMAIN": "sub.corp.co.uk", "EMAIL_LOCAL": "bob.ray",    "COLOUR_RANK": 3,    "ZIP3": "100"},
+    {"CONTACT_ID": 3, "EMAIL_DOMAIN": "no-at-sign",     "EMAIL_LOCAL": "no-at-sign", "COLOUR_RANK": 2,    "ZIP3": "606"},
+    {"CONTACT_ID": 4, "EMAIL_DOMAIN": null,             "EMAIL_LOCAL": null,         "COLOUR_RANK": null, "ZIP3": "SW1"},
+    {"CONTACT_ID": 5, "EMAIL_DOMAIN": "y.z",            "EMAIL_LOCAL": "x",          "COLOUR_RANK": 0,    "ZIP3": "021"}
+  ]}
+}

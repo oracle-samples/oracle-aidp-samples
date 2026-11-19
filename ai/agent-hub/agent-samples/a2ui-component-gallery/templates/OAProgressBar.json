@@ -1,0 +1,111 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_progress_bar_v1",
+            "tpl_variant_wrapper_progress_bar_v2",
+            "tpl_variant_wrapper_progress_bar_v3",
+            "tpl_variant_wrapper_progress_bar_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_progress_bar_v1",
+          "component": "Text",
+          "text": "OAProgressBar 35 / 100",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_bar_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_bar_v1",
+            "tpl_previewOAProgressBar_v1"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressBar_v1",
+          "component": "OAProgressBar",
+          "value": 35,
+          "max": 100,
+          "edge": "none"
+        },
+        {
+          "id": "tpl_variant_header_progress_bar_v2",
+          "component": "Text",
+          "text": "OAProgressBar top edge 68 / 100",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_bar_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_bar_v2",
+            "tpl_previewOAProgressBar_v2"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressBar_v2",
+          "component": "OAProgressBar",
+          "value": 68,
+          "max": 100,
+          "edge": "top"
+        },
+        {
+          "id": "tpl_variant_header_progress_bar_v3",
+          "component": "Text",
+          "text": "OAProgressBar 9 / 10",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_bar_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_bar_v3",
+            "tpl_previewOAProgressBar_v3"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressBar_v3",
+          "component": "OAProgressBar",
+          "value": 9,
+          "max": 10,
+          "edge": "none"
+        },
+        {
+          "id": "tpl_variant_header_progress_bar_v4",
+          "component": "Text",
+          "text": "OAProgressBar loading",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_progress_bar_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_progress_bar_v4",
+            "tpl_previewOAProgressBar_v4"
+          ]
+        },
+        {
+          "id": "tpl_previewOAProgressBar_v4",
+          "component": "OAProgressBar",
+          "value": -1,
+          "max": 100,
+          "edge": "none"
+        }
+      ]
+    }
+  }
+]

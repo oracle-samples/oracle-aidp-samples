@@ -138,8 +138,21 @@ function createServer({
   });
 }
 
+// A region is an OCI identifier like us-ashburn-1 (or a short code the map knows);
+// anything else must not reach the endpoint template, where it would become a host.
+const REGION_PATTERN = /^[a-z]{2,3}-[a-z]+-[0-9]+$/;
+const OCID_PATTERN = /^ocid1\.[a-z0-9]+\.oc[0-9]+\.[a-z0-9-]*\.[a-z0-9]+$/;
+function isValidRegion(region) {
+  const r = String(region || "").trim().toLowerCase();
+  return REGION_PATTERN.test(r) || Object.prototype.hasOwnProperty.call(OCI_SHORT_REGION_ENDPOINTS, r);
+}
+
 async function handleGetOciSessionStatus(requestUrl, response, { proxyMode, config }) {
   const requestedRegion = String(requestUrl.searchParams.get("region") || "").trim();
+  if (requestedRegion && !isValidRegion(requestedRegion)) {
+    sendJson(response, 400, errorBody("REQUEST_INVALID", "region is not a valid OCI region identifier."));
+    return;
+  }
   const status = await ociSessionStatus(config, requestedRegion, { proxyMode });
   sendJson(response, status.signedIn === false ? 401 : 200, status);
 }
@@ -156,6 +169,13 @@ async function handleGetCustomerWorkbench(requestUrl, response, { proxyMode, con
     sendJson(response, 400, errorBody(
       "REQUEST_INCOMPLETE",
       "AIDP OCID and region are required for customer workbench lookup."
+    ));
+    return;
+  }
+  if (!isValidRegion(requestedRegion) || !OCID_PATTERN.test(String(aiDataPlatformId).trim())) {
+    sendJson(response, 400, errorBody(
+      "REQUEST_INVALID",
+      "region must be an OCI region identifier and aiDataPlatformId an OCID."
     ));
     return;
   }

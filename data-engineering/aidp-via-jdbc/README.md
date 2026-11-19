@@ -193,3 +193,4 @@ python connect_aidp_instance_principal.py \
 - Calling instance metadata service (IMDS) —
   https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/gettingmetadata.htm
 - JayDeBeApi — https://pypi.org/project/JayDeBeApi/ · JPype — https://jpype.readthedocs.io/
+  JayDeBeApi is LGPL-3.0; this sample imports it as a pip-installed dependency and does not redistribute it.

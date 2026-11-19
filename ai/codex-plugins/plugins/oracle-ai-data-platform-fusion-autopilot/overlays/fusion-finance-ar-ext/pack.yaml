@@ -1,0 +1,14 @@
+id: fusion-finance-ar-ext
+version: 0.1.0
+extends: fusion-finance-starter@0.1.0
+description: |
+  Overlay extending the Fusion Finance starter with an AR invoice-summary
+  gold mart (ar_invoice_summary): invoice count + BR amount by currency,
+  billing month, and org, aggregated from bronze.ar_invoices. Authored by
+  the mart-author skill (rung-1, additive new gold over existing bronze).
+compatibility:
+  pluginMinVersion: 0.3.0
+  fusionFamilies:
+    - ERP
+  aidp:
+    requiresDelta: true

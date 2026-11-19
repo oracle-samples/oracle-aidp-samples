@@ -1,0 +1,45 @@
+apiVersion: aidp-fusion-autopilot/v1
+version: "0.2.0"           # Option L — explicit schema version (§4.4d).
+                           # Default if omitted is "0.2.0"; required when v0.3 ships.
+project: cecl-finance-lake
+variables:
+  team: cecl
+
+fusion:
+  serviceUrl: ${FUSION_BICC_BASE_URL}
+  username: ${FUSION_BICC_USER}
+  password: ${FUSION_BICC_PASSWORD}   # cluster loads from the AIDP credential store (biccSecretName); do NOT use a vault placeholder
+  externalStorage: ${FUSION_BICC_EXTERNAL_STORAGE}
+
+aidp:
+  catalog: fusion_catalog
+  bronzeSchema: bronze
+  silverSchema: silver
+  goldSchema: gold
+  storageFormat: delta
+
+datasets:
+  - id: gl_journal_lines
+    mode: incremental
+    schedule: "0 2 * * *"
+  - id: gl_period_balances
+    mode: full
+    schedule: "0 3 1 * *"
+  - id: gl_coa
+    mode: full
+
+dimensions:
+  build:
+    - dim_account
+    - dim_calendar
+
+gold:
+  marts:
+    - gl_balance
+
+oac:
+  enabled: false                            # disabled in minimal example
+
+notifications:
+  onFailure:
+    - you@example.com

@@ -1,0 +1,11 @@
+{
+  "export": "m_emp_mgr_self_join.xml",
+  "notes": [
+    "Self-join: the mapping holds TWO instances of the one source definition EMPLOYEES (instance EMPLOYEES and instance EMPLOYEES1, both TRANSFORMATION_NAME=\"EMPLOYEES\"), each with its own Source Qualifier (SQ_EMP detail, SQ_MGR master). Both read the same table.",
+    "SQ_MGR's EMP_ID/EMP_NAME/SALARY feed the Joiner's master ports MGR_EMP_ID/MGR_NAME/MGR_SALARY (PORTTYPE=\"INPUT/OUTPUT/MASTER\").",
+    "Join Condition MGR_EMP_ID = MGR_ID, Join Type 'Master Outer Join': every employee (detail) is kept; employees with no manager (Ada, MGR_ID NULL) or an unknown manager (Fox, MGR_ID 99) get NULL master ports.",
+    "Filter NOT ISNULL(MGR_EMP_ID) then drops those two rows.",
+    "SAL_RATIO = ROUND(SALARY / MGR_SALARY, 4): 160000/150000 = 1.0667; NULL on either side gives NULL (Gus's manager Hal has a NULL salary; Hal's own salary is NULL).",
+    "EARNS_MORE = IIF(SALARY > MGR_SALARY, 'Y', 'N'): a comparison with a NULL is NULL and IIF takes the FALSE branch, so Gus and Hal get 'N'."
+  ]
+}

@@ -1,0 +1,225 @@
+# Fabric notebook source
+
+# METADATA ********************
+
+# META {
+# META   "kernel_info": {
+# META     "name": "synapse_pyspark"
+# META   },
+# META   "dependencies": {}
+# META }
+
+# MARKDOWN ********************
+
+# # Utility Functions
+# This notebook contains function declarations for use in other notebooks.
+
+# CELL ********************
+
+import struct, pyodbc, os
+from pyspark.sql.functions import col
+from pyspark.sql.types import ByteType, ShortType
+
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+def convert_small_numeric_columns_to_int(path):
+
+    # Read source file
+    df = spark.read.parquet(path)
+
+    # Find ByteType and ShortType columns
+    changed_columns = [
+        (f.name, f.dataType.simpleString())
+        for f in df.schema.fields
+        if isinstance(f.dataType, (ByteType, ShortType))
+    ]
+
+    # Nothing to convert
+    if not changed_columns:
+        print(f"No ByteType or ShortType columns found in {path}")
+        return None
+
+    print(
+        f"Converting {len(changed_columns)} columns from ByteType/ShortType to IntegerType:"
+    )
+
+    for name, dtype in changed_columns:
+        print(f" - {name}: {dtype} -> integer")
+
+    # Cast columns
+    df = df.select(
+        *[
+            col(f.name).cast("integer").alias(f.name)
+            if isinstance(f.dataType, (ByteType, ShortType))
+            else col(f.name)
+            for f in df.schema.fields
+        ]
+    )
+
+    base, ext = os.path.splitext(path)
+    # Spark writes Parquet as a directory; avoid implying a single ".parquet" file
+    converted_path = f"{base}_converted" if ext.lower() == ".parquet" else f"{base}_converted{ext}"
+
+    prev_native_enabled = spark.conf.get("spark.native.enabled", "true")
+    spark.conf.set("spark.native.enabled", "false")
+    try:
+        # Write parquet
+        (
+            df.write
+              .mode("overwrite")
+              .parquet(converted_path)
+        )
+    finally:
+        spark.conf.set("spark.native.enabled", prev_native_enabled)
+
+    print(f"Converted parquet written to: {converted_path}")
+
+    return converted_path
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+def build_exec_statement(proc_name, **params):
+    """Build a parameterized EXEC statement for safe stored procedure execution.
+
+    Returns:
+        tuple: (sql_template with ? placeholders, list of parameter values)
+    """
+    param_placeholders = []
+    param_values = []
+    for key, value in params.items():
+        if value is not None:
+            param_placeholders.append(f"@{key}=?")
+            param_values.append(value)
+
+    if param_placeholders:
+        sql = f"EXEC {proc_name} " + ", ".join(param_placeholders)
+    else:
+        sql = f"EXEC {proc_name}"
+    return sql, param_values
+
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }
+
+# CELL ********************
+
+def execute_with_outputs(exec_statement, driver, connstring, database, **params):
+    """
+    Runs the given T-SQL (optionally wrapping to capture return code).
+    Returns a dict with:
+      - result_sets: list[list[dict]]
+      - return_code: int or None
+      - out_params: dict (if you selected them)
+      - messages: list[str]
+    """
+    # Get token for Azure SQL authentication
+    token = notebookutils.credentials.getToken('https://analysis.windows.net/powerbi/api').encode("UTF-16-LE")
+    token_struct = struct.pack(f'<I{len(token)}s', len(token), token)
+
+    # Build connection
+    conn = pyodbc.connect(
+        f"DRIVER={driver};SERVER={connstring};PORT=1433;DATABASE={database};",
+        attrs_before={1256: token_struct},
+        timeout=12
+    )
+    if not exec_statement:
+        raise ValueError("proc_name (exec_statement) must not be empty.")
+
+    sql_to_run, sql_params = build_exec_statement(exec_statement, **params)
+    use_wrapper = True
+
+
+    result_sets = []
+    messages = []
+    return_code = None
+    out_params = {}
+
+    try:
+        with conn.cursor() as cursor:
+            # Warm-up
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            conn.timeout = 10
+
+            cursor.execute(sql_to_run, sql_params)
+
+            # Collect result sets
+            while True:
+                if cursor.description:
+                    cols = [d[0] for d in cursor.description]
+                    rows = cursor.fetchall()
+                    result_sets.append([dict(zip(cols, r)) for r in rows])
+                if not cursor.nextset():
+                    break
+
+            # If wrapped, pick return code from the last set (and remove it from result_sets)
+            if use_wrapper and result_sets:
+                last = result_sets[-1]
+                if len(last) == 1 and "__return_code__" in last[0]:
+                    return_code = last[0]["__return_code__"]
+                    result_sets = result_sets[:-1]  # remove synthetic RC set
+
+            # If you also SELECT’ed OUTPUT params (e.g., SELECT @p AS p)
+            # you can parse them from another final small result set:
+            # Example pattern:
+            #   SELECT @out1 AS __out_out1, @out2 AS __out_out2;
+            if result_sets:
+                # Heuristic: if the final set looks like a single-row out-param bag, peel it off
+                maybe = result_sets[-1]
+                if len(maybe) == 1 and any(k.startswith("__out_") for k in maybe[0].keys()):
+                    out_params = {k.replace("__out_", ""): v for k, v in maybe[0].items()}
+                    result_sets = result_sets[:-1]
+
+            try:
+                cursor.commit()
+
+            except Exception as e:
+                print(f"Commit failed (expected for read-only operations): {e}")
+
+            except Exception:
+                pass  # commit may fail on read-only operations
+
+
+    finally:
+        try:
+            conn.close()
+
+        except Exception as e:
+            print(f"Connection cleanup failed: {e}")  # best-effort connection cleanup
+
+        except Exception:
+            pass  # best-effort connection cleanup
+
+
+    return {
+        "result_sets": result_sets,
+        "return_code": return_code,
+        "out_params": out_params,
+        "messages": messages
+    }
+
+# METADATA ********************
+
+# META {
+# META   "language": "python",
+# META   "language_group": "synapse_pyspark"
+# META }

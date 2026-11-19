@@ -22,7 +22,7 @@ import oci
 
 def main():
     # Your AIDP agent endpoint URL (replace with your actual endpoint)
-    url = "https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/agentendpoint/13e012d7002943d9969587a237564d8d/chat"
+    url = "https://gateway.aidp.us-ashburn-1.oci.oraclecloud.com/agentendpoint/<agent-endpoint-id>/chat"
     
     # Load OCI config
     config = oci.config.from_file("/Workspace/oci_config.ini")

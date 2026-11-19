@@ -1,0 +1,174 @@
+id: ap_aging
+layer: gold
+implementation:
+  type: sql
+  sql: gold/ap_aging.sql
+target: ap_aging
+
+dependsOn:
+  bronze:
+    - id: ap_invoices
+      watermark:
+        column: _extract_ts
+  silver:
+    - id: dim_supplier
+
+refresh:
+  seed:
+    strategy: replace
+  incremental:
+    strategy: replace
+    reason: |
+      ap_aging buckets are CURRENT_DATE()-anchored. Row-level merge
+      would freeze bucket assignments from the prior run; daily
+      incremental refresh would go stale by one day every day.
+      Hence `replace`. A future snapshot strategy is the right long-term fit.
+
+# Declared inputs (AIDPF-2084): upstream columns ap_aging.sql reads —
+# ap_invoices.<col> from ap_invoices, ds.<col> from dim_supplier. Columns
+# referenced only inside the `{{ semantic.cancelled_status }}` predicate are
+# profile-resolved and out of scope for the gate (backstopped by the live source
+# gates).
+#
+# NOTE — ap_invoices stays UNALIASED in ap_aging.sql (reads qualified by the
+# table name `ap_invoices.<col>`, not a correlation name). The
+# `{{ semantic.cancelled_status }}` fragment substitutes `{table}` with the full
+# bronze identifier (catalog.schema.ap_invoices); an alias would hide that name
+# and the rendered predicate's full-path qualifier would fail to resolve at
+# execution. dim_supplier carries no `{table}` fragment, so it keeps its `ds`
+# alias. See test_ap_aging_render_keeps_semantic_source_unaliased.
+requiredColumns:
+  ap_invoices:
+    - ApInvoicesVendorId
+    - $column.invoice_currency_code
+    - ApInvoicesInvoiceAmount
+    - ApInvoicesAmountPaid
+    - ApInvoicesInvoiceDate
+    # $semantic.cancelled_status → the active candidate's column
+    # (cancelled_date → ApInvoicesCancelledDate on this tenant); read via the
+    # `{{ semantic.cancelled_status }}` predicate in ap_aging.sql.
+    - $semantic.cancelled_status
+    - _extract_ts
+  dim_supplier:
+    - vendor_id
+    - supplier_number
+    - supplier_name
+    - business_relationship
+
+# INTENTIONAL SCOPE DECISION — AP aging ships in **proxy mode only**.
+# v1's auto/real-mode behaviour (transforms/gold/ap_aging.py
+# defaults to `due_date_mode='auto'`, probes ApInvoicesTermsDate /
+# ApInvoicesDueDate coverage at runtime, switches to real mode when
+# coverage exceeds DEFAULT_REAL_MODE_GATE_THRESHOLD) is exactly the kind
+# of runtime probing ADR-0014 removes in v2. The two modes also produce
+# different output schemas — real mode emits max_days_past_due plus
+# three provenance counts (due_date_count, terms_date_count,
+# net30_fallback_count), proxy mode emits max_days_outstanding — which
+# the renderer's static-token vocabulary cannot select between from a
+# single template.
+#
+# Tenants whose live AP data would auto-route to real mode under the legacy
+# module will see proxy-shape output under the starter pack. Auto/real mode
+# needs (a) a renderer extension for two-schema variants, (b) declarative
+# tenant-side threshold config, and (c) live evidence of any tenant exceeding
+# the legacy threshold.
+#
+# Output schema below matches v1 ap_aging.py:475-505 with
+# due_date_mode='proxy' — 19 columns at v1's cents precision
+# (decimal(28,2) widths per ap_aging.py:463-490). Dashboards rebind
+# to decimal(28,2) accordingly. The parity harness's schema-type check
+# guards against precision drift.
+outputSchema:
+  columns:
+    - name: vendor_id
+      type: bigint
+      nullable: true
+      pii: none
+    - name: currency_code
+      type: string
+      nullable: false
+      pii: none
+    - name: supplier_number
+      type: string
+      nullable: true
+      pii: low
+    - name: supplier_name
+      type: string
+      nullable: true
+      pii: medium
+    - name: business_relationship
+      type: string
+      nullable: true
+      pii: none
+    - name: aging_bucket
+      type: string
+      nullable: false
+      pii: none
+    - name: bucket_basis
+      type: string
+      nullable: false
+      pii: none
+    - name: open_invoice_count
+      type: bigint
+      nullable: false
+      pii: none
+    - name: open_amount
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: invoice_amount_total
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: amount_paid_total
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: credit_open_amount
+      type: decimal(28,2)
+      nullable: true
+      pii: none
+    - name: credit_open_count
+      type: bigint
+      nullable: false
+      pii: none
+    - name: oldest_invoice_date
+      type: date
+      nullable: true
+      pii: none
+    - name: max_days_outstanding
+      type: int
+      nullable: true
+      pii: none
+    - name: as_of_date
+      type: date
+      nullable: false
+      pii: none
+    - name: bronze_extract_ts
+      type: timestamp
+      nullable: true
+      pii: none
+    - name: gold_built_at
+      type: timestamp
+      nullable: false
+      pii: none
+    - name: gold_run_id
+      type: string
+      nullable: true
+      pii: none
+
+quality:
+  tests:
+    # supplier_number is intentionally nullable (LEFT JOIN to
+    # dim_supplier — v1 ap_aging.py:396-399 preserves invoices whose
+    # ApInvoicesVendorId has no matching dim_supplier.vendor_id with
+    # NULL supplier attributes). Including supplier_number in
+    # `not_null` would convert a v1-supported input shape into a
+    # `quality_failed` state row under the content-pack hard gate
+    # (sql_runner.py:291-304); the parity fixture exercises an
+    # unknown-vendor invoice to keep this gap closed.
+    - type: not_null
+      columns: [aging_bucket]
+    - type: accepted_values
+      column: aging_bucket
+      values: ["current", "1-30", "31-60", "61-90", "91+"]

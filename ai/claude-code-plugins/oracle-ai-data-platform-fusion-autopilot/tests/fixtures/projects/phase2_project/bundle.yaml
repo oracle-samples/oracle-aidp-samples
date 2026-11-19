@@ -1,0 +1,23 @@
+apiVersion: aidp-fusion-autopilot/v1
+project: phase2-test
+fusion:
+  serviceUrl: https://example.com
+  username: test
+  password: test
+  externalStorage: test-storage
+aidp:
+  catalog: phase2_catalog
+  bronzeSchema: bronze
+  silverSchema: silver
+  goldSchema: gold
+datasets:
+  - id: erp_thing
+    mode: incremental
+  # Phase 9 cross-layer datasets[]: declare the silver intent
+  # explicitly so the resolver's bundle_scope picks it up. D-1
+  # auto-pulls erp_thing as a transitive bronze dep.
+  - id: dim_thing
+contentPack:
+  name: phase2-test-pack
+  path: ../../content_packs/phase2_test_pack
+  profile: phase2-fixture

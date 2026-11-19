@@ -44,7 +44,7 @@ def export_data_slice(
     Args:
         session: ``requests.Session`` with Basic auth. The username MUST be
             in identity-domain form: ``tenancy.user@domain``
-            (e.g. ``epmloaner622.first.last@oracle.com``).
+            (e.g. ``mytenancy.first.last@example.com``).
         base_url: EPM pod base URL
             (``https://epm-<id>.epm.<region>.ocs.oraclecloud.com``).
         application: Planning application name (e.g. ``"Vision"``).

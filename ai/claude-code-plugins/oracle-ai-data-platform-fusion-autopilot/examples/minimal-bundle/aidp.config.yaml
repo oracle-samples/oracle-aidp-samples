@@ -1,0 +1,20 @@
+apiVersion: aidp-fusion-autopilot/v1
+project: my-fusion-lake
+
+defaults:
+  region: us-ashburn-1
+  workspaceRoot: Shared
+
+environments:
+  dev:
+    workspaceKey: WORKSPACE-KEY-PLACEHOLDER
+    region: us-ashburn-1
+    ociProfile: DEFAULT
+
+    aiDataPlatformId: ocid1.datalake.oc1.iad.AIDP-ID-PLACEHOLDER
+    clusterKey: CLUSTER-KEY-PLACEHOLDER
+    clusterName: fusion_autopilot_dev
+
+    # AIDP credential-store entry used by REST-dispatched cluster jobs.
+    biccSecretName: fusion_bicc_password
+    biccSecretKey: password

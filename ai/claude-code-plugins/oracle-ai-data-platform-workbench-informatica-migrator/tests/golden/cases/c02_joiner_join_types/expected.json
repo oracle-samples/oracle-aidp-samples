@@ -1,0 +1,40 @@
+{
+  "TGT_JN_NORMAL": {"rows": [
+    {"ORDER_ID": 101, "CUST_ID": 1, "ORDER_REGION": "EAST", "AMT": 100.00, "M_CUST_ID": 1, "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 102, "CUST_ID": 1, "ORDER_REGION": "EAST", "AMT":  50.00, "M_CUST_ID": 1, "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 103, "CUST_ID": 2, "ORDER_REGION": "WEST", "AMT":  75.00, "M_CUST_ID": 2, "M_REGION": "WEST", "CUST_NAME": "Bolt"},
+    {"ORDER_ID": 104, "CUST_ID": 2, "ORDER_REGION": "EAST", "AMT":  20.00, "M_CUST_ID": 2, "M_REGION": "EAST", "CUST_NAME": "Bolt East"}
+  ]},
+  "TGT_JN_MASTER_OUTER": {"rows": [
+    {"ORDER_ID": 101, "CUST_ID": 1,    "ORDER_REGION": "EAST",  "AMT": 100.00, "M_CUST_ID": 1,    "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 102, "CUST_ID": 1,    "ORDER_REGION": "EAST",  "AMT":  50.00, "M_CUST_ID": 1,    "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 103, "CUST_ID": 2,    "ORDER_REGION": "WEST",  "AMT":  75.00, "M_CUST_ID": 2,    "M_REGION": "WEST", "CUST_NAME": "Bolt"},
+    {"ORDER_ID": 104, "CUST_ID": 2,    "ORDER_REGION": "EAST",  "AMT":  20.00, "M_CUST_ID": 2,    "M_REGION": "EAST", "CUST_NAME": "Bolt East"},
+    {"ORDER_ID": 105, "CUST_ID": 1,    "ORDER_REGION": "WEST",  "AMT":  10.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": 106, "CUST_ID": null, "ORDER_REGION": "EAST",  "AMT":   5.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": 107, "CUST_ID": 5,    "ORDER_REGION": null,    "AMT":   8.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": 108, "CUST_ID": 9,    "ORDER_REGION": "NORTH", "AMT":  12.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null}
+  ]},
+  "TGT_JN_DETAIL_OUTER": {"rows": [
+    {"ORDER_ID": 101,  "CUST_ID": 1,    "ORDER_REGION": "EAST", "AMT": 100.00, "M_CUST_ID": 1,    "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 102,  "CUST_ID": 1,    "ORDER_REGION": "EAST", "AMT":  50.00, "M_CUST_ID": 1,    "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 103,  "CUST_ID": 2,    "ORDER_REGION": "WEST", "AMT":  75.00, "M_CUST_ID": 2,    "M_REGION": "WEST", "CUST_NAME": "Bolt"},
+    {"ORDER_ID": 104,  "CUST_ID": 2,    "ORDER_REGION": "EAST", "AMT":  20.00, "M_CUST_ID": 2,    "M_REGION": "EAST", "CUST_NAME": "Bolt East"},
+    {"ORDER_ID": null, "CUST_ID": null, "ORDER_REGION": null,   "AMT": null,   "M_CUST_ID": 3,    "M_REGION": "EAST", "CUST_NAME": "Cora"},
+    {"ORDER_ID": null, "CUST_ID": null, "ORDER_REGION": null,   "AMT": null,   "M_CUST_ID": null, "M_REGION": "EAST", "CUST_NAME": "Ghost"},
+    {"ORDER_ID": null, "CUST_ID": null, "ORDER_REGION": null,   "AMT": null,   "M_CUST_ID": 5,    "M_REGION": null,   "CUST_NAME": "NoRegion"}
+  ]},
+  "TGT_JN_FULL_OUTER": {"rows": [
+    {"ORDER_ID": 101,  "CUST_ID": 1,    "ORDER_REGION": "EAST",  "AMT": 100.00, "M_CUST_ID": 1,    "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 102,  "CUST_ID": 1,    "ORDER_REGION": "EAST",  "AMT":  50.00, "M_CUST_ID": 1,    "M_REGION": "EAST", "CUST_NAME": "Acme"},
+    {"ORDER_ID": 103,  "CUST_ID": 2,    "ORDER_REGION": "WEST",  "AMT":  75.00, "M_CUST_ID": 2,    "M_REGION": "WEST", "CUST_NAME": "Bolt"},
+    {"ORDER_ID": 104,  "CUST_ID": 2,    "ORDER_REGION": "EAST",  "AMT":  20.00, "M_CUST_ID": 2,    "M_REGION": "EAST", "CUST_NAME": "Bolt East"},
+    {"ORDER_ID": 105,  "CUST_ID": 1,    "ORDER_REGION": "WEST",  "AMT":  10.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": 106,  "CUST_ID": null, "ORDER_REGION": "EAST",  "AMT":   5.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": 107,  "CUST_ID": 5,    "ORDER_REGION": null,    "AMT":   8.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": 108,  "CUST_ID": 9,    "ORDER_REGION": "NORTH", "AMT":  12.00, "M_CUST_ID": null, "M_REGION": null,   "CUST_NAME": null},
+    {"ORDER_ID": null, "CUST_ID": null, "ORDER_REGION": null,    "AMT": null,   "M_CUST_ID": 3,    "M_REGION": "EAST", "CUST_NAME": "Cora"},
+    {"ORDER_ID": null, "CUST_ID": null, "ORDER_REGION": null,    "AMT": null,   "M_CUST_ID": null, "M_REGION": "EAST", "CUST_NAME": "Ghost"},
+    {"ORDER_ID": null, "CUST_ID": null, "ORDER_REGION": null,    "AMT": null,   "M_CUST_ID": 5,    "M_REGION": null,   "CUST_NAME": "NoRegion"}
+  ]}
+}

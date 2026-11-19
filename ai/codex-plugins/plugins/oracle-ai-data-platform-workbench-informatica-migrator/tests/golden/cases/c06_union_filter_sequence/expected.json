@@ -1,0 +1,9 @@
+{
+  "TGT_ORDERS_ALL": {"ignore": ["ORDER_SK"], "rows": [
+    {"ORDER_SK": null, "ORDER_ID": 1, "CUST_ID": 10, "AMT": 100.00},
+    {"ORDER_SK": null, "ORDER_ID": 4, "CUST_ID": 12, "AMT": 25.50},
+    {"ORDER_SK": null, "ORDER_ID": 5, "CUST_ID": 13, "AMT": 75.00},
+    {"ORDER_SK": null, "ORDER_ID": 4, "CUST_ID": 12, "AMT": 25.50},
+    {"ORDER_SK": null, "ORDER_ID": 7, "CUST_ID": 15, "AMT": 60.00}
+  ]}
+}

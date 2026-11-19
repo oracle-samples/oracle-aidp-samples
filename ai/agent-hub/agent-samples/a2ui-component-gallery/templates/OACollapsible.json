@@ -1,0 +1,269 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "template-surface",
+      "catalogId": "/a2ui_specification/2.0.0/agent_hub_a2ui_custom_component_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "template-surface",
+      "components": [
+        {
+          "id": "templatePreviewVariants",
+          "component": "Column",
+          "children": [
+            "tpl_variant_wrapper_collapsible_v1",
+            "tpl_variant_wrapper_collapsible_v2",
+            "tpl_variant_wrapper_collapsible_v3",
+            "tpl_variant_wrapper_collapsible_v4"
+          ]
+        },
+        {
+          "id": "tpl_variant_header_collapsible_v1",
+          "component": "Text",
+          "text": "OACollapsible with item-level default expansion",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_collapsible_v1",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_collapsible_v1",
+            "tpl_previewOACollapsible_v1"
+          ]
+        },
+        {
+          "id": "tpl_collapsible_content_network_v1",
+          "component": "Text",
+          "text": "VPC, subnets, and ingress policy are configured.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_content_security_v1",
+          "component": "Text",
+          "text": "IAM role mapping and KMS key assignment are complete.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOACollapsible_v1",
+          "component": "OACollapsible",
+          "multiple": false,
+          "items": [
+            {
+              "componentId": "tpl_collapsible_content_network_v1",
+              "header": "Network settings",
+              "expanded": true
+            },
+            {
+              "componentId": "tpl_collapsible_content_security_v1",
+              "header": "Security settings"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_collapsible_v2",
+          "component": "Text",
+          "text": "OACollapsible with expandedItems path writeback",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_collapsible_v2",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_collapsible_v2",
+            "tpl_previewOACollapsible_v2"
+          ]
+        },
+        {
+          "id": "tpl_collapsible_content_storage_v2",
+          "component": "Text",
+          "text": "Block volume and backup policy details.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_content_logging_v2",
+          "component": "Text",
+          "text": "Log destinations and retention values.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOACollapsible_v2",
+          "component": "OACollapsible",
+          "multiple": false,
+          "expandedItems": {
+            "path": "/demo/oaCollapsible/expandedItems"
+          },
+          "items": [
+            {
+              "componentId": "tpl_collapsible_content_storage_v2",
+              "header": "Storage settings"
+            },
+            {
+              "componentId": "tpl_collapsible_content_logging_v2",
+              "header": "Logging settings"
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_collapsible_v3",
+          "component": "Text",
+          "text": "OACollapsible with multiple panels and disabled panel",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_collapsible_v3",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_collapsible_v3",
+            "tpl_previewOACollapsible_v3"
+          ]
+        },
+        {
+          "id": "tpl_collapsible_content_cost_v3",
+          "component": "Text",
+          "text": "Cost guardrails and budgets.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_content_alerting_v3",
+          "component": "Text",
+          "text": "Alert routes and escalation contacts.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_content_audit_v3",
+          "component": "Text",
+          "text": "Audit trail export settings.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_previewOACollapsible_v3",
+          "component": "OACollapsible",
+          "multiple": true,
+          "expandedItems": [
+            "tpl_collapsible_content_cost_v3",
+            "tpl_collapsible_content_alerting_v3"
+          ],
+          "items": [
+            {
+              "componentId": "tpl_collapsible_content_cost_v3",
+              "header": "Cost controls"
+            },
+            {
+              "componentId": "tpl_collapsible_content_alerting_v3",
+              "header": "Alerting"
+            },
+            {
+              "componentId": "tpl_collapsible_content_audit_v3",
+              "header": "Audit",
+              "disabled": true
+            }
+          ]
+        },
+        {
+          "id": "tpl_variant_header_collapsible_v4",
+          "component": "Text",
+          "text": "OACollapsible with mixed child component types",
+          "variant": "caption"
+        },
+        {
+          "id": "tpl_variant_wrapper_collapsible_v4",
+          "component": "Column",
+          "children": [
+            "tpl_variant_header_collapsible_v4",
+            "tpl_previewOACollapsible_v4"
+          ]
+        },
+        {
+          "id": "tpl_collapsible_card_text_v4",
+          "component": "Text",
+          "text": "Card child content inside a collapsible panel.",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_card_v4",
+          "component": "Card",
+          "child": "tpl_collapsible_card_text_v4"
+        },
+        {
+          "id": "tpl_collapsible_row_left_v4",
+          "component": "Text",
+          "text": "Row left",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_row_right_v4",
+          "component": "Text",
+          "text": "Row right",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_row_v4",
+          "component": "Row",
+          "children": [
+            "tpl_collapsible_row_left_v4",
+            "tpl_collapsible_row_right_v4"
+          ],
+          "justify": "start",
+          "align": "center"
+        },
+        {
+          "id": "tpl_collapsible_button_label_v4",
+          "component": "Text",
+          "text": "Run Check",
+          "variant": "body"
+        },
+        {
+          "id": "tpl_collapsible_button_v4",
+          "component": "Button",
+          "child": "tpl_collapsible_button_label_v4",
+          "variant": "primary",
+          "action": {
+            "event": {
+              "name": "preview_button_action",
+              "context": {
+                "selectedComponent": "OACollapsible",
+                "source": "oacollapsible-mixed-children-v4"
+              }
+            }
+          }
+        },
+        {
+          "id": "tpl_previewOACollapsible_v4",
+          "component": "OACollapsible",
+          "multiple": false,
+          "expandedItems": [
+            "tpl_collapsible_card_v4"
+          ],
+          "items": [
+            {
+              "componentId": "tpl_collapsible_card_v4",
+              "header": "Card content"
+            },
+            {
+              "componentId": "tpl_collapsible_row_v4",
+              "header": "Row content"
+            },
+            {
+              "componentId": "tpl_collapsible_button_v4",
+              "header": "Button content"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "template-surface",
+      "path": "/demo/oaCollapsible/expandedItems",
+      "value": [
+        "tpl_collapsible_content_storage_v2"
+      ]
+    }
+  }
+]

@@ -1,0 +1,21 @@
+# Runtime dependencies for the aidp-fusion-autopilot CLI.
+#
+# This file MUST mirror [project.dependencies] in pyproject.toml. It is the
+# install input for the lazy bootstrap in
+# oracle_ai_data_platform_fusion_autopilot/__main__.py (installed via
+# `<python> -m pip install --target <keyed dir> -r scripts/requirements.txt`)
+# AND the input to the deps-dir hash. A parity test
+# (tests/unit/test_requirements_parity.py) fails CI if the two ever drift.
+#
+# Keep in sync with pyproject.toml. Do not add dev/test-only deps here.
+click>=8.0
+pydantic>=2.0
+pydantic-settings>=2.0
+python-dotenv>=1.0
+pyyaml>=6.0
+requests>=2.31
+oci>=2.130
+rich>=13.0
+# `aidp-fusion-autopilot run` (no --inline) shells out to `python -m build` to
+# materialize the cluster wheel, so the build backend is a RUNTIME dep.
+build>=1.0

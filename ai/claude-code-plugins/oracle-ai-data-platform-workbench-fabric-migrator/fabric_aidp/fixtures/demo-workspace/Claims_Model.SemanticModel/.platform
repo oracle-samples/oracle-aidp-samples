@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "config": {
+    "logicalId": "00000000-0000-0000-0000-820234222199"
+  },
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "Claims_Model",
+    "description": "Acme demo semanticmodel"
+  }
+}

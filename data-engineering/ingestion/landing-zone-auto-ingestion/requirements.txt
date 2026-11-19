@@ -1,0 +1,2 @@
+# Local only, for generate_landing_zone.py. The AIDP notebooks need nothing extra.
+pyarrow

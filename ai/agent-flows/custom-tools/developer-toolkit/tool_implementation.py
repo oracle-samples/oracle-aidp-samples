@@ -32,6 +32,10 @@ class BashTool(CustomToolBase):
     @classmethod
     def _execute_tool(cls, conf, runtime_params, **context_vars):
         command = runtime_params.get("command", "")
+        # Arbitrary shell execution is off unless the deployer turns it on in
+        # the tool config: this sample runs whatever the model sends it.
+        if not _get_cfg(conf, "allow_unrestricted_exec", False):
+            return {"error": "BashTool is disabled: set conf.allow_unrestricted_exec=true to run shell commands"}
         timeout = _get_cfg(conf, "timeout", 30)
         max_lines = _get_cfg(conf, "max_output_lines", 200)
         try:

@@ -1070,7 +1070,7 @@ class QualifireEngine:
         except ImportError as e:
             raise RuntimeError(
                 "PySpark is required for cache=True on a Spark-capable "
-                "backend; install with: pip install 'qualifire[spark]'"
+                "backend; install with: pip install -e '.[spark]'"
             ) from e
 
         df = None

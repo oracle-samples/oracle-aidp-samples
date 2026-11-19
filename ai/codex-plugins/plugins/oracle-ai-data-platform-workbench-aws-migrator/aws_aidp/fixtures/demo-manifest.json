@@ -1,0 +1,1029 @@
+{
+  "account_id": "999900001111",
+  "region": "us-east-1",
+  "scanned_at": "2026-08-19T12:14:45Z",
+  "sources_scanned": [
+    "s3",
+    "glue",
+    "athena",
+    "emr",
+    "sagemaker"
+  ],
+  "customer_persona": "Acme Insurance \u2014 sample/fixture, no real data",
+  "sources": {
+    "s3": {
+      "summary": {
+        "bucket_count": 5,
+        "by_region": {
+          "us-east-1": 4,
+          "us-west-2": 1
+        }
+      },
+      "items": [
+        {
+          "name": "acme-raw-data",
+          "region": "us-east-1",
+          "created_at": "2024-03-12 10:14:00+00:00"
+        },
+        {
+          "name": "acme-curated-data",
+          "region": "us-east-1",
+          "created_at": "2024-03-12 10:15:00+00:00"
+        },
+        {
+          "name": "acme-athena-results",
+          "region": "us-east-1",
+          "created_at": "2024-04-01 09:00:00+00:00"
+        },
+        {
+          "name": "acme-glue-scripts",
+          "region": "us-east-1",
+          "created_at": "2024-03-15 12:00:00+00:00"
+        },
+        {
+          "name": "acme-ml-artifacts",
+          "region": "us-west-2",
+          "created_at": "2024-06-22 08:00:00+00:00"
+        }
+      ]
+    },
+    "glue": {
+      "summary": {
+        "database_count": 2,
+        "table_count": 50,
+        "tables_per_db": {
+          "acme_raw": 15,
+          "acme_curated": 35
+        },
+        "job_count": 8
+      },
+      "items": {
+        "databases": [
+          {
+            "name": "acme_raw",
+            "location_uri": "s3://acme-raw-data/"
+          },
+          {
+            "name": "acme_curated",
+            "location_uri": "s3://acme-curated-data/"
+          }
+        ],
+        "tables": [
+          {
+            "database": "acme_raw",
+            "name": "claim_events",
+            "location": "s3://acme-raw-data/claim_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "policy_events",
+            "location": "s3://acme-raw-data/policy_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "customer_events",
+            "location": "s3://acme-raw-data/customer_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "agent_events",
+            "location": "s3://acme-raw-data/agent_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "payment_events",
+            "location": "s3://acme-raw-data/payment_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "address_events",
+            "location": "s3://acme-raw-data/address_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "underwriting_events",
+            "location": "s3://acme-raw-data/underwriting_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "fraud_signals_raw",
+            "location": "s3://acme-raw-data/fraud_signals_raw/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "telematics_raw",
+            "location": "s3://acme-raw-data/telematics_raw/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "broker_feed",
+            "location": "s3://acme-raw-data/broker_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "partner_feed",
+            "location": "s3://acme-raw-data/partner_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "external_credit_feed",
+            "location": "s3://acme-raw-data/external_credit_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "weather_feed",
+            "location": "s3://acme-raw-data/weather_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "vendor_feed",
+            "location": "s3://acme-raw-data/vendor_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_raw",
+            "name": "regulatory_feed",
+            "location": "s3://acme-raw-data/regulatory_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "event_date"
+            ],
+            "column_count": 12
+          },
+          {
+            "database": "acme_curated",
+            "name": "policies",
+            "location": "s3://acme-curated-data/policies/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "policy_orders",
+            "location": "s3://acme-curated-data/policy_orders/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "policy_lifecycle",
+            "location": "s3://acme-curated-data/policy_lifecycle/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "policy_coverage",
+            "location": "s3://acme-curated-data/policy_coverage/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "policy_riders",
+            "location": "s3://acme-curated-data/policy_riders/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "claims",
+            "location": "s3://acme-curated-data/claims/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "claim_decisions",
+            "location": "s3://acme-curated-data/claim_decisions/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "claim_payouts",
+            "location": "s3://acme-curated-data/claim_payouts/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "claim_witnesses",
+            "location": "s3://acme-curated-data/claim_witnesses/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "customers",
+            "location": "s3://acme-curated-data/customers/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "customer_addresses",
+            "location": "s3://acme-curated-data/customer_addresses/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "customer_value",
+            "location": "s3://acme-curated-data/customer_value/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "customer_ltv_feed",
+            "location": "s3://acme-curated-data/customer_ltv_feed/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "agents",
+            "location": "s3://acme-curated-data/agents/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "agent_deals",
+            "location": "s3://acme-curated-data/agent_deals/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "agent_commissions",
+            "location": "s3://acme-curated-data/agent_commissions/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "premium_payments",
+            "location": "s3://acme-curated-data/premium_payments/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "payout_summary",
+            "location": "s3://acme-curated-data/payout_summary/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [
+              "month"
+            ],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "renewal_pipeline",
+            "location": "s3://acme-curated-data/renewal_pipeline/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "drivers",
+            "location": "s3://acme-curated-data/drivers/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "driver_events",
+            "location": "s3://acme-curated-data/driver_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "vehicles",
+            "location": "s3://acme-curated-data/vehicles/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "vehicle_inspections",
+            "location": "s3://acme-curated-data/vehicle_inspections/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "underwriting_decisions",
+            "location": "s3://acme-curated-data/underwriting_decisions/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "underwriting_factors",
+            "location": "s3://acme-curated-data/underwriting_factors/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "compliance_events",
+            "location": "s3://acme-curated-data/compliance_events/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "fraud_decisions",
+            "location": "s3://acme-curated-data/fraud_decisions/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "fraud_signals",
+            "location": "s3://acme-curated-data/fraud_signals/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "broker_partners",
+            "location": "s3://acme-curated-data/broker_partners/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "channel_revenue",
+            "location": "s3://acme-curated-data/channel_revenue/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "weather_zones",
+            "location": "s3://acme-curated-data/weather_zones/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "risk_zones",
+            "location": "s3://acme-curated-data/risk_zones/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "macro_factors",
+            "location": "s3://acme-curated-data/macro_factors/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "ml_features_v1",
+            "location": "s3://acme-curated-data/ml_features_v1/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          },
+          {
+            "database": "acme_curated",
+            "name": "ml_features_v2",
+            "location": "s3://acme-curated-data/ml_features_v2/",
+            "input_format": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "table_type": "EXTERNAL_TABLE",
+            "partition_keys": [],
+            "column_count": 18
+          }
+        ],
+        "jobs": [
+          {
+            "name": "acme_etl_raw_to_curated_claims",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_raw_to_curated_claims.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\nclaims = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_raw\", table_name=\"claim_events\", transformation_ctx=\"claims\")\nmapped = ApplyMapping.apply(frame=claims, mappings=[\n    (\"claim_id\", \"string\", \"claim_id\", \"string\"),\n    (\"amount\", \"string\", \"claim_amount\", \"double\"),\n    (\"filed_ts\", \"string\", \"filed_at\", \"timestamp\")])\ndf = mapped.toDF()\ndf = df.filter(df.claim_amount > 0)\ncurated = DynamicFrame.fromDF(df, glueContext, \"curated\")\nglueContext.write_dynamic_frame.from_options(frame=curated,\n    connection_type=\"s3\",\n    connection_options={\"path\": \"s3://acme-curated-data/claims/\"},\n    format=\"parquet\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_raw_to_curated_policies",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_raw_to_curated_policies.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\npolicies = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_raw\", table_name=\"policy_events\", transformation_ctx=\"policies\")\nresolved = ResolveChoice.apply(frame=policies, choice=\"make_struct\")\ndf = resolved.toDF()\ndf.write.mode(\"overwrite\").parquet(\"s3://acme-curated-data/policies/\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_raw_to_curated_customers",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_raw_to_curated_customers.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\ncust = glueContext.create_dynamic_frame.from_options(\n    connection_type=\"s3\",\n    connection_options={\"paths\": [\"s3://acme-raw-data/customer_events/\"]},\n    format=\"json\")\nclean = DropNullFields.apply(frame=cust)\ndf = clean.toDF()\nglueContext.write_dynamic_frame.from_options(frame=DynamicFrame.fromDF(df, glueContext, \"c\"),\n    connection_type=\"s3\",\n    connection_options={\"path\": \"s3://acme-curated-data/customers/\"},\n    format=\"parquet\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_telematics_enrichment",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_telematics_enrichment.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\ntel = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_raw\", table_name=\"telematics_raw\", transformation_ctx=\"tel\")\nveh = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_curated\", table_name=\"vehicles\", transformation_ctx=\"veh\")\njoined = Join.apply(tel, veh, \"vehicle_id\", \"vehicle_id\")\ndf = joined.toDF()\ndf.write.mode(\"overwrite\").parquet(\"s3://acme-curated-data/telematics_enriched/\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_fraud_signals_build",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_fraud_signals_build.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\nevents = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_raw\", table_name=\"fraud_signals_raw\", transformation_ctx=\"events\")\ndf = events.toDF()\ndf.createOrReplaceTempView(\"fraud_raw\")\nsig = spark.sql(\"\"\"\n    SELECT claim_id, collect_list(signal) AS signals, count(*) AS n\n    FROM fraud_raw WHERE score > 0.5 GROUP BY claim_id\n\"\"\")\nsig.write.mode(\"overwrite\").parquet(\"s3://acme-curated-data/fraud_signals/\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_ml_features_v1_build",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_ml_features_v1_build.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\nfeats = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_curated\", table_name=\"customers\", transformation_ctx=\"feats\")\nflat = Relationalize.apply(frame=feats, staging_path=\"s3://acme-ml-artifacts/tmp/\")\ndf = flat.select(\"roottable\").toDF()\ndf.write.mode(\"overwrite\").parquet(\"s3://acme-curated-data/ml_features_v1/\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_ml_features_v2_build",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_ml_features_v2_build.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\nbase = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_curated\", table_name=\"ml_features_v1\", transformation_ctx=\"base\")\nsel = SelectFields.apply(frame=base, paths=[\"customer_id\", \"ltv\", \"risk_score\"])\nren = RenameField.apply(frame=sel, old_name=\"ltv\", new_name=\"lifetime_value\")\ndf = ren.toDF()\nglueContext.write_dynamic_frame.from_options(frame=DynamicFrame.fromDF(df, glueContext, \"v2\"),\n    connection_type=\"s3\",\n    connection_options={\"path\": \"s3://acme-curated-data/ml_features_v2/\"},\n    format=\"parquet\")\n\njob.commit()\n"
+          },
+          {
+            "name": "acme_etl_daily_aggregates",
+            "type": "glueetl",
+            "glue_version": "4.0",
+            "script_location": "s3://acme-glue-scripts/etl_daily_aggregates.py",
+            "python_version": "3",
+            "worker_type": "G.1X",
+            "num_workers": 5,
+            "script": "import sys\nfrom awsglue.transforms import *\nfrom awsglue.utils import getResolvedOptions\nfrom pyspark.context import SparkContext\nfrom awsglue.context import GlueContext\nfrom awsglue.job import Job\nfrom awsglue.dynamicframe import DynamicFrame\n\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'run_date'])\nsc = SparkContext()\nglueContext = GlueContext(sc)\nspark = glueContext.spark_session\njob = Job(glueContext)\njob.init(args['JOB_NAME'], args)\n\npay = glueContext.create_dynamic_frame.from_catalog(\n    database=\"acme_curated\", table_name=\"premium_payments\", transformation_ctx=\"pay\")\ndf = pay.toDF()\nagg = (df.groupBy(\"product_line\")\n         .agg({\"amount\": \"sum\"})\n         .withColumnRenamed(\"sum(amount)\", \"total_premium\"))\nagg.write.mode(\"overwrite\").parquet(\"s3://acme-curated-data/daily_aggregates/\")\n\njob.commit()\n"
+          }
+        ]
+      }
+    },
+    "athena": {
+      "summary": {
+        "workgroup_count": 2,
+        "named_query_count": 20,
+        "queries_per_workgroup": {
+          "analytics": 10,
+          "ds_team": 10
+        }
+      },
+      "items": {
+        "workgroups": [
+          "analytics",
+          "ds_team"
+        ],
+        "named_queries": [
+          {
+            "name": "customer_revenue_monthly",
+            "description": "Monthly revenue per customer for FY-26.",
+            "database": "acme_curated",
+            "query": "SELECT customer_id,\n       date_format(order_date, '%Y-%m-%d') AS day,\n       SUM(premium_amount) AS revenue\nFROM acme_curated.policy_orders\nWHERE order_date >= DATE '2026-01-01'\nGROUP BY 1, 2",
+            "id": "q-1000",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "claim_fraud_score",
+            "description": "Per-claim fraud signals \u2014 unnested fraud_signals array.",
+            "database": "acme_curated",
+            "query": "SELECT c.claim_id, signal, cardinality(c.fraud_signals) AS signal_count\nFROM acme_curated.claims c\nCROSS JOIN UNNEST(c.fraud_signals) AS t(signal)\nWHERE c.claim_date >= current_date - INTERVAL '30' DAY",
+            "id": "q-1001",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "policy_churn_30d",
+            "description": "Distinct policies that churned in last 30 days.",
+            "database": "acme_curated",
+            "query": "SELECT APPROX_DISTINCT(policy_id) AS churned_policies\nFROM acme_curated.policy_lifecycle\nWHERE event_type = 'CHURN'\n  AND event_date >= current_date - INTERVAL '30' DAY",
+            "id": "q-1002",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "high_value_customers",
+            "description": "Customers with LTV > 50k; uses ||  for human-friendly key.",
+            "database": "acme_curated",
+            "query": "SELECT customer_id, region || '-' || tier AS segment, ltv\nFROM acme_curated.customer_value\nWHERE ltv > 50000\nORDER BY ltv DESC",
+            "id": "q-1003",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "driver_history_per_policy",
+            "description": "Aggregate the driver history per policy into an array.",
+            "database": "acme_curated",
+            "query": "SELECT policy_id, array_agg(driver_event ORDER BY event_date) AS history\nFROM acme_curated.driver_events\nGROUP BY policy_id",
+            "id": "q-1004",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "underwriting_risk_buckets",
+            "description": "Risk buckets using EXTRACT(YEAR FROM ...) \u2014 translates to year().",
+            "database": "acme_curated",
+            "query": "SELECT customer_id,\n       CASE WHEN EXTRACT(YEAR FROM birth_date) < 1980 THEN 'senior'\n            WHEN EXTRACT(YEAR FROM birth_date) < 2000 THEN 'adult'\n            ELSE 'young' END AS age_bucket\nFROM acme_curated.customers",
+            "id": "q-1005",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "quarterly_premium_collected",
+            "description": "Premium collected per quarter, windowed.",
+            "database": "acme_curated",
+            "query": "SELECT date_trunc('quarter', collected_at) AS qtr,\n       SUM(amount) AS premium,\n       SUM(SUM(amount)) OVER (ORDER BY date_trunc('quarter', collected_at)) AS cumulative\nFROM acme_curated.premium_payments\nGROUP BY 1",
+            "id": "q-1006",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "policy_renewals_pending",
+            "description": "Policies due to renew in next 30 days.",
+            "database": "acme_curated",
+            "query": "SELECT policy_id, end_date\nFROM acme_curated.policies\nWHERE end_date BETWEEN current_date AND current_date + INTERVAL '30' DAY",
+            "id": "q-1007",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "agent_performance",
+            "description": "Agent struct accessor + percentile.",
+            "database": "acme_curated",
+            "query": "SELECT agent.id AS agent_id, agent.region AS region,\n       approx_percentile(deal_size, 0.9) AS p90_deal\nFROM acme_curated.agent_deals\nGROUP BY agent.id, agent.region",
+            "id": "q-1008",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "claim_amount_histogram",
+            "description": "Distribution buckets \u2014 uses histogram() (UNSUPPORTED in Spark; flag).",
+            "database": "acme_curated",
+            "query": "SELECT histogram(claim_amount, 10) AS buckets\nFROM acme_curated.claims\nWHERE claim_date >= DATE '2026-01-01'",
+            "id": "q-1009",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "fraud_signals_recent",
+            "description": "Pulls fraud_signals out of a JSON column.",
+            "database": "acme_curated",
+            "query": "SELECT claim_id,\n       JSON_EXTRACT(payload, '$.signals[0].type') AS top_signal,\n       JSON_EXTRACT_SCALAR(payload, '$.score') AS score\nFROM acme_raw.claim_events\nWHERE event_date >= current_date - INTERVAL '7' DAY",
+            "id": "q-1010",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "customer_lifetime_value",
+            "description": "LTV with try_cast on a sometimes-dirty column.",
+            "database": "acme_curated",
+            "query": "SELECT customer_id, try_cast(ltv_raw AS DOUBLE) AS ltv\nFROM acme_raw.customer_ltv_feed\nWHERE try_cast(ltv_raw AS DOUBLE) IS NOT NULL",
+            "id": "q-1011",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "policy_count_by_state",
+            "description": "element_at on state code array.",
+            "database": "acme_curated",
+            "query": "SELECT element_at(state_codes, 1) AS primary_state, COUNT(*) AS n\nFROM acme_curated.policy_coverage\nGROUP BY 1\nORDER BY n DESC",
+            "id": "q-1012",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "claim_resolution_time",
+            "description": "Resolution time in days using date_diff.",
+            "database": "acme_curated",
+            "query": "SELECT claim_id,\n       date_diff('day', filed_at, resolved_at) AS days_to_resolve\nFROM acme_curated.claims\nWHERE resolved_at IS NOT NULL",
+            "id": "q-1013",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "high_risk_zones",
+            "description": "Zip code regex extract.",
+            "database": "acme_curated",
+            "query": "SELECT customer_id,\n       regexp_extract(address, '\\\\d{5}', 0) AS zip_code\nFROM acme_curated.customer_addresses\nWHERE risk_score > 0.8",
+            "id": "q-1014",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "agent_commission_payout",
+            "description": "zip two arrays of equal length.",
+            "database": "acme_curated",
+            "query": "SELECT agent_id, zip(deal_ids, commission_amounts) AS payouts\nFROM acme_curated.agent_commissions\nWHERE month = '2026-05'",
+            "id": "q-1015",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "customer_age_groups",
+            "description": "sequence + bin assignment.",
+            "database": "acme_curated",
+            "query": "SELECT age_bin, COUNT(customer_id) AS n\nFROM (\n  SELECT customer_id,\n         element_at(sequence(0, 100, 10), CAST(age / 10 AS INTEGER) + 1) AS age_bin\n  FROM acme_curated.customers\n) GROUP BY 1",
+            "id": "q-1016",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "monthly_payouts",
+            "description": "Sum over partition.",
+            "database": "acme_curated",
+            "query": "SELECT month,\n       SUM(payout) OVER (PARTITION BY product_line ORDER BY month) AS running_payout\nFROM acme_curated.payout_summary",
+            "id": "q-1017",
+            "workgroup": "ds_team"
+          },
+          {
+            "name": "policy_complexity_score",
+            "description": "Chained CASE WHEN.",
+            "database": "acme_curated",
+            "query": "SELECT policy_id,\n       CASE\n         WHEN num_riders > 5 AND coverage_amount > 1000000 THEN 'complex'\n         WHEN num_riders > 2 OR coverage_amount > 500000 THEN 'moderate'\n         ELSE 'simple'\n       END AS complexity\nFROM acme_curated.policies",
+            "id": "q-1018",
+            "workgroup": "analytics"
+          },
+          {
+            "name": "claim_audit_trail",
+            "description": "Ordinality on UNNEST (UNSUPPORTED in Spark; flag).",
+            "database": "acme_curated",
+            "query": "SELECT claim_id, step, idx\nFROM acme_curated.claims c\nCROSS JOIN UNNEST(c.audit_steps) WITH ORDINALITY AS t(step, idx)",
+            "id": "q-1019",
+            "workgroup": "ds_team"
+          }
+        ]
+      }
+    },
+    "emr": {
+      "summary": {
+        "cluster_count": 2,
+        "by_state": {
+          "RUNNING": 1,
+          "WAITING": 1
+        },
+        "notebook_execution_count": 4
+      },
+      "items": {
+        "clusters": [
+          {
+            "id": "j-ABC123",
+            "name": "acme-spark-prod",
+            "state": "RUNNING",
+            "release_label": "emr-6.15.0",
+            "instance_collection_type": "INSTANCE_GROUP",
+            "applications": [
+              "Spark",
+              "Hive",
+              "Hadoop",
+              "JupyterHub"
+            ],
+            "service_role": "EMR_DefaultRole",
+            "auto_terminate": false,
+            "log_uri": "s3://acme-emr-logs/"
+          },
+          {
+            "id": "j-XYZ789",
+            "name": "acme-ml-train",
+            "state": "WAITING",
+            "release_label": "emr-6.15.0",
+            "instance_collection_type": "INSTANCE_FLEET",
+            "applications": [
+              "Spark",
+              "TensorFlow",
+              "JupyterEnterpriseGateway"
+            ],
+            "service_role": "EMR_DefaultRole",
+            "auto_terminate": true,
+            "log_uri": "s3://acme-emr-logs/"
+          }
+        ],
+        "notebooks": [
+          {
+            "id": "ex-1",
+            "name": "fraud_features_train",
+            "status": "FINISHED",
+            "editor_id": "e-EDITOR1",
+            "cluster_id": "j-XYZ789"
+          },
+          {
+            "id": "ex-2",
+            "name": "policy_propensity_score",
+            "status": "FINISHED",
+            "editor_id": "e-EDITOR1",
+            "cluster_id": "j-XYZ789"
+          },
+          {
+            "id": "ex-3",
+            "name": "claim_severity_v3",
+            "status": "RUNNING",
+            "editor_id": "e-EDITOR2",
+            "cluster_id": "j-XYZ789"
+          },
+          {
+            "id": "ex-4",
+            "name": "ad_hoc_explorations",
+            "status": "FINISHED",
+            "editor_id": "e-EDITOR1",
+            "cluster_id": "j-ABC123"
+          }
+        ]
+      }
+    },
+    "sagemaker": {
+      "summary": {
+        "notebook_count": 3,
+        "training_job_count": 12,
+        "model_count": 5,
+        "pipeline_count": 2
+      },
+      "items": {
+        "notebooks": [
+          {
+            "name": "fraud-model-rd",
+            "status": "InService",
+            "instance_type": "ml.t3.medium",
+            "url": "n.sgm/fraud-model-rd"
+          },
+          {
+            "name": "claim-severity-rd",
+            "status": "InService",
+            "instance_type": "ml.t3.large",
+            "url": "n.sgm/claim-severity-rd"
+          },
+          {
+            "name": "churn-prop-rd",
+            "status": "Stopped",
+            "instance_type": "ml.t3.medium",
+            "url": "n.sgm/churn-prop-rd"
+          }
+        ],
+        "training_jobs": [
+          {
+            "name": "fraud-xgb-00",
+            "status": "Completed",
+            "created_at": "2026-05-01T10:00",
+            "ended_at": "2026-05-01T11:30"
+          },
+          {
+            "name": "fraud-xgb-01",
+            "status": "Completed",
+            "created_at": "2026-05-02T10:00",
+            "ended_at": "2026-05-02T11:30"
+          },
+          {
+            "name": "fraud-xgb-02",
+            "status": "Completed",
+            "created_at": "2026-05-03T10:00",
+            "ended_at": "2026-05-03T11:30"
+          },
+          {
+            "name": "fraud-xgb-03",
+            "status": "Completed",
+            "created_at": "2026-05-04T10:00",
+            "ended_at": "2026-05-04T11:30"
+          },
+          {
+            "name": "fraud-xgb-04",
+            "status": "Completed",
+            "created_at": "2026-05-05T10:00",
+            "ended_at": "2026-05-05T11:30"
+          },
+          {
+            "name": "fraud-xgb-05",
+            "status": "Completed",
+            "created_at": "2026-05-06T10:00",
+            "ended_at": "2026-05-06T11:30"
+          },
+          {
+            "name": "severity-lgbm-00",
+            "status": "Completed",
+            "created_at": "2026-06-01T10:00",
+            "ended_at": "2026-06-01T11:00"
+          },
+          {
+            "name": "severity-lgbm-01",
+            "status": "Completed",
+            "created_at": "2026-06-02T10:00",
+            "ended_at": "2026-06-02T11:00"
+          },
+          {
+            "name": "severity-lgbm-02",
+            "status": "Completed",
+            "created_at": "2026-06-03T10:00",
+            "ended_at": "2026-06-03T11:00"
+          },
+          {
+            "name": "severity-lgbm-03",
+            "status": "Completed",
+            "created_at": "2026-06-04T10:00",
+            "ended_at": "2026-06-04T11:00"
+          },
+          {
+            "name": "churn-xgb-failed-once",
+            "status": "Failed",
+            "created_at": "2026-06-10T10:00",
+            "ended_at": "2026-06-10T10:14"
+          },
+          {
+            "name": "churn-xgb-retrain-2",
+            "status": "Completed",
+            "created_at": "2026-06-11T10:00",
+            "ended_at": "2026-06-11T11:00"
+          }
+        ],
+        "models": [
+          {
+            "name": "acme-fraud-v3",
+            "created_at": "2026-05-21T11:30"
+          },
+          {
+            "name": "acme-severity-v2",
+            "created_at": "2026-06-04T11:00"
+          },
+          {
+            "name": "acme-churn-v1",
+            "created_at": "2026-06-11T11:00"
+          },
+          {
+            "name": "acme-fraud-v3-shadow",
+            "created_at": "2026-06-15T11:00"
+          },
+          {
+            "name": "acme-fraud-v2",
+            "created_at": "2026-03-12T11:00"
+          }
+        ],
+        "pipelines": [
+          {
+            "name": "acme-fraud-train-eval",
+            "display_name": "Fraud train+eval",
+            "status": "Succeeded",
+            "created_at": "2026-04-01"
+          },
+          {
+            "name": "acme-severity-train-eval",
+            "display_name": "Severity train+eval",
+            "status": "Succeeded",
+            "created_at": "2026-04-15"
+          }
+        ]
+      }
+    }
+  }
+}

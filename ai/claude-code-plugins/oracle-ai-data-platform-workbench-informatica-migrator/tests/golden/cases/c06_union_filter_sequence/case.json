@@ -1,0 +1,10 @@
+{
+  "export": "m_union_filter_sequence.xml",
+  "notes": [
+    "The Union is exported the way PowerCenter 10.x writes it: TYPE=\"Custom Transformation\" with TEMPLATENAME=\"Union Transformation\" (module pmuniontrans / pmunionfunc), three INPUT groups NEWGROUP/NEWGROUP1/NEWGROUP2 whose ports are suffixed 1/2/3 (ORDER_ID1, CUST_ID1, AMT1, ...), one OUTPUT group with ORDER_ID/CUST_ID/AMT, and FIELDDEPENDENCY input->output pairs.",
+    "The three sources carry their columns in different orders (WEB: ORDER_ID, CUST_ID, AMT; STORE: SALE_AMT, ORDER_ID, CUST_ID; PHONE: CUST_ID, AMT, ORDER_ID) and STORE names the amount SALE_AMT. The Union matches by the CONNECTOR into each group port, never by position or source column name.",
+    "Union is UNION ALL: order 4 / cust 12 / 25.50 arrives from both WEB and STORE and is written twice.",
+    "Filter AMT > 0 AND NOT ISNULL(CUST_ID) drops AMT = 0 (order 2), a NULL CUST_ID (order 3), a negative AMT (order 6) and a NULL AMT (order 8: NULL > 0 is NULL, the Filter treats it as FALSE).",
+    "Sequence Generator SEQ_ORDER_SK: Start Value 1000, Current Value 1000, Increment By 10. In PowerCenter the first NEXTVAL of a run is the Current Value (1000); Start Value is where Cycle restarts. The 5 surviving rows get NEXTVAL 1000, 1010, 1020, 1030, 1040 -- which row gets which depends on arrival order, so ORDER_SK is in 'ignore'. The harness cannot assert the SET of generated keys (distinct, starting at 1000, step 10); that is checked outside the harness."
+  ]
+}

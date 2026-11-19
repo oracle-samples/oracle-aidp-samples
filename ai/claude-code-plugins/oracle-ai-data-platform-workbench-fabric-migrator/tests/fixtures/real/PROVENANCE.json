@@ -1,0 +1,135 @@
+{
+ "description": "Real Microsoft Fabric items vendored verbatim as a regression corpus. The notebooks are flattened from the `<name>.Notebook/notebook-content.ipynb` layout a Fabric Git export uses; `path` records where each came from.",
+ "count": 16,
+ "files": [
+  {
+   "file": "01_Load_FCAVersion.ipynb",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/01_Load_FCAVersion.Notebook/notebook-content.ipynb",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/01_Load_FCAVersion.Notebook/notebook-content.ipynb",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "01_Load_Meters.ipynb",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/01_Load_Meters.Notebook/notebook-content.ipynb",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/01_Load_Meters.Notebook/notebook-content.ipynb",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "02_Load_Quota_Fabric.ipynb",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/02_Load_Quota_Fabric.Notebook/notebook-content.ipynb",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/02_Load_Quota_Fabric.Notebook/notebook-content.ipynb",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "03_Optimization.ipynb",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/03_Optimization.Notebook/notebook-content.ipynb",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/03_Optimization.Notebook/notebook-content.ipynb",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "Check_FUAM_Version.ipynb",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-unified-admin-monitoring/src/Check_FUAM_Version.Notebook/notebook-content.ipynb",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-unified-admin-monitoring/src/Check_FUAM_Version.Notebook/notebook-content.ipynb",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "Update_FCA_delivery.ipynb",
+   "repo": "microsoft/fabric-toolbox",
+   "path": "monitoring/fabric-cost-analysis/src/Update_FCA_delivery.Notebook/notebook-content.ipynb",
+   "url": "https://github.com/microsoft/fabric-toolbox/blob/c38ea357b804b335d1ed3b558dda38cda778cf70/monitoring/fabric-cost-analysis/src/Update_FCA_delivery.Notebook/notebook-content.ipynb",
+   "licence": "MIT",
+   "sha": "c38ea357b804b335d1ed3b558dda38cda778cf70"
+  },
+  {
+   "file": "lakehouse/Diabetes_LH.Lakehouse/.platform",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/Diabetes_LH.Lakehouse/.platform",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/Diabetes_LH.Lakehouse/.platform",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/Diabetes_LH.Lakehouse/alm.settings.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/Diabetes_LH.Lakehouse/alm.settings.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/Diabetes_LH.Lakehouse/alm.settings.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/Diabetes_LH.Lakehouse/lakehouse.metadata.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/Diabetes_LH.Lakehouse/lakehouse.metadata.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/Diabetes_LH.Lakehouse/lakehouse.metadata.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/Diabetes_LH.Lakehouse/shortcuts.metadata.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/Diabetes_LH.Lakehouse/shortcuts.metadata.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/Diabetes_LH.Lakehouse/shortcuts.metadata.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/TargetForShortcutLH.Lakehouse/.platform",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/TargetForShortcutLH.Lakehouse/.platform",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/TargetForShortcutLH.Lakehouse/.platform",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/TargetForShortcutLH.Lakehouse/lakehouse.metadata.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/TargetForShortcutLH.Lakehouse/lakehouse.metadata.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/TargetForShortcutLH.Lakehouse/lakehouse.metadata.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/TargetForShortcutLH.Lakehouse/shortcuts.metadata.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/TargetForShortcutLH.Lakehouse/shortcuts.metadata.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/TargetForShortcutLH.Lakehouse/shortcuts.metadata.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/WithSchema.Lakehouse/.platform",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/WithSchema.Lakehouse/.platform",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/WithSchema.Lakehouse/.platform",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/WithSchema.Lakehouse/lakehouse.metadata.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/WithSchema.Lakehouse/lakehouse.metadata.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/WithSchema.Lakehouse/lakehouse.metadata.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  },
+  {
+   "file": "lakehouse/WithSchema.Lakehouse/shortcuts.metadata.json",
+   "repo": "microsoft/fabric-cicd",
+   "path": "sample/workspace/WithSchema.Lakehouse/shortcuts.metadata.json",
+   "url": "https://github.com/microsoft/fabric-cicd/blob/cc59a5fe17d6452bcce572b51891c940b56740dc/sample/workspace/WithSchema.Lakehouse/shortcuts.metadata.json",
+   "licence": "MIT",
+   "sha": "cc59a5fe17d6452bcce572b51891c940b56740dc"
+  }
+ ],
+ "verified_against": "each repository's HEAD at the time of the run"
+}
