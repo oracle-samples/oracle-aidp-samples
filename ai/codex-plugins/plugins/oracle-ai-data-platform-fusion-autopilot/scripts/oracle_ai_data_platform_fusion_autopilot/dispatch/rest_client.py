@@ -55,6 +55,34 @@ class AidpRestError(RuntimeError):
     """REST call returned a non-success status or unexpected shape."""
 
 
+class AmbiguousCredentialError(AidpRestError):
+    """More than one credential carries the requested display name.
+
+    AIDP does not require credential display names to be unique, and which
+    entry ``aidputils.secrets.get(name=...)`` resolves to is not documented,
+    so no single entry's key names can stand in for that name.
+    """
+
+
+# ``GET /catalogs/<name>`` answers ``404 NotAuthorizedOrNotFound`` for a
+# catalog that does not exist and, by OCI convention, can answer the same for
+# one the caller is not allowed to see. The body for a catalog that does not
+# exist says ``Unknown resource: <name>`` (observed on API 20260430); only
+# that body is read as "missing", any other 404 as "cannot tell".
+_UNKNOWN_RESOURCE_MESSAGE_PREFIX = "Unknown resource"
+
+
+def _is_unknown_resource_404(response: requests.Response) -> bool:
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    message = body.get("message") if isinstance(body, dict) else None
+    return isinstance(message, str) and message.startswith(
+        _UNKNOWN_RESOURCE_MESSAGE_PREFIX
+    )
+
+
 # ---------------------------------------------------------------------------
 # Signer factory
 # ---------------------------------------------------------------------------
@@ -220,6 +248,36 @@ class AidpRestClient:
 
     # ---- Credential store -----------------------------------------------
 
+    def _list_credentials_named(
+        self,
+        display_name: str,
+        *,
+        timeout: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return every credential summary whose ``displayName`` is exactly
+        ``display_name``.
+
+        Uses the list route's exact ``displayName`` filter, so the answer
+        does not depend on paging: an unfiltered list returns a single page
+        (100 entries by default). Names are compared again client-side in
+        case a server ignores the filter. Summaries carry no secret values.
+        """
+        # quote (spaces as %20), not urlencode's default quote_plus: "+" for a
+        # space is a form-encoding convention a server need not apply here.
+        query = urllib.parse.urlencode(
+            {"displayName": display_name}, quote_via=urllib.parse.quote
+        )
+        r = self._request(
+            "GET", f"{self.datalake_base}/credentials?{query}", timeout=timeout
+        )
+        body = self._ok(r, context="list_credentials")
+        items = body.get("items", []) if isinstance(body, dict) else []
+        return [
+            it
+            for it in items
+            if isinstance(it, dict) and it.get("displayName") == display_name
+        ]
+
     def check_credential_exists(
         self,
         display_name: str,
@@ -232,25 +290,15 @@ class AidpRestClient:
         **Per-AIDP scope, NOT per-workspace**. All workspaces under the
         same ``aiDataPlatformId`` share one credential store.
 
-        Implementation note: the per-resource ``GET /credentials/<key>``
-        endpoint expects a UUID, not a display name (it 400s with
-        ``Invalid credentialV2Key`` on names). So this primitive LISTs
-        and walks ``items[]``. Today's tenant has ~2 entries — LIST cost
-        is dominated by network RTT, not body size.
+        The per-resource ``GET /credentials/<key>`` route takes the
+        credential's UUID, not its name (it 400s with
+        ``Invalid credentialV2Key`` on names), so this lists by name instead.
 
-        Future pagination: if AIDP downstream adds a ``nextPage`` token,
-        follow it transparently. No paginated response observed today.
-
-        Raises :class:`AidpRestError` on any non-2xx (transport / IAM /
-        endpoint-shape regression). Distinct from "credential not found"
-        which returns ``False`` cleanly.
+        Raises :class:`AidpRestError` on any non-2xx (IAM / endpoint-shape
+        regression). Distinct from "credential not found", which returns
+        ``False`` cleanly.
         """
-        r = self._request(
-            "GET", f"{self.datalake_base}/credentials", timeout=timeout
-        )
-        body = self._ok(r, context="list_credentials")
-        items = body.get("items", []) if isinstance(body, dict) else []
-        return any(it.get("displayName") == display_name for it in items)
+        return bool(self._list_credentials_named(display_name, timeout=timeout))
 
     def get_credential_key_names(
         self,
@@ -266,25 +314,19 @@ class AidpRestClient:
 
         Returns ``()`` when no credential has that display name, or when it
         holds no key/value pairs (a vault-reference credential, for example).
-        The per-resource ``GET /credentials/<uuid>`` route takes the UUID, so
-        this LISTs first to resolve it.
 
-        Raises :class:`AidpRestError` on any non-2xx.
+        Raises :class:`AmbiguousCredentialError` when several credentials
+        share the name, and :class:`AidpRestError` on any non-2xx.
         """
-        r = self._request(
-            "GET", f"{self.datalake_base}/credentials", timeout=timeout
-        )
-        body = self._ok(r, context="list_credentials")
-        items = body.get("items", []) if isinstance(body, dict) else []
-        match = next(
-            (
-                it
-                for it in items
-                if isinstance(it, dict) and it.get("displayName") == display_name
-            ),
-            None,
-        )
-        uuid_key = match.get("key") if match is not None else None
+        matches = self._list_credentials_named(display_name, timeout=timeout)
+        if not matches:
+            return ()
+        if len(matches) > 1:
+            raise AmbiguousCredentialError(
+                f"{len(matches)} credentials are named {display_name!r}; "
+                "cannot tell which one the cluster reads"
+            )
+        uuid_key = matches[0].get("key")
         if not isinstance(uuid_key, str) or not uuid_key:
             return ()
         r = self._request(
@@ -318,13 +360,13 @@ class AidpRestClient:
         *,
         timeout: int | None = None,
     ) -> bool:
-        """Return True iff catalog ``catalog`` exists in this AI Data Platform.
+        """Return whether catalog ``catalog`` exists in this AI Data Platform.
 
-        ``GET /catalogs/<name>`` answers 404 for a catalog that does not
-        exist and also for one this OCI profile cannot see, so ``False``
-        covers both. An empty name is ``False`` without a request (``GET
-        /catalogs/`` is the list route). Raises :class:`AidpRestError` on any
-        other non-2xx.
+        ``False`` only when AIDP says the catalog is unknown (see
+        ``_UNKNOWN_RESOURCE_MESSAGE_PREFIX``). Any other 404 may be a catalog
+        this profile cannot see, so it raises :class:`AidpRestError` like
+        every other non-2xx: the caller cannot tell either way. An empty name
+        is ``False`` without a request (``GET /catalogs/`` is the list route).
         """
         if not catalog:
             return False
@@ -334,7 +376,12 @@ class AidpRestClient:
             timeout=timeout,
         )
         if r.status_code == 404:
-            return False
+            if _is_unknown_resource_404(r):
+                return False
+            raise AidpRestError(
+                "get_catalog: HTTP 404 without 'Unknown resource' (the catalog "
+                "may exist but not be visible to this profile)"
+            )
         self._ok(r, context="get_catalog")
         return True
 

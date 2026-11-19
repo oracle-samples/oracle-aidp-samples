@@ -20,6 +20,13 @@ All notable changes to this project are documented here.
   and the `biccSecretKey` to change. The cluster notebook also checks for a
   missing secret itself and raises a readable error naming the credential,
   the key and `biccSecretKey`.
+- **Neither new lookup can fail a run that would succeed.** A catalog fails
+  only when AIDP reports it unknown; a 404 that may just mean "not visible to
+  this profile", a timeout or any other error reports `not verified`. The key
+  check reports `not verified` when several credentials share the display
+  name (names need not be unique) or when its lookup times out or errors.
+  Credentials are now looked up with the API's exact `displayName` filter,
+  so the existence check no longer depends on the first page of the list.
 - **Bootstrap reports preflight failures instead of crashing.** The
   `AIDPF-2048` diagnostic rejected the existing `credential_preflight` step,
   so a missing credential during bootstrap ended in a pydantic

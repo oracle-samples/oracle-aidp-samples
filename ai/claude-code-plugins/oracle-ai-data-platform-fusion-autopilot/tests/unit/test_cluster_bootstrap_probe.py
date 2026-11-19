@@ -296,6 +296,21 @@ class TestBootstrapPreDispatchPreflight:
         assert "'password'" in ctx.cause_message
         helper.assert_not_called()
 
+    def test_lookup_timeouts_do_not_stop_dispatch(self, monkeypatch, tmp_path) -> None:
+        """Both optional lookups time out (without a message, as requests
+        sometimes raises them); bootstrap still dispatches."""
+        import requests
+
+        helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
+        client = _fake_client()
+        client.check_catalog_exists.side_effect = requests.exceptions.ReadTimeout()
+        client.get_credential_key_names.side_effect = requests.exceptions.ConnectionError()
+        _call(
+            monkeypatch, tmp_path,
+            bundle=self._bundle(), env=self._env(), client_factory=lambda: client,
+        )
+        helper.assert_called_once()
+
     def test_passing_checks_reach_dispatch(self, monkeypatch, tmp_path) -> None:
         helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
         client = _fake_client(credential_keys=("password",))

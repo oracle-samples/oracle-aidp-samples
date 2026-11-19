@@ -22,12 +22,30 @@ from pathlib import Path
 from typing import Literal
 
 import oci
+import requests
 
 from ..schema.bundle import AidpConfig, EnvSpec, load_bundle
 from ..schema.errors import BundleLoadError
 from .rest_client import AidpRestClient, AidpRestError
 
 logger = logging.getLogger(__name__)
+
+# Failures of a lookup that only refines a preflight message: an HTTP error
+# or unexpected shape (``AidpRestError``, including an ambiguous credential
+# name) or a transport error the HTTP client passes through unchanged
+# (timeout, connection reset). These lookups report "not verified" on any
+# of them and never fail a run that would otherwise succeed.
+_UNVERIFIABLE_LOOKUP_ERRORS = (AidpRestError, requests.RequestException)
+
+
+def _first_line(exc: BaseException, limit: int = 200) -> str:
+    """First line of ``exc``'s message for a one-line preflight detail.
+
+    Falls back to the exception's type name: ``requests`` raises some
+    transport errors without a message, and ``str()`` of those is empty.
+    """
+    lines = str(exc).splitlines()
+    return (lines[0] if lines else type(exc).__name__)[:limit]
 
 
 PreflightStatus = Literal["PASS", "FAIL", "SKIP"]
@@ -265,7 +283,7 @@ def _check_aidp_control_plane(
     except AidpRestError as e:
         # First 200 chars of the underlying HTTP excerpt — enough to
         # diagnose region/IAM/wrong-workspace without flooding the terminal.
-        detail = str(e).splitlines()[0][:200]
+        detail = _first_line(e)
         return (
             PreflightResult(
                 name="AIDP control plane",
@@ -337,7 +355,7 @@ def _check_cluster_state(
             return PreflightResult(
                 name="cluster state",
                 status="FAIL",
-                detail=f"cluster {cluster_key!r} auto-start failed: {str(e).splitlines()[0][:200]}",
+                detail=f"cluster {cluster_key!r} auto-start failed: {_first_line(e)}",
                 remediation="check the AIDP console for the failure reason",
             )
         return PreflightResult(
@@ -377,14 +395,17 @@ def _check_bicc_credential(
     name, and ``aidputils.secrets.get`` returns ``None`` for a key the
     entry does not hold. So once the entry is found, its key NAMES (never
     values) are compared with ``secret_key``, and a mismatch fails here
-    instead of mid-notebook. The key lookup is best-effort: if it errors,
-    or the entry lists no keys (a vault reference, for example), the
-    existence check decides.
+    instead of mid-notebook.
+
+    The key lookup is best-effort. When it cannot give a definite answer
+    (several entries share the name, the request times out or errors) or
+    the entry lists no keys (a vault reference, for example), the existence
+    check decides. The existence check itself keeps failing closed.
     """
     try:
         exists = client.check_credential_exists(secret_name)
     except AidpRestError as exc:
-        detail = str(exc).splitlines()[0][:200]
+        detail = _first_line(exc)
         return PreflightResult(
             name="BICC credential",
             status="FAIL",
@@ -413,8 +434,8 @@ def _check_bicc_credential(
         )
     try:
         key_names = tuple(client.get_credential_key_names(secret_name))
-    except AidpRestError as exc:
-        detail = str(exc).splitlines()[0][:200]
+    except _UNVERIFIABLE_LOOKUP_ERRORS as exc:
+        detail = _first_line(exc)
         return PreflightResult(
             name="BICC credential",
             status="PASS",
@@ -453,14 +474,16 @@ def _check_aidp_catalog(client: AidpRestClient, catalog: str) -> PreflightResult
     one-time admin step. Without this check a missing catalog surfaces only
     on the cluster, as a ``SCHEMA_NOT_FOUND`` stack trace.
 
-    Only a definite "not found" fails. A lookup that errors otherwise passes
-    with a note: the check improves the error for a missing catalog, and
-    must not add a new way for a run that would succeed to fail.
+    Only AIDP's definite "unknown catalog" answer fails. Anything else that
+    stops the lookup (a 404 that may mean "not visible to this profile", a
+    timeout, any other error) passes as "not verified": the check improves
+    the error for a missing catalog and must not add a new way for a run
+    that would succeed to fail.
     """
     try:
         exists = client.check_catalog_exists(catalog)
-    except AidpRestError as exc:
-        detail = str(exc).splitlines()[0][:200]
+    except _UNVERIFIABLE_LOOKUP_ERRORS as exc:
+        detail = _first_line(exc)
         return PreflightResult(
             name="AIDP catalog",
             status="PASS",
@@ -470,10 +493,7 @@ def _check_aidp_catalog(client: AidpRestClient, catalog: str) -> PreflightResult
         return PreflightResult(
             name="AIDP catalog",
             status="FAIL",
-            detail=(
-                f"catalog {catalog!r} not found in this AI Data Platform "
-                "(or not visible to the current OCI profile)"
-            ),
+            detail=f"catalog {catalog!r} does not exist in this AI Data Platform",
             remediation=(
                 f"create the catalog {catalog!r} in AIDP before running "
                 "(runs create the bronze/silver/gold schemas, not the "

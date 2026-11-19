@@ -115,11 +115,11 @@ The notebook's creds-cell calls `aidputils.secrets.get(name=<biccSecretName>, ke
 >
 > The credential store is **per-AIDP / per-data-lake**, NOT per-workspace — all workspaces under the same `aiDataPlatformId` share one store. Operators with multiple workspaces against the same AIDP only need to register the entry once.
 
-The **key** is the name you give the secret value inside the entry. It is separate from the entry's name: an entry named `fusion_bicc_password` can store the password under the key `fusion_bicc_password`, `password`, or anything else, and only the configured `biccSecretKey` is read. The preflight reads the entry's key names (never the values) and fails before dispatch when `biccSecretKey` is not one of them, naming the keys it found. Fix it by setting `biccSecretKey` to the key that holds the password, or by adding a key with that name to the entry.
+The **key** is the name you give the secret value inside the entry. It is separate from the entry's name: an entry named `fusion_bicc_password` can store the password under the key `fusion_bicc_password`, `password`, or anything else, and only the configured `biccSecretKey` is read. The preflight reads the entry's key names (never the values) and fails before dispatch when `biccSecretKey` is not one of them, naming the keys it found. Display names do not have to be unique: if several entries share the name, or the key lookup times out or errors, the key is reported as `not verified` and the run continues. Fix it by setting `biccSecretKey` to the key that holds the password, or by adding a key with that name to the entry.
 
 ### 5. AIDP catalog
 
-The catalog named in `bundle.yaml` → `aidp.catalog` (default `fusion_catalog`) must exist before the first `bootstrap` or `run`. Runs create the `bronze` / `silver` / `gold` schemas inside it, but not the catalog itself. Both `bootstrap` and `run` check the catalog exists before anything is dispatched, and stop with `AIDP catalog: catalog '<name>' not found` when it does not.
+The catalog named in `bundle.yaml` → `aidp.catalog` (default `fusion_catalog`) must exist before the first `bootstrap` or `run`. Runs create the `bronze` / `silver` / `gold` schemas inside it, but not the catalog itself. Both `bootstrap` and `run` check the catalog exists before anything is dispatched, and stop with `AIDP catalog: catalog '<name>' does not exist` when AIDP reports it unknown. If the lookup cannot give a definite answer (a 404 that may only mean the catalog is not visible to your OCI profile, a timeout, any other error), the check reports `not verified` and the run continues.
 
 ## First run
 
