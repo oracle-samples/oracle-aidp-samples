@@ -33,6 +33,12 @@ from .config import METRIC_AGGREGATIONS, METRIC_INTERVALS, METRIC_NAMES, Env
 logger = logging.getLogger(__name__)
 
 _FAILED_STATES = {"FAILED", "ERROR", "TIMED_OUT", "TIMEOUT", "CANCELED", "CANCELLED", "INTERNAL_ERROR"}
+# A run is finished only in a state known to be terminal; everything else counts as active.
+DONE_STATES = _FAILED_STATES | {"SUCCEEDED", "SUCCESS", "SUCCESSFUL", "COMPLETED", "DONE", "FINISHED", "SKIPPED", "TERMINATED",
+                                "UPSTREAM_FAILED", "UPSTREAM_CANCELED", "KILLED", "ABORTED", "STOPPED"}
+# The active values the job-runs list accepts as its ``status`` filter, and the largest page it returns.
+ACTIVE_RUN_STATUSES = ("RUNNING", "PENDING", "QUEUED", "BLOCKED")
+RUN_PAGE = 100
 _SQL_MARK = "__NS_ROWS__"
 
 
@@ -95,24 +101,49 @@ class AidpIO:
             return self._dry("update_job", key=key, body=body)
         return self.client.update_job(key, **body)
 
-    def list_recent_runs(self, hours: int = 24) -> list[dict]:
-        """Recent job runs, client-side filtered to the window.
+    @staticmethod
+    def _run_items(payload: Any) -> list:
+        """The run rows of a job-runs response, or an error. Unlike ``_items`` this never turns a payload it does not
+        recognise (an error body, ``None``, a list under an unknown key) into "no runs": the callers decide from this
+        whether a cluster is busy."""
+        if isinstance(payload, list):
+            return payload
+        if isinstance(payload, dict):
+            for key in ("items", "data"):
+                if isinstance(payload.get(key), list):
+                    return payload[key]
+        shape = sorted(payload) if isinstance(payload, dict) else type(payload).__name__
+        raise RuntimeError(f"job runs response not recognised ({shape}); runs unknown")
 
-        ``list_job_runs`` is the primary source; ``list_recent_job_runs`` is only tried as a fallback. Run rows carry ``startTime``
-        as epoch milliseconds and ``state.status`` / ``state.stateMessage``."""
+    def list_recent_runs(self, hours: int = 24) -> list[dict]:
+        """Job runs from the newest page of the run history (``RUN_PAGE`` rows), filtered to the window; a run that
+        is not in a finished state is kept whatever its start time, so a long run never ages out of the list.
+
+        ``list_job_runs`` is the primary source; ``list_recent_job_runs`` is only tried as a fallback. Run rows carry
+        ``startTime`` as epoch milliseconds and ``state.status`` / ``state.stateMessage``. One page does not reach back
+        a fixed time on a busy workspace; ``list_active_runs`` is what answers "is anything running"."""
         from datetime import datetime, timedelta, timezone
 
         try:
-            runs = self._items(self.client.list_job_runs())
+            runs = self._run_items(self.client.list_job_runs(limit=RUN_PAGE))
         except Exception:  # noqa: BLE001
-            runs = self._items(self.client.list_recent_job_runs())
+            runs = self._run_items(self.client.list_recent_job_runs())
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
         kept: list[dict] = []
         for r in runs:
             ts = _parse_ts(r.get("startTime") or r.get("timeStarted") or r.get("timeCreated") or r.get("endTime"))
-            if ts is None or ts >= cutoff:
+            if ts is None or ts >= cutoff or self.run_status(r) not in DONE_STATES:
                 kept.append(r)
         return kept
+
+    def list_active_runs(self) -> list[dict]:
+        """Every job run in an active state, asked for by status so the answer does not depend on how far back one
+        page of the run history reaches. Raises when a query fails or a response is not a run list; the tick reads that
+        as unknown, never as idle."""
+        out: list[dict] = []
+        for status in ACTIVE_RUN_STATUSES:
+            out.extend(self._run_items(self.client.list_job_runs(status=status, limit=RUN_PAGE)))
+        return out
 
     @staticmethod
     def run_status(r: dict) -> str:
@@ -257,18 +288,21 @@ def parse_sql_result(result: dict, mark: str = _SQL_MARK) -> list[tuple]:
     """Extract the marked JSON rows from an ``nb_execute_code`` result; raise on kernel error.
 
     The kernel streams stdout in chunks that may repeat earlier text, so every MARK...MARK pair is
-    inspected and the last one that parses wins. An empty or unparsable payload is an error with
-    the raw text attached, never a silent [] (the same no-silent-zero rule as the budget read)."""
+    inspected and the last one that parses wins. The cell prints the marker for every statement, a
+    write included (an empty JSON list), so a result without the marker means the statement did not
+    run to its end: that is an error whatever the reported status, as is an empty or unparsable
+    payload (the same no-silent-zero rule as the budget read). The gate's decision row is written
+    through this path, and an unconfirmed write must never pass for a recorded decision."""
     if result.get("error"):
         err = result["error"]
-        raise RuntimeError(f"kernel error: {err.get('ename', '')}: {err.get('evalue', '')}")
+        detail = f"{err.get('ename', '')}: {err.get('evalue', '')}" if isinstance(err, dict) else str(err)[:300]
+        raise RuntimeError(f"kernel error: {detail}")
     text = "".join(
         str(o.get("text", "")) for o in result.get("outputs", []) if o.get("output_type") == "stream"
     )
     if mark not in text:
-        if result.get("status", "ok") != "ok":
-            raise RuntimeError(f"kernel status {result.get('status')}; no rows marker in output")
-        return []
+        raise RuntimeError(f"kernel status {result.get('status', 'unknown')}; no rows marker in output, "
+                           f"the statement is not confirmed to have completed; raw tail: {text[-200:]!r}")
     parts = text.split(mark)
     last_err: Exception | None = None
     for payload in reversed(parts[1:-1] if len(parts) > 2 else parts[1:]):

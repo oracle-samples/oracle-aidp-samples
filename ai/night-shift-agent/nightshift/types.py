@@ -10,7 +10,7 @@ from typing import Any, Literal
 Tier = Literal["high", "normal", "low_compute", "critical", "paused"]
 DecisionKind = Literal["allow", "deny", "quarantine"]
 ActionKind = Literal[
-    "cluster_stop", "cluster_update", "job_update_schedule", "job_disable", "job_run", "job_repair",
+    "cluster_stop", "cluster_update", "job_update_schedule", "job_disable",
     "statement_repair",   # a drafted replacement for a watched production statement; applied as a runbook, never to code
     "notify", "noop",
 ]

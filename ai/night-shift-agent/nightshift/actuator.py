@@ -1,11 +1,14 @@
 """The actuator tick: context -> tier -> drain approvals -> plan -> gate -> act -> persist.
 
 Approval loop: a quarantined action sits in ``{ops}.approvals`` as ``pending``; a human
-approves it (scripts/approve.py); the next tick expires stale rows, re-evaluates each approved action
-through the same PolicyEngine (deny rules still deny; the quarantine effect is lifted and recorded as an
-``allow`` decision with reason ``APPROVED_BY:<name>``), executes it through ``_act`` (dry-run aware),
-inserts the action row and marks the approval ``executed`` / ``failed`` (or leaves it ``approved`` with a
-note when denied or still planned-only). Planning skips signatures that were executed this tick or that
+approves it (scripts/approve.py); the next tick expires stale rows, checks each approved row before the gate
+(``drain.approval_problem``: the kind must be one a quarantine rule holds, the row must be the one the gate
+opened for a quarantine of that exact action, the approver must be a person, and a control-plane kind needs the
+``NS_APPROVERS`` allowlist), re-evaluates the action through the same PolicyEngine (deny rules still deny; the
+quarantine effect is lifted and recorded as an ``allow`` decision with reason ``APPROVED_BY:<name>``), claims
+the row (``approved`` -> ``executing``), executes it through ``_act`` (dry-run aware), inserts the action row
+and marks the approval ``executed`` / ``failed`` (or returns it to ``approved`` with a note when denied or
+still planned-only). A dry-run tick reports what it would execute and leaves a control-plane approval untouched. Planning skips signatures that were executed this tick or that
 already have an open (pending / approved) row, so the same action is never quarantined twice.
 
 Runs OUTSIDE the cluster. ``io`` is an ``AidpIO`` (or a fake); ``store`` is anything with
@@ -41,6 +44,10 @@ TICK_WINDOW_MINUTES = 30
 PIPELINE_CLASSES = ("bronze", "silver", "gold", "optimize")
 _FAILED_STATES = {"FAILED", "ERROR", "TIMED_OUT", "TIMEOUT", "CANCELED", "CANCELLED", "INTERNAL_ERROR"}
 _RUNNING_STATES = {"RUNNING", "ACTIVE", "IN_PROGRESS", "PENDING", "QUEUED", "STARTING"}
+# A run counts as finished only in a state known to be terminal. Anything else (a running state, an empty state, a
+# value this list has not seen) counts as active, so a cluster is never read as idle on a state nobody recognised.
+_DONE_STATES = _FAILED_STATES | {"SUCCEEDED", "SUCCESS", "SUCCESSFUL", "COMPLETED", "DONE", "FINISHED", "SKIPPED", "TERMINATED",
+                                 "UPSTREAM_FAILED", "UPSTREAM_CANCELED", "KILLED", "ABORTED", "STOPPED"}
 
 # Monthly envelopes (cost units of budget_ledger.est_cost / llm_ledger.est_cost). Overridable per
 # workspace through kv['monthly_compute_budget'] / kv['monthly_llm_budget'] or the NS_* env vars.
@@ -198,13 +205,22 @@ def action_from_json(action_json: Any) -> Action:
                   previous_value=body.get("previous_value"), reversible=bool(body.get("reversible", True)))
 
 
+def run_status(run: dict) -> str:
+    """The run's state, upper-cased. Job runs carry ``state`` as an object (``{"status": "RUNNING", ...}``) on the
+    Workbench REST API and as a plain string in older or scripted rows; both are read (same rule as AidpIO.run_status)."""
+    st = run.get("state")
+    if isinstance(st, dict):
+        return str(st.get("status") or st.get("lifecycleState") or "").upper()
+    return str(st or run.get("lifecycleState") or run.get("status") or "").upper()
+
+
 def _run_cluster_key(run: dict) -> str | None:
     for k in ("clusterKey", "clusterId", "cluster_id", "cluster_key"):
         if run.get(k):
             return str(run[k])
     cl = run.get("cluster")
-    if isinstance(cl, dict):
-        return cl.get("key") or cl.get("id")
+    if isinstance(cl, dict) and (cl.get("key") or cl.get("id")):
+        return str(cl.get("key") or cl.get("id"))
     return None
 
 
@@ -257,19 +273,40 @@ def build_context(io: Any, store: Any, now: datetime, kv: dict | None = None, no
             cluster_states[key] = "UNKNOWN"
             notes.append(f"cluster {key}: get_cluster failed ({type(e).__name__})")
 
+    # active runs per managed cluster. A cluster has an entry only when the run list was read: the planner and the
+    # gate (safety.active_runs) both treat a missing entry as unknown, and unknown is never idle.
     failures: list[dict] = []
-    active_runs: dict[str, int] = {k: 0 for k in managed}
+    active_runs: dict[str, int] = {}
     try:
-        for r in io.list_recent_runs(hours=24):
-            state = str(r.get("state") or r.get("lifecycleState") or r.get("status") or "").upper()
+        runs = list(io.list_recent_runs(hours=24))
+        # the recent list is one page of history; active runs are also asked for by status, so a run that started
+        # before that page still counts (an io without the status query, such as a test fake, has only the page)
+        ask_active = getattr(io, "list_active_runs", None)
+        still_active = list(ask_active()) if callable(ask_active) else []
+        counts = {k: 0 for k in managed}
+        unrecognised: set[str] = set()
+        seen: set[str] = set()
+        for r in [*still_active, *runs]:
+            state = run_status(r)
             if state in _FAILED_STATES:
                 failures.append(r)
-            elif state in _RUNNING_STATES:
+            elif state not in _DONE_STATES:
+                rk = str(r.get("key") or r.get("id") or id(r))
+                if rk in seen:
+                    continue   # the same run from both lists
+                seen.add(rk)
+                if state not in _RUNNING_STATES:
+                    unrecognised.add(state or "(empty)")
                 ck = _run_cluster_key(r)
                 for k in ([ck] if ck else managed):  # unknown cluster -> count against every managed one
-                    active_runs[k] = active_runs.get(k, 0) + 1
+                    counts[k] = counts.get(k, 0) + 1
+        if unrecognised:
+            notes.append(f"runs: state(s) {sorted(unrecognised)} not recognised; counted as active")
+        active_runs = counts
     except Exception as e:  # noqa: BLE001
-        notes.append(f"runs: list_recent_runs failed ({type(e).__name__})")
+        active_runs = {}
+        notes.append(f"runs: run list read failed ({type(e).__name__}); active runs unknown, "
+                     "no cluster is treated as idle this tick")
     kv["active_runs"] = active_runs
 
     wake: list[dict] = []
@@ -322,7 +359,7 @@ def plan_actions(ctx: TickContext, tier: str, policy_rows: list[dict], io: Any) 
                                   previous_value={k: actual.get(k) for k in ("min_workers", "max_workers", "auto_terminate_min")},
                                   reversible=True))
         stop_idle = cluster_policy.get("stop_idle", cluster_policy.get("max_workers", 99) <= 1)
-        idle = (ctx.kv.get("active_runs") or {}).get(key, 0) == 0
+        idle = (ctx.kv.get("active_runs") or {}).get(key) == 0   # no entry = unknown, which is not idle
         if stop_idle and str(state).upper() == "ACTIVE" and idle:
             actions.append(Action("cluster_stop", key, {"reason": f"idle at tier {tier}"},
                                   previous_value={"state": state}, reversible=True))
@@ -585,10 +622,13 @@ def tick(io: Any, store: Any, now: datetime | None = None, dry_run: bool = True,
         return did
 
     def audit_sink(decision: Decision, action: Action) -> None:
-        write_decision(decision, action)
+        # a decision written while re-checking a row a person approved is marked as such: only a decision from the
+        # planning path can stand behind an approval (ledger.quarantine_trace_sql)
+        rechecking = decision.action_signature in (ctx.kv.get("approved_signatures") or {})
+        write_decision(decision, action, provenance=ledger.DRAIN_PROVENANCE if rechecking else "actuator")
 
     def decision_counter(rule_id: str, target: str, window_hours: int = 24) -> int:
-        rows = store.run_sql(ledger.rate_count_sql(ops, rule_id, target, window_hours))
+        rows = store.run_sql(ledger.rate_count_sql(ops, rule_id, target, window_hours, now=now))
         return int(_row_get(rows[0], 0, "n", 0) or 0) if rows else 0
 
     engine = gate.PolicyEngine(rules if rules is not None else gate.default_rules(), audit_sink,
@@ -655,7 +695,6 @@ def tick(io: Any, store: Any, now: datetime | None = None, dry_run: bool = True,
         aid = str(_row_get(r, 0, "approval_id"))
         sig = str(_row_get(r, 1, "action_signature"))
         by = str(_row_get(r, 3, "approved_by") or "unknown")
-        open_sigs.add(sig)
         try:
             a = action_from_json(_row_get(r, 2, "action_json"))
         except Exception as e:  # noqa: BLE001
@@ -666,18 +705,38 @@ def tick(io: Any, store: Any, now: datetime | None = None, dry_run: bool = True,
             notes.append(f"approval {aid}: action_json does not match action_signature; marked failed")
             store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note="SIGNATURE_MISMATCH", now=now))
             continue
-        # the same identity check the in-cluster drain applies: no empty or service identity, and only names on the
-        # NS_APPROVERS list when the actuator carries one (the row stays approved, nothing is executed)
-        from .drain import approver_problem  # local import: drain imports this module
+        # the same checks the in-cluster drain applies before the gate: an approvable kind, a quarantine this gate
+        # recorded for this exact action, a person as approver, and the NS_APPROVERS allowlist for control-plane kinds
+        from .drain import approval_problem, claim_approval, new_claim  # local import: drain imports this module
         _allow = [x for x in os.environ.get("NS_APPROVERS", "").split(",") if x.strip()]
-        problem = approver_problem(by, _allow or None)
-        if problem:
-            notes.append(f"approval {aid}: {problem}; left approved, not executed")
-            store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE approver.identity: {problem}", now=now))
+        blocked = approval_problem(store, ops, engine, a, aid, by, _allow or None, now=now)
+        if blocked:
+            rule, problem, terminal = blocked
+            if terminal:
+                # not the gate's own row: it never counts as an open approval, so it cannot hold up planning
+                notes.append(f"approval {aid}: {rule}: {problem}; marked failed")
+                store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=f"{rule}: {problem}", now=now))
+            else:
+                open_sigs.add(sig)
+                notes.append(f"approval {aid}: {rule}: {problem}; left approved, not executed")
+                store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {rule}: {problem}", now=now))
             continue
+        open_sigs.add(sig)
         approved_sigs[sig] = by
         ctx.kv["approved_signatures"] = dict(approved_sigs)
         d = engine.evaluate(a, ctx)
+        if dry_run and a.kind != "statement_repair" and d.decision in ("quarantine", "allow"):
+            # a dry-run tick shows what it would do and leaves the approval for a tick that applies: it writes no
+            # allow-by-approval decision, takes no claim and does not mark the row (a repair is a ledger write and
+            # is real in either mode)
+            actions.append(a)
+            decisions.append(d)
+            notes.append(f"approval {aid}: dry run; {a.kind} on {a.target} would be executed (approved by {by}); left approved")
+            continue
+        if d.decision == "allow":
+            # the gate no longer quarantines this action (the state it was held for has changed); the approval is
+            # still what authorises it, so the decision row says so
+            notes.append(f"approval {aid}: the gate allows {a.kind} on {a.target} without a quarantine now; executed under the approval by {by}")
         if d.decision == "quarantine":
             # the quarantine rule still fires; the human approval is what lifts it (deny rules still deny)
             d = Decision(sig, "allow", d.rule_id, f"APPROVED_BY:{by}", evaluated_rules=d.evaluated_rules,
@@ -692,6 +751,10 @@ def tick(io: Any, store: Any, now: datetime | None = None, dry_run: bool = True,
         if d.decision != "allow":
             notes.append(f"approval {aid}: re-evaluation denied ({d.rule_id} {d.reason}); left approved, not executed")
             store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {d.rule_id}: {d.reason}", now=now))
+            continue
+        claimed, why = claim_approval(store, ops, aid, new_claim(tick_id, aid), now)
+        if not claimed:
+            notes.append(f"approval {aid}: {why}; not executed here")
             continue
         status = act_and_record(a, decision_ids.get(sig))
         if status == "failed":
@@ -851,8 +914,6 @@ def _act(io: Any, a: Action, notes: list[str]) -> Any:
         else:
             body["schedule"] = {**(body.get("schedule") or {}), "pauseStatus": "PAUSED"}
         return io.update_job(a.target, body)
-    if a.kind == "job_run":
-        return io.request("POST", "jobRuns", body={"jobKey": a.target, **a.params.get("body", {})})
     if a.kind in ("notify", "noop"):
         return {"noted": True}
     raise ValueError(f"unknown action kind {a.kind}")

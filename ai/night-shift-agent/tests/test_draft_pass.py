@@ -28,9 +28,9 @@ def test_query_shapes():
     q = L.latest_verdict_for_statement_sql(OPS, "s" * 64, 24, NOW)
     assert "INTERVAL 1440 MINUTES" in q and "ORDER BY created_at DESC, verdict_id DESC LIMIT 1" in q and ("s" * 64) in q
     q = L.graded_statements_sql(OPS, 24, NOW)
-    assert "ROW_NUMBER() OVER (PARTITION BY statement_sha256" in q and q.rstrip().endswith("WHERE verdict IN ('replay_safe', 'silent_wrong', 'snapshot_wrong') OR (verdict = 'crash' AND age_hours < 2.0)")
+    assert "ROW_NUMBER() OVER (PARTITION BY statement_sha256" in q and q.rstrip().endswith("WHERE verdict IN ('replay_safe', 'silent_wrong', 'snapshot_wrong', 'insufficient_coverage') OR (verdict = 'crash' AND age_hours < 2.0)")
     q = L.statements_needing_draft_sql(OPS, 24, NOW, cap=3)
-    assert "v.verdict = 'silent_wrong'" in q and "NOT EXISTS" in q and "< 3" in q and "a.status IN ('pending', 'approved', 'executed')" in q
+    assert "v.verdict = 'silent_wrong'" in q and "NOT EXISTS" in q and "< 3" in q and "a.status IN ('pending', 'approved', 'executing', 'executed')" in q
     assert "d.validation = 'claim' AND d.status = 'drafting' AND d.updated_at >=" in q and "NOT LIKE 'rejected: ai_generate failed%'" in q
     q = L.drafts_today_sql(OPS, "s" * 64, NOW)
     assert "AS failed_recent" in q and "INTERVAL 60 MINUTES" in q and "d.validation <> 'claim'" in q
@@ -147,7 +147,7 @@ class DraftStore(FakeStore):
         self.graded, self.needing = list(graded), list(needing)
 
     def run_sql(self, sql, timeout=300):
-        if ") g" in sql and "WHERE verdict IN ('replay_safe', 'silent_wrong', 'snapshot_wrong')" in sql:
+        if ") g" in sql and "WHERE verdict IN ('replay_safe', 'silent_wrong', 'snapshot_wrong', 'insufficient_coverage')" in sql:
             self.sql.append(sql)
             return [(s,) for s in self.graded]
         if "v.verdict = 'silent_wrong'" in sql:

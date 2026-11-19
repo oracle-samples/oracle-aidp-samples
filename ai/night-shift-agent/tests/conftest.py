@@ -15,6 +15,13 @@ from nightshift import ledger as L  # noqa: E402
 from helpers import _DuckCon  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _approver_allowlist(monkeypatch):
+    """Control-plane approvals are executed only for names on NS_APPROVERS; the suite's approver is ``reviewer``.
+    A test that needs no allowlist, or another one, sets the variable itself."""
+    monkeypatch.setenv("NS_APPROVERS", "reviewer")
+
+
 @pytest.fixture
 def ops_db():
     """Fresh duckdb database with the ops schema created from the ledger DDL (single-level schema name: duckdb has no

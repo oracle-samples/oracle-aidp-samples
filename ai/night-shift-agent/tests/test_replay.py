@@ -356,7 +356,7 @@ def _plan(hazards=R.HAZARDS, **kw):
 def test_spark_plan_stage_ordering_and_cleanup_last():
     plan = _plan()
     stages = [R.parse_plan_tag(s)[0] for s in plan]
-    order = ["setup", "pin", "stage", "target", "repair", "twice", "diff", "cleanup"]
+    order = ["setup", "pin", "stage", "coverage", "target", "repair", "twice", "diff", "cleanup"]
     assert [s for s in order if s in stages] == order
     # each stage is one contiguous block, in that order
     ranks = [order.index(s) for s in stages]
@@ -386,8 +386,8 @@ def test_spark_plan_placeholders_filled_and_repair_counts():
         assert "MERGE INTO default.ops_sandbox.core_load_tgt_" in s
         assert "USING ns_batch_core_load b" in s
     # deliveries: baseline 4, late 4, duplicate 5 (trailing re-delivery), out_of_order 4, retried 5,
-    # revision 5 (baseline + corrections), run-twice 1
-    assert len(applies) == 4 + 4 + 5 + 4 + 5 + 5 + 1
+    # revision 6 (baseline + corrections + the superseded rows again), run-twice 1
+    assert len(applies) == 4 + 4 + 5 + 4 + 5 + 6 + 1
     views = [s for s in plan if "CREATE OR REPLACE TEMP VIEW ns_batch_core_load" in s]
     assert len(views) == len(applies)
     # the run-twice target is a SHALLOW CLONE of the finished baseline target
@@ -466,10 +466,11 @@ class _StubSpark:
     """Records statements; DESCRIBE HISTORY returns versions, diff queries return a count,
     and an optional statement substring triggers a failure."""
 
-    def __init__(self, diff_count=0, fail_on: str | None = None):
+    def __init__(self, diff_count=0, fail_on: str | None = None, coverage: dict | None = {}):  # noqa: B006
         self.statements: list[str] = []
         self.diff_count = diff_count
         self.fail_on = fail_on
+        self.coverage = coverage   # per-check counts the coverage statement returns (7 unless named); None = no row
 
     def sql(self, q: str):
         self.statements.append(q)
@@ -479,6 +480,9 @@ class _StubSpark:
             return _Rows([{"version": 412}, {"version": 411}])
         if "AS diff_rows" in q:
             return _Rows([(self.diff_count,)])
+        if q.startswith("SELECT COUNT(*) AS n_rows"):
+            names = re.findall(r" AS (\w+)", q)
+            return _Rows([] if self.coverage is None else [{n: self.coverage.get(n, 7) for n in names}])
         return _Rows([])
 
 
@@ -535,3 +539,14 @@ def test_notebook_template_silent_wrong_when_hazard_diff_nonzero(capsys):
     assert verdict["hazards"] == {"retried": False}
     assert verdict["verdict"] == "silent_wrong"
     assert verdict["diff_rows"] == 6  # retried 3 + run_twice 3
+
+
+@pytest.mark.parametrize("coverage,uncovered", [({"revision": 0}, ["revision"]), ({"run_twice": 0, "late": 0}, ["run_twice", "late"]),
+                                                (None, ["run_twice", *R.HAZARDS])])
+def test_notebook_template_reports_insufficient_coverage_instead_of_replay_safe(capsys, coverage, uncovered):
+    """Every diff is zero, but a check exercised no row (or the coverage statement returned nothing): the cell must
+    not print replay_safe. Same rule as nightshift.replay.settle_verdict, restated in the self-contained cell."""
+    verdict = _run_template(_plan(), _StubSpark(diff_count=0, coverage=coverage), capsys)
+    assert verdict["verdict"] == "insufficient_coverage" and verdict["uncovered"] == uncovered
+    assert verdict["passes_snapshot"] and verdict["passes_run_twice"] and verdict["diff_rows"] == 0
+

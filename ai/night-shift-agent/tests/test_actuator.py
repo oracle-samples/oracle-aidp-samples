@@ -376,9 +376,16 @@ def test_run_sql_single_lazy_session_and_close():
 def test_parse_sql_result_errors_and_empty():
     with pytest.raises(RuntimeError):
         parse_sql_result({"error": {"ename": "AnalysisException", "evalue": "table not found"}, "outputs": []})
-    assert parse_sql_result({"status": "ok", "outputs": []}) == []
+    # no marker = the statement is not confirmed to have completed, whatever status the kernel reports
+    with pytest.raises(RuntimeError, match="not confirmed"):
+        parse_sql_result({"status": "ok", "outputs": []})
     with pytest.raises(RuntimeError):
         parse_sql_result({"status": "error", "outputs": []})
+    with pytest.raises(RuntimeError, match="not confirmed"):
+        parse_sql_result({"outputs": [{"output_type": "stream", "text": "some other output\n"}]})
+    # a write prints the marker around an empty list
+    done = {"status": "ok", "outputs": [{"output_type": "stream", "text": "__M__[]__M__\n"}]}
+    assert parse_sql_result(done, "__M__") == []
 
 
 def test_list_recent_runs_window_filter_and_failures():
@@ -386,6 +393,101 @@ def test_list_recent_runs_window_filter_and_failures():
     keys = [r["key"] for r in io.list_recent_runs(hours=24)]
     assert keys == ["new", "undated"]
     assert [r["key"] for r in io.recent_failures()] == ["new"]
+
+
+class RunsClient:
+    """Job-runs endpoint as the Workbench serves it: one page of history, and a status filter."""
+
+    def __init__(self, history, active=None, fail_status=None):
+        self.history, self.active, self.fail_status, self.calls = history, active or {}, fail_status, []
+
+    def list_job_runs(self, **kw):
+        self.calls.append(kw)
+        if "status" in kw:
+            if kw["status"] == self.fail_status:
+                raise RuntimeError("jobRuns 429")
+            return {"items": list(self.active.get(kw["status"], []))}
+        return self.history
+
+
+def _ms(hours_ago: float) -> int:
+    return int((datetime.now(timezone.utc) - timedelta(hours=hours_ago)).timestamp() * 1000)
+
+
+def test_a_run_still_active_is_never_dropped_for_being_old():
+    """The window filter applies to finished runs only: a run that started 30 hours ago and is still running stays."""
+    hist = {"items": [{"key": "old-done", "state": {"status": "SUCCESS"}, "startTime": _ms(30)},
+                      {"key": "old-running", "state": {"status": "RUNNING"}, "startTime": _ms(30)},
+                      {"key": "old-odd", "state": {"status": "DISPATCHING"}, "timeCreated": _ms(40)},
+                      {"key": "new-done", "state": {"status": "SUCCESS"}, "startTime": _ms(1)}]}
+    io = AidpIO(Env(), client=RunsClient(hist))
+    assert [r["key"] for r in io.list_recent_runs(hours=24)] == ["old-running", "old-odd", "new-done"]
+    assert io.client.calls[0] == {"limit": 100}
+
+
+@pytest.mark.parametrize("payload", [None, {"code": "TooManyRequests", "message": "slow down"}, {"jobRuns": []}, {"items": None}, "oops", 7])
+def test_an_unrecognised_run_list_response_is_an_error_not_an_empty_list(payload):
+    class Bad:
+        def list_job_runs(self, **kw):
+            return payload
+
+        def list_recent_job_runs(self, **kw):
+            return payload
+
+    io = AidpIO(Env(), client=Bad())
+    with pytest.raises(RuntimeError, match="not recognised"):
+        io.list_recent_runs()
+    with pytest.raises(RuntimeError, match="not recognised"):
+        io.list_active_runs()
+    # and through the tick: unknown, so nothing is stopped or resized
+    io.dry_run = False
+    notes: list[str] = []
+    ctx = build_context(_ClusterIO(io), FakeStore(), T0, notes=notes)
+    assert ctx.kv["active_runs"] == {} and any("active runs unknown" in n for n in notes)
+
+
+class _ClusterIO:
+    """AidpIO's run reads over a scripted cluster body (the tick needs get_cluster too)."""
+
+    def __init__(self, io):
+        self._io, self.env = io, io.env
+
+    def get_cluster(self, key):
+        return {"key": key, "state": "ACTIVE", "minWorkers": 2, "maxWorkers": 10, "workerShape": "amd.generic"}
+
+    def list_recent_runs(self, hours=24):
+        return self._io.list_recent_runs(hours)
+
+    def list_active_runs(self):
+        return self._io.list_active_runs()
+
+
+def test_active_runs_are_asked_for_by_status_so_a_page_of_history_cannot_hide_one():
+    """The newest page of history holds only finished runs; a run that started before that page is still running.
+    The status query finds it, the cluster is busy, and a failed status query means unknown."""
+    hist = {"items": [{"key": f"done-{i}", "state": {"status": "SUCCESS"}, "startTime": _ms(1)} for i in range(100)]}
+    long_run = {"key": "long", "state": {"status": "RUNNING"}, "startTime": _ms(72)}
+    io = AidpIO(Env(), client=RunsClient(hist, active={"RUNNING": [long_run], "BLOCKED": [{"key": "b1", "state": {"status": "BLOCKED"}}]}))
+    assert [r["key"] for r in io.list_active_runs()] == ["long", "b1"]
+    assert [c.get("status") for c in io.client.calls] == ["RUNNING", "PENDING", "QUEUED", "BLOCKED"]
+    ctx = build_context(_ClusterIO(io), FakeStore(), T0)
+    assert ctx.kv["active_runs"] == {io.env.cluster_id: 2}
+
+    # the same run in both lists is counted once
+    both = AidpIO(Env(), client=RunsClient({"items": [long_run]}, active={"RUNNING": [long_run]}))
+    assert build_context(_ClusterIO(both), FakeStore(), T0).kv["active_runs"] == {both.env.cluster_id: 1}
+
+    broken = AidpIO(Env(), client=RunsClient(hist, fail_status="QUEUED"))
+    notes: list[str] = []
+    assert build_context(_ClusterIO(broken), FakeStore(), T0, notes=notes).kv["active_runs"] == {}
+    assert any("active runs unknown" in n for n in notes)
+
+
+def test_a_run_on_a_cluster_given_as_a_number_counts_against_that_cluster():
+    io = FakeIO(runs=[{"key": "r1", "state": {"status": "RUNNING"}, "cluster": {"id": 12345}}],
+                clusters={"12345": {"key": "12345", "state": "ACTIVE", "minWorkers": 1, "maxWorkers": 2}})
+    ctx = build_context(io, FakeStore(), T0, kv={"managed_clusters": ["12345"]})
+    assert ctx.kv["active_runs"] == {"12345": 1}
 
 
 # ----------------------------------------------------------------------------- approval loop
@@ -403,13 +505,13 @@ def test_tick_drains_approved_row_and_executes_through_gate():
     io = FakeIO()
     a = _quarantined_action(io)
     store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)])
-    report = run(io, store)
+    report = run(io, store, dry_run=False)
     assert report.tier == "low_compute"
     assert report.approvals_executed == 1 and report.approvals_opened == 0
-    # executed (dry-run) through _act with the approved params, recorded as an action row
-    assert io.mutations() == [("update_cluster_workers", io.env.cluster_id, 1, 3, 15, {"dry_run": True})]
-    assert report.outcomes[a.signature]["dry_run"] is True
-    assert store.count(f"INSERT INTO {OPS}.actions") == 1 and "'dry_run'" in store.sql[store.idx(f"INSERT INTO {OPS}.actions")]
+    # executed through _act with the approved params, recorded as an action row
+    assert io.mutations() == [("update_cluster_workers", io.env.cluster_id, 1, 3, 15, {"dry_run": False})]
+    assert report.outcomes[a.signature] == {"ok": True, "op": "update_cluster_workers"}
+    assert store.count(f"INSERT INTO {OPS}.actions") == 1 and "'applied'" in store.sql[store.idx(f"INSERT INTO {OPS}.actions")]
     # the quarantine row is still written, then the allow-by-approval row the action points at
     decision_rows = [s for s in store.sql if s.startswith(f"INSERT INTO {OPS}.policy_decisions")]
     assert len(decision_rows) == 2
@@ -507,9 +609,10 @@ def test_drain_marks_failed_on_bad_json_and_signature_mismatch():
     assert len(failed) == 2
     assert "approval_id = 'ap-bad'" in failed[0] and "BAD_ACTION_JSON" in failed[0]
     assert "approval_id = 'ap-mismatch'" in failed[1] and "SIGNATURE_MISMATCH" in failed[1]
-    assert store.count(f"INSERT INTO {OPS}.policy_decisions") == 0  # nothing reached the gate
-    assert report.approvals_opened == 0  # a.signature has an open (approved) row -> planner skipped it
-    assert any("awaiting approval" in n for n in report.notes)
+    drained = [s for s in store.sql[:store.idx("SET status = 'failed'") + 2] if s.startswith(f"INSERT INTO {OPS}.policy_decisions")]
+    assert drained == []  # neither row reached the gate
+    # a row marked failed is not an open approval: the planner proposes the resize itself and the gate quarantines it
+    assert report.approvals_opened == 1 and not any("awaiting approval" in n for n in report.notes)
 
 
 def test_drain_marks_failed_when_act_raises():
@@ -521,7 +624,7 @@ def test_drain_marks_failed_when_act_raises():
 
     io.update_cluster_workers = boom
     store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)])
-    report = run(io, store)
+    report = run(io, store, dry_run=False)
     assert report.approvals_executed == 0
     assert "'failed'" in store.sql[store.idx(f"INSERT INTO {OPS}.actions")]
     sql = store.sql[store.idx("SET status = 'failed'")]
@@ -534,7 +637,7 @@ def test_drain_planned_only_action_stays_approved():
     a = Action("job_disable", "j1", {"enabled": False, "sla_protected": False, "reason": "tier paused",
                                      "requires_schedule_body": True}, previous_value={"schedule": None})
     store = ApprovalStore(approved_rows=[_approved_row(a, aid="ap-dis")])
-    report = run(io, store)  # tier normal: budget.disable_pipeline quarantines job_disable -> lifted by approval
+    report = run(io, store, dry_run=False)  # tier normal: budget.disable_pipeline quarantines job_disable -> lifted by approval
     assert report.decisions[0].decision == "allow" and report.decisions[0].reason == "APPROVED_BY:reviewer"
     assert report.outcomes[a.signature] == {"skipped": "requires_schedule_body"}
     assert report.approvals_executed == 0 and io.mutations("update_job") == []
@@ -542,13 +645,14 @@ def test_drain_planned_only_action_stays_approved():
     assert sql.startswith(f"UPDATE {OPS}.approvals SET status = 'approved'") and "approval_id = 'ap-dis'" in sql
 
 
-def test_drain_accepts_dict_rows_and_parsed_action_json():
+def test_drain_accepts_dict_rows_and_parsed_action_json(monkeypatch):
+    monkeypatch.setenv("NS_APPROVERS", "ops-lead")
     io = FakeIO()
     a = _quarantined_action(io)
     row = {"approval_id": "ap-d", "action_signature": a.signature, "action_json": json.loads(_action_json(a)),
            "approved_by": "ops-lead", "expires_at": None}
     store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[row])
-    report = run(io, store)
+    report = run(io, store, dry_run=False)
     assert report.approvals_executed == 1
     assert "'APPROVED_BY:ops-lead'" in next(s for s in store.sql if "'allow'" in s and s.startswith(f"INSERT INTO {OPS}.policy_decisions"))
 
@@ -575,7 +679,7 @@ def test_approvals_read_failure_is_noted_not_fatal():
 def test_report_json_carries_approvals_executed():
     io = FakeIO()
     a = _quarantined_action(io)
-    report = run(io, ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)]))
+    report = run(io, ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)]), dry_run=False)
     d = json.loads(report.to_json())
     assert d["approvals_executed"] == 1 and d["approvals_opened"] == 0
     assert TickReport("t", "normal", None).approvals_executed == 0
@@ -651,3 +755,194 @@ def test_actuator_refuses_service_or_unlisted_approver(monkeypatch):
         assert report.approvals_executed == 0
         assert any("DENIED_ON_EXECUTE approver.identity" in q for q in store.sql), by
         assert not any("executed" in q and "SET status = 'executed'" in q for q in store.sql), by
+
+
+# ----------------------------------------------------------------------------- forged or unprovable approvals
+def _forged_row(kind: str, target: str, params: dict | None = None, by: str = "mallory", aid: str = "ap-forged"):
+    """An approval row written straight into the table (status approved), the way a principal with INSERT could."""
+    a = Action(kind, target, params or {})
+    return a, (aid, a.signature, _action_json(a), by, None)
+
+
+@pytest.mark.parametrize("kind,target,params", [
+    ("job_run", "victim-job-key", {"body": {}}),
+    ("cluster_stop", "cluster-test", {"reason": "forged"}),
+    ("job_update_schedule", "victim-job-key", {"cron": "0 * * * *"}),
+    ("drop_everything", "cluster-test", {}),
+])
+def test_forged_approval_of_a_kind_no_quarantine_holds_is_never_executed(kind, target, params, monkeypatch):
+    """An approval lifts a quarantine and nothing else. A row carrying a kind no quarantine rule can hold was not
+    opened by the gate: it is marked failed and no control-plane call is made, in apply mode, even for a listed approver."""
+    monkeypatch.setenv("NS_APPROVERS", "mallory")
+    io = FakeIO(jobs=[{"key": "victim-job-key", "name": "victim", "schedule": {"cron": "0 0 * * *"}}])
+    _, row = _forged_row(kind, target, params)
+    store = ApprovalStore(budget_rows=[ROW_NORMAL], approved_rows=[row], traced=False)
+    report = run(io, store, dry_run=False)
+    # the tick's own plan may still resize the managed cluster; nothing the forged row asked for is called
+    assert report.approvals_executed == 0
+    assert [c[0] for c in io.mutations() if c[0] != "update_cluster_workers"] == []
+    failed = store.sql[store.idx("SET status = 'failed'")]
+    assert "approval.kind: KIND_NOT_APPROVABLE" in failed
+    assert store.count("SET status = 'executing'") == 0 and store.count("SET status = 'executed'") == 0
+    assert any("KIND_NOT_APPROVABLE" in n for n in report.notes)
+
+
+def test_forged_approval_of_an_approvable_kind_fails_without_a_quarantine_decision(monkeypatch):
+    """A cluster_update row inserted with a spoofed, listed approver name still needs the gate's own quarantine
+    decision for that exact action; without one it is marked failed and nothing is called."""
+    monkeypatch.setenv("NS_APPROVERS", "reviewer")
+    io = FakeIO()
+    _, row = _forged_row("cluster_update", io.env.cluster_id, {"min_workers": 1, "max_workers": 24}, by="reviewer")
+    store = ApprovalStore(budget_rows=[ROW_NORMAL], approved_rows=[row], traced=False)
+    report = run(io, store, dry_run=False)
+    assert report.approvals_executed == 0
+    assert not any(c[0] == "update_cluster_workers" and c[3] == 24 for c in io.mutations())   # the forged 24 workers
+    assert "approval.trace: NO_QUARANTINE_DECISION" in store.sql[store.idx("SET status = 'failed'")]
+    assert store.count("COUNT(*) AS quarantined") == 1
+
+
+@pytest.mark.parametrize("kw,reason", [
+    ({"bound": False}, "NO_DECISION_ID"),            # written straight into the table: names no gate decision
+    ({"same_id": 2}, "DUPLICATE_APPROVAL_ID"),       # a second row with a real row's id
+    ({"same_id": 0}, "DUPLICATE_APPROVAL_ID"),       # the id read back matches no row
+    ({"holders": 2}, "DECISION_SHARED"),             # a copy of a real row, naming the same quarantine decision
+])
+def test_an_approval_row_that_is_not_the_one_the_gate_opened_is_never_executed(kw, reason):
+    """The approval is bound to the row the gate opened, not to the action: a copy of a real approval (same action,
+    same decision, a listed approver's name) is marked failed and nothing is called, and it does not block planning."""
+    io = FakeIO()
+    a = _quarantined_action(io)
+    store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)], **kw)
+    report = run(io, store, dry_run=False)
+    assert report.approvals_executed == 0 and io.mutations() == []
+    assert f"approval.trace: {reason}" in store.sql[store.idx("SET status = 'failed'")]
+    assert store.count("SET status = 'executing'") == 0
+    assert report.approvals_opened == 1   # the failed row is not an open approval; the gate quarantines the plan itself
+
+
+def test_dry_run_tick_leaves_a_control_plane_approval_for_a_tick_that_applies():
+    """A dry-run tick shows what it would execute. It must not consume the person's approval: no allow-by-approval
+    decision, no claim, no status change, no action row; the next applying tick executes it."""
+    io = FakeIO()
+    a = _quarantined_action(io)
+    store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)])
+    report = run(io, store)                                     # dry_run=True is the default
+    assert report.approvals_executed == 0 and io.mutations() == []
+    assert any("dry run" in n and "would be executed" in n and "left approved" in n for n in report.notes)
+    assert store.count(f"UPDATE {OPS}.approvals SET status = 'executing'") == 0
+    assert store.count("SET status = 'executed'") == 0 and store.count(f"INSERT INTO {OPS}.actions") == 0
+    assert not any("APPROVED_BY" in s for s in store.sql)
+    assert report.approvals_opened == 0 and any("awaiting approval" in n for n in report.notes)   # still open, not re-planned
+
+
+def test_control_plane_approval_needs_the_approver_allowlist(monkeypatch):
+    """Without NS_APPROVERS a control-plane approval is not executed, whoever the row names; it stays approved."""
+    monkeypatch.delenv("NS_APPROVERS", raising=False)
+    io = FakeIO()
+    a = _quarantined_action(io)
+    store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)])
+    report = run(io, store, dry_run=False)
+    assert report.approvals_executed == 0 and io.mutations() == []
+    assert "DENIED_ON_EXECUTE approver.allowlist" in store.sql[store.idx("DENIED_ON_EXECUTE")]
+    assert store.count("SET status = 'executing'") == 0
+
+
+def test_quarantine_trace_read_failure_fails_closed():
+    io = FakeIO()
+    a = _quarantined_action(io)
+    store = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)], fail_on="COUNT(*) AS quarantined")
+    report = run(io, store, dry_run=False)
+    assert report.approvals_executed == 0 and store.count("SET status = 'executing'") == 0
+    assert "DENIED_ON_EXECUTE approval.trace" in store.sql[store.idx("DENIED_ON_EXECUTE")]
+
+
+def test_only_the_claim_holder_executes_an_approval():
+    """Two drainers can reach the same approved row. The row is moved to executing before anything is called, and a
+    drainer that reads back another drainer's claim does nothing."""
+    io = FakeIO()
+    a = _quarantined_action(io)
+    won = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)])
+    report = run(io, won, dry_run=False)
+    assert report.approvals_executed == 1 and len(io.mutations("update_cluster_workers")) == 1
+    assert won.idx("SET status = 'executing'") < won.idx(f"INSERT INTO {OPS}.actions") < won.idx("SET status = 'executed'")
+    assert "claim:" in won.sql[won.idx("SET status = 'executing'")] and "AND status = 'approved'" in won.sql[won.idx("SET status = 'executing'")]
+
+    io2 = FakeIO()
+    lost = ApprovalStore(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)], claim_lost=True)
+    report = run(io2, lost, dry_run=False)
+    assert report.approvals_executed == 0 and io2.mutations() == []
+    assert lost.count(f"INSERT INTO {OPS}.actions") == 0 and lost.count("SET status = 'executed'") == 0
+    assert any("claimed by another drainer" in n for n in report.notes)
+
+
+def test_a_claim_that_cannot_be_read_back_is_handed_back_not_left_stuck():
+    """The claim UPDATE ran but the read-back fails: the drainer does not act, and it returns the row to approved
+    (only if the claim on it is its own) so the next tick can take it."""
+    class NoReadBack(ApprovalStore):
+        def run_sql(self, sql, timeout=300):
+            if sql.startswith(f"SELECT status, note FROM {OPS}.approvals WHERE approval_id"):
+                self.sql.append(sql)
+                raise RuntimeError("kernel restarted")
+            return super().run_sql(sql, timeout)
+
+    io = FakeIO()
+    a = _quarantined_action(io)
+    store = NoReadBack(budget_rows=[ROW_LOW], approved_rows=[_approved_row(a)])
+    report = run(io, store, dry_run=False)
+    assert report.approvals_executed == 0 and io.mutations() == []
+    assert store.count(f"SELECT status, note FROM {OPS}.approvals") == 2            # read twice before giving up
+    release = store.sql[store.idx("claim released")]
+    claim = store.claims["ap-1"]
+    assert release.startswith(f"UPDATE {OPS}.approvals SET status = 'approved'")
+    assert f"status = 'executing' AND note LIKE '%claim:{claim}'" in release
+    assert any("claim read-back failed" in n for n in report.notes) and not any("another drainer" in n for n in report.notes)
+
+
+# ----------------------------------------------------------------------------- busy clusters are never read as idle
+@pytest.mark.parametrize("run_row", [
+    {"key": "r1", "state": {"status": "RUNNING", "stateMessage": "In run"}},        # the Workbench REST shape
+    {"key": "r1", "state": {"status": "PENDING"}},
+    {"key": "r1", "state": "RUNNING"},                                              # plain string
+    {"key": "r1", "lifecycleState": "IN_PROGRESS"},
+    {"key": "r1", "state": {"status": "DISPATCHING"}},                              # a state this code has never seen
+    {"key": "r1"},                                                                  # no state at all
+])
+def test_a_running_job_run_in_any_shape_keeps_the_cluster_busy(run_row):
+    """The run state arrives as an object on the REST API. Stringifying it once read a busy cluster as idle; the
+    state is now read from the object, and anything not known to be finished counts as active."""
+    io = FakeIO(runs=[run_row, {"key": "r0", "state": {"status": "SUCCESS"}}, {"key": "rf", "state": {"status": "FAILED"}}])
+    ctx = build_context(io, FakeStore(), T0)
+    assert ctx.kv["active_runs"] == {io.env.cluster_id: 1}
+    assert [r["key"] for r in ctx.recent_failures] == ["rf"]
+    report = run(io, FakeStore(), MemoryKV({"prev_tier": "paused"}), dry_run=False)
+    assert "cluster_stop" not in [a.kind for a in report.actions] and io.mutations("stop_cluster") == []
+    from nightshift import gate
+    ctx.kv["tier"] = "paused"
+    d = gate.PolicyEngine(gate.default_rules(), lambda d, a: None).evaluate(Action("cluster_stop", io.env.cluster_id, {}), ctx)
+    assert (d.decision, d.rule_id) == ("deny", "safety.active_runs") and d.reason.startswith("ACTIVE_RUNS: 1")
+
+
+def test_finished_runs_leave_the_cluster_idle():
+    io = FakeIO(runs=[{"key": "r0", "state": {"status": "SUCCESS"}}, {"key": "r1", "state": {"status": "SKIPPED"}},
+                      {"key": "r2", "state": "TIMED_OUT"}])
+    ctx = build_context(io, FakeStore(), T0)
+    assert ctx.kv["active_runs"] == {io.env.cluster_id: 0}
+
+
+def test_failed_run_list_read_means_unknown_and_nothing_is_stopped_or_resized():
+    """When the run list cannot be read the tick does not know whether the cluster is busy: no count is recorded, the
+    planner proposes no stop, and the gate denies stop and resize alike."""
+    class NoRuns(FakeIO):
+        def list_recent_runs(self, hours=24):
+            raise RuntimeError("jobRuns 503")
+
+    io = NoRuns()
+    notes: list[str] = []
+    ctx = build_context(io, FakeStore(), T0, notes=notes)
+    assert ctx.kv["active_runs"] == {} and any("active runs unknown" in n for n in notes)
+    report = run(io, FakeStore(budget_rows=[ROW_LOW]), MemoryKV({"prev_tier": "paused"}), dry_run=False)
+    assert "cluster_stop" not in [a.kind for a in report.actions]
+    assert io.mutations() == []
+    assert report.decisions and all(d.decision == "deny" and d.rule_id == "safety.active_runs"
+                                    and d.reason.startswith("ACTIVE_RUNS_UNKNOWN") for d in report.decisions)
+

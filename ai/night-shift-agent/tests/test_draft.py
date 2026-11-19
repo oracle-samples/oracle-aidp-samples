@@ -211,3 +211,19 @@ def test_draft_check_requires_a_declared_source():
         checked_watch(sp, "not an object")
     t, ts, keys, a = checked_watch(sp, {**w, "source": "demo.bronze.sensor_reading_raw"}, require_source=True)
     assert a.source == "demo.bronze.sensor_reading_raw"
+
+
+def test_a_merge_with_a_delete_branch_is_not_graded(monkeypatch):
+    """The watched table is the statement's own output, so it holds no row the DELETE branch would remove; replay
+    would pass without ever running it. Such a statement (watched or drafted) is refused with the reason."""
+    from nightshift import watch
+
+    def tree(_spark, stmt):
+        return {"class": "x.MergeIntoTable", "children": [{"class": "x.UnresolvedRelation"}, {"class": "x.UnresolvedRelation"},
+                                                          {"class": "x.DeleteAction"}, {"class": "x.InsertStarAction"}]}
+
+    monkeypatch.setattr(watch, "parse_tree", tree)
+    stmt = "MERGE INTO c.s.orders t USING c.b.orders s ON t.id = s.id WHEN MATCHED AND s.status = 'CANCELLED' THEN DELETE WHEN NOT MATCHED THEN INSERT *"
+    with pytest.raises(ValueError, match="DELETE branch is not graded"):
+        watch.checked_watch(None, {"table": "c.s.orders", "ts": "updated_at", "statement": stmt})
+    assert "DeleteAction" not in watch.ALLOWED_NODES

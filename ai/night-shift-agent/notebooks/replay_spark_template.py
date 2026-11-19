@@ -8,8 +8,11 @@
 # try block; every "cleanup" statement runs in the finally block, so the sandbox clone, the
 # staging table, the target tables and the batch view never outlive this cell, even when the
 # repair crashes. The cell ends by printing one verdict dict: passes_snapshot, passes_run_twice,
-# hazards {name: bool}, diff_rows and verdict (replay_safe | silent_wrong | snapshot_wrong | crash),
-# plus diffs, source_version, statements_run, elapsed_s and error details.
+# hazards {name: bool}, diff_rows and verdict (replay_safe | silent_wrong | snapshot_wrong |
+# insufficient_coverage | crash), plus diffs, coverage (rows each check exercised), uncovered,
+# source_version, statements_run, elapsed_s and error details. A statement that passes every check
+# while a check exercised no row is insufficient_coverage, never replay_safe (same rule as
+# nightshift.replay.settle_verdict).
 import json
 import time
 
@@ -41,6 +44,8 @@ verdict = {
     "source_version": None,
     "statements_run": 0,
     "elapsed_s": None,
+    "coverage": None,
+    "uncovered": [],
 }
 t0 = time.time()
 try:
@@ -52,6 +57,11 @@ try:
             rows = result.collect()  # DESCRIBE HISTORY must stay a standalone statement
             if rows:
                 verdict["source_version"] = max(int(r["version"]) for r in rows)
+        elif stage == "coverage":
+            got = result.collect()
+            row = got[0] if got else None
+            data = {} if row is None else (row.asDict() if hasattr(row, "asDict") else dict(row))
+            verdict["coverage"] = {str(k): int(v or 0) for k, v in data.items()}
         elif stage == "diff":
             verdict["diffs"][name] = int(result.collect()[0][0])
 
@@ -63,7 +73,9 @@ try:
     if not verdict["passes_snapshot"]:
         verdict["verdict"] = "snapshot_wrong"
     elif verdict["passes_run_twice"] and all(verdict["hazards"].values()):
-        verdict["verdict"] = "replay_safe"
+        covered = verdict["coverage"] or {}
+        verdict["uncovered"] = [c for c in ("run_twice", *verdict["hazards"]) if int(covered.get(c) or 0) < 1]
+        verdict["verdict"] = "insufficient_coverage" if verdict["uncovered"] else "replay_safe"
     else:
         verdict["verdict"] = "silent_wrong"
 except Exception as exc:  # the candidate (or the plan) crashed; keep the evidence, still clean up

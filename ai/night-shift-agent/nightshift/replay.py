@@ -19,10 +19,18 @@ Two engines share the same vocabulary:
 Verdict contract:
     {'passes_snapshot': bool, 'passes_run_twice': bool, 'hazards': {name: bool},
      'diff_rows': int, 'verdict': 'replay_safe'|'silent_wrong'|'crash'}
-Extension: a candidate whose BASELINE result already differs from the recompute gets the
+Extensions: a candidate whose BASELINE result already differs from the recompute gets the
 verdict 'snapshot_wrong'. Only the three values above are standard verdicts, but a loudly wrong
 candidate must not be counted as 'silent_wrong' (that would corrupt the silent-wrong rate,
-defined as candidates that pass snapshot but fail replay) and is not a crash.
+defined as candidates that pass snapshot but fail replay) and is not a crash. A candidate that
+passes every check while a check exercised no row at all (a table too small to move, repeat or
+revise anything) gets 'insufficient_coverage', never 'replay_safe': a hazard that selected
+nothing proved nothing. The verdict dict carries `coverage` (rows each check exercised) and
+`uncovered` (the checks that exercised none).
+
+The revision schedule has two trailing deliveries: the corrections, then the superseded originals
+of the same keys again. The second one is the case a blind last-write-wins upsert gets wrong (an
+old row arriving after its correction); without it such a statement passes all five hazards.
 
 No network or live calls happen here.
 """
@@ -50,7 +58,12 @@ DELIVERY_HAZARDS: tuple[str, ...] = ("late", "duplicate", "out_of_order", "retri
 VERDICT_REPLAY_SAFE = "replay_safe"
 VERDICT_SILENT_WRONG = "silent_wrong"
 VERDICT_SNAPSHOT_WRONG = "snapshot_wrong"  # extension, see module docstring
+VERDICT_INSUFFICIENT = "insufficient_coverage"  # extension: every check passed, at least one exercised no row
 VERDICT_CRASH = "crash"
+
+# On a table this many times smaller than a 1-in-k sampling modulus the pmod flags can select nothing, so the first
+# row is flagged as well (live plan only; the local schedules already pick at least one row per hazard).
+SMALL_TABLE_FACTOR = 4
 
 # Per-schedule stream offsets so each hazard draws from its own deterministic RNG stream.
 _STREAM = {"late": 1, "duplicate": 2, "out_of_order": 3, "retried": 4, "revision": 5}
@@ -72,7 +85,7 @@ class HazardConfig:
     retry_batches: int = 1
     n_batches: int = 4
     rev_fraction: float = 0.1          # share of rows re-delivered as revisions (revision hazard)
-    revise_col: str | None = None      # payload column to change; None = first non-key, non-ts column
+    revise_col: str | None = None      # the one payload column to change; None = every non-key, non-ordering column
 
     def __post_init__(self) -> None:
         if self.n_batches < 1:
@@ -83,6 +96,15 @@ class HazardConfig:
                 raise ValueError(f"{name} must be within [0, 1], got {v}")
         if self.retry_batches < 0:
             raise ValueError("retry_batches must be >= 0")
+
+
+def effective_batches(n_rows: int | None, cfg: HazardConfig) -> int:
+    """Deliveries the baseline is split into: cfg.n_batches, lowered to the row count so that no batch is empty.
+    An empty batch makes the retried, out_of_order and run-twice checks vacuous (they would repeat or reorder
+    nothing). None means the row count is not known and cfg.n_batches is used as is."""
+    if n_rows is None:
+        return cfg.n_batches
+    return max(1, min(cfg.n_batches, int(n_rows)))
 
 
 def _rng(cfg: HazardConfig, stream: str) -> np.random.Generator:
@@ -165,17 +187,38 @@ def _mutate_series(s: pd.Series) -> pd.Series:
     return s.astype(str) + "_rev"
 
 
+def _revision_rows(df_ordered: pd.DataFrame, ts_col: str, cfg: HazardConfig) -> np.ndarray:
+    """Positions of the rows the revision hazard corrects (deterministic for a seed). Only a row whose ordering value
+    can be moved strictly later is eligible: a NULL ordering value, or a float so large that +1 does not change it,
+    cannot carry a correction the recompute would prefer, and counting it would make the check look exercised."""
+    if len(df_ordered) == 0:
+        return np.array([], dtype=int)
+    ts = df_ordered[ts_col]
+    eligible = np.flatnonzero((_shift_series(ts) > ts).to_numpy(dtype=bool, na_value=False))
+    return _select_fraction(_rng(cfg, "revision"), eligible, cfg.rev_fraction)
+
+
+def make_stale_batch(df_ordered: pd.DataFrame, ts_col: str, cfg: HazardConfig) -> pd.DataFrame:
+    """The superseded originals of the revised keys, unchanged, for delivery AFTER their corrections: an old row
+    that arrives late, or a source that replays history. The truth still holds the correction (latest ordering
+    value), so a statement that lets whatever arrives last win puts the stale row back and fails."""
+    return df_ordered.iloc[_revision_rows(df_ordered, ts_col, cfg)].reset_index(drop=True).copy()
+
+
 def make_revision_batch(df_ordered: pd.DataFrame, key_cols: list[str], ts_col: str, cfg: HazardConfig) -> pd.DataFrame:
-    """cfg.rev_fraction of the rows re-delivered as revisions: same key, ordering column moved later,
-    one payload column changed (see pick_revise_col). The batch truth must therefore contain these rows."""
-    rng = _rng(cfg, "revision")
-    rows = _select_fraction(rng, np.arange(len(df_ordered)), cfg.rev_fraction)
+    """cfg.rev_fraction of the rows re-delivered as revisions: same key, ordering column moved later, and every other
+    column changed (only cfg.revise_col when that is set). The batch truth must therefore contain these rows. Every
+    payload column changes so that an UPDATE which forgets a column is caught."""
+    rows = _revision_rows(df_ordered, ts_col, cfg)
     rev = df_ordered.iloc[rows].reset_index(drop=True).copy()
     if len(rev) == 0:
         return rev
     rev[ts_col] = _shift_series(rev[ts_col])
-    col = pick_revise_col(list(df_ordered.columns), key_cols, ts_col, cfg.revise_col)
-    if col is not None:
+    if cfg.revise_col is not None:
+        cols = [pick_revise_col(list(df_ordered.columns), key_cols, ts_col, cfg.revise_col)]
+    else:
+        cols = [c for c in df_ordered.columns if c not in key_cols and c != ts_col]
+    for col in cols:
         rev[col] = _mutate_series(rev[col])
     return rev
 
@@ -193,13 +236,19 @@ def make_hazard_batches(
     out_of_order  batch order permuted (see _batch_permutation) and rows shuffled within
                   each batch (same multiset as baseline).
     retried       cfg.retry_batches whole batches are delivered twice consecutively.
-    revision      baseline followed by one trailing batch of cfg.rev_fraction rows re-delivered
-                  with a later ordering value and one changed payload column (a correction).
-                  Unlike the four delivery hazards, this changes the truth: the batch recompute
-                  must keep the revised row. A repair with no WHEN MATCHED path keeps the stale one.
+    revision      baseline followed by two trailing batches: cfg.rev_fraction rows re-delivered
+                  with a later ordering value and every payload column changed (a correction), then
+                  the superseded originals of those keys again (a stale row arriving after its
+                  correction). Unlike the four delivery hazards, this changes the truth: the batch
+                  recompute must keep the revised row. A repair with no WHEN MATCHED path keeps the
+                  stale one at the first trailing batch; a blind last-write-wins upsert restores it
+                  at the second.
+
+    The baseline is split into effective_batches(len(df), cfg) deliveries, so a frame with fewer rows
+    than cfg.n_batches has no empty batch.
     """
     base = _ordered(df, key_cols, ts_col)
-    n = cfg.n_batches
+    n = effective_batches(len(base), cfg)
     bounds = np.linspace(0, len(base), n + 1).round().astype(int)
     baseline = [base.iloc[bounds[i]:bounds[i + 1]].reset_index(drop=True) for i in range(n)]
     membership = np.repeat(np.arange(n), [len(b) for b in baseline])  # baseline batch of each row
@@ -243,11 +292,12 @@ def make_hazard_batches(
         if i in retry:
             retried.append(b.copy())
 
-    # revision (baseline, then corrections for a sample of keys)
+    # revision (baseline, then corrections for a sample of keys, then those keys' superseded rows again)
     revision = list(baseline)
     rev_batch = make_revision_batch(base, key_cols, ts_col, cfg)
     if len(rev_batch):
         revision.append(rev_batch)
+        revision.append(make_stale_batch(base, ts_col, cfg))
 
     return {
         "baseline": baseline,
@@ -308,6 +358,23 @@ def insert_if_absent(key_cols: list[str]) -> ApplyFn:
         return pd.concat([state, fresh], ignore_index=True)
 
     _apply.__name__ = "insert_if_absent"
+    return _apply
+
+
+def last_write_wins(key_cols: list[str]) -> ApplyFn:
+    """Planted known-bad repair: MERGE ... WHEN MATCHED THEN UPDATE SET * with no ordering guard, so whatever is
+    delivered last for a key wins. On key-unique data it passes late, duplicate, out_of_order and retried delivery
+    and the corrections delivery; it is wrong only when a superseded row arrives after its correction."""
+
+    def _apply(state: pd.DataFrame | None, batch: pd.DataFrame) -> pd.DataFrame:
+        new = batch.drop_duplicates(subset=key_cols, keep="last").reset_index(drop=True)
+        if state is None or len(state) == 0:
+            return new
+        merged = state.merge(new[key_cols], on=key_cols, how="left", indicator=True)
+        kept = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+        return pd.concat([kept, new], ignore_index=True)
+
+    _apply.__name__ = "last_write_wins"
     return _apply
 
 
@@ -432,6 +499,66 @@ def diff(a: pd.DataFrame | None, b: pd.DataFrame | None, key_cols: list[str] | N
 # --------------------------------------------------------------------------------------
 # Verdict and grading
 # --------------------------------------------------------------------------------------
+def hazard_coverage(schedules: dict[str, list[pd.DataFrame]]) -> dict[str, int]:
+    """Rows each check actually exercised, from the schedules themselves: `run_twice` rows in the delivery applied
+    again, `late` rows that arrived in a later batch, `duplicate` and `retried` rows delivered more than once,
+    `out_of_order` batches that changed position, `revision` rows corrected. Zero means the check was vacuous."""
+    base = schedules["baseline"]
+    n_base = sum(len(b) for b in base)
+    cols = sorted(base[0].columns) if base else []
+
+    def bag(b: pd.DataFrame) -> Counter:
+        return _canonical_rows(b, cols)
+
+    cov: dict[str, int] = {"run_twice": len(base[-1]) if base else 0}
+    if "late" in schedules:
+        cov["late"] = sum(sum((bag(late) - bag(b)).values()) for late, b in zip(schedules["late"], base))
+    if "duplicate" in schedules:
+        cov["duplicate"] = sum(len(b) for b in schedules["duplicate"]) - n_base
+    if "out_of_order" in schedules:
+        cov["out_of_order"] = sum(1 for o, b in zip(schedules["out_of_order"], base) if len(b) and bag(o) != bag(b))
+    if "retried" in schedules:
+        cov["retried"] = sum(len(b) for b in schedules["retried"]) - n_base
+    if "revision" in schedules:
+        extra = schedules["revision"][len(base):]
+        cov["revision"] = len(extra[0]) if extra else 0
+    return cov
+
+
+def coverage_from_row(row: Any) -> dict[str, int]:
+    """The live plan's `coverage` statement returns one row of named counts (n_rows, run_twice and one column per
+    hazard). Accepts a Spark Row, a mapping or None; a missing or NULL count is 0."""
+    if row is None:
+        return {}
+    data = row.asDict() if hasattr(row, "asDict") else dict(row)
+    return {str(k): int(v or 0) for k, v in data.items()}
+
+
+def settle_verdict(diffs: dict[str, int], hazard_names: Sequence[str], coverage: dict[str, int] | None) -> dict[str, Any]:
+    """The verdict fields from the per-check diff counts and the coverage counts; one rule for the local harness and
+    the live plan. replay_safe needs the baseline, run-twice and every named hazard to diff to zero AND each of those
+    checks to have exercised at least one row; passing with a vacuous check is insufficient_coverage. No coverage
+    at all (None) is read as nothing exercised."""
+    hazards = {h: diffs[h] == 0 for h in hazard_names if h in diffs}
+    out: dict[str, Any] = {
+        "passes_snapshot": diffs.get("baseline", 1) == 0,
+        "passes_run_twice": diffs.get("run_twice", 1) == 0,
+        "hazards": hazards,
+        "diff_rows": int(sum(diffs.values())),
+        "coverage": dict(coverage) if coverage is not None else None,
+        # reported with every verdict: a failing statement on a table that leaves a check vacuous can be fixed, but the
+        # fix can never be proven there
+        "uncovered": [c for c in ("run_twice", *hazard_names) if int((coverage or {}).get(c) or 0) < 1],
+    }
+    if not out["passes_snapshot"]:
+        out["verdict"] = VERDICT_SNAPSHOT_WRONG
+    elif not (out["passes_run_twice"] and all(hazards.values()) and len(hazards) == len(list(hazard_names))):
+        out["verdict"] = VERDICT_SILENT_WRONG
+    else:
+        out["verdict"] = VERDICT_INSUFFICIENT if out["uncovered"] else VERDICT_REPLAY_SAFE
+    return out
+
+
 def replay_verdict(
     apply_fn: ApplyFn,
     df: pd.DataFrame,
@@ -440,10 +567,11 @@ def replay_verdict(
     cfg: HazardConfig = HazardConfig(),
     recompute_fn: RecomputeFn = recompute,
 ) -> dict[str, Any]:
-    """Grade one candidate. Returns the verdict dict plus `diffs` (per check),
-    `error` (exception type name or None) and `error_message`/`failed_stage` on crash."""
+    """Grade one candidate. Returns the verdict dict plus `diffs` (per check), `coverage` (rows each check
+    exercised), `uncovered`, `error` (exception type name or None) and `error_message`/`failed_stage` on crash."""
     truth = recompute_fn(df, key_cols, ts_col)
     schedules = make_hazard_batches(df, key_cols, ts_col, cfg)
+    coverage = hazard_coverage(schedules)
     diffs: dict[str, int] = {}
     hazards = {h: False for h in HAZARDS}
     out: dict[str, Any] = {
@@ -454,6 +582,8 @@ def replay_verdict(
         "verdict": VERDICT_CRASH,
         "diffs": diffs,
         "error": None,
+        "coverage": coverage,
+        "uncovered": [],
     }
     stage = "baseline"
     try:
@@ -482,13 +612,7 @@ def replay_verdict(
         out["diff_rows"] = int(sum(diffs.values()))
         return out
 
-    out["diff_rows"] = int(sum(diffs.values()))
-    if not out["passes_snapshot"]:
-        out["verdict"] = VERDICT_SNAPSHOT_WRONG
-    elif out["passes_run_twice"] and all(hazards.values()):
-        out["verdict"] = VERDICT_REPLAY_SAFE
-    else:
-        out["verdict"] = VERDICT_SILENT_WRONG
+    out.update(settle_verdict(diffs, HAZARDS, coverage))
     return out
 
 
@@ -666,18 +790,29 @@ def spark_sql_plan(
     cfg: HazardConfig = HazardConfig(),
     pin_version: int | None = None,
     columns: Sequence[tuple[str, str]] | None = None,
+    n_rows: int | None = None,
 ) -> list[str]:
     """Spark SQL statement sequence for the live harness on Oracle AI Data Platform.
 
+    `n_rows` is the table's row count when the caller has it (the heartbeat counts before it plans): the baseline
+    is split into effective_batches(n_rows, cfg) deliveries so that a table with fewer rows than cfg.n_batches
+    has no empty delivery to retry, reorder or run twice. The sampling flags also flag the first row on a small
+    table (SMALL_TABLE_FACTOR), and a `coverage` statement counts the rows each check will exercise; the
+    caller turns a passing result with an unexercised check into insufficient_coverage (settle_verdict).
+
     `columns` ((name, spark type) in table order) is required only for the `revision` hazard: the
     corrections table is built with an explicit select list that moves the ordering column later and
-    changes one payload column (pick_spark_revise_col), because Spark SQL cannot override a column
-    out of `struct(*)` without naming it. The revision truth is the recompute over staging plus the
+    changes every other non-key column whose type spark_mutate_expr can change (only cfg.revise_col
+    when that is set), because Spark SQL cannot override a column out of `struct(*)` without naming
+    it. A row with a NULL ordering value is never revised (it could not carry a later value). The revision truth is the recompute over staging plus the
     corrections, so a repair that never updates a matched key keeps the stale row and fails this hazard.
+    After the corrections the superseded originals of the same keys are delivered once more; a repair
+    that lets the last delivery win puts the stale row back and fails there.
 
     Every statement is prefixed with "-- ns:<stage>:<name>" (see parse_plan_tag). Stages, in
     order: pin (DESCRIBE HISTORY standalone, SHALLOW CLONE), stage (struct(*) + NTILE /
-    ROW_NUMBER staging so no column list is needed), target (empty CTAS per schedule), repair
+    ROW_NUMBER staging so no column list is needed), coverage (one row of counts, see
+    coverage_from_row), target (empty CTAS per schedule), repair
     (temp view per delivery + the template with {target} and {batch} filled), twice (SHALLOW
     CLONE of the baseline target, final delivery applied again), diff (recompute CTE and
     EXCEPT ALL both ways), cleanup (DROP ... IF EXISTS, always last). The notebook runs
@@ -696,7 +831,7 @@ def spark_sql_plan(
     if not key_cols:
         raise ValueError("key_cols must not be empty")
 
-    n = cfg.n_batches
+    n = effective_batches(n_rows, cfg)
     t = prod_table.split(".")[-1]
     sbx = f"{sandbox_schema}.{t}_sbx"
     stage = f"{sandbox_schema}.{t}_stage"
@@ -708,9 +843,16 @@ def spark_sql_plan(
     order_by = ", ".join([ts_col, *key_cols])
     partition_by = ", ".join(f"ns_row.{k}" for k in key_cols)
     k_late, k_dup, k_rev = _every_k(cfg.late_fraction), _every_k(cfg.dup_fraction), _every_k(cfg.rev_fraction)
-    late_flag = f"(pmod(ns_slot, {k_late}) = 0 AND ns_batch < {n})" if k_late else "false"
-    dup_flag = f"(pmod(ns_slot + 1, {k_dup}) = 0)" if k_dup else "false"
-    rev_flag = f"(pmod(ns_slot + 2, {k_rev}) = 0)" if k_rev else "false"
+
+    def sampled(offset: str, k: int) -> str:
+        # 1 row in k; on a table under SMALL_TABLE_FACTOR * k rows the modulus can miss every row (or hit only the
+        # final batch), so the first row is flagged too and the hazard always has something to act on
+        return f"(pmod(ns_slot{offset}, {k}) = 0 OR (ns_total < {SMALL_TABLE_FACTOR * k} AND ns_slot = 1))"
+
+    late_flag = f"({sampled('', k_late)} AND ns_batch < {n})" if k_late else "false"
+    dup_flag = sampled(" + 1", k_dup) if k_dup else "false"
+    # a row with no ordering value cannot be moved later, so it is never the one a correction is built from
+    rev_flag = f"({sampled(' + 2', k_rev)} AND ns_row.{ts_col} IS NOT NULL)" if k_rev else "false"
 
     with_revision = "revision" in hazards
     rev_select: str | None = None
@@ -722,15 +864,19 @@ def spark_sql_plan(
         if missing:
             raise KeyError(f"columns is missing {missing}")
         types = dict(columns)
-        picked = pick_spark_revise_col(columns, key_cols, ts_col, cfg.revise_col)
+        only = pick_spark_revise_col(columns, key_cols, ts_col, cfg.revise_col) if cfg.revise_col is not None else None
         parts = []
         for c in names:
+            changed = None
             if c == ts_col:
-                parts.append(f"{spark_shift_expr(c, types[c])} AS {c}")
-            elif picked is not None and c == picked[0]:
-                parts.append(f"{spark_mutate_expr(c, picked[1])} AS {c}")
+                changed = spark_shift_expr(c, types[c])
+            elif c in key_cols:
+                pass
+            elif only is not None:
+                changed = spark_mutate_expr(c, only[1]) if c == only[0] else None
             else:
-                parts.append(c)
+                changed = spark_mutate_expr(c, types[c])   # None for a type the harness cannot change: passed through
+            parts.append(f"{changed} AS {c}" if changed else c)
         rev_select = ",\n       ".join(parts)
 
     created_tables = [sbx, stage, *targets.values(), twice] + ([rev] if with_revision else [])
@@ -756,7 +902,8 @@ def spark_sql_plan(
         f"FROM (\n"
         f"  SELECT struct(*) AS ns_row,\n"
         f"         NTILE({n}) OVER (ORDER BY {order_by}) AS ns_batch,\n"
-        f"         ROW_NUMBER() OVER (ORDER BY {order_by}) AS ns_slot\n"
+        f"         ROW_NUMBER() OVER (ORDER BY {order_by}) AS ns_slot,\n"
+        f"         COUNT(*) OVER () AS ns_total\n"
         f"  FROM {sbx}\n"
         f")"
     )))
@@ -768,6 +915,28 @@ def spark_sql_plan(
             f"SELECT {rev_select}\n"
             f"FROM (SELECT ns_row.* FROM {stage} WHERE ns_rev)"
         )))
+
+    # coverage: the rows each check will exercise (zero = that check proves nothing on this table)
+    def counted(pred: str) -> str:
+        return f"SUM(CASE WHEN {pred} THEN 1 ELSE 0 END)"
+
+    retry_batches = ", ".join(str(i + 1) for i in _retry_indices(n, cfg))
+    cover = {"run_twice": counted(f"ns_batch = {n}")}
+    if "late" in hazards:
+        cover["late"] = counted("ns_late")
+    if "duplicate" in hazards:
+        cover["duplicate"] = counted("ns_dup")
+    if "out_of_order" in hazards:
+        cover["out_of_order"] = "CASE WHEN COUNT(DISTINCT ns_batch) > 1 THEN COUNT(DISTINCT ns_batch) ELSE 0 END"
+    if "retried" in hazards:
+        cover["retried"] = counted(f"ns_batch IN ({retry_batches})") if retry_batches else "0"
+    if "revision" in hazards:
+        cover["revision"] = counted("ns_rev")
+    plan.append(_tag("coverage", "counts", (
+        "SELECT COUNT(*) AS n_rows,\n       "
+        + ",\n       ".join(f"{expr} AS {name}" for name, expr in cover.items())
+        + f"\nFROM {stage}"
+    )))
 
     # targets
     for s in schedules:
@@ -786,6 +955,12 @@ def spark_sql_plan(
             j = len(preds) + 1
             plan.append(_tag("repair", f"{s}_batch{j}_view",
                              f"CREATE OR REPLACE TEMP VIEW {batch_view} AS\nSELECT * FROM {rev}"))
+            plan.append(_tag("repair", f"{s}_batch{j}_apply",
+                             repair_sql_template.format(target=targets[s], batch=batch_view)))
+            # the superseded originals of the corrected keys, delivered after their corrections
+            j += 1
+            plan.append(_tag("repair", f"{s}_batch{j}_view",
+                             f"CREATE OR REPLACE TEMP VIEW {batch_view} AS\nSELECT ns_row.* FROM {stage} WHERE ns_rev"))
             plan.append(_tag("repair", f"{s}_batch{j}_apply",
                              repair_sql_template.format(target=targets[s], batch=batch_view)))
 
@@ -853,9 +1028,11 @@ def render_spark_cell(plan: list[str], template_path: Path = NOTEBOOK_TEMPLATE_P
 
 __all__ = [
     "HAZARDS", "SCHEDULES", "DELIVERY_HAZARDS", "HazardConfig", "GradeTable", "ApplyFn",
-    "make_hazard_batches", "make_revision_batch", "pick_revise_col", "pick_spark_revise_col",
-    "spark_shift_expr", "spark_mutate_expr",
-    "naive_append", "merge_on_keys", "dedup_within_batch_append", "insert_if_absent", "sql_apply",
+    "make_hazard_batches", "make_revision_batch", "make_stale_batch", "pick_revise_col", "pick_spark_revise_col",
+    "spark_shift_expr", "spark_mutate_expr", "effective_batches",
+    "naive_append", "merge_on_keys", "dedup_within_batch_append", "insert_if_absent", "last_write_wins", "sql_apply",
     "run_schedule", "recompute", "diff", "replay_verdict", "grade_many", "silent_wrong_rate",
+    "hazard_coverage", "coverage_from_row", "settle_verdict",
+    "VERDICT_REPLAY_SAFE", "VERDICT_SILENT_WRONG", "VERDICT_SNAPSHOT_WRONG", "VERDICT_INSUFFICIENT", "VERDICT_CRASH",
     "spark_sql_plan", "parse_plan_tag", "render_spark_cell",
 ]

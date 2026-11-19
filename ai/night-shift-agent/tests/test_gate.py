@@ -20,6 +20,8 @@ NOW = datetime(2026, 11, 3, 3, 0, tzinfo=timezone.utc)
 
 
 def ctx(tier: str = "normal", **kv) -> TickContext:
+    # the tick records a run count per managed cluster once it has read the run list; c1 is idle unless a case says otherwise
+    kv.setdefault("active_runs", {"c1": 0})
     return TickContext(
         now_utc=NOW, budget_remaining_pct=50.0, projected_overrun_pct=0.0, llm_remaining_pct=50.0,
         budget_source="ledger", kv={"tier": tier, **kv},
@@ -158,17 +160,20 @@ def test_default_rules_cover_report_table():
         ("self steward job", Action("job_disable", "steward_tick", {}), ctx("paused"), "deny", "protect.self"),
         ("self steward cluster", Action("cluster_stop", "steward-cluster", {}), ctx(), "deny", "protect.self"),
         ("self ops table",
-         Action("job_repair", "job9", {"table": f"{Env().ops_schema}.ticks"}), ctx(), "deny", "protect.self"),
+         Action("statement_repair", "job9", {"table": f"{Env().ops_schema}.ticks"}), ctx(), "deny", "protect.self"),
         ("self ops table qualified",
-         Action("job_repair", "job9", {"table": f"{Env().ops}.policy_rules"}), ctx(), "deny", "protect.self"),
-        ("self other table", Action("job_repair", "job9", {"table": "bronze.orders"}), ctx(), "allow", None),
+         Action("statement_repair", "job9", {"table": f"{Env().ops}.policy_rules"}), ctx(), "deny", "protect.self"),
+        ("self other table", Action("notify", "job9", {"table": "bronze.orders"}), ctx(), "allow", None),
         ("self noop", Action("noop", "anything"), ctx(), "allow", None),
         # safety.active_runs
         ("active runs stop", Action("cluster_stop", "c1"), ctx(active_runs={"c1": 2}), "deny", "safety.active_runs"),
         ("active runs update", resize(target="c1"), ctx(active_runs={"c1": 1}), "deny", "safety.active_runs"),
-        ("active runs other cluster", Action("cluster_stop", "c1"), ctx(active_runs={"c2": 3}), "allow", None),
         ("active runs zero", Action("cluster_stop", "c1"), ctx(active_runs={"c1": 0}), "allow", None),
-        ("active runs no kv", Action("cluster_stop", "c1"), ctx(), "allow", None),
+        # unknown is never idle: no entry for the target, no count at all, or a count that is not a number
+        ("active runs other cluster", Action("cluster_stop", "c1"), ctx(active_runs={"c2": 3}), "deny", "safety.active_runs"),
+        ("active runs no kv", Action("cluster_stop", "c1"), ctx(active_runs=None), "deny", "safety.active_runs"),
+        ("active runs none", Action("cluster_stop", "c1"), ctx(active_runs={"c1": None}), "deny", "safety.active_runs"),
+        ("active runs unknown update", resize(target="c1"), ctx(active_runs={}), "deny", "safety.active_runs"),
         # budget.big_resize
         ("resize 2x exactly", resize(new=8, old=4), ctx(), "allow", None),
         ("resize over 2x", resize(new=9, old=4), ctx(), "quarantine", "budget.big_resize"),
@@ -184,9 +189,11 @@ def test_default_rules_cover_report_table():
         ("disable at critical", Action("job_disable", "bronze_x", {}), ctx("critical"), "quarantine",
          "budget.disable_pipeline"),
         ("disable at paused", Action("job_disable", "bronze_x", {}), ctx("paused"), "allow", None),
-        # unmatched kinds default allow
+        # a known kind no rule objects to is allowed; a kind the engine does not know is denied before any rule runs
         ("notify default allow", Action("notify", "oncall", {"text": "hi"}), ctx(), "allow", None),
-        ("job_run default allow", Action("job_run", "silver_y", {}), ctx(), "allow", None),
+        ("job_run unknown kind", Action("job_run", "silver_y", {}), ctx(), "deny", "gate.known_kinds"),
+        ("job_repair unknown kind", Action("job_repair", "job9", {"table": "bronze.orders"}), ctx(), "deny", "gate.known_kinds"),
+        ("made-up unknown kind", Action("drop_everything", "c1", {}), ctx(), "deny", "gate.known_kinds"),
     ],
 )
 def test_default_rules_paths(name, action, context, expected, rule_id):
@@ -357,3 +364,63 @@ def test_cluster_bounds_fills_min_from_previous_value():
     eng, _ = engine(counter=zero_counter)
     d = eng.evaluate(a, ctx())
     assert (d.decision, d.rule_id) == ("deny", "validate.cluster_bounds")
+
+
+def test_unknown_kind_is_denied_before_any_rule_and_still_audited():
+    eng, sink = engine(counter=zero_counter)
+    d = eng.evaluate(Action("job_run", "victim-job-key", {}), ctx())
+    assert (d.decision, d.rule_id, d.reason) == ("deny", "gate.known_kinds", "UNKNOWN_KIND: job_run")
+    assert d.evaluated_rules == [] and len(sink.rows) == 1 and sink.rows[0][0] is d
+
+
+def test_approvable_kinds_are_the_kinds_a_quarantine_rule_holds():
+    eng, _ = engine(counter=zero_counter)
+    assert eng.approvable_kinds() == {"statement_repair", "cluster_update", "job_disable"}
+    assert PolicyEngine([Rule("deny.all", 1, {}, "deny")], lambda d, a: None).approvable_kinds() == frozenset()
+
+
+def test_rate_limit_counts_applied_changes_from_the_ledger(ops_db):
+    """End to end against the ledger SQL. The quota is spent by applied actions whose allow decision ran the rate
+    rule (an allow records rule_id NULL, so the rule is found in rules_evaluated): three applied small resizes of one
+    cluster are allowed, the fourth is denied, a denied attempt and a dry-run allow do not consume quota, and another
+    cluster has its own count."""
+    from nightshift import ledger as L
+
+    from helpers import _to_duckdb
+
+    ops, con = ops_db
+    seq = iter(range(100))
+    mode = {"status": "applied"}
+
+    def sink(d: Decision, a: Action) -> None:
+        tick = f"t{next(seq)}"
+        con.execute(L.insert_decision(ops, {
+            "tick_id": tick, "action_signature": d.action_signature, "action_kind": a.kind, "target": a.target,
+            "decision": d.decision, "rule_id": d.rule_id, "rules_evaluated": d.evaluated_rules, "reason": d.reason}, NOW))
+        if d.decision == "allow":   # what the tick does next: act, then the action row pointing at the decision
+            con.execute(L.insert_action(ops, {
+                "tick_id": tick, "action_signature": d.action_signature, "kind": a.kind, "target": a.target, "params": a.params,
+                "decision_id": L._sha16(tick, d.action_signature, d.decision, d.rule_id), "status": mode["status"],
+                "applied_at": NOW if mode["status"] == "applied" else None}, NOW))
+
+    def counter(rule_id: str, target: str, window_hours: int) -> int:
+        return int(con.execute(_to_duckdb(L.rate_count_sql(ops, rule_id, target, window_hours, NOW))).fetchone()[0])
+
+    eng = PolicyEngine(default_rules(), sink, counter)
+    mode["status"] = "dry_run"
+    previews = [eng.evaluate(resize(new=n, old=4), ctx()) for n in (5, 6, 7, 8, 5, 6)]
+    assert [d.decision for d in previews] == ["allow"] * 6 and counter("rate.resizes_daily", "c1", 24) == 0   # previews are free
+    mode["status"] = "applied"
+    seen = [eng.evaluate(resize(new=n, old=4), ctx()) for n in (5, 6, 7, 8, 5)]
+    assert [(d.decision, d.rule_id) for d in seen[:3]] == [("allow", None)] * 3
+    assert all("rate.resizes_daily" in d.evaluated_rules for d in seen[:3])
+    assert [(d.decision, d.rule_id) for d in seen[3:]] == [("deny", "rate.resizes_daily")] * 2
+    assert seen[3].reason.startswith("RATE_LIMIT: 3 prior in 24h")
+    assert counter("rate.resizes_daily", "c1", 24) == 3 and counter("rate.resizes_daily", "c2", 24) == 0
+    other = eng.evaluate(resize(target="c2", new=5, old=4), ctx(active_runs={"c2": 0}))
+    assert other.decision == "allow"
+
+
+def test_a_quarantine_rule_without_a_kind_selector_makes_every_known_kind_approvable():
+    eng = PolicyEngine([Rule("hold.everything", 1, {}, "quarantine")], lambda d, a: None)
+    assert eng.approvable_kinds() == eng.known_kinds

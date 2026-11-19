@@ -124,12 +124,41 @@ def _ctx(io: FakeIO, row=ROW_NORMAL, kv=None):
 class ApprovalStore(FakeStore):
     """FakeStore that also answers the approvals reads with scripted rows."""
 
-    def __init__(self, pending_rows: list | None = None, approved_rows: list | None = None, **kw) -> None:
+    def __init__(self, pending_rows: list | None = None, approved_rows: list | None = None, traced: bool = True,
+                 claim_lost: bool = False, bound: bool = True, same_id: int = 1, holders: int = 1, **kw) -> None:
         super().__init__(**kw)
         self.pending_rows = pending_rows or []
         self.approved_rows = approved_rows or []
+        self.bound = bound              # False: the row names no gate decision (written straight into the table)
+        self.same_id = same_id          # rows carrying the approval id (more than one = a copied id)
+        self.traced = traced            # False: the decision the row names is not a quarantine of its action
+        self.holders = holders          # approval rows naming that decision (more than one = a copied row)
+        self.claim_lost = claim_lost    # True: another drainer's claim is on the row when it is read back
+        self.claims: dict[str, str] = {}
 
     def run_sql(self, sql: str, timeout: int = 300) -> list[tuple]:
+        if sql.startswith(f"SELECT decision_id, action_signature, tick_id FROM {OPS}.approvals WHERE approval_id"):
+            self.sql.append(sql)
+            return [("did-q" if self.bound else None, None, "tick-q")] * self.same_id
+        if "COUNT(*) AS holders" in sql:
+            self.sql.append(sql)
+            return [(self.holders,)]
+        if "COUNT(*) AS quarantined" in sql:
+            self.sql.append(sql)
+            if self.fail_on and self.fail_on in sql:
+                raise RuntimeError("trace read failed")
+            return [(1 if self.traced else 0,)]
+        if sql.startswith(f"UPDATE {OPS}.approvals SET status = 'executing'"):
+            self.sql.append(sql)
+            m = re.search(r"claim:([0-9a-f]+)'", sql)
+            aid = re.search(r"WHERE approval_id = '([^']+)'", sql)
+            self.claims[aid.group(1)] = m.group(1)
+            return []
+        if sql.startswith(f"SELECT status, note FROM {OPS}.approvals WHERE approval_id"):
+            self.sql.append(sql)
+            aid = re.search(r"WHERE approval_id = '([^']+)'", sql).group(1)
+            held = "0" * 16 if self.claim_lost else self.claims.get(aid, "")
+            return [("executing", f"budget.big_resize: x | executing 2026-11-28T03:07:00Z claim:{held}")]
         if sql.startswith("SELECT") and f"FROM {OPS}.approvals" in sql:
             self.sql.append(sql)
             if "status = 'approved'" in sql:
@@ -202,3 +231,46 @@ class _DuckCon:
     def __init__(self, con): self._con = con
     def execute(self, sql, *a, **k): return self._con.execute(_to_duckdb(sql), *a, **k)
     def close(self): self._con.close()
+
+
+# ----------------------------------------------------------------------------- the real ledger SQL, in duckdb
+class DuckStore:
+    """The actuator's store over real ledger tables in duckdb: every decision, approval, action and tick row the tick
+    writes is really there, and every read (pending, approved, the approval binding, the claim, the rate count) is the
+    real statement. Only the budget read is scripted, like the other fakes. ``sql`` keeps the statements that ran."""
+
+    def __init__(self, budget_row=ROW_LOW) -> None:
+        import duckdb
+
+        from nightshift import ledger
+
+        self.con = duckdb.connect()
+        self.con.create_function("unix_timestamp", lambda ts: ts.timestamp(), ["TIMESTAMP"], "DOUBLE")
+        for stmt in ledger.ddl_statements(OPS):
+            self.con.execute(self._t(stmt))
+        self.budget_row = budget_row
+        self.sql: list[str] = []
+
+    @staticmethod
+    def _t(sql: str) -> str:
+        # duckdb has no ``default`` catalog: the ledger lives in a single-level schema here
+        return _to_duckdb(sql).replace(OPS + ".", "nightshift_ops.").replace(f"SCHEMA IF NOT EXISTS {OPS}", "SCHEMA IF NOT EXISTS nightshift_ops")
+
+    def run_sql(self, sql: str, timeout: int = 300) -> list[tuple]:
+        self.sql.append(sql)
+        if "used_ocpu_hours" in sql:
+            return [self.budget_row]
+        cur = self.con.execute(self._t(sql))
+        return [tuple(r) for r in cur.fetchall()] if cur.description else []
+
+    def rows(self, sql: str) -> list[tuple]:
+        return self.con.execute(sql.replace("{ops}", "nightshift_ops")).fetchall()
+
+    def forge(self, approval_id: str, action: Action, by: str = "reviewer", decision_id: str | None = None,
+              status: str = "approved", when: datetime = T0, tick_id: str = "forged") -> None:
+        """What a principal with INSERT on approvals can do: a row written straight into the table."""
+        ts = when.replace(tzinfo=None)
+        self.con.execute(
+            "INSERT INTO nightshift_ops.approvals (approval_id, tick_id, action_signature, action_json, decision_id, status, "
+            "approved_by, approved_at, requested_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [approval_id, tick_id, action.signature, _action_json(action), decision_id, status, by, ts, ts, ts])

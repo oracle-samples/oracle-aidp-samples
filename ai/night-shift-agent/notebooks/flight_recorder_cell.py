@@ -147,6 +147,9 @@ def shape_rows(payload_dicts, job_name, run_id):
 def _ns_flight_recorder(ops, job_name, run_id, max_stages):
     summary = {"ok": False, "ops": ops, "job_name": job_name, "run_id": run_id}
     try:
+        # the Spark UI is served by this driver (spark.ui address, same host or cluster-internal) with a certificate
+        # that is not issued for that address; verification is off for THIS client only, which reads stage and SQL
+        # metadata from the driver it runs on and sends nothing. Never reuse this context for an external host.
         ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
 
         def get(path, default=None):

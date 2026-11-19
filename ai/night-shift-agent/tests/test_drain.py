@@ -144,3 +144,25 @@ def test_listed_approver_passes_the_identity_check():
     engine, wd = _engine(store, [])
     rep = drain_approvals(store, OPS, _ctx(FakeIO()), engine, wd, "tick0000", T0, approvers=["reviewer", "priya"])
     assert len(rep["executed"]) == 1 and store.count(f"MERGE INTO {OPS}.runbooks") == 1
+
+
+def test_forged_repair_approval_without_a_quarantine_decision_is_marked_failed():
+    """The in-cluster drain needs the gate's own quarantine decision for the action too: a statement_repair row
+    inserted straight into approvals writes no runbook."""
+    a = _repair()
+    store = RepairStore([(DSHA, "replay_safe", 0.5)], budget_rows=[ROW_NORMAL], approved_rows=[_approved_row(a)], traced=False)
+    engine, wd = _engine(store, [])
+    rep = drain_approvals(store, OPS, _ctx(FakeIO()), engine, wd, "tick0000", T0)
+    assert rep["executed"] == [] and store.count(f"MERGE INTO {OPS}.runbooks") == 0
+    assert "approval.trace: NO_QUARANTINE_DECISION" in rep["errors"][0]
+    assert "approval.trace" in store.sql[store.idx("SET status = 'failed'")]
+
+
+def test_repair_claimed_by_another_drainer_is_left_alone():
+    a = _repair()
+    store = RepairStore([(DSHA, "replay_safe", 0.5)], budget_rows=[ROW_NORMAL], approved_rows=[_approved_row(a)], claim_lost=True)
+    engine, wd = _engine(store, [])
+    rep = drain_approvals(store, OPS, _ctx(FakeIO()), engine, wd, "tick0000", T0)
+    assert rep["executed"] == [] and store.count(f"MERGE INTO {OPS}.runbooks") == 0
+    assert rep["left"] == [{"approval_id": "ap-1", "kind": "statement_repair", "reason": "claimed by another drainer"}]
+

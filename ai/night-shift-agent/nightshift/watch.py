@@ -26,7 +26,7 @@ ALLOWED_NODES = {
     "MergeIntoTable", "UnresolvedRelation", "SubqueryAlias", "AliasIdentifier", "UnresolvedAttribute", "UnresolvedStar", "Literal",
     "And", "Or", "Not", "EqualTo", "EqualNullSafe", "GreaterThan", "GreaterThanOrEqual", "LessThan", "LessThanOrEqual",
     "IsNull", "IsNotNull", "In", "Cast", "Coalesce", "Upper", "Lower", "StringTrim", "Alias",
-    "InsertStarAction", "UpdateStarAction", "InsertAction", "UpdateAction", "DeleteAction", "Assignment",
+    "InsertStarAction", "UpdateStarAction", "InsertAction", "UpdateAction", "Assignment",
 }
 
 
@@ -88,6 +88,10 @@ def checked_watch(spark: Any, w: dict, require_source: bool = False) -> tuple[st
     except Exception as e:  # noqa: BLE001
         raise ValueError(f"statement does not parse: {type(e).__name__}")
     seen, bad = walk_tree(tree)
+    if "DeleteAction" in seen:
+        # the watched table is the statement's own output, so it holds no row the branch would remove: replay would
+        # pass without ever running the DELETE, and say nothing about it
+        raise ValueError("a MERGE with a DELETE branch is not graded: replay cannot exercise the delete")
     if seen.count("MergeIntoTable") != 1 or seen[0] != "MergeIntoTable":
         raise ValueError("exactly one MERGE INTO is allowed, and nothing else")
     if seen.count("UnresolvedRelation") != 2:

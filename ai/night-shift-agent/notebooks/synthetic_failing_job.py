@@ -3,7 +3,10 @@
 #
 # Run it once with FAILURE_MODE=none to create default.nightshift_demo.orders_bronze and orders_silver
 # (key order_id, ordering column updated_at); the two synthetic entries in jobs/watched_merges.json
-# watch those tables.
+# watch those tables. Silver has exactly the bronze columns and no load-time column: a column a statement
+# fills from the clock (merged_at = current_timestamp()) differs between a replay and the recompute it is
+# compared with, so a watched statement that writes one grades snapshot_wrong and is never drafted for.
+# A silver table created by an earlier version of this cell has such a column; drop the schema first.
 #
 # Parameter FAILURE_MODE in {none, schema_drift, bad_value, upstream_missing, oom_like}. It is read
 # from a job parameter placeholder, then the FAILURE_MODE env var, else "none". Each mode fails
@@ -62,9 +65,12 @@ bronze_df.write.format("delta").mode("overwrite").saveAsTable(BRONZE)
 print(json.dumps({"step": "bronze", "rows": spark.table(BRONZE).count()}))
 
 # ---------------------------------------------------------------- 2. silver target (first run seeds it)
-spark.sql(f"CREATE TABLE IF NOT EXISTS {SILVER} ({DDL_TYPES}, merged_at TIMESTAMP) USING DELTA")
+spark.sql(f"CREATE TABLE IF NOT EXISTS {SILVER} ({DDL_TYPES}) USING DELTA")
+if spark.table(SILVER).columns != COLUMNS:
+    raise ValueError(f"{SILVER} has columns {spark.table(SILVER).columns}, expected {COLUMNS}: "
+                     f"drop the schema (DROP SCHEMA {SCHEMA} CASCADE) and run this cell again")
 if spark.table(SILVER).count() == 0:
-    spark.sql(f"INSERT INTO {SILVER} SELECT *, current_timestamp() AS merged_at FROM {BRONZE}")
+    spark.sql(f"INSERT INTO {SILVER} SELECT * FROM {BRONZE}")
 print(json.dumps({"step": "silver_seed", "rows": spark.table(SILVER).count()}))
 
 # ---------------------------------------------------------------- 3. incoming batch (half updates, half new)
@@ -113,10 +119,9 @@ USING incoming_batch s
 ON t.order_id = s.order_id
 WHEN MATCHED AND s.updated_at > t.updated_at THEN UPDATE SET
   t.customer_id = s.customer_id, t.region = s.region, t.status = s.status, t.amount = s.amount,
-  t.quantity = s.quantity, t.order_date = s.order_date, t.updated_at = s.updated_at,
-  t.merged_at = current_timestamp()
-WHEN NOT MATCHED THEN INSERT (order_id, customer_id, region, status, amount, quantity, order_date, updated_at, merged_at)
-  VALUES (s.order_id, s.customer_id, s.region, s.status, s.amount, s.quantity, s.order_date, s.updated_at, current_timestamp())
+  t.quantity = s.quantity, t.order_date = s.order_date, t.updated_at = s.updated_at
+WHEN NOT MATCHED THEN INSERT (order_id, customer_id, region, status, amount, quantity, order_date, updated_at)
+  VALUES (s.order_id, s.customer_id, s.region, s.status, s.amount, s.quantity, s.order_date, s.updated_at)
 """
 spark.sql(merge_sql)
 silver_count = spark.table(SILVER).count()

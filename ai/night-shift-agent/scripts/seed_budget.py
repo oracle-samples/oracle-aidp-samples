@@ -1,6 +1,7 @@
 """Seed budget_ledger with a shape x hours ESTIMATE for the configured cluster (the Workbench API exposes no usage or cost data).
 
-One row per day of the current month so far, category 'cluster'. ocpu_hours = (driver OCPUs + assumed
+One row per completed day of the current month, category 'cluster_estimate' (today is seeded once it is over, because
+the row key is the day and rows are never rewritten). ocpu_hours = (driver OCPUs + assumed
 active workers x worker OCPUs) x 24. est_cost = ocpu_hours x NS_OCPU_RATE (default 0.05, a placeholder
 labelled estimate; replace with the contracted rate). Idempotent on entry_id.
 
@@ -40,10 +41,11 @@ def main() -> int:
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         cols = ", ".join(col for col, _ in ledger.COLUMNS["budget_ledger"])
         sqls = []
+        # whole days only: the row key is the calendar day, and rows are insert-if-absent, so an estimate written for
+        # part of today could never be completed by a later run. Today is seeded once it is over.
         day = month_start
-        while day <= now:
-            hours = min(24.0, (now - day).total_seconds() / 3600.0) if day.date() == now.date() else 24.0
-            ocpu_hours = ocpus * hours
+        while day.date() < now.date():
+            ocpu_hours = ocpus * 24.0
             row = {
                 "entry_id": hashlib.sha256(f"seed|{env.cluster_id}|{day.date()}".encode()).hexdigest()[:16],
                 "tick_id": None, "job_key": None, "run_key": None, "cluster_key": env.cluster_id,
@@ -57,8 +59,13 @@ def main() -> int:
             )
             day += dt.timedelta(days=1)
         print(f"cluster ocpus: driver {d_ocpu} + {args.workers} x {w_ocpu} workers = {ocpus}; rows: {len(sqls)}; rate {args.rate} (estimate)")
+        if not sqls:
+            print("no completed day in this month yet: nothing to seed. With an empty budget ledger the budget is unknown, "
+                  "which the tiers treat as at most low_compute; run this again after the first full day")
+            return 0
         if args.print_only:
-            print(sqls[0]); return 0
+            print(sqls[0])
+            return 0
         for s in sqls:
             io.run_sql(s)
         print("budget_ledger:", io.run_sql(f"SELECT window_day, round(ocpu_hours,1), round(est_cost,2) FROM {env.ops}.budget_ledger ORDER BY window_day"))

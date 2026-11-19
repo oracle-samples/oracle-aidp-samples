@@ -170,7 +170,9 @@ def test_upsert_runbook_and_rate_and_budget_sql():
     assert "ON t.runbook_id = s.runbook_id" in sql
     sql = L.rate_count_sql("o.s", "rl.cluster_resize", "cluster-1", 24)
     assert "decision = 'allow'" in sql and "INTERVAL 24 HOURS" in sql and "target = 'cluster-1'" in sql
+    assert "a.status = 'applied'" in sql and "JOIN o.s.policy_decisions d ON d.decision_id = a.decision_id" in sql
     assert "current_timestamp()" in sql
+    assert "current_timestamp()" not in L.rate_count_sql("o.s", "rl.cluster_resize", "cluster-1", 24, NOW)   # the tick's own clock
     assert "target" not in L.rate_count_sql("o.s", "r", None, 1)
     with pytest.raises(ValueError):
         L.rate_count_sql("o.s", "r", None, 0)
@@ -206,13 +208,19 @@ def test_duckdb_smoke(ops_db):
     con.execute(L.insert_tick(ops, {"tick_id": "t1", "compute_tier": "normal"}, NOW))
     assert con.execute(f"SELECT COUNT(*) FROM {ops}.ticks").fetchone()[0] == 1
 
+    # an allow carries no rule_id (the gate records None for a plain allow); the rate rule is in rules_evaluated
     dec = {"tick_id": "t1", "action_signature": "sig1", "action_kind": "job_run", "target": "job1",
-           "decision": "allow", "rule_id": "rl.repairs_per_job", "rules_evaluated": ["deny.gold", "rl.repairs_per_job"],
+           "decision": "allow", "rule_id": None, "rules_evaluated": ["deny.gold", "rl.repairs_per_job"],
            "reason": "ok", "latency_ms": 1.5}
     con.execute(L.insert_decision(ops, dec, NOW))
-    con.execute(L.insert_decision(ops, {**dec, "decision": "deny", "reason": "over quota"}, NOW))
+    con.execute(L.insert_decision(ops, {**dec, "decision": "deny", "rule_id": "rl.repairs_per_job", "reason": "over quota"}, NOW))
+    con.execute(L.insert_decision(ops, {**dec, "tick_id": "t2", "rules_evaluated": ["deny.gold", "rl.repairs_per_job_weekly"]}, NOW))
     con.execute(L.insert_action(ops, {"tick_id": "t1", "action_signature": "sig1", "kind": "job_run",
-                                      "target": "job1", "params": {"a": 1}, "previous_value": {"a": 0}}, NOW))
+                                      "target": "job1", "params": {"a": 1}, "previous_value": {"a": 0},
+                                      "decision_id": L._sha16("t1", "sig1", "allow", None), "status": "applied", "applied_at": NOW}, NOW))
+    # a dry-run action behind the other allow decision: recorded, never counted
+    con.execute(L.insert_action(ops, {"tick_id": "t2", "action_signature": "sig1", "kind": "job_run", "target": "job1",
+                                      "decision_id": L._sha16("t2", "sig1", "allow", None), "status": "dry_run"}, NOW))
     con.execute(L.insert_approval(ops, {"tick_id": "t1", "action_signature": "sig2",
                                         "action_json": {"kind": "job_repair", "target": "job2"}}, NOW))
     assert con.execute(f"SELECT status FROM {ops}.approvals").fetchone()[0] == "pending"
@@ -240,7 +248,7 @@ def test_duckdb_smoke(ops_db):
 
     budget = con.execute(_to_duckdb(L.budget_summary_sql(ops, "2026-11-01"))).fetchone()
     assert budget[:4] == (0.0, 0.0, 0, 0.0)
-    # only the allow row counts toward the quota
+    # only the applied action behind an allow that ran this rule counts toward the quota
     assert con.execute(_to_duckdb(L.rate_count_sql(ops, "rl.repairs_per_job", "job1", 24, NOW))).fetchone()[0] == 1
     # pass now= explicitly: the fixture rows are stamped NOW, so wall-clock windows expire a day later
     assert con.execute(_to_duckdb(L.rate_count_sql(ops, "rl.repairs_per_job", None, 24, NOW))).fetchone()[0] == 1
@@ -279,7 +287,7 @@ def test_pending_and_approved_select_shapes():
 def test_mark_and_expire_sql_shapes():
     sql = L.mark_approval_sql("o.s", "ap1", "executed", note="dry_run by tick abc", now=LATER)
     assert sql.startswith("UPDATE o.s.approvals SET status = 'executed', note = CASE WHEN note IS NULL THEN 'executed 2026-11-02T07:00:00Z: dry_run by tick abc'")
-    assert "WHERE approval_id = 'ap1' AND status IN ('pending', 'approved')" in sql
+    assert "WHERE approval_id = 'ap1' AND status IN ('pending', 'approved', 'executing')" in sql
     assert "'failed 2026-11-02T07:00:00Z: boom'" in L.mark_approval_sql("o.s", "ap1", "failed", note="boom", now=LATER)
     assert "'expired 2026-11-02T07:00:00Z'" in L.mark_approval_sql("o.s", "ap1", "expired", now=LATER)
     assert "SET status = 'approved'" in L.mark_approval_sql("o.s", "ap1", "approved", note="DENIED_ON_EXECUTE", now=LATER)
@@ -289,8 +297,8 @@ def test_mark_and_expire_sql_shapes():
         L.mark_approval_sql("o.s", "", "executed")
     sql = L.expire_approvals_sql("o.s", LATER)
     assert sql == ("UPDATE o.s.approvals SET status = 'expired'\n"
-                   "WHERE status IN ('pending', 'approved') AND expires_at IS NOT NULL "
-                   "AND expires_at <= TIMESTAMP '2026-11-02 07:00:00.000000'")
+                   "WHERE expires_at IS NOT NULL AND ((status IN ('pending', 'approved') AND expires_at <= TIMESTAMP '2026-11-02 07:00:00.000000')\n"
+                   "   OR (status = 'executing' AND expires_at <= TIMESTAMP '2026-11-02 07:00:00.000000' - INTERVAL 1 HOURS))")
 
 
 def test_duckdb_approval_lifecycle(ops_db):
@@ -325,3 +333,76 @@ def test_duckdb_approval_lifecycle(ops_db):
     con.execute(L.reject_sql(ops, ids["sigC"], "reviewer", now=LATER))
     assert con.execute(f"SELECT status, approved_by FROM {ops}.approvals WHERE approval_id = '{ids['sigC']}'").fetchone() == ("rejected", "reviewer")
     assert con.execute(L.pending_approvals_sql(ops)).fetchall() == []
+
+
+def test_approval_binding_trace_and_claim_against_the_ledger(ops_db):
+    """The reads the approval drain depends on, against real tables: an approval is bound to the decision row it
+    names, that decision vouches for it only as a quarantine of the same action inside the window, a copied row shows
+    up as a second holder of the decision, and of two claims on one approved row only the first takes."""
+    ops, con = ops_db
+    base = {"tick_id": "t1", "action_signature": "sig1", "action_kind": "cluster_update", "target": "c1",
+            "rules_evaluated": ["budget.big_resize"], "reason": "BIG_RESIZE", "provenance": "actuator"}
+    con.execute(L.insert_decision(ops, {**base, "decision": "quarantine", "rule_id": "budget.big_resize"}, NOW))
+    con.execute(L.insert_decision(ops, {**base, "tick_id": "t2", "action_signature": "sig2", "decision": "allow", "rule_id": None}, NOW))
+    did = L._sha16("t1", "sig1", "quarantine", "budget.big_resize")
+    did_allow = L._sha16("t2", "sig2", "allow", None)
+
+    # the gate quarantines the same action again when it re-checks the approved row on a later tick
+    con.execute(L.insert_decision(ops, {**base, "tick_id": "t3", "decision": "quarantine", "rule_id": "budget.big_resize",
+                                        "provenance": L.DRAIN_PROVENANCE}, NOW))
+    did_recheck = L._sha16("t3", "sig1", "quarantine", "budget.big_resize")
+
+    def traced(decision_id, sig, tick, now=LATER):
+        return con.execute(_to_duckdb(L.quarantine_trace_sql(ops, decision_id, sig, tick, now=now))).fetchone()[0]
+
+    assert traced(did, "sig1", "t1") == 1
+    assert traced(did, "sig-other", "t1") == 0                           # the decision is for another action
+    assert traced(did, "sig1", "t9") == 0                                # the approval row is from another tick
+    assert traced(did_recheck, "sig1", "t3") == 0                        # a re-check of an approved row opens nothing
+    assert traced(did_allow, "sig2", "t2") == 0                          # an allow is not a quarantine
+    assert traced("no-such-decision", "sig1", "t1") == 0
+    assert traced(did, "sig1", "t1", datetime(2026, 11, 20, tzinfo=timezone.utc)) == 0   # weeks later it vouches for nothing
+    with pytest.raises(ValueError):
+        L.quarantine_trace_sql(ops, did, "sig1", "t1", hours=0)
+
+    con.execute(L.insert_approval(ops, {"approval_id": "ap1", "tick_id": "t1", "action_signature": "sig1", "decision_id": did,
+                                        "action_json": {"kind": "cluster_update", "target": "c1"}, "note": "budget.big_resize"}, NOW))
+    assert con.execute(L.approval_binding_sql(ops, "ap1")).fetchall() == [(did, "sig1", "t1")]
+    assert con.execute(L.approval_binding_sql(ops, "nope")).fetchall() == []
+    assert con.execute(L.decision_holders_sql(ops, did)).fetchone()[0] == 1
+    # a copy of the row under another id names the same decision: two holders
+    con.execute(L.insert_approval(ops, {"approval_id": "ap-copy", "tick_id": "x", "action_signature": "sig1", "decision_id": did,
+                                        "action_json": {"kind": "cluster_update", "target": "c1"}, "status": "approved"}, NOW))
+    assert con.execute(L.decision_holders_sql(ops, did)).fetchone()[0] == 2
+    con.execute(f"DELETE FROM {ops}.approvals WHERE approval_id = 'ap-copy'")
+
+    con.execute(L.approve_sql(ops, "ap1", "reviewer", now=LATER))
+    con.execute(L.claim_approval_sql(ops, "ap1", "aaaa", LATER))
+    con.execute(L.claim_approval_sql(ops, "ap1", "bbbb", LATER))          # the row is no longer approved: no match
+    status, note = con.execute(L.approval_claim_sql(ops, "ap1")).fetchone()
+    assert status == "executing" and note.endswith("claim:aaaa") and "bbbb" not in note
+    assert con.execute(_to_duckdb(L.approved_unexecuted_sql(ops, LATER))).fetchall() == []   # not picked up again
+    con.execute(L.release_claim_sql(ops, "ap1", "bbbb", LATER))          # not the holder: nothing changes
+    assert con.execute(f"SELECT status FROM {ops}.approvals").fetchone()[0] == "executing"
+    con.execute(L.release_claim_sql(ops, "ap1", "aaaa", LATER))          # the holder hands it back
+    status, note = con.execute(L.approval_claim_sql(ops, "ap1")).fetchone()
+    assert status == "approved" and note.endswith("claim released 2026-11-02T07:00:00Z")
+    con.execute(L.claim_approval_sql(ops, "ap1", "cccc", LATER))
+    con.execute(L.mark_approval_sql(ops, "ap1", "executed", note="applied", now=LATER))
+    assert con.execute(f"SELECT status FROM {ops}.approvals").fetchone()[0] == "executed"
+    with pytest.raises(ValueError):
+        L.claim_approval_sql(ops, "ap1", "")
+
+
+def test_an_executing_row_expires_an_hour_after_the_others(ops_db):
+    """A sweep must not expire a row whose action is being applied right now: pending and approved rows expire at
+    expires_at, a row left executing only an hour after it."""
+    ops, con = ops_db
+    for aid, status in (("p", "pending"), ("a", "approved"), ("e", "executing")):
+        con.execute(L.insert_approval(ops, {"approval_id": aid, "tick_id": "t", "action_signature": "s" + aid, "status": status,
+                                            "action_json": {"kind": "cluster_update", "target": "c1"},
+                                            "expires_at": datetime(2026, 11, 2, 6, 30)}, NOW))
+    con.execute(_to_duckdb(L.expire_approvals_sql(ops, LATER)))                       # 07:00: 30 minutes past expiry
+    assert dict(con.execute(f"SELECT approval_id, status FROM {ops}.approvals").fetchall()) == {"p": "expired", "a": "expired", "e": "executing"}
+    con.execute(_to_duckdb(L.expire_approvals_sql(ops, datetime(2026, 11, 2, 7, 31))))  # more than an hour past it
+    assert con.execute(f"SELECT status FROM {ops}.approvals WHERE approval_id = 'e'").fetchone()[0] == "expired"

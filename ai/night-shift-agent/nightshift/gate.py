@@ -1,19 +1,24 @@
-"""Policy gate: rules as rows, priority order, first deny wins, sticky quarantine, fail-closed audit.
+"""Policy gate: ``Rule`` rows in priority order, first deny wins, sticky quarantine, fail-closed audit.
 
-Fail closed throughout: a failed decision write denies, and a rate rule with no counter denies with
-``DB_UNAVAILABLE``.
+The rule table is ``default_rules()`` in this module (code, reviewed like code). Both runners build their engine
+from it; the ``policy_rules`` ledger table is reserved for a later version and nothing reads it.
+
+Fail closed throughout: an action kind the engine does not know is denied (``UNKNOWN_KIND``), a failed decision
+write denies, and a rate rule with no counter denies with ``DB_UNAVAILABLE``.
 """
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from nightshift.config import JOB_CRON_MIN_MINUTES, Env, _env
 from nightshift.types import Action, Decision, Rule, TickContext
 
 Counter = Callable[[str, str, int], int]
-"""``counter(rule_id, target, window_hours)`` -> prior ALLOW decisions for that rule/target in the window."""
+"""``counter(rule_id, target, window_hours)`` -> prior ALLOW decisions in the window whose evaluation ran that rule
+for that target (an allow records ``rule_id`` NULL or the lifted quarantine rule, so the rate rule is found in
+``rules_evaluated``)."""
 CheckFn = Callable[[Rule, Action, TickContext, Counter | None], tuple[bool, str]]
 """``check(rule, action, ctx, counter)`` -> ``(triggered, reason)``."""
 
@@ -28,6 +33,13 @@ DEFAULT_SHAPE_ALLOWLIST = tuple(
 )
 DEFAULT_WORKER_CAP = 24
 _MISSING = object()
+
+# The action kinds the engine will evaluate at all. Anything else is denied before a rule runs: a kind nobody wrote
+# a rule for must never fall through to the default allow (a forged or mistyped action would otherwise execute).
+KNOWN_KINDS: frozenset[str] = frozenset(
+    {"cluster_stop", "cluster_update", "job_update_schedule", "job_disable", "statement_repair", "notify", "noop"}
+)
+UNKNOWN_KIND_RULE = "gate.known_kinds"
 
 
 def register_check(rule_id: str) -> Callable[[CheckFn], CheckFn]:
@@ -64,19 +76,41 @@ class PolicyEngine:
         rules: list[Rule],
         audit_sink: Callable[[Decision, Action], None],
         decision_counter: Counter | None = None,
+        known_kinds: Iterable[str] = KNOWN_KINDS,
     ) -> None:
         self.rules = list(rules)
         self.audit_sink = audit_sink
         self.decision_counter = decision_counter
+        self.known_kinds = frozenset(known_kinds)
+
+    def approvable_kinds(self) -> frozenset[str]:
+        """Kinds a quarantine rule can hold for a person. An approval lifts a quarantine and nothing else, so an
+        approval row carrying any other kind was not opened by this gate and is never executed."""
+        kinds: set[str] = set()
+        for rule in self.rules:
+            if not rule.enabled or rule.effect != "quarantine":
+                continue
+            wanted = rule.selector.get("kind")
+            if wanted is None:
+                kinds.update(self.known_kinds)   # a quarantine rule with no kind selector can hold any known kind
+            elif isinstance(wanted, str):
+                kinds.add(wanted)
+            elif isinstance(wanted, (list, tuple, set, frozenset)):
+                kinds.update(str(k) for k in wanted)
+        return frozenset(kinds)
 
     def evaluate(self, action: Action, ctx: TickContext) -> Decision:
-        """Priority-ordered evaluation: first deny wins, quarantine sticks, default allow; audit before return."""
+        """Priority-ordered evaluation: unknown kind denies, first deny wins, quarantine sticks, a known kind no
+        rule objects to is allowed; audit before return."""
         t0 = time.perf_counter()
         evaluated: list[str] = []
         quarantine: tuple[str, str] | None = None
         decision: Decision | None = None
 
-        for rule in sorted((r for r in self.rules if r.enabled), key=lambda r: r.priority):
+        if action.kind not in self.known_kinds:
+            decision = Decision(action.signature, "deny", UNKNOWN_KIND_RULE, f"UNKNOWN_KIND: {action.kind}")
+
+        for rule in sorted((r for r in self.rules if r.enabled and decision is None), key=lambda r: r.priority):
             if not selector_matches(rule.selector, action):
                 continue
             evaluated.append(rule.rule_id)
@@ -248,8 +282,13 @@ def check_self(rule: Rule, action: Action, ctx: TickContext, counter: Counter | 
 
 @register_check("safety.active_runs")
 def check_active_runs(rule: Rule, action: Action, ctx: TickContext, counter: Counter | None) -> tuple[bool, str]:
-    """Deny cluster_stop/cluster_update while runs are active on that cluster."""
-    active = (ctx.kv.get("active_runs") or {}).get(action.target, 0) or 0
+    """Deny cluster_stop/cluster_update while runs are active on that cluster, and when the count is unknown: the
+    tick writes an entry per managed cluster only after it read the run list, so a missing entry (the read failed, or
+    the target is not a managed cluster) fails closed."""
+    counts = ctx.kv.get("active_runs")
+    active = counts.get(action.target) if isinstance(counts, dict) else None
+    if isinstance(active, bool) or not isinstance(active, int):
+        return True, f"ACTIVE_RUNS_UNKNOWN: no run count for {action.target}"
     if active > 0:
         return True, f"ACTIVE_RUNS: {active} on {action.target}"
     return False, "ok"
@@ -350,5 +389,5 @@ def default_rules() -> list[Rule]:
 
 __all__ = [
     "PolicyEngine", "RULE_CHECKS", "register_check", "selector_matches", "cron_min_interval_minutes",
-    "default_rules", "DEFAULT_SHAPE_ALLOWLIST", "DEFAULT_WORKER_CAP",
+    "default_rules", "DEFAULT_SHAPE_ALLOWLIST", "DEFAULT_WORKER_CAP", "KNOWN_KINDS", "UNKNOWN_KIND_RULE",
 ]

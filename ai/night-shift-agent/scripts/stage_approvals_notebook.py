@@ -35,7 +35,7 @@ if APPROVAL_ID and not _re.fullmatch(r"[0-9a-f]{{16}}", APPROVAL_ID):
     raise ValueError("APPROVAL_ID must be the 16-hex-character id from the Pending table")
 '''
 
-EVIDENCE = '''# The verdicts behind it: the original statement and the draft, same five hazards, same shallow clone.
+EVIDENCE = '''# The verdicts behind it: the original statement and the draft, same five hazards, each on its own shallow clone of the table.
 _ops = "{ops}"
 _d = spark.sql(f"SELECT statement_sha256, verdict_id, table_name FROM {{_ops}}.repair_drafts WHERE approval_id = '{{APPROVAL_ID}}'").collect()
 if not _d:
@@ -63,8 +63,11 @@ APPROVAL_ID = globals().get("APPROVAL_ID") or "{approval_id}"
 if not APPROVAL_ID:
     raise ValueError("set APPROVAL_ID in the first cell")
 _who = spark.sql("SELECT current_user()").collect()[0][0]
-_who_sql = _who.replace("'", "''")  # SQL-escaped copies for the literals below
-_note_sql = NOTE.replace("'", "''")
+# Spark SQL escaping for the literals below: backslash doubled, quote backslash-escaped. A doubled quote ('') is NOT an
+# escape in Spark (it reads as two adjacent literals and the quote is lost), so the ledger's own rule is used here.
+_esc = lambda s: s.replace("\\\\", "\\\\\\\\").replace("'", "\\\\'")  # noqa: E731
+_who_sql = _esc(_who)
+_note_sql = _esc(NOTE)
 print(f"deciding {{APPROVAL_ID}} as {{_who}}")
 _row = spark.sql(f"SELECT status FROM {{_ops}}.approvals WHERE approval_id = '{{APPROVAL_ID}}'").collect()
 if not _row:
@@ -112,7 +115,7 @@ def cells(ops: str, approval_id: str = "") -> list[dict]:
         code(PARAM.format(approval_id=approval_id)),                       # code 0
         md("## 1. Pending"),
         q(pending),                                                        # code 1
-        md("## 2. The evidence: original and draft, same hazards, same clone"),
+        md("## 2. The evidence: original and draft, same hazards, same table"),
         code(EVIDENCE.format(ops=ops)),                                    # code 2
         code(DRAFT_TEXT.format(ops=ops)),                                  # code 3
         md("## 3. Decide"),
