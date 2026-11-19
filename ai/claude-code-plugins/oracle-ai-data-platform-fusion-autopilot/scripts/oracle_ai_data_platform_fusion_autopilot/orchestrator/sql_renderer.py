@@ -42,6 +42,8 @@ Failure modes:
   ``/*``, multiple top-level statements, etc.).
 * ``AIDPF-5011`` — profile value referenced by ``{{ profile.<key> }}``
   has a disallowed Python type (only str/int/float/bool/date/datetime).
+* ``AIDPF-5015`` — ``{{ watermark_predicate }}`` in an incremental render of a
+  ``replace`` node (a filter there would shrink the rebuilt table to the delta).
 
 Render is deterministic; no LLM or operator interaction is allowed during
 seed/incremental execution.
@@ -75,6 +77,25 @@ AIDPF_5003_UNRESOLVED_VARIATION = "AIDPF-5003"
 AIDPF_5010_POST_RENDER_REJECTED = "AIDPF-5010"
 AIDPF_5011_DISALLOWED_PARAM_TYPE = "AIDPF-5011"
 AIDPF_5013_INVALID_SNAPSHOT_DATE = "AIDPF-5013"
+AIDPF_5015_WATERMARK_PREDICATE_ON_REPLACE = "AIDPF-5015"
+
+
+def watermark_predicate_on_replace_message(node_id: str) -> str:
+    """Operator message for ``{{ watermark_predicate }}`` in a ``replace`` node.
+
+    Shared by the renderer (run time) and the content-pack validator
+    (design time) so both name the same fix. A ``replace`` node rebuilds its
+    whole target, so a watermark filter could only shrink it to the delta:
+    the fix is to remove the token, never to add a watermark block.
+    """
+    return (
+        f"{AIDPF_5015_WATERMARK_PREDICATE_ON_REPLACE}: node {node_id!r} uses "
+        f"{{{{ watermark_predicate }}}} but its `refresh.incremental.strategy` is "
+        f"`replace`, which rebuilds the whole table every run. Remove the "
+        f"{{{{ watermark_predicate }}}} token from the node's SQL. Do not add a "
+        f"`refresh.incremental.watermark` block: with `replace` it would rebuild "
+        f"the table from only the rows changed since the last run."
+    )
 
 
 class SqlRendererError(Exception):
@@ -100,6 +121,14 @@ class PostRenderRejectedError(SqlRendererError):
 
 class DisallowedParamTypeError(SqlRendererError):
     """Profile value's Python type isn't in the allowed set (AIDPF-5011)."""
+
+
+class WatermarkPredicateOnReplaceError(SqlRendererError):
+    """``{{ watermark_predicate }}`` in an incremental ``replace`` node (AIDPF-5015).
+
+    ``replace`` is ``CREATE OR REPLACE TABLE ... AS SELECT``; a watermark filter
+    would rebuild the target from the delta alone and drop every other row.
+    """
 
 
 class InvalidSnapshotDateError(SqlRendererError):
@@ -557,6 +586,11 @@ def _render_watermark_predicate(
     flows through a parameter marker. Multi-source nodes emit the predicate
     for the primary source only; the primary is what advances the cursor.
 
+    An incremental render of a node whose incremental strategy is ``replace``
+    raises :class:`WatermarkPredicateOnReplaceError` (AIDPF-5015), whether or
+    not it declares a watermark block: ``replace`` rebuilds the whole target,
+    so a filter would rebuild it from the delta alone.
+
     When ``for_hash`` is True (the plan-hash normalization pass), the
     predicate is forced to the canonical ``1=1`` form regardless of mode and
     writes NO ``watermark_*`` param — so a node's seed and incremental
@@ -574,6 +608,12 @@ def _render_watermark_predicate(
         return "1=1"
 
     inc = node.refresh.incremental
+    # Checked before the watermark block: a replace node must never get a real
+    # filter, even if it declares a watermark block (that would drop history).
+    if inc is not None and inc.strategy == "replace":
+        raise WatermarkPredicateOnReplaceError(
+            watermark_predicate_on_replace_message(node.id)
+        )
     if inc is None or inc.watermark is None:
         raise UnresolvedVariationPointError(
             f"{AIDPF_5003_UNRESOLVED_VARIATION}: node {node.id!r} uses "

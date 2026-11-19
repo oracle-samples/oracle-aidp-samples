@@ -9,7 +9,6 @@ WITH invoices AS (
     inv._extract_ts                                                 AS bronze_extract_ts
   FROM {{ catalog }}.{{ bronze_schema }}.ap_invoices inv
   WHERE inv.ApInvoicesVendorId IS NOT NULL
-    AND {{ watermark_predicate }}
 ),
 supplier AS (
   SELECT vendor_id, supplier_number, supplier_name, business_relationship

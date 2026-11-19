@@ -4,6 +4,68 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed — `supplier_spend` incremental render (issue #176, part 1)
+- **`gold.supplier_spend` now runs in `--mode incremental`.** Its SQL carried
+  `{{ watermark_predicate }}` although the node is a full rebuild
+  (`refresh.incremental.strategy: replace`, no watermark block), so every
+  incremental render failed with `AIDPF-5003` — after all bronze extracts and
+  silver merges had already run. The token is removed; seed output is
+  unchanged (the token rendered as `1=1`), and incremental now rebuilds the
+  mart in full, as its `refresh.incremental.reason` documents.
+- **New `AIDPF-5015`** rejects `{{ watermark_predicate }}` in any `replace`
+  node, at `content-pack validate` / run-start validation and in the renderer
+  as a backstop. The old `AIDPF-5003` message pointed authors at adding a
+  watermark block; on a `replace` node that would rebuild the table from the
+  delta alone and drop the rest. Customer overlays with the same mistake now
+  fail validation until the token is removed (even for seed runs).
+- **Upgrade note:** removing the token changes `supplier_spend`'s plan hash.
+  A tenant that already seeded it gets a one-time `AIDPF-4040` on that mart on
+  the next incremental run; re-seed just that mart
+  (`run --mode seed --datasets supplier_spend --layers gold`). Re-pinning with
+  `--repin-plan-hash` is also safe for this particular edit (the removed token
+  rendered as `1=1` and the mart is rebuilt in full every run), but that flag is
+  a break-glass option not meant for production/SOX runs, so prefer the
+  re-seed. A
+  `replaceNode` fork of `supplier_spend` reports `AIDPF-2064` until re-stamped
+  with `content-pack refresh-fork`.
+- New tests render every shipped starter-pack SQL node in seed and both
+  incremental shapes (no test rendered the pack in incremental mode before).
+
+### Fixed — silver/gold incremental cursor is now stored (issue #176, part 2)
+- **`dim_supplier`, `dim_account` and `gl_balance` now run as real deltas.**
+  The cursor (`output_watermark`) was computed as `MAX(_extract_ts)` on the
+  node's **target**, where the SQL renames that column to `bronze_extract_ts`;
+  the resulting error was swallowed and NULL was stored after every seed and
+  incremental run. The next run therefore rendered `{{ watermark_predicate }}`
+  as `1=1` and re-read and re-merged the whole bronze source every cycle
+  (results stayed correct; the incremental saving was lost silently).
+- The cursor is now the newest `watermark.column` value in the node's primary
+  **source** — the table every other check already reads that column from —
+  captured just **before** the write, so a source row that lands mid-run is
+  re-read next run instead of skipped. Only `merge` nodes are probed (no other
+  strategy reads its cursor back). An empty delta still keeps the previous
+  cursor. If the probe fails, a WARNING names the node, table and error and the
+  previous cursor is kept (it is no longer reset to NULL). Overlapping runs that
+  write the same bronze table remain unsupported: bronze stamps `_extract_ts`
+  with the extract *start* time, so a run that started earlier but commits later
+  can land rows below a cursor that has already moved on.
+- **Upgrade note:** no re-seed and no plan-hash change (no SQL or YAML changed).
+  Existing tenants have NULL stored, so their first incremental after upgrading
+  is one more full scan; real deltas start from the run after.
+- **Behaviour change:** `gl_balance` joins `dim_account` only for balance rows in
+  the delta. A `dim_account` change — an edited attribute such as
+  `account_type`, or an account that arrives after its balance rows (NULL
+  attributes until then) — is not applied to `gl_balance` rows whose balance did
+  not change, and rows of closed periods may never change again. Re-seed
+  `gl_balance` (`run --mode seed --datasets gl_balance --layers gold`) after
+  `dim_account` corrections, and consider a re-seed at each period close to
+  bound how long a description can stay out of date. This is what the node's
+  YAML `reason` always described; the full rescans had been hiding it.
+- Tests use a fake Spark that rejects unknown columns like real Spark (the old
+  fake answered every `SELECT MAX` with NULL, which hid the bug), and cover
+  seed → incremental end to end: the cursor a seed stores turns the next run's
+  predicate into a real filter.
+
 ### Security
 - The generated dispatch notebook no longer prints the length of the BICC password.
 - The manual-install fallback installs from the plugin checkout instead of an

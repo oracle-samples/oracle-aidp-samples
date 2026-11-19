@@ -239,6 +239,9 @@ shipped installed `content_packs/` tree. For each `nodeSpec`:
   `*_run_id`, `*_built_at`); single financially-correct shape (LEFT JOIN, fact
   preserved) over runtime path-selection; variation-point refs
   `{{ column.<name> }}` / `{{ semantic.<name> }}` where the tenant may differ.
+  Use `{{ watermark_predicate }}` only in a `merge` node with a watermark
+  block — never in a `replace` mart (AIDPF-5015), which rebuilds in full; fix
+  AIDPF-5015 by removing the token, not by adding a watermark block.
 - (rung 4) the `bronze_extract` YAML from step 3's `probe-pvo` (additive).
 
 ### 6 — Validate

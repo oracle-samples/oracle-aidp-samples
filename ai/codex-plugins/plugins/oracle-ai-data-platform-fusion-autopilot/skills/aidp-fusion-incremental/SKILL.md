@@ -124,12 +124,22 @@ Close the loop based on whether a dashboard already exists:
 
 ## Refresh-strategy reminder (don't be surprised)
 - **Row-grain** nodes (silver dims, `gl_balance`) MERGE on the natural key — a
-  delta, not a rebuild.
+  delta, not a rebuild: they read only bronze rows whose `_extract_ts` is newer
+  than the cursor the previous run stored. The first incremental after upgrading
+  from a build without a stored cursor is still a full scan; deltas start from
+  the run after. `gl_balance` joins `dim_account` only for balance rows in the
+  delta, so a `dim_account` change (an edited attribute such as `account_type`,
+  or an account that arrives after its balances) is not applied to unchanged
+  `gl_balance` rows — closed periods may never change again. After
+  `dim_account` corrections, re-seed `gl_balance`
+  (`run --mode seed --datasets gl_balance --layers gold`); a re-seed at each
+  period close also bounds how long a description can stay out of date.
 - **Aggregate / date-anchored** marts (`supplier_spend`, `ap_aging`,
   `dim_calendar`, and any replace-strategy overlay mart) CREATE OR REPLACE every
   cycle regardless of mode — incremental rebuilds them in full. (So such a mart
-  must NOT use a watermark filter in its SQL — that trips AIDPF-5003; see
-  `mart-author`.)
+  must NOT use `{{ watermark_predicate }}` in its SQL — `content-pack validate`
+  and run-start validation reject it with AIDPF-5015. Fix it by removing the
+  token, never by adding a watermark block; see `mart-author`.)
 
 ## Skill family
 `$aidp-fusion-seed` (first build) → `$aidp-fusion-incremental` (deltas) ·
