@@ -1,0 +1,24 @@
+aidp:
+  region: ap-mumbai-1
+  lake_ocid: ocid1.aidataplatform.oc1.ap-mumbai-1.abc123
+  workspace_id: 00000000-0000-4000-8000-000000000001
+  oci_profile: DEFAULT
+  default_namespace: x
+paths:
+  migrate_output: /Workspace/test
+  export_output: /Workspace/test
+bucket_mapping:
+  path: mapping.json
+dbx_source:
+  host: https://x.cloud.databricks.com
+secrets: {}
+redirect:
+  bucket: sandbox
+  # namespace missing — schema requires all three fields together
+  # table_prefix missing
+spark_config: {}
+autoscale_config: {}
+runtime:
+  cell_execute_timeout_s: 14400
+  fix_max_attempts: 5
+  ws_recycle_interval_s: 300

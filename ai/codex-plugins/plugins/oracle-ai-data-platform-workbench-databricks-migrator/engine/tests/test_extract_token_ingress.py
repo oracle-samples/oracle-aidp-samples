@@ -183,10 +183,16 @@ def test_group_or_world_readable_token_file_is_refused_on_posix(monkeypatch, tmp
 def test_mode_check_follows_platform_default(monkeypatch, tmp_path, capsys):
     p = _token_file(tmp_path)
     monkeypatch.setattr(ex, "_file_mode", lambda path: 0o644)
+    # The platform rule itself (monkeypatching os.name cannot simulate Windows
+    # I/O: pathlib.Path() dispatches on it and would build a WindowsPath).
     monkeypatch.setattr(os, "name", "nt")
-    assert ex.read_token_file(str(p)) == TOKEN  # skipped on Windows
-    assert "permission check skipped" in capsys.readouterr().err
+    assert ex._default_enforce_mode() is False
     monkeypatch.setattr(os, "name", "posix")
+    assert ex._default_enforce_mode() is True
+    # Check off -> skip note printed, token still read despite 0644
+    assert ex.read_token_file(str(p), enforce_mode=False) == TOKEN
+    assert "permission check skipped" in capsys.readouterr().err
+    # POSIX default -> 0644 refused
     with pytest.raises(ValueError):
         ex.read_token_file(str(p))
 

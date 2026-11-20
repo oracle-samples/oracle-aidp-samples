@@ -12,7 +12,7 @@ Output:
   - catalog_migration_report.md: human-readable summary.
 
 Usage:
-    python $HOME/.aidp-migrator/engine/scripts/migrate_catalog.py \
+    python scripts/migrate_catalog.py \
         --pack reports/catalog_pack_test.json \
         --aidp-cluster <cluster_id> \
         --aidp-lake <lake_ocid> \

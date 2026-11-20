@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Context Tools for OpenAI model
-=======================
-Gathers context that helps OpenAI GPT-5.5 make better migration decisions:
+Context Tools for the migration LLM
+===================================
+Gathers context that helps the configured LLM make better migration decisions:
 1. Catalog snapshot (schemas, tables, columns)
 2. Dependent notebook content
 3. Kernel state after execution
@@ -14,7 +14,7 @@ import os
 import re
 import sys
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 import oci
 import requests as http_requests
@@ -26,48 +26,50 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _unwrap_aidp_text(raw_text: str) -> str:
     """AIDP wraps output in JSON: [{"type":"TEXT_PLAIN","value":"actual text"}].
-    Handles concatenated arrays: [{"value":"a"}][{"value":"b"}].
-    Extract the actual text value. Returns raw text if not wrapped."""
+    Handles adjacent typed envelopes and the platform's double-send pattern.
+    Untyped customer JSON is not an envelope and is retained verbatim."""
     if not raw_text:
         return ""
 
-    # Try single JSON array first (strict=False allows control chars like \n in strings)
-    try:
-        items = json.loads(raw_text, strict=False)
-        if isinstance(items, list):
-            parts = []
-            for item in items:
-                if isinstance(item, dict) and "value" in item:
-                    parts.append(item["value"])
-            if parts:
-                return "".join(parts)
-    except (json.JSONDecodeError, TypeError):
-        pass
-
-    # Handle concatenated JSON arrays: ][
-    if "][" in raw_text:
-        extracted = []
-        for chunk in re.split(r'\]\s*\[', raw_text):
-            chunk = chunk.strip()
-            if not chunk.startswith("["):
-                chunk = "[" + chunk
-            if not chunk.endswith("]"):
-                chunk = chunk + "]"
-            try:
-                items = json.loads(chunk, strict=False)
-                if isinstance(items, list):
-                    for item in items:
-                        if isinstance(item, dict) and "value" in item:
-                            extracted.append(item["value"])
-            except (json.JSONDecodeError, TypeError):
-                pass
-        if extracted:
-            # Deduplicate consecutive identical entries (AIDP sends twice)
-            deduped = []
-            for e in extracted:
-                if not deduped or e != deduped[-1]:
-                    deduped.append(e)
-            return "".join(deduped)
+    # PR110 live run: ordinary [{"value":1}][{"value":2}] interleaved
+    # with diagnostics was mistaken for platform envelopes. Decode only
+    # positively identified TEXT_PLAIN records; preserve all other bytes.
+    # raw_decode respects quoted brackets/escapes (splitting on ][ does not).
+    decoder = json.JSONDecoder(strict=False)
+    pieces = []
+    cursor = 0
+    changed = False
+    previous_envelope = None
+    while cursor < len(raw_text):
+        start = raw_text.find('[', cursor)
+        if start < 0:
+            pieces.append(raw_text[cursor:])
+            break
+        gap = raw_text[cursor:start]
+        pieces.append(gap)
+        if gap:
+            previous_envelope = None
+        try:
+            items, end = decoder.raw_decode(raw_text, start)
+        except json.JSONDecodeError:
+            pieces.append('[')
+            cursor = start + 1
+            continue
+        if (isinstance(items, list) and items and all(
+                isinstance(item, dict) and item.get('type') == 'TEXT_PLAIN'
+                and isinstance(item.get('value'), str) for item in items)):
+            # Preserve the established AIDP adjacent-envelope double-send
+            # contract, but never deduplicate ordinary customer JSON/text.
+            if items != previous_envelope:
+                pieces.append(''.join(item['value'] for item in items))
+            previous_envelope = items
+            changed = True
+        else:
+            pieces.append(raw_text[start:end])
+            previous_envelope = None
+        cursor = end
+    if changed:
+        raw_text = ''.join(pieces)
 
     # AIDP sometimes emits an empty display-output wrapper "[]" concatenated
     # ahead of plain stdout (e.g. "[]40121"). Strip leading empty arrays so
@@ -80,19 +82,25 @@ def _unwrap_aidp_text(raw_text: str) -> str:
 
     return raw_text
 
-# AIDP config for log fetching — generic, no hardcoded tenant/instance values.
+# AIDP config for log fetching — generic, no hardcoded customer/instance values.
 # Set at runtime (job_migrate_from_workflow overrides these). Profile defaults to "DEFAULT".
 AIDP_BASE = None
 DATALAKE_OCID = None
 WORKSPACE_ID = None
 OCI_PROFILE = "DEFAULT"
 
+# Path to the bucket-mapping CSV. Populated by job_migrate.main() (or by
+# whichever entry point loads config) from cfg.bucket_mapping.path. Loader
+# falls back to config/bucket_map.csv if unset (legacy behavior for tests
+# that don't wire cfg).
+_BUCKET_MAPPING_PATH: str = ""
+
 
 # ─── Catalog Context ─────────────────────────────────────────────────
 
 def load_catalog_snapshot() -> str:
-    """Load catalog snapshot as a compact string for OpenAI model context.
-    With OpenAI model 4.8 1M context, we can include the full catalog."""
+    """Load catalog snapshot as a compact string for Opus context.
+    With Opus 5 1M context, we can include the full catalog."""
     cache = os.path.join(PROJECT_DIR, "reports", "catalog_snapshot.json")
     if os.path.exists(cache):
         with open(cache) as f:
@@ -100,7 +108,7 @@ def load_catalog_snapshot() -> str:
     else:
         return "(no catalog snapshot available)"
 
-    # Full representation - OpenAI model has 1M context, include everything
+    # Full representation - Opus has 1M context, include everything
     parts = ["## Available Catalog on AIDP (full snapshot)"]
     parts.append("These are the schemas and tables that exist on AIDP right now.")
     parts.append("If a notebook references a table not in this list, it may not exist yet.\n")
@@ -166,7 +174,7 @@ async def verify_table_schema(session, table_name: str) -> str:
     (0 columns) when the underlying data hasn't been synced. DESCRIBE returns
     an empty DataFrame. Every query against such tables fails silently.
 
-    Confirmed by migration test fixtures.
+    Confirmed: corp_analytics.example_claims_tbl in the pilot deployment migration (2026-04-10).
 
     Returns:
         'EXISTS:<N>cols' if table has N columns (healthy),
@@ -294,12 +302,20 @@ def _scan_run_targets(active_source: str) -> List[str]:
     """Find %run / dbutils.notebook.run / oidlUtils.notebook.run targets in
     already-comment-stripped source."""
     deps = []
-    for match in re.findall(r'%run\s+([^\s$]+)', active_source):
-        clean = re.sub(r'\$\w+', '', match).strip()
-        if clean and clean[0] in ('"', "'") and clean[-1] == clean[0]:
-            clean = clean[1:-1]
+    for match in re.finditer(r'(?m)^[ \t]*%run[ \t]+([^\r\n]*)', active_source):
+        text = match.group(1).strip()
+        clean = ""
+        if text.startswith(('"', "'")):
+            end = text.find(text[0], 1)
+            if end > 0:
+                clean = text[1:end].strip().rstrip("/")
+        else:
+            boundary = re.search(r'(?=\s+(?:\$[A-Za-z_]\w*|#))', text)
+            clean = (text[:boundary.start()] if boundary else text).strip().rstrip("/")
         if clean:
             deps.append(clean)
+        else:
+            print("[WARN][%run] malformed or empty dependency target left unresolved")
     for match in re.findall(r'(?:dbutils|oidlUtils)\.notebook\.run\s*\(\s*["\']([^"\']+)["\']', active_source):
         deps.append(match)
     return deps
@@ -442,7 +458,7 @@ _BUCKET_NS_INDEX: Dict[str, str] = {}  # {oci_bucket: namespace} from JSON
 
 def _normalize_bucket_name(name: str) -> str:
     """Strip common prefixes/suffixes for fuzzy matching.
-    oci-source-data-lake -> source-data-lake, bucket-oci -> bucket"""
+    oci-example-data-lake -> example-data-lake, bucket-oci -> bucket"""
     n = name.lower().strip()
     if n.startswith("oci-"):
         n = n[4:]
@@ -451,22 +467,93 @@ def _normalize_bucket_name(name: str) -> str:
     return n
 
 
-def _load_bucket_ns_json() -> Dict[str, List[Dict[str, str]]]:
-    """Load oci_bucket_tenancy_mapping.json and build mapping in the same format
-    as the CSV loader: {bucket_name: [{oci_bucket, oci_namespace}]}.
-    Each OCI bucket maps to itself so suggest_oci_path can find it."""
-    json_path = os.path.join(PROJECT_DIR, "config", "oci_bucket_tenancy_mapping.json")
-    if not os.path.exists(json_path):
+def sanitize_bucket_index(index: Dict[str, str]) -> Tuple[Dict[str, str], List[str]]:
+    """Drop phantom `<base>-oci` suffix buckets that disagree on namespace with
+    their real `oci-<base>` prefix twin.
+
+    The mapping file (config/bucket_map.csv) is a gitignored,
+    regenerated deployment artifact, so a bad entry can reappear at any time.
+    When both `oci-<base>` and `<base>-oci` name the same base but point at
+    DIFFERENT namespaces, one is a phantom: on 2026-08-03 the phantom
+    `<base>-oci@<data-lake-ns>` (a bucket that exists in no namespace)
+    shadowed the real `oci-<base>@<workspace-ns>`, so the migrator
+    emitted a BucketNotFound archive path -> 0 rows -> a runaway metric loop.
+
+    AIDP's own buckets use the `oci-` PREFIX convention, so we keep the prefix
+    form and drop the suffix twin. Returns (clean_index, dropped_keys); callers
+    log the drops so truncation is never silent.
+    """
+    prefix_by_base: Dict[str, str] = {}
+    for k, ns in index.items():
+        if k.lower().startswith("oci-"):
+            prefix_by_base[_normalize_bucket_name(k)] = ns
+    clean, dropped = {}, []
+    for k, ns in index.items():
+        if k.lower().endswith("-oci"):
+            base = _normalize_bucket_name(k)
+            twin_ns = prefix_by_base.get(base)
+            if twin_ns is not None and twin_ns != ns:
+                dropped.append(k)
+                continue
+        clean[k] = ns
+    return clean, dropped
+
+
+def _load_bucket_ns_csv(csv_path: str | None = None) -> Dict[str, List[Dict[str, str]]]:
+    """Load bucket→namespace mapping from the 3-column CSV.
+
+    CSV columns: s3_bucket, oci_bucket, oci_namespace.
+    Builds:
+      - {bucket_name: [{oci_bucket, oci_namespace}]}  — keyed by s3_bucket for
+        exact S3-side lookup AND by oci_bucket for direct match.
+      - _BUCKET_NS_INDEX = {oci_bucket: namespace} — same shape context_tools
+        callers previously got from the JSON loader (no consumer change).
+
+    csv_path: path to the CSV. When None, callers must set it via the
+    _BUCKET_MAPPING_PATH module global (populated by job_migrate.main() from
+    cfg.bucket_mapping.path)."""
+    import csv as _csv
+    path = csv_path or _BUCKET_MAPPING_PATH
+    if not path:
+        # Legacy fallback for callers that haven't wired cfg yet
+        path = os.path.join(PROJECT_DIR, "config", "bucket_map.csv")
+    if not os.path.exists(path):
         return {}
-    with open(json_path) as f:
-        index = json.load(f)
+    # Build flat {oci_bucket: namespace} first for sanitize_bucket_index
+    index: Dict[str, str] = {}
+    rows = []
+    with open(path) as f:
+        for row in _csv.DictReader(f):
+            oci_b = (row.get("oci_bucket") or "").strip()
+            ns = (row.get("oci_namespace") or "").strip()
+            if oci_b and ns:
+                index[oci_b] = ns
+                rows.append(row)
+    index, dropped = sanitize_bucket_index(index)
+    if dropped:
+        print(f"[bucket-mapping] dropped {len(dropped)} phantom -oci twin(s) "
+              f"with a namespace-mismatched oci- prefix bucket: {dropped}")
     global _BUCKET_NS_INDEX
     _BUCKET_NS_INDEX = index
-    # Build mapping keyed by bucket name (same key as oci_bucket for direct match)
-    mapping = {}
-    for bucket, ns in index.items():
-        mapping[bucket] = [{"oci_bucket": bucket, "oci_namespace": ns}]
+    # Mapping keyed by BOTH s3_bucket and oci_bucket so suggest_oci_path
+    # can find the entry regardless of which side the caller uses as the key.
+    mapping: Dict[str, List[Dict[str, str]]] = {}
+    for row in rows:
+        s3 = (row.get("s3_bucket") or "").strip()
+        oci_b = (row.get("oci_bucket") or "").strip()
+        if oci_b not in index:
+            continue  # dropped by sanitizer
+        entry = {"oci_bucket": oci_b, "oci_namespace": index[oci_b],
+                 # the S3-side name of THIS row ("" when the row is identity /
+                 # oci-only) so consumers can pick the explicit s3->oci row
+                 # instead of an oci-alias entry that shares the same key.
+                 "s3_bucket": s3}
+        mapping.setdefault(oci_b, []).append(entry)
+        if s3 and s3 != oci_b:
+            mapping.setdefault(s3, []).append(entry)
     return mapping
+
+
 
 
 def find_oci_bucket(s3_name: str) -> List[Dict[str, str]]:
@@ -485,7 +572,7 @@ def find_oci_bucket(s3_name: str) -> List[Dict[str, str]]:
         return [{"oci_bucket": s3_name, "oci_namespace": index[s3_name]}]
 
     # 2. Try common OCI naming variants
-    for candidate in [f"oci-{s3_name}", f"oci-source-{s3_name}", f"{s3_name}-oci"]:
+    for candidate in [f"oci-{s3_name}", f"oci-examplecorp-{s3_name}", f"{s3_name}-oci"]:
         if candidate in index:
             return [{"oci_bucket": candidate, "oci_namespace": index[candidate]}]
 
@@ -510,24 +597,24 @@ def find_oci_bucket(s3_name: str) -> List[Dict[str, str]]:
 
 
 def load_bucket_mapping(csv_path: str = None) -> Dict[str, List[Dict[str, str]]]:
-    """Load the OCI bucket→tenancy mapping (the single source of truth for
-    namespaces) from config/oci_bucket_tenancy_mapping.json.
-    Returns: {bucket: [{oci_bucket, oci_namespace}, ...]} and populates
-    _BUCKET_NS_INDEX = {oci_bucket: namespace}.
+    """Load the S3-to-OCI bucket mapping (single source of truth for
+    namespaces AND the S3→OCI bucket-name correspondence).
 
-    The legacy reports/s3_to_oci_bucket_mapping.csv no longer exists in the
-    project and is NOT used. The `csv_path` arg is accepted for backward
-    compatibility but ignored.
+    Format: 3-column CSV (s3_bucket, oci_bucket, oci_namespace). Path comes
+    from cfg.bucket_mapping.path via context_tools._BUCKET_MAPPING_PATH.
+
+    Returns: {bucket: [{oci_bucket, oci_namespace}, ...]} keyed by BOTH
+    s3_bucket and oci_bucket. Populates _BUCKET_NS_INDEX = {oci_bucket: ns}.
     """
     global _BUCKET_MAPPING
     if _BUCKET_MAPPING is not None:
         return _BUCKET_MAPPING
-    _BUCKET_MAPPING = _load_bucket_ns_json()
+    _BUCKET_MAPPING = _load_bucket_ns_csv(csv_path)
     return _BUCKET_MAPPING
 
 
 def get_bucket_mapping_context() -> str:
-    """Build a compact string of S3-to-OCI bucket mappings for OpenAI model context.
+    """Build a compact string of S3-to-OCI bucket mappings for Opus context.
     Groups by namespace for readability."""
     mapping = load_bucket_mapping()
     if not mapping:
@@ -544,24 +631,14 @@ def get_bucket_mapping_context() -> str:
     parts = ["## S3-to-OCI Bucket Mapping (from mapping CSV)"]
     parts.append("Use these to translate S3/Databricks paths to correct OCI paths.\n")
 
-    # Show all namespaces — OpenAI model 4.8 has 1M context, no need to truncate.
-    # Priority namespaces first, then the rest.
-    priority_ns = ["<DATALAKE_NAMESPACE>", "<NFS_NAMESPACE>", "<COLLECTIONS_NAMESPACE>", "<WORKSPACE_NAMESPACE>"]
-    shown = set()
-    for ns in priority_ns:
-        if ns in by_ns:
-            parts.append(f"### Namespace: {ns}")
-            for e in sorted(by_ns[ns]):
-                parts.append(f"  {e}")
-            parts.append("")
-            shown.add(ns)
-
+    # Show all namespaces sorted alphabetically. The old priority-namespace
+    # ordering was a cosmetic tweak with no correctness impact (Opus sees the
+    # same mapping either way); dropped as part of the customer-generic refactor.
     for ns in sorted(by_ns):
-        if ns not in shown:
-            parts.append(f"### Namespace: {ns}")
-            for e in sorted(by_ns[ns]):
-                parts.append(f"  {e}")
-            parts.append("")
+        parts.append(f"### Namespace: {ns}")
+        for e in sorted(by_ns[ns]):
+            parts.append(f"  {e}")
+        parts.append("")
 
     return "\n".join(parts)
 
@@ -583,8 +660,8 @@ def suggest_oci_path(s3_or_oci_path: str) -> List[str]:
         # bucket's namespace already matches the mapping, the path is correct —
         # return as-is. Otherwise fall through and suggest the MAPPING's
         # namespace (exported notebooks often carry a wrong namespace, e.g.
-        # oci-source-feature-bucket tagged @<DATALAKE_NAMESPACE> when the
-        # mapping + manual gold say @<WORKSPACE_NAMESPACE>).
+        # `oci-<bucket>` tagged @<data-lake-ns> when the mapping + manual gold
+        # say @<workspace-ns>).
         m = re.match(r'oci://([^@]+)@([^/]+)(/.*)?', s3_or_oci_path)
         if m:
             existing_bucket = m.group(1)
@@ -617,7 +694,7 @@ def suggest_oci_path(s3_or_oci_path: str) -> List[str]:
 
     suggestions = []
     # Strip common prefixes for matching
-    clean_bucket = bucket_name.replace("oci-", "").replace("source-", "")
+    clean_bucket = bucket_name.replace("oci-", "").replace("examplecorp-", "")
 
     for s3, entries in mapping.items():
         # Direct match
@@ -625,7 +702,7 @@ def suggest_oci_path(s3_or_oci_path: str) -> List[str]:
             for e in entries:
                 suggestions.append(f"oci://{e['oci_bucket']}@{e['oci_namespace']}{sub_path}")
         # Fuzzy match on bucket name
-        elif clean_bucket in s3 or s3.replace("source-", "") == clean_bucket:
+        elif clean_bucket in s3 or s3.replace("examplecorp-", "") == clean_bucket:
             for e in entries:
                 suggestions.append(f"oci://{e['oci_bucket']}@{e['oci_namespace']}{sub_path}")
 
@@ -661,7 +738,7 @@ except Exception as e:
 
 async def verify_and_suggest_paths(session, source: str) -> str:
     """Extract storage paths from cell source, verify on cluster, suggest alternatives.
-    Returns a context string with path status and suggestions for OpenAI model."""
+    Returns a context string with path status and suggestions for Opus."""
     paths = extract_storage_paths(source)
     if not paths:
         return ""
@@ -720,7 +797,7 @@ def explore_path(path, max_depth={max_depth}):
     result = {{"path": path, "exists": False}}
 
     # /Volumes/ and /Workspace/ are local FUSE mounts — use os directly.
-    # Catch misformed paths like oci://bucket@ns/Volumes/... where OpenAI model
+    # Catch misformed paths like oci://bucket@ns/Volumes/... where Opus
     # incorrectly wrapped a local FUSE path in an OCI URI.
     for _fp in ("/Volumes/", "/Workspace/", "/tmp/"):
         _ix = path.find(_fp)
@@ -880,7 +957,7 @@ def _log_signer():
 
 def fetch_recent_spark_errors(cluster_id: str, minutes_back: int = 5) -> str:
     """Fetch recent Spark driver AND worker error logs from AIDP.
-    Returns a compact string of unique errors for OpenAI model context."""
+    Returns a compact string of unique errors for Opus context."""
     all_errors = set()
 
     for log_source, subject in [("driver", "spark-driver"), ("executor", "spark-executor-1")]:
@@ -935,7 +1012,7 @@ async def build_cell_context(
     dependent_context: str,
     catalog_context: str,
 ) -> str:
-    """Build full context string for OpenAI model when migrating a cell."""
+    """Build full context string for Opus when migrating a cell."""
     parts = []
 
     # Catalog (truncate if huge)

@@ -15,7 +15,7 @@ manifest remains available when registering a local `ai/codex-plugins` checkout.
 
 | Plugin | Version | Status | Purpose |
 |---|---|---|---|
-| [`oracle-ai-data-platform-workbench-databricks-migrator`](./plugins/oracle-ai-data-platform-workbench-databricks-migrator/) | 0.1.0 | Initial release | Plan and execute automated Databricks to AIDP migrations from Codex. |
+| [`oracle-ai-data-platform-workbench-databricks-migrator`](./plugins/oracle-ai-data-platform-workbench-databricks-migrator/) | 0.3.0 | Engine re-sync (dbx_export, config-driven, OpenAI Responses adapter) | Plan and execute automated Databricks to AIDP migrations from Codex. |
 | [`oracle-ai-data-platform-workbench-engineer-agent`](./plugins/oracle-ai-data-platform-workbench-engineer-agent/) | 0.1.0+codex.20260623113518 | Initial release | Full AIDP data-engineering surface in natural language: catalog discovery, SQL analysis, AI-in-SQL, Delta operations, pipelines, clusters, governance, agent flows, MLOps, migration, and workspace administration. |
 | [`oracle-ai-data-platform-workbench-spark-connectors`](./plugins/oracle-ai-data-platform-workbench-spark-connectors/) | 0.8.0 | Google BigQuery ingestion + external-catalog guidance | Generate AIDP Apache Spark notebook connector code for Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including read-only Google BigQuery ingestion and external catalogs. |
 | [`ask-aidp`](./plugins/ask-aidp/) | 0.10.0 | Current release | Ask and operate Oracle AI Data Platform resources from Codex through aidp-cli, OCI-signed REST endpoints, and native SDK tools, including Data Lineage, bundle publishing, and Compute configuration management. |

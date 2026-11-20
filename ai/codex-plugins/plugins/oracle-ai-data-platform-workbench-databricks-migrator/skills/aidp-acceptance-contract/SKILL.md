@@ -1,11 +1,11 @@
 ---
 name: aidp-acceptance-contract
-description: YAML-driven acceptance contract for batch and streaming pipelines that need convergence verification, not just "no exceptions". Declares PASS only after K consecutive zero-result windows (consecutive-zero-window convergence). Use for streaming jobs, slowly-draining backfills, or any pipeline whose success is "the pending queue is empty".
+description: Manifest-declared acceptance contract for batch and streaming pipelines that need convergence verification, not just "no exceptions". Declares PASS only after K consecutive zero-result windows (consecutive-zero-window convergence). Use for streaming jobs, slowly-draining backfills, or any pipeline whose success is "the pending queue is empty".
 ---
 
 # `aidp-acceptance-contract` — convergence verification for batch/streaming jobs
 
-A "no exception" pass is not enough for streaming or backfill pipelines. They might still be processing rows that haven't drained yet. This skill wires up a YAML-driven contract: PASS only after K consecutive empty-pending windows.
+A "no exception" pass is not enough for streaming or backfill pipelines. They might still be processing rows that haven't drained yet. This skill wires up a manifest-declared contract: PASS only after K consecutive empty-pending windows.
 
 ## When to use
 
@@ -18,93 +18,80 @@ A "no exception" pass is not enough for streaming or backfill pipelines. They mi
 ## The pattern
 
 ```
-1. Migrator runs Pass-2 to completion.
-2. Acceptance contract starts probing periodically (every `sleep_between_s` seconds).
+1. Migrator runs the task's cells to completion (all PASS).
+2. The task's acceptance contract then probes periodically (every `sleep_between_s` seconds).
 3. Each probe runs `pending_count_sql` and checks `pending = 0`.
-4. After `zero_window` consecutive zero-probes → declare PASS.
-5. If we hit `max_attempts` without convergence → declare ACCEPTANCE_CONTRACT_VIOLATED.
-   Overall migration result is demoted to FAIL.
+4. After `zero_window` consecutive zero-probes → the task keeps its PASS.
+5. If we hit `max_attempts` without convergence → the task's status is demoted
+   from PASS to ACCEPTANCE_CONTRACT_VIOLATED (non-PASS; runner exits non-zero).
 ```
 
-## YAML contract format
+## Contract format — a key IN the manifest (no flag, no sidecar file)
 
-Save at `reports/<MyJob>_acceptance.yaml`:
+There is **no `--acceptance-contract` CLI flag**, and the migrator does **not** auto-load a YAML that happens to sit next to the manifest. The contract is read from the manifest itself: an `acceptance_contract` dict on the **task entry** (or on the job entry, as a fallback for every task) — see `engine/scripts/acceptance_contract.py` and its loading in `job_migrate.py`.
 
-```yaml
-# Acceptance contract for <task_key>
-task_key: "<task_key>"
-description: "Wait until the retry queue drains"
-pending_count_sql: "SELECT COUNT(*) AS pending FROM <sandbox_schema>.<retry_queue_table> WHERE status = 'PENDING'"
-zero_window: 3                # K consecutive zero windows required for PASS
-sleep_between_s: 30           # seconds between probes
-max_attempts: 60              # ceiling; 60 × 30s = 30-min hard cap
+Edit `reports/<MyJob>_manifest.json` and add the key to the task that needs convergence:
 
-# Optional: override the cluster (default = use job_migrate's cluster)
-cluster_id: null
-
-# Optional: notify-on-violation hook (called once if max_attempts hit before convergence)
-on_violation_log_path: "/tmp/<MyJob>_acceptance.log"
+```jsonc
+{
+  "job_name": "<MyJob>",
+  "tasks": [
+    {
+      "task_key": "<task_key>",
+      "notebook_path": "...",
+      "acceptance_contract": {
+        "pending_count_sql": "SELECT COUNT(*) AS pending FROM <sandbox_schema>.<retry_queue_table> WHERE status = 'PENDING'",
+        "zero_window": 3,
+        "sleep_between_s": 30,
+        "max_attempts": 60
+      }
+    }
+  ]
+}
 ```
+
+Recognized fields (anything else is ignored; a missing/empty `pending_count_sql` is a parse error):
+
+| Field | Required | Default | Meaning |
+|---|---|---|---|
+| `pending_count_sql` | yes | — | Query returning the pending count |
+| `zero_window` | no | 1 | K consecutive zero readings required |
+| `sleep_between_s` | no | 30 | Seconds between probes |
+| `max_attempts` | no | 10 | Give up after N probes → VIOLATED |
+
+There is no `task_key`, `cluster_id`, or `on_violation_log_path` field — the contract is scoped by WHERE it sits in the manifest, probes run on the migrator's existing kernel session, and each attempt's count + the verdict land in `JOB_REPORT.md`.
 
 ## Wire into a migration
 
-The contract is loaded by `job_migrate.py` automatically if the YAML exists alongside the manifest:
+Nothing extra to pass — run the migration normally and the contract on each task entry is picked up:
 
 ```bash
-# Convention: <MyJob>_manifest.json + <MyJob>_acceptance.yaml side by side
-ls reports/
-# → reports/<MyJob>_manifest.json
-# → reports/<MyJob>_acceptance.yaml
-
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
-  --manifest reports/<MyJob>_manifest.json \
-  --acceptance-contract reports/<MyJob>_acceptance.yaml \
-  # + the rest of the args
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
+  --manifest reports/<MyJob>_manifest.json
 ```
 
-If `--acceptance-contract` is omitted, the contract is skipped (default behavior — PASS = Pass-2 cells all green).
+Tasks without an `acceptance_contract` key are unaffected (default behavior — PASS = cells all green). The contract runs only if the task's cells all passed; it demotes, never promotes.
 
 ## Per-task vs job-wide
 
-The YAML's `task_key` field scopes the contract to ONE task in the manifest. If you have multiple tasks needing convergence, write a list:
-
-```yaml
-contracts:
-  - task_key: "<task_a>"
-    pending_count_sql: "SELECT COUNT(*) FROM <schema>.<queue_a> WHERE pending"
-    zero_window: 3
-    sleep_between_s: 30
-    max_attempts: 60
-  - task_key: "<task_b>"
-    pending_count_sql: "SELECT COUNT(*) FROM <schema>.<queue_b> WHERE pending"
-    zero_window: 5
-    sleep_between_s: 60
-    max_attempts: 30
-```
-
-Contracts run sequentially after their respective tasks complete.
+Put the key on a task entry to scope it to that task. A job-level `acceptance_contract` (on the job object) acts as the fallback for tasks that don't declare their own. Multiple tasks needing different convergence rules each carry their own `acceptance_contract` dict; contracts run after their respective tasks complete.
 
 ## How to read the verdict
 
-After a run, `JOB_REPORT.md` will include an acceptance-contract section:
+The verdict surfaces in two places:
 
-```
-## Acceptance contracts
+- **The run log** — per-attempt `[acceptance] attempt K/N: pending_count = ...` lines, a reason + diagnostic on finish (e.g. "count stable at 42 across last 5 attempts — pipeline is stuck, not slow"), and an `| acceptance: PASSED (K attempts)` suffix on the task's `RESULT:` line.
+- **`JOB_REPORT.md`** — the task's `Status` column in the Task Results table reads `ACCEPTANCE_CONTRACT_VIOLATED` when the contract did not converge (there is no separate acceptance table section).
 
-| task_key | status | windows_observed | converged_at |
-|---|---|---|---|
-| <task_a> | PASS | 3 consecutive zeros | 2026-XX-XX HH:MM:SS |
-| <task_b> | ACCEPTANCE_CONTRACT_VIOLATED | 60 attempts, 0 consecutive zeros | -- |
-```
-
-If ANY contract is VIOLATED, the overall `RESULT:` line is demoted from `PASS` to `ACCEPTANCE_CONTRACT_VIOLATED` regardless of cell-level success.
+A contract result is `PASSED` / `VIOLATED` / `ERROR` (probe SQL itself failed — treated like a violation, with the error quoted). A VIOLATED or ERROR contract demotes that task's status from `PASS` to `ACCEPTANCE_CONTRACT_VIOLATED` regardless of cell-level success, and the runner exits non-zero.
 
 ## Building a good `pending_count_sql`
 
 Some rules of thumb for the query:
 
 - Read from a sandbox table you control (most likely the redirect-schema version of the source's queue / retry table).
-- The query must return a single column of integer count (the framework specifically reads column "pending" or position 0).
+- The query must return an integer count as the FIRST column of the FIRST row (that one value is what the framework reads; a non-integer result fails the contract with an error).
 - The query must be FAST — it runs every `sleep_between_s`. Add appropriate filters / partitions.
 - The query must be IDEMPOTENT — running it doesn't mutate state.
 

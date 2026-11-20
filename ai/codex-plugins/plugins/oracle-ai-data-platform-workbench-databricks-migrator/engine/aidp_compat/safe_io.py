@@ -55,7 +55,7 @@ def safe_pickle_dump(obj: Any, filepath: str, delay: float = FUSE_WRITE_DELAY) -
             f.flush()
             os.fsync(f.fileno())
 
-        # Delete existing file first â€” FUSE /Volumes can't atomically replace
+        # Delete existing file first — FUSE /Volumes can't atomically replace
         if os.path.exists(filepath):
             try:
                 os.remove(filepath)
@@ -238,7 +238,7 @@ def safe_read_modify_write_parquet(spark, path: str, transform_fn, **write_kwarg
 
 
 # Default target Parquet file size in MB. 256 MB matches Delta's
-# tuneFileSizesForRewrites guidance and is large enough that a 2,500-job
+# tuneFileSizesForRewrites guidance and is large enough that a large-scale
 # wave does not flood Object Storage with thousands of <1 MB part files.
 DEFAULT_TARGET_FILE_MB = 256
 
@@ -402,7 +402,7 @@ def safe_materialize(df, large: bool = False, checkpoint_dir: Optional[str] = No
     Solves the classic stale lazy eval problem:
         df = spark.read.parquet("oci://bucket/path/")   # captures file list lazily
         other_df.write.mode("overwrite").parquet("oci://bucket/path/")  # overwrites source
-        df.write.mode("overwrite")...                   # BOOM â€” df still has stale file list
+        df.write.mode("overwrite")...                   # BOOM — df still has stale file list
 
     Spark's execution plan is lazily evaluated: it captures the file list at read() time
     but only reads actual data at write() time. If the source files are overwritten between
@@ -422,7 +422,7 @@ def safe_materialize(df, large: bool = False, checkpoint_dir: Optional[str] = No
 
     Args:
         df: Spark DataFrame with a potentially stale execution plan
-        large: If True, uses checkpoint() instead of cache() â€” writes to disk,
+        large: If True, uses checkpoint() instead of cache() — writes to disk,
                breaks lineage entirely, safe for DataFrames that don't fit in memory
         checkpoint_dir: Required when large=True. Path for checkpoint storage
                         (e.g. "/Volumes/default/default/dbfs/checkpoints/")
@@ -440,14 +440,14 @@ def safe_materialize(df, large: bool = False, checkpoint_dir: Optional[str] = No
         spark = SparkSession.getActiveSession()
         if spark is None:
             raise RuntimeError(
-                "No active SparkSession â€” cannot set checkpoint directory. "
+                "No active SparkSession — cannot set checkpoint directory. "
                 "Call safe_materialize() from within a running Spark job."
             )
         spark.sparkContext.setCheckpointDir(checkpoint_dir)
         return df.checkpoint()
     else:
         df = df.cache()
-        df.count()  # Forces actual read NOW â€” materializes into memory/disk
+        df.count()  # Forces actual read NOW — materializes into memory/disk
         return df
 
 
@@ -511,7 +511,7 @@ def load_saved_model_from_volumes(volumes_path: str, custom_objects=None):
     propagated all shards from OCI Object Storage to the kernel cache yet.
 
     This helper copies the entire model directory to a local /tmp path first,
-    then loads from local disk â€” no FUSE involved in the actual model load.
+    then loads from local disk — no FUSE involved in the actual model load.
 
     Usage:
         from aidp_compat import load_saved_model_from_volumes
@@ -682,6 +682,6 @@ def safe_joblib_load(filepath: str, retries: int = 3, delay: float = FUSE_WRITE_
             if attempt < retries - 1:
                 time.sleep(delay)
         except Exception as e:
-            # Non-retriable error (e.g. corrupted file) â€” raise immediately
+            # Non-retriable error (e.g. corrupted file) — raise immediately
             raise
     raise last_exc  # type: ignore[misc]

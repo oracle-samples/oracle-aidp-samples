@@ -1,6 +1,6 @@
 ---
 name: aidp-resume-migration
-description: Resume an interrupted migration. The migrator caches already-migrated notebooks (in-memory + on-cluster) so subsequent runs skip them. Use when a prior aidp-migrate-job run was killed mid-flight (Ctrl-C, cluster restart, network drop) or when resuming after a manual fix to a specific dep notebook.
+description: Resume an interrupted migration. The migrator caches already-migrated notebooks (in-memory + on-cluster) and can skip them when explicitly asked (--skip-migrated, OFF by default) or when the run is scoped with --start-task / --only-tasks. Use when a prior aidp-migrate-job run was killed mid-flight (Ctrl-C, cluster restart, network drop) or when resuming after a manual fix to a specific dep notebook.
 ---
 
 # `aidp-resume-migration` — pick up where you left off
@@ -9,7 +9,7 @@ The migrator is designed to be resumable. Each successful Pass-1 dep migration i
 - **Module-level `_migration_cache` dict** in `job_migrate.py` (in-memory, per-run).
 - **On-cluster `os.path.exists()` probe** against the output path (persistent across runs).
 
-Pass-2 task notebooks are similarly skipped if their final `.ipynb` already exists at `<output-base>/<job>/notebooks/...`.
+Pass-2 task notebooks are similarly skipped — **only when `--skip-migrated` is passed** — if their final `.ipynb` already exists at `<migrate-output>/<job>/notebooks/...`.
 
 ## When to use
 
@@ -17,30 +17,30 @@ Pass-2 task notebooks are similarly skipped if their final `.ipynb` already exis
 - The user manually edited a specific dep / task notebook and wants to resume without re-doing the rest.
 - The user added a new task to the manifest and wants to migrate only the new task.
 
-## Default behavior (resume is automatic)
+## IMPORTANT: resume is NOT automatic
+
+`--skip-migrated` is **OFF by default** on both runners (deliberately: reusing already-migrated notebooks is unsafe for jobs with nested `%run` util deps — a child-inlined dep can be served from an un-converted copy). A plain re-invoke after a crash re-migrates from the top. To resume, scope the run explicitly — the preferred tool is `--start-task`; `--skip-migrated` is available for confident resumes.
+
+All resume invocations go through the canonical runner, `job_migrate_from_workflow.py` (direct `job_migrate.py` invocation is deprecated):
 
 ```bash
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
-  --manifest reports/<MyJob>_manifest.json \
-  --cluster <CLUSTER_ID> \
-  --aidp-base <AIDP_BASE> \
-  --datalake-ocid <DATALAKE_OCID> \
-  --workspace-id <WORKSPACE_UUID> \
-  --output-base <output-workspace-path> \
-  --oci-profile <profile>
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
+  --job-key <workflow-key> \
+  --skip-migrated          # explicit opt-in: reuse notebooks already at the output path
 ```
 
-The default flag is `--skip-migrated` (ON). Every notebook already at the output path is silently skipped. So a plain re-invoke after a crash IS the resume — no special flag needed.
+(Use `--manifest reports/<MyJob>_manifest.json` instead of `--job-key` when resuming against a saved manifest. Never pass `--cluster` — deprecated no-op.)
 
-## Resuming from a specific task
+## Resuming from a specific task (preferred)
 
 If the failure was task-specific and you want to start there (skipping all earlier tasks):
 
 ```bash
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
-  --manifest reports/<MyJob>_manifest.json \
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
+  --job-key <workflow-key> \
   --start-task <substring_of_task_key>
-  # + the rest of the standard args
 ```
 
 `--start-task` is a substring match on `task_key`. Skip every task whose key sorts before the matched task.
@@ -48,26 +48,17 @@ python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
 ## Resuming a single task (skip everything else)
 
 ```bash
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
-  --manifest reports/<MyJob>_manifest.json \
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
+  --job-key <workflow-key> \
   --only-tasks "<task_key_1>,<task_key_2>"
-  # + the rest
 ```
 
 Useful when you've manually fixed one dep and want to re-run only the tasks that consume it.
 
-## Force re-migration of an already-migrated notebook
+## Re-migration of an already-migrated notebook (the default!)
 
-You typically DON'T want this — it burns model tokens. But if you must:
-
-```bash
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
-  --manifest reports/<MyJob>_manifest.json \
-  --no-skip-migrated
-  # + the rest
-```
-
-**Warning**: this overwrites any manual edits the user applied to the previously-migrated `.ipynb` at the output path. If the user has made manual fixes, REFUSE to use this flag without explicit "yes, overwrite my edits".
+A plain re-invoke without `--skip-migrated` re-migrates everything in scope — it burns model tokens AND **overwrites any manual edits the user applied to the previously-migrated `.ipynb` at the output path**. If the user has made manual fixes, REFUSE to re-run over them without explicit "yes, overwrite my edits" — or scope with `--start-task` / `--only-tasks` / `--skip-migrated` so their notebooks aren't touched.
 
 ## When the cache lies
 
@@ -79,7 +70,7 @@ The cache can be wrong in these scenarios — clear it manually if you see them:
 | User modified the manifest to add a new dep, but a previously-migrated task still uses the OLD dep path. | Delete the output `.ipynb` for that task + re-run. |
 | The output `.ipynb` was created but is empty / corrupt (cluster died mid-write). | Delete the bad file + re-run. |
 
-There's no `--clear-cache` flag — the cache IS the filesystem state of `<output-base>`.
+There's no `--clear-cache` flag — the cache IS the filesystem state of `<migrate-output>` (`cfg.paths.migrate_output`, overridable per-run with `--migrate-output`).
 
 ## Cluster state when resuming
 

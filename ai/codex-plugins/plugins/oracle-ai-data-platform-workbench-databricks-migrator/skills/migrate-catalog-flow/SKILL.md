@@ -1,6 +1,6 @@
 ---
 name: migrate-catalog-flow
-description: Guided catalog migration flow. Extracts Databricks Unity Catalog / HMS metadata, previews the 18-rule DDL rewrite, then batched replay on AIDP. Asks before the destructive replay step. Use when the user wants to migrate the catalog layer (schemas + tables) with checkpoints, rather than running aidp-migrate-catalog directly.
+description: Guided catalog migration flow. Extracts Databricks Unity Catalog / HMS metadata, previews the DDL rewrite (10 implemented rules of an 18-rule spec), then batched replay on AIDP. Asks before the destructive replay step. Use when the user wants to migrate the catalog layer (schemas + tables) with checkpoints, rather than running aidp-migrate-catalog directly.
 ---
 
 # `migrate-catalog-flow` — guided catalog migration
@@ -17,14 +17,14 @@ For a one-shot non-interactive run, prefer [`aidp-migrate-catalog`](../aidp-migr
 
 ## Workflow
 
-1. **Confirm prereqs** — invoke [`aidp-migrator-bootstrap`](../aidp-migrator-bootstrap/SKILL.md). Especially check `DATABRICKS_HOST` + `DATABRICKS_TOKEN` are set (catalog extract needs them; a `--token-file <path>` may stand in for `DATABRICKS_TOKEN`, but never pass the token on the command line -- `--token <value>` is refused).
+1. **Confirm prereqs** — invoke [`aidp-migrator-bootstrap`](../aidp-migrator-bootstrap/SKILL.md). Especially check `DATABRICKS_HOST` + `DATABRICKS_TOKEN` are set (catalog extract needs them; a `--token-file <path>` may stand in for `DATABRICKS_TOKEN`, but never pass the token on the command line — `--token <value>` is refused).
 2. **Confirm scope** — ask which catalogs / schemas the user wants to migrate. Default to "everything in this catalog" but accept a filter list.
 3. **Confirm bucket mapping** — if any external tables have `s3://` locations, the bucket-map config must exist. Route to [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) if missing.
 4. **Stage 1: extract** — `extract_catalog_databricks.py` → `reports/catalog_pack.json`. Show the table count.
 5. **Stage 2 dry-run: rewrite preview** — `migrate_catalog.py --dry-run`. Surface:
    - Total CREATE SCHEMA statements
    - Total CREATE TABLE statements
-   - Any rejections (materialized views, streaming, unsupported)
+   - Any rejections (MV / streaming / unsupported)
    - Any bucket-map misses
 
    Ask the user "ready to replay on the cluster?"
@@ -39,7 +39,7 @@ If the user supplied `<catalog>` or `<catalog>:<schema>` filters in their prompt
 
 ```
 [Phase 1/4] Extracted N catalogs, M schemas, K tables → reports/catalog_pack.json
-[Phase 2/4] Dry-run: would create 23 schemas + 412 tables. Rejected: 3 MVs, 1 streaming table.
+[Phase 2/4] Dry-run: would create N schemas + M tables. Rejected: K MVs, J streaming tables.
             About to run live DDL replay — proceed? (y/N)
 [Phase 3/4] Replayed in 4 chunks of 25 statements each. All chunks committed.
 [Phase 4/4] Verify: SHOW TABLES across each schema. Discrepancies: 0

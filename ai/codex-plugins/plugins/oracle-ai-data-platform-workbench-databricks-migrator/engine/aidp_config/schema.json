@@ -1,0 +1,421 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIDP Migrator customer configuration",
+  "description": "Validated at load time by aidp_config.loader. Every customer-specific value the migration tool needs lives here; nothing is hardcoded in source.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "aidp",
+    "paths",
+    "bucket_mapping",
+    "dbx_source",
+    "secrets",
+    "spark_config",
+    "autoscale_config",
+    "runtime"
+  ],
+  "definitions": {
+    "secret": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Plaintext value (interim \u2014 prefer credential-store refs)."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "from",
+            "name"
+          ],
+          "properties": {
+            "from": {
+              "const": "aidp_credential_store"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Credential name in the AIDP Credential Store."
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Field name inside the credential (multi-key credentials only)."
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "aidp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region",
+        "lake_ocid",
+        "workspace_id",
+        "oci_profile",
+        "default_namespace"
+      ],
+      "properties": {
+        "region": {
+          "type": "string",
+          "pattern": "^[a-z]+-[a-z]+-[0-9]+$",
+          "description": "OCI region identifier, e.g. ap-mumbai-1, us-phoenix-1."
+        },
+        "lake_ocid": {
+          "type": "string",
+          "pattern": "^ocid1\\.aidataplatform\\.[a-z0-9]+\\.[a-z0-9-]+\\.[a-z0-9]+$",
+          "description": "AIDP data lake OCID."
+        },
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "AIDP workspace UUID."
+        },
+        "oci_profile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Profile name in ~/.oci/config used for API-key auth."
+        },
+        "default_namespace": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fallback OCI namespace used ONLY when a bucket is absent from oci_bucket_tenancy_mapping.json. Per-bucket namespaces come from the mapping file (authoritative)."
+        },
+        "scala_oci_config_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^/",
+          "description": "FOR SCALA ONLY / TEMPORARY \u2014 remove after AIDP 5.0 (Scala aidputils not available until then). Absolute cluster path to an OCI API-key config file consumed by the injected %scala OciFs helper (com.oracle.bmc.auth.ConfigFileAuthenticationDetailsProvider). PySpark code paths fetch OCI signer keys from AIDP Credential Store via aidputils.secrets and do NOT read this. Set only if your notebooks use %scala + dbutils.fs.ls / entity_decrypt. Env override: OCI_CONFIG_FILE."
+        },
+        "oci_credentials": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "from",
+            "name",
+            "keys"
+          ],
+          "description": "OCI signer credentials fetched at cluster runtime via aidputils.secrets.get(name, key=...). Laptop-side does NOT read this block \u2014 it uses standard OCI SDK resolution (~/.oci/config with oci_profile). See scripts/oci_credential_helper.py::get_signer().",
+          "properties": {
+            "from": {
+              "const": "aidp_credential_store"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Credential name in the AIDP Credential Store."
+            },
+            "keys": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "user",
+                "fingerprint",
+                "tenancy",
+                "region",
+                "private_key_content"
+              ],
+              "description": "Maps OCI Signer field name (LHS) -> key name inside the credential (RHS). Lets you rename a key in the AIDP UI by editing only the RHS.",
+              "properties": {
+                "user": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fingerprint": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tenancy": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "region": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "private_key_content": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migrate_output",
+        "export_output"
+      ],
+      "properties": {
+        "migrate_output": {
+          "type": "string",
+          "pattern": "^/Workspace/",
+          "description": "Base path under /Workspace for migration tool output."
+        },
+        "export_output": {
+          "type": "string",
+          "pattern": "^/Workspace/",
+          "description": "Base path under /Workspace where dbx_export writes exported artifacts."
+        },
+        "lib_repository_dir": {
+          "type": "string",
+          "pattern": "^/Workspace/",
+          "description": "Shared AIDP dependency repository for ALL migration artifacts (JARs AND wheels, incl. the aidp_compat wheel). Checked FIRST (by artifact name \u2014 exact version preferred, else highest) before any Databricks/proxy fetch \u2014 the PRIMARY source, not a fallback."
+        },
+        "lib_fallback_dir": {
+          "type": "string",
+          "pattern": "^/Workspace/",
+          "description": "DEPRECATED alias for lib_repository_dir (interim post-consolidation name). Used only when lib_repository_dir is absent."
+        },
+        "jar_fallback_dir": {
+          "type": "string",
+          "pattern": "^/Workspace/",
+          "description": "DEPRECATED alias for lib_repository_dir (pre-consolidation configs). Used only when lib_repository_dir and lib_fallback_dir are absent."
+        },
+        "target_runtime_requirements_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional reviewed target-cluster requirements baseline. Overrides config/target_runtime_requirements.txt; may also be set through AIDP_TARGET_RUNTIME_REQUIREMENTS_FILE."
+        },
+        "compatibility_policy_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional AIDP package compatibility-policy YAML. Overrides config/aidp_compatibility_policy.yaml; may also be set through AIDP_COMPATIBILITY_POLICY_FILE."
+        }
+      }
+    },
+    "bucket_mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the customer's S3/DBFS -> OCI bucket mapping JSON."
+        }
+      }
+    },
+    "dbx_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "How the tool reaches Databricks. Exactly ONE of `host` or `proxy` is required (the CLI flags they map to are mutually exclusive).",
+      "anyOf": [
+        {
+          "required": [
+            "host"
+          ]
+        },
+        {
+          "required": [
+            "proxy"
+          ]
+        }
+      ],
+      "properties": {
+        "host": {
+          "type": "string",
+          "pattern": "^https://",
+          "description": "Direct Databricks workspace URL. Requires DATABRICKS_TOKEN env var for auth. Use this when the tool can reach Databricks over the public internet."
+        },
+        "proxy": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/][^\\s]+:[0-9]+$",
+          "description": "OCI-side proxy host:port that fronts Databricks (network-level trust, no bearer token). Use this when direct Databricks access from OCI VNIC is not permitted. Example: <proxy-vnic-host>.compute.<vcn>.oraclevcn.com:8080"
+        },
+        "proxy_max_retries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Optional. Max attempts (default 10) for a GitHub-via-proxy read on a transient 429/5xx. The proxy is customer-controlled and rate-limits (nginx 429) once many developers export concurrently; raise this (up to 20) to ride out bursts. Honors the server's Retry-After (per-attempt sleep is capped so a large value can't wedge a read). Only the GitHub proxy reads use this; workspace/DBFS paths keep their own bounded retry."
+        }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Each secret can be a plaintext string (phase 1) or a reference to the AIDP Credential Store (later phase). Loader accepts both shapes today; credential-store resolution errors clearly until the provider is wired up.",
+      "properties": {
+        "mlflow_tracking_uri": {
+          "$ref": "#/definitions/secret"
+        },
+        "entity_crypto_arn": {
+          "$ref": "#/definitions/secret"
+        },
+        "entity_crypto_registrar": {
+          "type": "string",
+          "description": "FQCN of the deployment's entity-crypto UDF registrar class (the JAR's registerUdf entry point). REQUIRED when entity_crypto_arn is set."
+        },
+        "dbx_proxy_basic_user": {
+          "$ref": "#/definitions/secret"
+        },
+        "dbx_proxy_basic_pass": {
+          "$ref": "#/definitions/secret"
+        }
+      }
+    },
+    "spark_config": {
+      "type": "object",
+      "description": "Spark config baked into every new AIDP cluster this tool creates. Customer's DBX source cluster spark_conf overlays on top with auto-heal. Only spark.* keys allowed. Empty dict {} = opt out of all tool-side Spark defaults.",
+      "patternProperties": {
+        "^spark\\.": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "autoscale_config": {
+      "type": "object",
+      "description": "Aggressive-autoscale defaults baked into every new AIDP cluster. Only spark.aidp.compute.autoscale.* keys allowed. Empty dict {} = opt out; AIDP platform autoscale defaults apply.",
+      "patternProperties": {
+        "^spark\\.aidp\\.compute\\.autoscale\\.": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_execute_timeout_s",
+        "fix_max_attempts",
+        "ws_recycle_interval_s"
+      ],
+      "properties": {
+        "cell_execute_timeout_s": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        },
+        "fix_max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "ws_recycle_interval_s": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 3600
+        },
+        "phase1_max_parallel_clusters": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "readiness_report_max_age_s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "readiness_report_path": {
+          "type": "string"
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional migration-time cluster policy. cluster_idle_timeout_minutes: the idle auto-termination (minutes) each task's cluster is temporarily raised to for the duration of that task's execution, then restored to the cluster's original value in a per-task finally (success or failure). Prevents mid-run idle-termination during long think/setup gaps without permanently raising the cluster's cost profile. Best-effort: a failed bump/restore is reported loudly, never fails the migration. Absent = default 30; only raises a cluster whose current timeout is BELOW this value.",
+      "properties": {
+        "cluster_idle_timeout_minutes": {
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 44640
+        }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model"
+      ],
+      "description": "LLM provider/model for the migration engine \u2014 swap the model from YAML within the validated families (GPT-5.5 for openai, Opus-5 for anthropic). OPTIONAL at the schema level so non-migrator/partial configs still validate; the migrator REQUIRES it and fails loudly (llm_config.configure) if absent. thinking (adaptive) and output budget (16000) are FIXED internal constants, NOT config knobs \u2014 on the Opus-5 family 'thinking: off' can't disable adaptive thinking and max_tokens is not a true per-request cap, so they are not exposed. See scripts/llm_config.py.",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": [
+            "anthropic",
+            "openai"
+          ],
+          "description": "Dispatched providers in this bundle: 'openai' (default) and 'anthropic'. The provider/model pair is validated in llm_config.configure."
+        },
+        "model": {
+          "type": "string",
+          "enum": [
+            "claude-opus-5",
+            "claude-opus-5-5",
+            "gpt-5.5"
+          ],
+          "description": "Validated models per provider: the Opus-5 family (anthropic) and the GPT-5.5 family (openai). Switching within the list is a YAML-only edit; adding a model is a code+schema+test change. See scripts/llm_config.py and scripts/openai_model.py."
+        }
+      }
+    },
+    "redirect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bucket",
+        "namespace",
+        "table_prefix"
+      ],
+      "description": "Execution-only write sandbox and direct Python dbutils.fs output-consumer mapping. Saved paths and cleanup slash semantics are retained. Direct put/mkdirs/copy destinations are redirected. Untracked OCI cleanup/move and known OCI directory copy/move fail REDIRECT_REFUSED without model repair, even if customer code catches the exception. Full bucket@namespace and configured table_prefix define sandbox identity. Dynamic spark.sql DML, writer aliases, writeStream, arbitrary SDK calls and ancestor-directory reads are outside this mapping. Optional section; if absent, disabled. If present, ALL three fields are required.",
+      "properties": {
+        "bucket": {
+          "type": "string",
+          "minLength": 1
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1
+        },
+        "table_prefix": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*\\.[a-zA-Z_][a-zA-Z0-9_]*$"
+        }
+      }
+    },
+    "customizations": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional. Customer customization pack for notebooks whose AIDP conversion cannot be produced by generic rules or the LLM (injected business data, new capabilities, SDK swaps). `path` points at a pack directory containing overrides.yaml + notebooks/. Absent = no customizations.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "assert_present": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Per-customer 'must be set' assertions. Dotted paths of OPTIONAL config fields that MUST be present and non-empty for THIS customer's deployment. Loader errors at startup if any listed field resolves to absent / empty. Distinct from schema-level `required` (which is tool-wide: fields every customer needs). Use this list to opt-in to fail-loud behavior for optional features your setup depends on (e.g. MLflow, redirect sandbox).",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z_][a-z0-9_]*(\\.[a-z_][a-z0-9_]*)+$"
+      }
+    }
+  }
+}

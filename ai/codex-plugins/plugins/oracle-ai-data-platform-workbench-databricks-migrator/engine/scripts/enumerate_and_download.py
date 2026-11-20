@@ -15,11 +15,14 @@ import requests
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# AIDP Configuration
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = os.environ.get("AIDP_DATALAKE", "")
-WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
-OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
+# AIDP Configuration — sourced from aidp_migrator.yaml (via aidp_config) with env-var fallback.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 OBJECTS_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/objects"
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
 
@@ -31,16 +34,13 @@ INVENTORY_FILE = os.path.join(REPORTS_DIR, "full_inventory.json")
 NOTEBOOK_LIST_FILE = os.path.join(REPORTS_DIR, "notebook_list.json")
 
 def get_oci_signer():
-    """Create OCI signer for API authentication."""
-    config = oci.config.from_file(profile_name=OCI_PROFILE)
-    signer = oci.signer.Signer(
-        tenancy=config["tenancy"],
-        user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-        private_key_content=config.get("key_content")
-    )
-    return config, signer
+    """Create OCI signer for API authentication.
+
+    Single auth source: oci_auth (Credential Store on-cluster → config file on
+    laptop). Returns (config, signer); config is None on the store path.
+    """
+    from oci_auth import get_oci_signer as _shared
+    return _shared(OCI_PROFILE)
 
 def list_objects(signer, path=""):
     """List objects at a given path in the AIDP workspace."""

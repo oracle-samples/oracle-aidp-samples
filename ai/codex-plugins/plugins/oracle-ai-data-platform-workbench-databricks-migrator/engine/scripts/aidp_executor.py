@@ -35,7 +35,7 @@ import websocket  # websocket-client (sync)
 
 # ─── Configuration ───────────────────────────────────────────────────
 
-# No hardcoded tenant config — this is generic code. The lake/workspace/
+# No hardcoded customer config — this is generic code. The lake/workspace/
 # cluster identifiers have NO default and must be provided by the caller (passed
 # explicitly to AIDPSession, or set on these module globals at runtime, e.g. by
 # job_migrate_from_workflow). Only the OCI profile defaults — to "DEFAULT", the
@@ -45,9 +45,13 @@ DEFAULT_WORKSPACE_ID = None
 DEFAULT_CLUSTER_ID = None
 DEFAULT_OCI_PROFILE = "DEFAULT"
 
+# MUST stay in sync with dbx_export/auth.py::REGION_MAP — both resolve lake
+# OCIDs to the AIDP API endpoint; a drift sends the exporter and the
+# migrator to different control planes for the same lake. A test asserts
+# they are identical.
 REGION_MAP = {
     "iad": "us-ashburn-1", "phx": "us-phoenix-1", "fra": "eu-frankfurt-1",
-    "lhr": "uk-london-1", "bom": "<OCI_REGION>", "hyd": "ap-hyderabad-1",
+    "lhr": "uk-london-1", "bom": "ap-mumbai-1", "hyd": "ap-hyderabad-1",
     "sin": "ap-singapore-1", "nrt": "ap-tokyo-1", "syd": "ap-sydney-1",
     "gru": "sa-saopaulo-1", "yyz": "ca-toronto-1", "icn": "ap-seoul-1",
 }
@@ -78,51 +82,33 @@ def _unwrap_aidp_text(text: str) -> str:
 
 
 # ─── OCI Signing ─────────────────────────────────────────────────────
-
-def get_oci_signer(profile: str = DEFAULT_OCI_PROFILE):
-    """Create OCI signer — supports API key and security token auth.
-
-    Detects auth type from the OCI config profile:
-      security_token_file present → SecurityTokenSigner (oci session authenticate)
-      otherwise                   → API key Signer (fingerprint + key_file)
-    """
-    import os
-    config = oci.config.from_file(profile_name=profile)
-
-    if config.get("security_token_file"):
-        from oci.auth.signers import SecurityTokenSigner
-        token_path = os.path.expanduser(config["security_token_file"])
-        with open(token_path) as f:
-            token = f.read().strip()
-        private_key = oci.signer.load_private_key_from_file(
-            os.path.expanduser(config["key_file"]),
-            config.get("pass_phrase"),
-        )
-        signer = SecurityTokenSigner(token=token, private_key=private_key)
-    else:
-        signer = oci.signer.Signer(
-            tenancy=config["tenancy"],
-            user=config["user"],
-            fingerprint=config["fingerprint"],
-            private_key_file_location=config["key_file"],
-            private_key_content=config.get("key_content"),
-        )
-
-    return config, signer
+# Single source: scripts/oci_auth.py (moved verbatim 2026-10-12 so the
+# standalone utilities can share it without importing this module's
+# websocket dependency). Re-exported here so every existing caller and
+# test binding (`ae.get_oci_signer`, `ae._apply_cred_env_from_config`)
+# keeps working unchanged.
+from oci_auth import get_oci_signer, _apply_cred_env_from_config  # noqa: F401
 
 
 def get_region_from_ocid(lake_ocid: str) -> str:
     """Extract region from AIDP Lake OCID.
 
     OCID format: ocid1.<resource>.<realm>.<region>.<unique-id>
-    parts[3] is already the full region name (e.g. '<OCI_REGION>'), not a 3-letter code.
+    parts[3] is already the full region name (e.g. 'ap-mumbai-1'), not a 3-letter code.
+
+    Raises ValueError for malformed OCIDs — mirrors
+    dbx_export.auth.region_from_ocid. The region selects the API endpoint,
+    so a silent default region sends requests to the wrong region's
+    control plane. Fail loud at the source.
     """
     parts = lake_ocid.split(".")
-    if len(parts) > 3:
+    if len(parts) > 3 and parts[3]:
         region = parts[3]
         # If it looks like a 3-letter code (legacy), map it; otherwise use as-is
         return REGION_MAP.get(region, region)
-    return "<OCI_REGION>"
+    raise ValueError(
+        f"malformed lake OCID {lake_ocid!r}: expected "
+        f"'ocid1.<type>.<realm>.<region>.<id>' (cannot derive a region)")
 
 
 # ─── Cluster liveness detection (for stuck-cell recovery) ────────────
@@ -355,7 +341,8 @@ class AIDPSession:
                  workspace_id: str = None,
                  cluster_id: str = None,
                  oci_profile: str = None,
-                 session_name: str = "aidp_executor_session"):
+                 session_name: str = "aidp_executor_session",
+                 session_dir: str = "Workspace/aidp_tool_session"):
         # Resolve from the live module globals at CALL time (not import time) so
         # a runtime override of DEFAULT_* takes effect. lake/workspace/cluster
         # have no hardcoded default and must be provided; only profile defaults.
@@ -364,6 +351,10 @@ class AIDPSession:
         self.cluster_id = cluster_id if cluster_id is not None else DEFAULT_CLUSTER_ID
         self.oci_profile = oci_profile if oci_profile is not None else DEFAULT_OCI_PROFILE
         self._session_name = session_name
+        # Session scratch notebooks live under this folder (kept out of the Workspace
+        # root). Nested path is auto-created by the sessions API. Leading/trailing
+        # slashes stripped — a leading slash yields a malformed //Workspace path.
+        self._session_dir = (session_dir or "Workspace").strip("/")
 
         _missing = [n for n, v in (("lake_ocid", self.lake_ocid),
                                    ("workspace_id", self.workspace_id),
@@ -390,6 +381,19 @@ class AIDPSession:
         self._ws_alive = False
         self._last_recv_time = 0
         self._listener_generation = 0
+        # opc-request-id of the current WS handshake (OCI stamps it on the 101
+        # upgrade response). Captured on every connect/reconnect and logged with
+        # the [WS-OPC] tag so engineering can correlate a WS drop to a server-side
+        # request when debugging. Empty until the first connect.
+        self.ws_opc_request_id = ""
+        # Fix 5c v2 (2026-07-25): remember when AIDP's REST kernel-interrupt
+        # endpoint has already returned 404 for this session — subsequent
+        # timeouts will skip the interrupt HTTP call entirely, reducing log
+        # noise. AIDP doesn't currently expose the Jupyter-standard
+        # /kernels/{id}/interrupt endpoint (verified 2026-07-25 on Mumbai lake).
+        # Once we implement WS control-channel interrupt (Fix 7b follow-up),
+        # this flag becomes obsolete.
+        self._interrupt_unsupported = False
 
     async def connect(self):
         """Create a notebook session and connect the WebSocket."""
@@ -403,13 +407,14 @@ class AIDPSession:
 
         # Step 1: Find or create a notebook session via REST
         notebook_name = f"{self._session_name}.ipynb"
+        session_path = f"{self._session_dir}/{notebook_name}"
         session_url = (
             f"{self.aidp_endpoint}/20240831/dataLakes/{self.lake_ocid}"
             f"/workspaces/{self.workspace_id}/notebook/api/sessions"
         )
 
-        # List existing sessions and reuse one matching our notebook name
-        list_url = f"{session_url}?path=Workspace/{notebook_name}"
+        # List existing sessions and reuse one matching our notebook path
+        list_url = f"{session_url}?path={session_path}"
         print(f"[AIDP] GET {list_url}")
         try:
             list_resp = requests.get(list_url, auth=self.signer,
@@ -430,9 +435,11 @@ class AIDPSession:
             sessions = list_resp.json()
             if isinstance(sessions, list):
                 for s in sessions:
-                    if s.get("name") == notebook_name or s.get("path") == f"Workspace/{notebook_name}":
+                    if s.get("path") == session_path or s.get("name") == notebook_name:
                         session_data = s
                         print(f"[AIDP] Reusing existing session {s['id']} for {notebook_name}")
+                        self._log_ws_opc("session_reuse", self._opc_from_headers(list_resp.headers),
+                                         session=s.get("id"))
                         break
         else:
             print(f"[AIDP] List sessions failed {list_resp.status_code}: {list_resp.text[:500]} — will create new session")
@@ -442,7 +449,7 @@ class AIDPSession:
                 "type": "notebook",
                 "name": notebook_name,
                 "kernel": {"name": "notebook"},
-                "path": f"Workspace/{notebook_name}",
+                "path": session_path,
                 "cluster_id": self.cluster_id,
             })
             print(f"[AIDP] POST {session_url}", flush=True)
@@ -477,6 +484,8 @@ class AIDPSession:
                 # All retries exhausted
                 resp.raise_for_status()
             session_data = resp.json()
+            self._log_ws_opc("session_create", self._opc_from_headers(resp.headers),
+                             session=session_data.get("id"), http=resp.status_code)
 
         self.session_id = session_data["id"]
 
@@ -530,6 +539,14 @@ class AIDPSession:
 
         print("[AIDP] WebSocket connected!")
 
+        # Capture the opc-request-id from the 101 upgrade response for WS-drop debugging.
+        try:
+            self.ws_opc_request_id = self._opc_from_headers(self.ws.getheaders())
+        except Exception:
+            self.ws_opc_request_id = ""
+        self._log_ws_opc("connect", self.ws_opc_request_id,
+                         ws_host=self.ws_host, session=self.session_id, kernel=self.kernel_id)
+
         # Start message listener thread
         import threading
         self._running = True
@@ -570,6 +587,35 @@ class AIDPSession:
                 del signed[h]
         return signed
 
+    @staticmethod
+    def _opc_from_headers(headers) -> str:
+        """Case-insensitive lookup of opc-request-id from a header mapping.
+
+        Accepts a dict (requests.Response.headers, websocket getheaders()) or a
+        list of (key, value) tuples. Returns "" if absent.
+        """
+        if not headers:
+            return ""
+        try:
+            items = list(headers.items())
+        except AttributeError:
+            items = list(headers)
+        for k, v in items:
+            if str(k).lower() == "opc-request-id":
+                return str(v)
+        return ""
+
+    def _log_ws_opc(self, event: str, opc_id, **kv):
+        """Emit one greppable line per WS/session lifecycle event.
+
+        Tagged [WS-OPC] so engineering can `grep WS-OPC <run>.log` to get the full
+        connection history (incl. the opc-request-id in effect at a drop) to share
+        for debugging AIDP WebSocket connection drops.
+        """
+        parts = [f"event={event}", f"opc-request-id={opc_id or 'MISSING'}"]
+        parts += [f"{k}={v}" for k, v in kv.items()]
+        print("[WS-OPC] " + " ".join(parts), flush=True)
+
     def _listen_sync(self, generation: int):
         """Background thread to listen for WebSocket messages.
 
@@ -584,14 +630,19 @@ class AIDPSession:
 
         def mark_dead():
             if self._listener_generation == generation:
+                if self._ws_alive:  # log the live→dead transition once
+                    self._log_ws_opc("ws_dead", self.ws_opc_request_id,
+                                     ws_host=self.ws_host, session=self.session_id,
+                                     unanswered_pings=unanswered_pings)
                 self._ws_alive = False
 
         unanswered_pings = 0
+        ws = self.ws  # this listener must never read a later generation's socket
 
-        while self._running and self.ws and self.ws.connected:
+        while self._running and ws and ws.connected:
             try:
-                self.ws.settimeout(30)  # Don't block forever
-                opcode, data = self.ws.recv_data(control_frame=True)
+                ws.settimeout(30)  # Don't block forever
+                opcode, data = ws.recv_data(control_frame=True)
                 self._last_recv_time = time.time()
 
                 if opcode == websocket.ABNF.OPCODE_CLOSE:
@@ -599,7 +650,7 @@ class AIDPSession:
                     mark_dead()
                     break
                 if opcode == websocket.ABNF.OPCODE_PING:
-                    self.ws.pong(data)
+                    ws.pong(data)
                     continue
                 if opcode == websocket.ABNF.OPCODE_PONG:
                     unanswered_pings = 0  # pong received — connection confirmed alive
@@ -623,8 +674,8 @@ class AIDPSession:
                     mark_dead()
                     break
                 try:
-                    if self.ws and self.ws.connected:
-                        self.ws.ping()
+                    if ws.connected:
+                        ws.ping()
                 except:
                     mark_dead()
                     break
@@ -643,36 +694,40 @@ class AIDPSession:
         """Handle an incoming Jupyter message."""
         msg_type = msg.get("header", {}).get("msg_type", "")
         parent_id = msg.get("parent_header", {}).get("msg_id", "")
+        # The waiter can remove completed tracking while this thread handles a
+        # late message. Retain references instead of checking then indexing maps.
+        outputs = self._outputs.get(parent_id)
+        pending = self._pending.get(parent_id)
 
         if msg_type == "stream":
-            if parent_id in self._outputs:
+            if outputs is not None:
                 text = msg["content"].get("text", "")
                 # AIDP wraps stream output as [{"type":"TEXT_PLAIN","value":"..."}] JSON
                 # inside the standard Jupyter stream text field. Unwrap to plain text.
                 text = _unwrap_aidp_text(text)
-                self._outputs[parent_id].append({
+                outputs.append({
                     "type": "stream",
                     "name": msg["content"].get("name", "stdout"),
                     "text": text,
                 })
 
         elif msg_type == "execute_result":
-            if parent_id in self._outputs:
-                self._outputs[parent_id].append({
+            if outputs is not None:
+                outputs.append({
                     "type": "execute_result",
                     "data": msg["content"].get("data", {}),
                 })
 
         elif msg_type == "display_data":
-            if parent_id in self._outputs:
-                self._outputs[parent_id].append({
+            if outputs is not None:
+                outputs.append({
                     "type": "display_data",
                     "data": msg["content"].get("data", {}),
                 })
 
         elif msg_type == "error":
-            if parent_id in self._outputs:
-                self._outputs[parent_id].append({
+            if outputs is not None:
+                outputs.append({
                     "type": "error",
                     "ename": msg["content"].get("ename", ""),
                     "evalue": msg["content"].get("evalue", ""),
@@ -681,18 +736,33 @@ class AIDPSession:
 
         elif msg_type == "status":
             execution_state = msg["content"].get("execution_state", "")
-            if execution_state == "busy" and parent_id in self._pending:
-                self._pending[parent_id]["got_busy"] = True
+            if execution_state == "busy" and pending is not None:
+                pending["got_busy"] = True
                 print(f"[WS] kernel busy — msg_id={parent_id[:8]}")
-            elif execution_state == "idle" and parent_id in self._pending:
+            elif execution_state == "idle" and pending is not None:
                 print(f"[WS] kernel idle — msg_id={parent_id[:8]}")
 
         elif msg_type == "execute_reply":
-            if parent_id in self._pending:
-                pending = self._pending.pop(parent_id)
+            if pending is not None and not pending.get("reply_received", False):
+                # REF-295 (plumbing): receipt acknowledges the request even while
+                # output validation is running. The waiter owns cleanup; removing
+                # tracking here made an acknowledged request look like KernelHung.
+                pending["reply_received"] = True
                 status = msg["content"].get("status", "error")
-                outputs = self._outputs.pop(parent_id, [])
-                print(f"[WS] execute_reply msg_id={parent_id[:8]} status={status}")
+                # Freeze the reply's outputs as before, retaining the tracked
+                # buffer until consumption so timeout checks cannot lose it.
+                outputs = list(outputs) if outputs is not None else []
+                wire_status = status
+                # Category 1: AIDP may report status=ok even when its own
+                # pre-command SparkContext prologue failed before user code.
+                # Preserve that evidenced failure for all consumers/fix loops.
+                prelude_error = _kernel_prelude_error(outputs)
+                if prelude_error:
+                    outputs.append(prelude_error)
+                if any(out.get("type") == "error" for out in outputs):
+                    status = "error"
+                wire_detail = f" wire_status={wire_status}" if wire_status != status else ""
+                print(f"[WS] execute_reply msg_id={parent_id[:8]} status={status}{wire_detail}")
                 pending["result"]["result"] = {
                     "status": status,
                     "outputs": outputs,
@@ -701,7 +771,8 @@ class AIDPSession:
 
     async def _execute_locked(self, code: str, timeout: float,
                               first_byte_timeout: Optional[float] = None,
-                              status_busy_timeout: Optional[float] = 60.0) -> dict:
+                              status_busy_timeout: Optional[float] = 60.0,
+                              preserve_on_disconnect: bool = False) -> dict:
         """Execute code on the kernel. Caller (ClusterSession) holds the asyncio lock.
 
         send → poll event.is_set() → return. No lock held here.
@@ -731,7 +802,8 @@ class AIDPSession:
 
         event = threading.Event()
         result_holder = {}
-        self._pending[msg_id] = {"event": event, "result": result_holder}
+        pending = {"event": event, "result": result_holder}
+        self._pending[msg_id] = pending
 
         # Send execute request
         # TODO: reduce back to code[:80] after debugging
@@ -756,12 +828,18 @@ class AIDPSession:
         _last_heartbeat = start
 
         while not event.is_set() and (time.time() - start) < timeout:
-            await asyncio.sleep(0.1)
+            try:
+                await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                # A cancelled waiter cannot consume its result. Abandon tracking
+                # even if the listener is already publishing the reply. The
+                # disconnect handoff below still retains ownership for recovery.
+                self._pending.pop(msg_id, None)
+                self._outputs.pop(msg_id, None)
+                raise
 
-            # Re-check immediately after sleep — execute_reply may have arrived during the
-            # sleep and set the event + popped msg_id from _pending. Without this guard,
-            # the error checks below would run on stale state (e.g. KernelHung fires because
-            # got_busy is missing from the already-popped _pending entry).
+            # A completed, validated reply takes precedence over timeout checks.
+            # Its request record stays tracked until this waiter consumes it.
             if event.is_set():
                 break
 
@@ -769,18 +847,24 @@ class AIDPSession:
             if not self._ws_alive:
                 elapsed = time.time() - start
                 print(f"[{time.strftime('%H:%M:%S')}] [WS] connection died mid-execution msg_id={msg_id[:8]} elapsed={elapsed:.1f}s", flush=True)
-                self._pending.pop(msg_id, None)
-                self._outputs.pop(msg_id, None)
-                return {"status": "error", "outputs": [{"type": "error",
+                result = {"status": "error", "outputs": [{"type": "error",
                          "ename": "ConnectionDied",
                          "evalue": "WebSocket connection died during execution"}]}
+                if preserve_on_disconnect:
+                    result.update(_interrupted_msg_id=msg_id,
+                                  _interrupted_pending=pending,
+                                  _execution_deadline=start + timeout)
+                else:
+                    self._pending.pop(msg_id, None)
+                    self._outputs.pop(msg_id, None)
+                return result
 
             # Status-busy timeout: kernel must acknowledge the request with 'status: busy'
             # within status_busy_timeout seconds. Unlike output, this signal arrives
             # immediately — its absence means the kernel's execution queue is frozen
             # (even if the WS is alive via server pings).
             if status_busy_timeout is not None:
-                if not self._pending.get(msg_id, {}).get("got_busy", False):
+                if not pending.get("got_busy", False) and not pending.get("reply_received", False):
                     if (time.time() - start) > status_busy_timeout:
                         elapsed = time.time() - start
                         print(f"[WS] KernelHung: no 'status: busy' within {status_busy_timeout}s "
@@ -851,7 +935,8 @@ class AIDPSession:
 
             # First-byte timeout (health pings and stateless pool only — NOT main cell execution).
             # A large Spark query may produce no output for hours; _ws_alive handles genuine death.
-            if first_byte_timeout is not None and not got_first_byte:
+            if (first_byte_timeout is not None and not got_first_byte
+                    and not pending.get("reply_received", False)):
                 if (time.time() - start) > first_byte_timeout:
                     if msg_id in self._outputs and len(self._outputs[msg_id]) > 0:
                         got_first_byte = True
@@ -860,7 +945,28 @@ class AIDPSession:
                         print(f"[WS] first_byte_timeout msg_id={msg_id[:8]} elapsed={elapsed:.1f}s")
                         self._pending.pop(msg_id, None)
                         self._outputs.pop(msg_id, None)
-                        self._ws_alive = False
+                        # ─── 2026-07-24: DO NOT set self._ws_alive = False here ───
+                        # Previously this set _ws_alive = False. That's a FALSE POSITIVE:
+                        # first_byte_timeout only proves the kernel didn't respond to THIS
+                        # message in time (kernel busy or stuck), not that the WS transport
+                        # is dead. The listener thread (mark_dead in _listen_sync) is the
+                        # only source of truth for _ws_alive — it sets False on CLOSE frames
+                        # and socket errors, which are the real transport-death signals.
+                        #
+                        # Concrete failure the old flip caused (ExampleVendor v3/v4 migration):
+                        #   1. Long-running cell producing output (iopub messages arriving)
+                        #   2. Health ping fires in parallel, first_byte_timeouts at 25s
+                        #      because kernel is busy — old code flipped _ws_alive = False
+                        #   3. cluster_session.py Fix #7's iopub-fresh smart-skip short-
+                        #      circuits on the False _ws_alive → triggers recycle
+                        #   4. Verify cell also can't get through → fresh session → state loss
+                        #
+                        # TO REVERT if this change causes NEW issues: re-add
+                        #     self._ws_alive = False
+                        # here. Symptoms that would justify revert: pool/health-ping
+                        # timeouts followed by subsequent execute() calls that hang forever
+                        # instead of failing fast (the old flip caused fast-fail via
+                        # aidp_executor.py:733 pre-check).
                         return {"status": "error", "outputs": [{"type": "error",
                                  "ename": "FirstByteTimeout",
                                  "evalue": f"No output received within {first_byte_timeout}s - connection likely dead"}]}
@@ -876,11 +982,93 @@ class AIDPSession:
             print(f"[WS] timeout msg_id={msg_id[:8]} elapsed={elapsed:.0f}s timeout={timeout}s")
             self._pending.pop(msg_id, None)
             self._outputs.pop(msg_id, None)
+            # ─── Fix 5c (2026-07-25): interrupt kernel on timeout ─────────────
+            # Historical bug: when execute() times out, we abandon the Python-side
+            # wait and return an error, BUT the kernel keeps executing the cell.
+            # Any subsequent execute_request queues behind that still-running
+            # operation and appears to hang with got_first_byte=False for hours.
+            # Real incident: a pilot-customer AutoRefit 2026-07-25 lost 1.5 hours to this after
+            # an Opus run_on_cluster invocation submitted `grep -rl /Workspace/*`
+            # (a FUSE-recursive walk) that ran for 20+ min. The tool call timed
+            # out at 1200s; the grep kept running; the next guard cell queued
+            # behind it and never got its first byte. Cluster eventually
+            # auto-terminated instead of making progress.
+            #
+            # Fix: on timeout, actively send a Jupyter interrupt to the kernel
+            # BEFORE returning. This forces the kernel to abort the current cell
+            # (raising KeyboardInterrupt in Python, kill signal to any subprocess
+            # it spawned) and become responsive to the next execute request.
+            #
+            # Endpoint: POST /notebook/api/kernels/{kernel_id}/interrupt is the
+            # Jupyter-standard interrupt path. AIDP exposes the standard Jupyter
+            # notebook API under /workspaces/{ws}/notebook/api/... so this URL
+            # matches the pattern used elsewhere in this file (e.g. session
+            # creation at /notebook/api/sessions).
+            #
+            # Failure modes (all handled by try/except):
+            #   - Endpoint 404 (unsupported on this AIDP build): log and return
+            #     the timeout error as before — no worse than pre-fix.
+            #   - Network error / signer failure: log and return timeout error.
+            #   - Kernel already dead: interrupt POST fails, doesn't matter.
+            #
+            # Regression risk: none in the happy path (timeout is already an
+            # error condition, we only add work on that path). Existing callers
+            # see the same error return value; they only see the kernel actually
+            # become available for the next call afterwards.
+            # Fix 5c v2 (2026-07-25): skip the interrupt HTTP call if a prior
+            # timeout already discovered the endpoint returns 404 on this
+            # AIDP build. Reduces log noise (every 30s pool-session timeout
+            # was logging a 404) without changing behavior (the interrupt
+            # didn't do anything useful anyway when unsupported).
+            # Once WS control-channel interrupt lands (Fix 7b), this gets
+            # replaced with a real interrupt path that doesn't 404.
+            if self.kernel_id and self.signer and not self._interrupt_unsupported:
+                try:
+                    interrupt_url = (
+                        f"{self.aidp_endpoint}/20240831/dataLakes/{self.lake_ocid}"
+                        f"/workspaces/{self.workspace_id}/notebook/api/kernels/"
+                        f"{self.kernel_id}/interrupt"
+                    )
+                    r = requests.post(interrupt_url, auth=self.signer, timeout=15)
+                    if r.status_code in (200, 202, 204):
+                        print(f"[WS] kernel interrupt sent msg_id={msg_id[:8]} "
+                              f"kernel={self.kernel_id[:8]} HTTP {r.status_code}")
+                    elif r.status_code == 404:
+                        # Endpoint not available on this AIDP build. Log ONCE
+                        # (with context) and set flag so future timeouts don't
+                        # re-log the same 404. Original error return unchanged.
+                        print(f"[WS] kernel interrupt endpoint returned 404 — "
+                              f"AIDP build does not expose /kernels/{{id}}/interrupt. "
+                              f"Disabling further interrupt attempts for this session "
+                              f"(msg_id={msg_id[:8]}). Runaway cells rely on Fix 5a "
+                              f"(Opus prompt guardrail) and cluster-lifecycle recycle.")
+                        self._interrupt_unsupported = True
+                    else:
+                        # Other non-2xx (5xx, auth, etc.) — log body for debug,
+                        # do NOT flip the unsupported flag (transient error).
+                        print(f"[WS] kernel interrupt HTTP {r.status_code} "
+                              f"msg_id={msg_id[:8]} — subsequent execute may hang. "
+                              f"body: {r.text[:200]}")
+                    # Give the kernel a couple seconds to abort the running op
+                    # before the caller submits the next request. Empirically
+                    # Python interrupts propagate in <1s; subprocess kills take
+                    # a bit longer as SIGINT/SIGTERM/SIGKILL cascade. Skip the
+                    # sleep when we already know interrupt is unsupported —
+                    # no point waiting for something that didn't happen.
+                    if not self._interrupt_unsupported:
+                        time.sleep(2)
+                except Exception as _int_err:
+                    # Interrupt is best-effort. Log but return the timeout error.
+                    print(f"[WS] kernel interrupt attempt failed msg_id={msg_id[:8]}: "
+                          f"{type(_int_err).__name__}: {str(_int_err)[:200]}")
             return {"status": "error", "outputs": [{"type": "error",
                      "ename": "TimeoutError",
                      "evalue": f"Execution timed out after {timeout}s"}]}
 
-        return result_holder.get("result", {"status": "error", "outputs": []})
+        result = result_holder.get("result", {"status": "error", "outputs": []})
+        self._pending.pop(msg_id, None)
+        self._outputs.pop(msg_id, None)
+        return result
 
     async def execute(self, code: str, timeout: float = 7200,
                       first_byte_timeout: Optional[float] = None) -> dict:
@@ -888,7 +1076,7 @@ class AIDPSession:
         return await self._execute_locked(code, timeout=timeout,
                                           first_byte_timeout=first_byte_timeout)
 
-    async def reconnect_ws(self):
+    async def reconnect_ws(self, preserve_msg_id: Optional[str] = None):
         """Reconnect WebSocket to the existing session/kernel. Preserves REPL state.
 
         Closes the old WebSocket and reconnects to the same kernel_id/session_id.
@@ -906,12 +1094,16 @@ class AIDPSession:
             except Exception:
                 pass
 
-        # Clear stale pending requests — they will never receive a reply on the new WS.
-        # Normally _pending is empty here because _execute_locked detects _ws_alive=False
-        # and pops its own entry before releasing the lock. Clear defensively to prevent
-        # ghost entries from accumulating if the cleanup path was skipped.
+        # An interrupted cell may still be executing on this kernel. Keep its
+        # parent msg_id so a reply delivered after reconnect can be attributed to
+        # the original request. Other entries belong to the dead connection.
+        preserved = self._pending.get(preserve_msg_id) if preserve_msg_id else None
+        outputs = self._outputs.get(preserve_msg_id) if preserved else None
         self._pending.clear()
         self._outputs.clear()
+        if preserved:
+            self._pending[preserve_msg_id] = preserved
+            self._outputs[preserve_msg_id] = outputs if outputs is not None else []
 
         await asyncio.sleep(1)
 
@@ -935,9 +1127,19 @@ class AIDPSession:
             ws_url,
             header=header_list,
             subprotocols=["v1.kernel.websocket.jupyter.org"],
+            timeout=30,
         )
         self.ws = new_ws
         print(f"[AIDP] WebSocket reconnected (session {self.session_id})")
+
+        # New handshake → new opc-request-id; capture it (recycle reconnects are a
+        # common point for drops, so each reconnect's id must be on record).
+        try:
+            self.ws_opc_request_id = self._opc_from_headers(self.ws.getheaders())
+        except Exception:
+            self.ws_opc_request_id = ""
+        self._log_ws_opc("reconnect", self.ws_opc_request_id,
+                         ws_host=self.ws_host, session=self.session_id, kernel=self.kernel_id)
 
         # Restart listener thread
         self._running = True
@@ -954,10 +1156,10 @@ class AIDPSession:
         ki_msg = make_kernel_info_request(str(uuid.uuid4()), self.session_id)
         self.ws.send_binary(ki_msg)
         await asyncio.sleep(1)
-        print("[AIDP] Kernel verified after WS reconnect.")
+        print("[AIDP] Kernel info requested after WS reconnect.")
 
-    async def close(self):
-        """Close the session and WebSocket."""
+    async def close(self, delete_session: bool = True):
+        """Close the WebSocket; optionally retain an unresolved REST session."""
         self._running = False
 
         if self.ws:
@@ -968,7 +1170,7 @@ class AIDPSession:
 
         # Delete session via REST — prevents orphaned kernels from accumulating
         # on the cluster and consuming resources.
-        if self.session_id and self.signer:
+        if delete_session and self.session_id and self.signer:
             try:
                 delete_url = (
                     f"{self.aidp_endpoint}/20240831/dataLakes/{self.lake_ocid}"
@@ -981,6 +1183,27 @@ class AIDPSession:
 
 
 # ─── High-level functions ─────────────────────────────────────────────
+
+def _kernel_prelude_error(outputs: list):
+    """REF-225: recognize the observed platform traceback, not arbitrary prose.
+
+    This is a failure-only safety backstop; absence never certifies execution.
+    No reset/replay is attempted on an already poisoned kernel.
+    """
+    import re
+    text = re.sub(r'\x1b\[[0-9;]*m', '', format_outputs(outputs))
+    frame = re.search(r"(?m)^----> 1 sc\.setJobGroup\([^\n]*", text)
+    error = re.search(r"(?m)^AttributeError: [^\n]*has no attribute ['\"]setJobGroup['\"]", text)
+    if not frame or not error:
+        return None
+    return {"type": "error", "ename": "KernelPreexecutionError",
+            "evalue": error.group(0),
+            "traceback": [frame.group(0), error.group(0),
+                          "AIDP command setup failed before submitted code ran. "
+                          "The kernel global sc was replaced. Repair the source "
+                          "collision and rerun from a fresh kernel; no automatic "
+                          "restart or state replay was attempted."]}
+
 
 def format_outputs(outputs: list) -> str:
     """Format cell outputs for display."""
@@ -1003,7 +1226,8 @@ def format_outputs(outputs: list) -> str:
             # Strip ANSI codes
             import re
             clean = [re.sub(r'\x1b\[[0-9;]*m', '', line) for line in tb]
-            parts.append("\n".join(clean))
+            parts.append("\n".join(clean) or
+                         f"{out.get('ename', 'Error')}: {out.get('evalue', '')}")
     return "".join(parts)
 
 
@@ -1123,7 +1347,7 @@ async def main():
     parser.add_argument("--repl", action="store_true", help="Start interactive REPL")
     parser.add_argument("--lake", default=DEFAULT_LAKE_OCID, help="AIDP Lake OCID")
     parser.add_argument("--workspace", default=DEFAULT_WORKSPACE_ID, help="Workspace ID")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER_ID, help="Cluster ID")
+    parser.add_argument("--cluster", required=True, help="Cluster ID (required — no default)")
     parser.add_argument("--profile", default=DEFAULT_OCI_PROFILE, help="OCI config profile")
     parser.add_argument("--stop-on-error", action="store_true", default=True,
                         help="Stop notebook execution on first error")

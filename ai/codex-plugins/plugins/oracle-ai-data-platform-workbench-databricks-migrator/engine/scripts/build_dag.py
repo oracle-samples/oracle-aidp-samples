@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 """
+DEPRECATED as a CLI — use scripts/build_dag_from_workflow.py instead.
+=====================================================================
+Directory-scan DAG building predates AIDP workflows and misses workflow-level
+task structure. When an AIDP workflow exists (the normal case), the manifest
+MUST come from build_dag_from_workflow.py --job-key. This module remains
+importable as a library for %run-dependency discovery.
+
 Build DAG from notebook %run dependencies.
 =============================================
 Given a root notebook or directory on AIDP, discovers all %run and
@@ -10,31 +17,48 @@ Recursively follows external %run targets (notebooks outside --root)
 to discover the full dependency tree, including nested deps.
 
 Usage:
-    python3 build_dag.py --root "Users/user@example.com/ExampleProject/ExampleJob" \
-        --entry "4_Budget_Calculation_Automated.ipynb" \
-        --job-name "ExampleJob" \
-        --cluster <your-cluster-id>
+    python3 build_dag.py --root "Users/user1@example.com/Payments/Example_Optimizer_Realtime" \
+        --entry "4_Metric_Calculation_Automated.ipynb" \
+        --job-name "Example_Optimizer_Realtime" \
+        --cluster <CLUSTER-ID>
 
     # Just print the dependency graph
-    python3 build_dag.py --root "Users/user@example.com/ExampleProject/ExampleJob" --graph-only
+    python3 build_dag.py --root "Users/user1@example.com/Payments/Example_Optimizer_Realtime" --graph-only
 """
 
 import argparse
 import asyncio
+import inspect
 import json
 import os
 import posixpath
 import re
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+sys.path.insert(0, SCRIPT_DIR)
+sys.path.insert(0, PROJECT_DIR)
 from aidp_executor import AIDPSession
 from context_tools import _unwrap_aidp_text
+from dbx_export.dependency_resolver import portable_run_extractor_source
+from dbx_export.sanitizer import (
+    _legacy_sanitize_segment, sanitize_segment, sanitize_path as _sanitize_path,
+    rewrite_embedded_workspace_ref as _rewrite_embedded_workspace_ref,
+)
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PORTABLE_RUN_EXTRACTOR_SOURCE = portable_run_extractor_source()
 DEFAULT_CLUSTER = None  # generic — required via --cluster (no hardcoded default)
 
 MAX_RECURSION_DEPTH = 10
+
+
+class RunTargets(list):
+    """Notebook targets with the subset inferred only by uncertain scanning."""
+
+    def __init__(self, targets=(), loose_only=()):
+        super().__init__(targets)
+        self.loose_only = set(loose_only)
 
 
 def unwrap(outputs):
@@ -91,12 +115,17 @@ print(json.dumps(nbs))
         return []
 
 
-async def extract_dependencies(session, workspace_root):
+async def extract_dependencies(session, workspace_root, parameter_bindings=None):
     """Extract %run and notebook.run dependencies from all notebooks."""
+    parameter_bindings = dict(parameter_bindings or {})
     result = await run(session,f"""
-import json, os, re
+import json, os
+
+{PORTABLE_RUN_EXTRACTOR_SOURCE}
 
 base = "/Workspace/{workspace_root}"
+workspace_root = {json.dumps(workspace_root)}
+parameter_bindings = {json.dumps(parameter_bindings)}
 deps = {{}}
 
 # Collect notebook paths to process
@@ -115,56 +144,40 @@ for path in _nb_paths:
         try:
             with open(path) as fh:
                 nb = json.load(fh)
-            runs = []
             cell_count = 0
             code_cells = 0
-            _default_lang = (nb.get("metadata", {{}}).get("language_info", {{}}).get("name", "") or "").lower()
             for cell in nb.get("cells", []):
                 cell_count += 1
                 src = "".join(cell.get("source", []))
                 if cell.get("cell_type") == "code" and src.strip():
                     code_cells += 1
 
-                # %run (only uncommented lines) — language-aware comment strip
-                # (Python/R '#', Scala/Java '//', SQL '--'); notebook default + %magic.
-                _first = next((l.strip() for l in src.splitlines() if l.strip()), "")
-                _mm = re.match(r'^(?:#\\s*MAGIC\\s+)?%(\\w+)', _first)
-                _clang = (_mm.group(1).lower() if _mm else _default_lang)
-                _cmt = {{"python": ("#",), "py": ("#",), "r": ("#",), "scala": ("//",), "java": ("//",), "sql": ("--",)}}.get(_clang, ("#", "//", "--"))
-                _active_src = "\\n".join(l for l in src.splitlines() if l.strip() and not l.strip().startswith(_cmt))
-                for m in re.findall(r'%run\\s+([^\\n#]+)', _active_src):
-                    target = m.strip()
-                    if target.startswith('"') or target.startswith("'"):
-                        q = target[0]
-                        end = target.find(q, 1)
-                        target = target[1:end] if end > 0 else target[1:].rstrip(q)
-                    else:
-                        target = target.split()[0]
-                        target = re.sub(r'\\$\\w+', '', target).strip()
-                    if target.startswith("./"):
-                        d = os.path.dirname(rel)
-                        target = os.path.join(d, target[2:]) if d else target[2:]
-                    elif target.startswith("/Workspace/{workspace_root}/"):
-                        target = target[len("/Workspace/{workspace_root}/"):]
-                    elif target.startswith("/Workspace/{workspace_root}"):
-                        target = target[len("/Workspace/{workspace_root}"):]
-                        if target.startswith("/"):
-                            target = target[1:]
-                    target = target.strip()
-                    if not target.endswith(".ipynb"):
-                        target += ".ipynb"
-                    runs.append(target)
-
-                # dbutils.notebook.run (only uncommented lines)
-                for m in re.findall(r'notebook\\.run\\s*\\(\\s*["\\'](.*?)["\\'\\)]', _active_src):
-                    target = m.strip()
-                    if target.startswith("/Workspace/{workspace_root}/"):
-                        target = target[len("/Workspace/{workspace_root}/"):]
-                    if not target.endswith(".ipynb"):
-                        target += ".ipynb"
-                    runs.append(target)
-
-            deps[rel] = {{"runs": runs, "cells": cell_count, "code_cells": code_cells}}
+            # %run / notebook.run extraction is handled EXCLUSIVELY by the
+            # portable extractor below. The legacy per-cell regex scan that
+            # used to live here was dead code (its result was discarded) and,
+            # worse, a crash vector after the fail-loud change: a whitespace-
+            # only "%run " line raised IndexError in the legacy parser, which
+            # the error surfacing then escalated into a RuntimeError that
+            # killed discovery for the entire notebook — for a line the real
+            # extractor handles fine (PR#58 re-review finding).
+            shared_runs = extract_run_targets(
+                nb, path, parameter_bindings=parameter_bindings,
+            )
+            runs = []
+            root_prefixes = (
+                "/" + workspace_root.strip("/") + "/",
+                "/Workspace/" + workspace_root.strip("/") + "/",
+            )
+            for target in shared_runs:
+                normalized = target.replace("\\\\", "/").rstrip("/")
+                for prefix in root_prefixes:
+                    if normalized.startswith(prefix):
+                        normalized = normalized[len(prefix):]
+                        break
+                if not normalized.endswith(".ipynb"):
+                    normalized += ".ipynb"
+                runs.append(normalized)
+            deps[rel] = {{"runs": list(dict.fromkeys(runs)), "cells": cell_count, "code_cells": code_cells}}
         except Exception as e:
             deps[rel] = {{"runs": [], "cells": 0, "code_cells": 0, "error": str(e)[:100]}}
 
@@ -172,14 +185,39 @@ print(json.dumps(deps))
 """, timeout=120)
     output = unwrap(result.get("outputs", []))
     try:
-        return json.loads(output)
+        data = json.loads(output)
+        errors = {
+            path: info.get("error")
+            for path, info in data.items()
+            if isinstance(info, dict) and info.get("error")
+        }
+        if errors:
+            raise RuntimeError(
+                "Dependency extraction failed inside the AIDP kernel: "
+                + json.dumps(errors, sort_keys=True)
+            )
+        return data
+    except RuntimeError:
+        raise
     except:
         print(f"ERROR extracting deps: {output[:500]}")
         return {}
 
 
 def _normalize_ws_path(path):
-    """Normalize workspace paths: ensure /Workspace/ prefix, .ipynb suffix, resolve '..' segments."""
+    """Normalize workspace paths: ensure /Workspace/ prefix, .ipynb suffix, resolve '..' segments.
+
+    Divergence note (PR-34 review, 2026-07-27): for a bare `Workspace/foo` input,
+    this function produces `/Workspace/Workspace/foo.ipynb` (the else-branch
+    prepends `/Workspace/` unconditionally). That's the CORRECT behavior for
+    build_dag's discovery scan — DBX APIs return paths under `/Workspace/`, and
+    a raw scan target of `Workspace/foo` is interpreted here as "the folder
+    literally named 'Workspace' at the DBX root". This DISAGREES with
+    job_migrate.py's `_fix_run` post-PR-34, which treats bare `Workspace/foo`
+    as caller-relative. The disagreement is intentional: at discovery time we
+    canonicalize to the DBX REST form; at migration-rewrite time we mimic
+    vanilla %run semantics. If you change either, check both.
+    """
     path = path.rstrip("/")
     if not path.endswith(".ipynb"):
         path += ".ipynb"
@@ -196,92 +234,199 @@ def _normalize_ws_path(path):
     return path
 
 
-async def scan_external_notebook(session, notebook_path):
+def _to_export_paths(norm_path, base_prefix, source_prefix=None):
+    """Map a normalized workspace path to its original and sanitized export paths.
+
+    Strip the target base first, then a distinct source base, then /Workspace.
+    This priority preserves already migrated paths and avoids double-prefixing
+    references when the source export and migration target differ. Kept here
+    so the workflow resolver and generated %run namespace scan share exactly
+    the same mapping and upload sanitizer.
+    """
+    if base_prefix and norm_path.startswith(base_prefix + "/"):
+        canonical = norm_path[len(base_prefix):]
+    elif source_prefix and source_prefix != base_prefix and norm_path.startswith(source_prefix + "/"):
+        canonical = norm_path[len(source_prefix):]
+    elif norm_path.startswith("/Workspace/"):
+        canonical = norm_path[len("/Workspace"):]
+    else:
+        canonical = norm_path if norm_path.startswith("/") else "/" + norm_path
+    original = "/Workspace" + canonical
+    canonical_sanitized = _sanitize_path(canonical) if base_prefix else canonical
+    migrated = (base_prefix + canonical_sanitized) if base_prefix else original
+    return original, migrated
+
+
+def _notebook_path_candidates(path, base_prefix="", source_prefix=None):
+    """Share migrated-first lookup and legacy name variants across DAG scans."""
+    norm = _normalize_ws_path(_rewrite_embedded_workspace_ref(path))
+    original, migrated = _to_export_paths(norm, base_prefix, source_prefix)
+    candidates = [migrated]
+    if base_prefix:
+        legacy_suffix = _sanitize_path(original[len("/Workspace"):], legacy=True)
+        if base_prefix + legacy_suffix != migrated:
+            candidates.append(base_prefix + legacy_suffix)
+            if source_prefix and source_prefix != base_prefix:
+                candidates.append(source_prefix + legacy_suffix)
+    alt = migrated.replace(" ", "_") if " " in migrated else migrated.replace("_", " ")
+    candidates.append(_normalize_ws_path(alt))
+    if "-" in migrated:
+        candidates.append(_normalize_ws_path(migrated.replace("-", "_")))
+    if " " in migrated or "-" in migrated:
+        candidates.append(_normalize_ws_path(migrated.replace(" ", "_").replace("-", "_")))
+    return list(dict.fromkeys(candidates))
+
+
+_PORTABLE_PATH_LOOKUP_SOURCE = "\n\n".join(inspect.getsource(helper) for helper in (
+    _legacy_sanitize_segment, sanitize_segment, _sanitize_path, _rewrite_embedded_workspace_ref,
+    _normalize_ws_path, _to_export_paths, _notebook_path_candidates,
+)) + "\n_sanitize_path = sanitize_path\n_rewrite_embedded_workspace_ref = rewrite_embedded_workspace_ref\n"
+
+
+async def scan_external_notebook(
+    session, notebook_path, parameter_bindings=None, *, base_prefix="", source_prefix=None,
+):
     """Read a single notebook on the cluster and extract its %run / notebook.run targets.
 
     Returns (exists: bool, runs: list[str]) where runs are raw target paths.
     """
     full_path = _normalize_ws_path(notebook_path)
+    parameter_bindings = dict(parameter_bindings or {})
 
-    result = await run(session,f"""
-import json, os, re
+    scan_code = f"""
+import json, os
+
+{PORTABLE_RUN_EXTRACTOR_SOURCE}
+{_PORTABLE_PATH_LOOKUP_SOURCE}
 
 path = {json.dumps(full_path)}
+parameter_bindings = {json.dumps(parameter_bindings)}
+base_prefix = {json.dumps(base_prefix)}
+source_prefix = {source_prefix!r}
+namespace_skipped = []
+diagnostics = []
 if not os.path.exists(path):
-    print(json.dumps({{"exists": False, "runs": []}}))
+    print(json.dumps({{"exists": False, "runs": [], "namespace_skipped": []}}))
 else:
     try:
         with open(path) as fh:
             nb = json.load(fh)
-        runs = []
-        _default_lang = (nb.get("metadata", {{}}).get("language_info", {{}}).get("name", "") or "").lower()
-        for cell in nb.get("cells", []):
-            src = "".join(cell.get("source", []))
-            # Language-aware comment strip: Python/R '#', Scala/Java '//', SQL '--'.
-            # Use the notebook default + any per-cell %magic to pick the right marker.
-            _first = next((l.strip() for l in src.splitlines() if l.strip()), "")
-            _mm = re.match(r'^(?:#\\s*MAGIC\\s+)?%(\\w+)', _first)
-            _clang = (_mm.group(1).lower() if _mm else _default_lang)
-            _cmt = {{"python": ("#",), "py": ("#",), "r": ("#",), "scala": ("//",), "java": ("//",), "sql": ("--",)}}.get(_clang, ("#", "//", "--"))
-            _active_src = "\\n".join(l for l in src.splitlines() if l.strip() and not l.strip().startswith(_cmt))
-            # %run
-            for m in re.findall(r'%run\\s+([^\\n#]+)', _active_src):
-                target = m.strip()
-                if target.startswith('"') or target.startswith("'"):
-                    q = target[0]
-                    end = target.find(q, 1)
-                    target = target[1:end] if end > 0 else target[1:].rstrip(q)
-                else:
-                    target = target.split()[0]
-                    target = re.sub(r'\\$\\w+', '', target).strip()
-                if not target.endswith(".ipynb"):
-                    target += ".ipynb"
-                runs.append(target)
-            # dbutils.notebook.run
-            for m in re.findall(r'notebook\\.run\\s*\\(\\s*["\\'](.*?)["\\']', _active_src):
-                target = m.strip()
-                if not target.endswith(".ipynb"):
-                    target += ".ipynb"
-                runs.append(target)
-            # oidlUtils.notebook.run
-            for m in re.findall(r'oidlUtils\\.notebook\\.run\\s*\\(\\s*["\\'](.*?)["\\']', _active_src):
-                target = m.strip()
-                if not target.endswith(".ipynb"):
-                    target += ".ipynb"
-                runs.append(target)
-        # Resolve relative paths against parent notebook's directory
-        parent_dir = os.path.dirname(path)
-        resolved = []
-        for r in runs:
-            if not r.startswith("/"):
-                r = os.path.normpath(os.path.join(parent_dir, r))
-            resolved.append(r)
-        print(json.dumps({{"exists": True, "runs": list(set(resolved))}}))
+        # %run executes its child in this notebook's namespace.  Import only
+        # the child's static assignments into the caller's parameter bindings;
+        # do not flatten child cells into the caller.  A child-local relative
+        # notebook.run must be resolved from the child's path by the recursive
+        # scanner, never from this root task.
+        def _percent_run_namespace(current_nb, current_path, seen=None):
+            seen = set(seen or ())
+            if current_path in seen:
+                return {{}}
+            seen.add(current_path)
+            namespace = {{}}
+            for child in _extract_percent_run_targets(current_nb, current_path):
+                candidates = _notebook_path_candidates(child, base_prefix, source_prefix)
+                tried = []
+                child_path = None
+                for candidate in candidates:
+                    tried.append(candidate)
+                    if os.path.exists(candidate):
+                        child_path = candidate
+                        break
+                if child_path is None:
+                    namespace_skipped.append({{"target": child, "tried": tried, "reason": "not found"}})
+                    continue
+                try:
+                    with open(child_path) as child_fh:
+                        child_nb = json.load(child_fh)
+                except (OSError, ValueError, TypeError) as exc:
+                    namespace_skipped.append({{"target": child, "tried": tried,
+                                              "reason": "unreadable: " + str(exc)}})
+                    continue
+                child_bindings = dict(parameter_bindings)
+                _merge_parameter_bindings(child_bindings, _percent_run_namespace(
+                    child_nb, child_path, seen
+                ))
+                trees = []
+                for cell in child_nb.get("cells", []):
+                    if cell.get("cell_type") != "code":
+                        continue
+                    source = cell.get("source", "")
+                    source = "".join(source) if isinstance(source, list) else str(source or "")
+                    try:
+                        trees.append(_parse_python_source(_active_source(source)))
+                    except SyntaxError:
+                        continue
+                _merge_parameter_bindings(namespace, _static_environment(trees, child_bindings))
+            return namespace
+        _merge_parameter_bindings(parameter_bindings, _percent_run_namespace(nb, path))
+        loose_only = set()
+        runs = extract_run_targets(
+            nb, path, parameter_bindings=parameter_bindings, log=diagnostics.append,
+            loose_only=loose_only,
+        )
+        print(json.dumps({{"exists": True, "runs": list(dict.fromkeys(runs)),
+                          "loose_only": sorted(loose_only),
+                          "namespace_skipped": namespace_skipped, "diagnostics": diagnostics}}))
     except Exception as e:
         print(json.dumps({{"exists": True, "runs": [], "error": str(e)[:100]}}))
-""", timeout=60)
-    output = unwrap(result.get("outputs", []))
-    try:
-        data = json.loads(output)
-        return data.get("exists", False), data.get("runs", [])
-    except Exception as e:
-        # Retry once — transient cluster issues can return bad output
-        print(f"  WARNING: scan attempt 1 failed for {notebook_path}: {str(e)[:100]} output={output[:200]}")
+"""
+    # An existence probe cannot stand in for dependency extraction. The
+    # incident scan timed out, then an existence-only retry fabricated runs=[]
+    # and produced an incomplete authoritative manifest. Retry the SAME scan;
+    # if neither attempt yields a complete result, stop manifest construction.
+    for attempt in range(1, 3):
         try:
-            result2 = await run(session, f"""
-import json, os
-path = {json.dumps(full_path)}
-print(json.dumps({{"exists": os.path.exists(path), "runs": []}}))
-""", timeout=60)
-            output2 = unwrap(result2.get("outputs", []))
-            data2 = json.loads(output2)
-            return data2.get("exists", False), data2.get("runs", [])
-        except Exception as e2:
-            print(f"  WARNING: scan attempt 2 failed for {notebook_path}: {str(e2)[:100]}")
-            return False, []
+            result = await run(session, scan_code, timeout=60)
+            if result.get("status", "ok") != "ok":
+                raise ValueError("Dependency scan execution did not succeed")
+            output = unwrap(result.get("outputs", []))
+            data = json.loads(output)
+            if (not isinstance(data, dict) or not isinstance(data.get("exists"), bool)
+                    or not isinstance(data.get("runs"), list)
+                    or any(not isinstance(path, str) for path in data["runs"])):
+                raise ValueError("Incomplete dependency scan result")
+            if data.get("error"):
+                raise RuntimeError(
+                    f"Dependency extraction failed for {notebook_path}: "
+                    f"{data['error']}"
+                )
+            for skipped in data.get("namespace_skipped", []):
+                print(
+                    f"  [namespace-skip] {notebook_path}: %run {skipped['target']} "
+                    f"{skipped['reason']} — static config values NOT imported; "
+                    f"tried: {', '.join(skipped['tried'])}"
+                )
+            for diagnostic in data.get("diagnostics", []):
+                print(diagnostic)
+            runs = []
+            for target in data.get("runs", []):
+                normalized = str(target).strip().rstrip("/")
+                if normalized and not normalized.endswith(".ipynb"):
+                    normalized += ".ipynb"
+                if normalized:
+                    runs.append(posixpath.normpath(normalized))
+            inferred = set()
+            for target in data.get("loose_only", []):
+                normalized = str(target).strip().rstrip("/")
+                if normalized and not normalized.endswith(".ipynb"):
+                    normalized += ".ipynb"
+                if normalized:
+                    inferred.add(posixpath.normpath(normalized))
+            return data.get("exists", False), RunTargets(dict.fromkeys(runs), inferred)
+        except RuntimeError:
+            raise
+        except Exception as exc:
+            print(f"  WARNING: dependency scan attempt {attempt}/2 failed for "
+                  f"{notebook_path}: {type(exc).__name__}")
+            if attempt == 2:
+                raise RuntimeError(
+                    f"Cannot verify notebook existence or dependencies for "
+                    f"{notebook_path}: dependency extraction failed after 2 attempts"
+                ) from exc
 
 
-async def resolve_run_deps_recursive(session, workspace_root, deps):
+async def resolve_run_deps_recursive(
+    session, workspace_root, deps, parameter_bindings=None,
+):
     """Recursively discover all %run dependencies, including external notebooks.
 
     For each notebook in deps, classifies its %run targets as internal (under --root)
@@ -293,6 +438,7 @@ async def resolve_run_deps_recursive(session, workspace_root, deps):
          "nested_deps": [run_dep_entry, ...]}
     """
     all_internal = set(deps.keys())
+    parameter_bindings = dict(parameter_bindings or {})
     # Cache: external path -> (exists, nested_deps list)
     _ext_cache = {}
 
@@ -314,7 +460,9 @@ async def resolve_run_deps_recursive(session, workspace_root, deps):
                             "nested_deps": [], "note": "circular dependency"}
 
         original_path = path
-        exists, child_runs = await scan_external_notebook(session, path)
+        exists, child_runs = await scan_external_notebook(
+            session, path, parameter_bindings=parameter_bindings,
+        )
 
         # If not found, retry with name variants: space↔underscore, hyphen→underscore
         if not exists:
@@ -327,7 +475,9 @@ async def resolve_run_deps_recursive(session, workspace_root, deps):
                 variants.add(_normalize_ws_path(path.replace(" ", "_").replace("-", "_")))
             variants.discard(path)
             for alt_path in variants:
-                alt_exists, alt_runs = await scan_external_notebook(session, alt_path)
+                alt_exists, alt_runs = await scan_external_notebook(
+                    session, alt_path, parameter_bindings=parameter_bindings,
+                )
                 if alt_exists:
                     print(f"    -> Resolved via variant: {path} -> {alt_path}")
                     path = alt_path
@@ -504,16 +654,33 @@ def collect_missing_external(run_deps_map):
 
 
 async def main():
+    """DEPRECATED CLI ENTRY POINT — use `scripts/build_dag_from_workflow.py` instead.
+
+    This directory-scan builder walks a workspace directory to reconstruct a
+    %run dependency graph. The workflow-driven counterpart
+    (build_dag_from_workflow.py) fetches the same DAG straight from the AIDP
+    workflow definition, including task parameters and per-task cluster IDs
+    — none of which this legacy CLI can see.
+
+    Retained as a library helper (the underlying builder is still imported
+    from elsewhere) and for one-off ad-hoc DAG rebuilds. Do NOT invoke this
+    from new automation.
+    """
     from aidp_executor import DEFAULT_LAKE_OCID, DEFAULT_WORKSPACE_ID, DEFAULT_OCI_PROFILE
     parser = argparse.ArgumentParser(description="Build DAG from notebook dependencies")
-    parser.add_argument("--root", required=True, help="Workspace root path (e.g. Users/user@example.com/ExampleProject/ExampleJob)")
+    parser.add_argument("--root", required=True, help="Workspace root path (e.g. Users/user1@example.com/Payments/Example_Optimizer_Realtime)")
     parser.add_argument("--entry", help="Entry point notebook(s), comma-separated. If omitted, includes all.")
     parser.add_argument("--job-name", help="Job name for manifest entry")
     parser.add_argument("--cluster", default=DEFAULT_CLUSTER, required=DEFAULT_CLUSTER is None,
                         help="AIDP cluster ID (required)")
     parser.add_argument("--graph-only", action="store_true", help="Just print the dependency graph")
     parser.add_argument("--output", help="Output file for manifest entry (default: stdout)")
-    # AIDP environment — override these for non-default deployments
+    parser.add_argument(
+        "--param", action="append", default=[], metavar="KEY=VALUE",
+        help="Parameter binding used to resolve widget-based notebook.run paths. "
+             "Repeat for multiple values.",
+    )
+    # AIDP environment — override these for other-customer deployments
     parser.add_argument("--lake-ocid", default=DEFAULT_LAKE_OCID, required=DEFAULT_LAKE_OCID is None,
                         help="AIDP data lake OCID (required)")
     parser.add_argument("--workspace-id", default=DEFAULT_WORKSPACE_ID, required=DEFAULT_WORKSPACE_ID is None,
@@ -521,6 +688,13 @@ async def main():
     parser.add_argument("--oci-profile", default=DEFAULT_OCI_PROFILE,
                         help="OCI config profile name in ~/.oci/config (default: %(default)s)")
     args = parser.parse_args()
+
+    parameter_bindings = {}
+    for raw in args.param:
+        key, separator, value = raw.partition("=")
+        if not separator or not key.strip():
+            parser.error(f"invalid --param {raw!r}; expected KEY=VALUE")
+        parameter_bindings[key.strip()] = value
 
     # Strip leading /Workspace/ if user provided it
     if args.root.startswith("/Workspace/"):
@@ -546,12 +720,16 @@ async def main():
     print(f"Found {len(notebooks)} notebooks")
 
     print("Extracting dependencies...")
-    deps = await extract_dependencies(session, args.root)
+    deps = await extract_dependencies(
+        session, args.root, parameter_bindings=parameter_bindings,
+    )
     print(f"Analyzed {len(deps)} notebooks")
 
     # Recursively resolve all %run deps (internal + external + nested)
     print("Resolving external dependencies (recursive)...")
-    run_deps_map = await resolve_run_deps_recursive(session, args.root, deps)
+    run_deps_map = await resolve_run_deps_recursive(
+        session, args.root, deps, parameter_bindings=parameter_bindings,
+    )
 
     await session.close()
 
@@ -625,7 +803,10 @@ async def main():
 
     # Build manifest
     job_name = args.job_name or os.path.basename(args.root)
-    entry = build_manifest_entry(job_name, args.root, layers, deps, run_deps_map)
+    entry = build_manifest_entry(
+        job_name, args.root, layers, deps, run_deps_map,
+        parameters=parameter_bindings,
+    )
 
     # Print missing external deps warning
     missing = collect_missing_external(run_deps_map)
@@ -648,4 +829,9 @@ async def main():
 
 
 if __name__ == "__main__":
+    print("=" * 70)
+    print("WARNING: build_dag.py (directory scan) is DEPRECATED as a CLI.")
+    print("Use scripts/build_dag_from_workflow.py --job-key <workflow-key>")
+    print("whenever an AIDP workflow exists (the normal case).")
+    print("=" * 70)
     asyncio.run(main())

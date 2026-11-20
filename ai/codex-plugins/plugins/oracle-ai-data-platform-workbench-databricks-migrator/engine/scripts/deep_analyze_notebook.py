@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Deep Notebook Analyzer - Uses OpenAI GPT-5.5 (1M context) via the OpenAI API
-to do a thorough, line-by-line analysis of each notebook for AIDP migration.
+Deep Notebook Analyzer - Uses the configured LLM (a Claude model via the Anthropic
+API; default Opus 5, large context) to do a thorough, line-by-line analysis of each
+notebook for AIDP migration.
 
-This is NOT a regex scan. Each notebook gets a full OpenAI model analysis that:
+This is NOT a regex scan. Each notebook gets a full Claude analysis that:
 1. Reads every cell, every line of code
 2. Identifies ALL dependencies (Python packages, JARs, external services)
 3. Flags ALL Databricks-specific code (dbutils, display, %run, DBFS paths, etc.)
@@ -19,7 +20,8 @@ Usage:
     python3 deep_analyze_notebook.py --batch <notebook_list.json> [--concurrency 5]
 """
 
-from openai_model import OpenAIModelCompatClient, OPENAI_MODEL
+import llm_config  # central model/provider config
+import anthropic
 import json
 import os
 import sys
@@ -33,7 +35,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NOTEBOOKS_DIR = os.path.join(PROJECT_DIR, "notebooks")
 REPORTS_DIR = os.path.join(PROJECT_DIR, "reports", "deep_analysis")
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 SYSTEM_PROMPT = """You are an expert Spark/Databricks migration engineer. You are analyzing a Jupyter notebook that was originally written for Databricks and needs to be migrated to OCI AIDP (AI Data Platform) which runs Apache Spark 3.5.
 
@@ -122,7 +124,7 @@ Be exhaustive. Do not miss anything. Every single line matters."""
 
 
 def analyze_single_notebook(notebook_path: str, relative_path: str, report_dir: str) -> dict:
-    """Analyze a single notebook using OpenAI GPT-5.5."""
+    """Analyze a single notebook using Claude Opus 5."""
 
     # Read the notebook
     try:
@@ -157,13 +159,13 @@ def analyze_single_notebook(notebook_path: str, relative_path: str, report_dir: 
     except json.JSONDecodeError:
         readable_content = notebook_content
 
-    # Call OpenAI Responses API
-    client = OpenAIModelCompatClient(api_key=OPENAI_API_KEY or None)
+    # Call Claude API
+    client = llm_config.make_client(api_key=ANTHROPIC_API_KEY)
 
     try:
         message = client.messages.create(
-            model=OPENAI_MODEL,
-            max_tokens=16000,
+            model=llm_config.MODEL,
+            max_tokens=llm_config.MAX_TOKENS,
             system=SYSTEM_PROMPT,
             messages=[
                 {
@@ -212,7 +214,7 @@ def analyze_single_notebook(notebook_path: str, relative_path: str, report_dir: 
         analysis["api_usage"] = {
             "input_tokens": message.usage.input_tokens,
             "output_tokens": message.usage.output_tokens,
-            "model": OPENAI_MODEL
+            "model": llm_config.MODEL
         }
 
         return analysis
@@ -250,7 +252,7 @@ def analyze_batch(notebook_list_path: str, concurrency: int = 3, start_index: in
     print(f"=" * 60)
     print(f"Notebooks to analyze: {len(notebooks)}")
     print(f"Concurrency: {concurrency}")
-    print(f"Model: OpenAI GPT-5.5 (1M context)")
+    print(f"Model: {llm_config.MODEL}")
     print(f"Started: {datetime.now().isoformat()}")
     print(f"=" * 60)
 
@@ -356,15 +358,29 @@ def analyze_batch(notebook_list_path: str, concurrency: int = 3, start_index: in
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Deep notebook analysis with OpenAI GPT-5.5")
+    parser = argparse.ArgumentParser(description="Deep notebook analysis with the configured LLM")
     parser.add_argument("notebook", nargs="?", help="Single notebook path to analyze")
     parser.add_argument("--batch", help="Path to notebook_list.json for batch analysis")
     parser.add_argument("--concurrency", type=int, default=3, help="Number of concurrent analyses")
     parser.add_argument("--start", type=int, default=0, help="Start index in batch")
     parser.add_argument("--end", type=int, default=None, help="End index in batch")
     parser.add_argument("--output", help="Output report path (single notebook mode)")
+    parser.add_argument("--config", default=None,
+                        help="aidp_config YAML path (highest precedence; else "
+                             "$AIDP_CONFIG_PATH / ./aidp_migrator.yaml / ~).")
 
     args = parser.parse_args()
+
+    # No work requested -> show help WITHOUT triggering config discovery. Running
+    # with no args must display help, not fail on a missing config (PR#146 review,
+    # o-vazunnavar); config is only needed once we actually analyze something.
+    if not args.batch and not args.notebook:
+        parser.print_help()
+        return
+
+    # Standalone entrypoint: resolve the model from YAML (no code default).
+    # --config has highest precedence, matching the documented loader contract.
+    llm_config.ensure_configured(args.config)
 
     if args.batch:
         analyze_batch(args.batch, args.concurrency, args.start, args.end)
