@@ -203,29 +203,49 @@ class AIDPSecretsUtils:
     def _get_from_oci_vault(self, scope: str, key: str) -> str:
         """Retrieve secret from OCI Vault service.
 
-        Uses OCI API key auth via the CLI config file at
-        /Workspace/<oci-config-workspace-path> (DEFAULT profile). Override
-        via OCI_CONFIG_FILE / OCI_CONFIG_PROFILE env vars.
+        OCI auth: on-cluster fetched from AIDP Credential Store via aidputils.secrets
+        (default credential name `migration_tool_api` — overridable via env vars set
+        by the migrator's kernel bootstrap). Laptop dev falls back to standard OCI SDK
+        resolution.
 
         NEVER uses oci.auth.signers.get_resource_principals_signer() — resource
         principal has known failure modes on AIDP and is forbidden by project
         policy.
         """
         try:
-            import oci
+            import oci, sys
 
-            config_file = os.environ.get(
-                "OCI_CONFIG_FILE", "/Workspace/<oci-config-workspace-path>"
-            )
-            config_profile = os.environ.get("OCI_CONFIG_PROFILE", "DEFAULT")
-            config = oci.config.from_file(config_file, config_profile)
+            # AIDP kernel injects `aidputils` as a global on `__main__` (see
+            # aidp_compat/fs.py::_get_aidputils_from_kernel). Not importable
+            # as a Python module; not in builtins; must go through __main__.
+            # This module runs ONLY on cluster (via dbutils_shim), so a missing
+            # aidputils is a hard error — no laptop fallback.
+            aidputils = getattr(sys.modules.get("__main__"), "aidputils", None)
+            if aidputils is None:
+                raise RuntimeError(
+                    "aidputils global not found on __main__ — aidp_compat.secrets "
+                    "requires the AIDP cluster kernel's aidputils.")
+            cred = os.environ.get("AIDP_CRED_OCI_NAME") or "migration_tool_api"
+            def _k(f):
+                return os.environ.get("AIDP_CRED_OCI_KEY_" + f.upper()) or {
+                    "user": "user", "fingerprint": "fingerprint",
+                    "tenancy": "tenancy", "region": "region",
+                    "private_key_content": "key_file_content",
+                }[f]
+            tenancy     = aidputils.secrets.get(cred, key=_k("tenancy")).strip()
+            user        = aidputils.secrets.get(cred, key=_k("user")).strip()
+            fingerprint = aidputils.secrets.get(cred, key=_k("fingerprint")).strip()
+            region      = aidputils.secrets.get(cred, key=_k("region")).strip()
+            key_content = aidputils.secrets.get(cred, key=_k("private_key_content"))
             signer = oci.signer.Signer(
-                tenancy=config["tenancy"],
-                user=config["user"],
-                fingerprint=config["fingerprint"],
-                private_key_file_location=config["key_file"],
-                pass_phrase=oci.config.get_config_value_or_default(config, "pass_phrase"),
+                tenancy=tenancy, user=user, fingerprint=fingerprint,
+                private_key_file_location=None, private_key_content=key_content,
             )
+            # AIDP's ARM oci.config.validate_config requires all 4 identity
+            # fields even when a signer is passed (cluster-probed 2026-08-24).
+            config = {"region": region, "tenancy": tenancy, "user": user,
+                      "fingerprint": fingerprint, "key_content": key_content}
+
             vault_client = oci.vault.VaultsClient(config=config, signer=signer)
             secrets_client = oci.secrets.SecretsClient(config=config, signer=signer)
 

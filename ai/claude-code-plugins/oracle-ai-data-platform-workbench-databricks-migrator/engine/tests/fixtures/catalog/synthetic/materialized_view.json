@@ -1,0 +1,22 @@
+{
+  "name": "daily_revenue_mv",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "MATERIALIZED_VIEW",
+  "data_source_format": "DELTA",
+  "full_name": "main.example_team.daily_revenue_mv",
+  "storage_location": "s3://examplehealth-uc-managed-bucket/managed/abc-def-123/tables/mv1-mv2",
+  "owner": "test.user@example.com",
+  "comment": "Synthetic edge case: MATERIALIZED VIEW — must be flagged unsupported on AIDP",
+  "view_definition": "SELECT event_date, region, SUM(amount) AS total FROM main.example_team.events_partitioned_with_check WHERE amount IS NOT NULL GROUP BY event_date, region",
+  "columns": [
+    {"name": "event_date", "type_text": "date", "type_name": "DATE", "position": 0, "nullable": false},
+    {"name": "region", "type_text": "string", "type_name": "STRING", "position": 1, "nullable": false},
+    {"name": "total", "type_text": "decimal(18,2)", "type_name": "DECIMAL", "position": 2, "nullable": true}
+  ],
+  "properties": {
+    "delta.feature.materializedView": "supported",
+    "pipelines.materializedView.refreshSchedule": "0 0 * * *"
+  },
+  "securable_kind": "TABLE_MATERIALIZED_VIEW"
+}

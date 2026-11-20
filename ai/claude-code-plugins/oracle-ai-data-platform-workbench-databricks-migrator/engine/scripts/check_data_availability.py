@@ -7,7 +7,7 @@ references, then verifies they exist on the AIDP cluster.
 
 Usage:
     python3 check_data_availability.py \
-        --root "Users/user@example.com/ExampleProject/ExampleJob" \
+        --root "Users/user1@example.com/Payments/Example_Optimizer_Realtime" \
         --cluster <cluster-id>
 """
 
@@ -23,7 +23,6 @@ from aidp_executor import AIDPSession
 from context_tools import load_bucket_mapping, suggest_oci_path
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_CLUSTER = "<CLUSTER_ID>"
 
 
 def unwrap(outputs):
@@ -194,10 +193,10 @@ async def main():
     from aidp_executor import DEFAULT_LAKE_OCID, DEFAULT_WORKSPACE_ID, DEFAULT_OCI_PROFILE
     parser = argparse.ArgumentParser(description="Check data availability for notebooks")
     parser.add_argument("--root", required=True, help="Workspace root path")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER,
-                        help="AIDP cluster ID (default: %(default)s)")
-    parser.add_argument("--bucket-mapping", default=None)  # (Deprecated/ignored) supplied via load_bucket_mapping(); kept for backward compatibility
-    # AIDP environment — all required (no compiled-in defaults)
+    parser.add_argument("--cluster", required=True,
+                        help="AIDP cluster ID (required — no default)")
+    parser.add_argument("--bucket-mapping", default=None)  # CSV removed; mapping comes from config/bucket_map.csv
+    # AIDP environment — override these for other-customer deployments
     parser.add_argument("--lake-ocid", default=DEFAULT_LAKE_OCID,
                         help="AIDP data lake OCID (default: %(default)s)")
     parser.add_argument("--workspace-id", default=DEFAULT_WORKSPACE_ID,

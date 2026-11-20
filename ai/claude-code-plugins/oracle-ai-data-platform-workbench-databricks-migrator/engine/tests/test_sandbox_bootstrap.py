@@ -15,6 +15,16 @@ import sys
 
 import pytest
 
+@pytest.fixture(autouse=True)
+def _configured_write_redirect(monkeypatch):
+    """The write-redirect sandbox is config-derived (customer YAML) since the
+    engine moved off built-in defaults; these tests exercise the snippet SHAPE,
+    so configure a synthetic redirect the way startup config does."""
+    import job_migrate as jm
+    monkeypatch.setattr(jm, "_REDIRECT_BUCKET", "migration_sandbox")
+    monkeypatch.setattr(jm, "_REDIRECT_NAMESPACE", "exmplnspace1")
+    monkeypatch.setattr(jm, "_REDIRECT_TABLE_PREFIX", "default.migration_sandbox_overwrite")
+
 pytest.importorskip("anthropic")
 pytest.importorskip("oci")
 pytest.importorskip("nbformat")
@@ -30,7 +40,7 @@ from aidp_compat.fs import AIDPFileSystemUtils  # noqa: E402
 from aidp_compat.secrets import AIDPSecretsUtils  # noqa: E402
 
 OUTPUT_BASE = "/Workspace/Users/u@example.com/aidp_migration"
-BUCKET = f"oci://{jm._REDIRECT_BUCKET}@{jm._REDIRECT_NAMESPACE}/"
+BUCKET = "oci://migration_sandbox@exmplnspace1/"  # mirrors the fixture-configured redirect
 
 
 def _bootstrap(snippet: str) -> None:

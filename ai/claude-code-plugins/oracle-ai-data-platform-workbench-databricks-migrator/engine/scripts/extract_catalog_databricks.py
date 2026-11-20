@@ -127,6 +127,12 @@ def _file_mode(path: Path) -> int:
     return path.stat().st_mode & 0o777
 
 
+def _default_enforce_mode() -> bool:
+    """POSIX enforces the 0600 rule; Windows reports 0666 for every ordinary
+    file regardless of its ACL, so the check is skipped there with a note."""
+    return os.name != "nt"
+
+
 def read_token_file(path: str | None, *, enforce_mode: bool | None = None) -> str:
     """Return the token held in *path* (first line, stripped), or ``""`` when
     no path was given.
@@ -143,7 +149,7 @@ def read_token_file(path: str | None, *, enforce_mode: bool | None = None) -> st
         return ""
     p = Path(path).expanduser()
     if enforce_mode is None:
-        enforce_mode = os.name != "nt"
+        enforce_mode = _default_enforce_mode()
     try:
         if enforce_mode:
             mode = _file_mode(p)
@@ -206,7 +212,7 @@ def _redact(text: str) -> str:
 def _get(url: str, token: str, *, max_attempts: int = 6, **kwargs) -> dict:
     """REST GET with bearer auth + exponential backoff honoring Retry-After.
 
-    For large-scale catalog (100k+ tables): the original
+    Per code review 2026-06-05 (200k-table sweep concern): the original
     single-retry policy exhausts immediately under sustained 429s. We now do
     up to 6 attempts with backoff = min(60s, 2 ** (attempt-1)) seconds,
     honoring `Retry-After` when the server returns it.
@@ -363,10 +369,10 @@ def extract(
 
             # The list-tables response already includes full columns + properties
             # for most tables — only Delta-shared tables come back with empty
-            # `columns`. Per internal code review: skip the per-table detail
+            # `columns`. Per code review 2026-06-05: skip the per-table detail
             # fetch when the list result is already complete, falling back to
-            # get_table_detail() only when columns are missing. At large-scale catalogs
-            # this collapses ~N sequential GETs into ~N/page list calls.
+            # get_table_detail() only when columns are missing. At 200k tables
+            # this collapses ~200k sequential GETs into ~200k/page list calls.
             for t in tables:
                 full_name = t.get("full_name") or f"{cat_name}.{sch_name}.{t['name']}"
                 has_columns = bool(t.get("columns"))

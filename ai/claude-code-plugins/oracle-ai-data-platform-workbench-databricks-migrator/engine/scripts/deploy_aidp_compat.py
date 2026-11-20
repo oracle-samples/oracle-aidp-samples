@@ -5,7 +5,7 @@ Build and deploy aidp_compat wheel to AIDP cluster.
 Builds the wheel, uploads via cluster libraries API, and triggers restart.
 
 Usage:
-    python3 scripts/deploy_aidp_compat.py --cluster <CLUSTER_ID>
+    python3 scripts/deploy_aidp_compat.py --cluster <CLUSTER-ID>
 """
 
 import argparse
@@ -18,11 +18,13 @@ import glob
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = "<DATALAKE_OCID>"
-WORKSPACE_ID = "<WORKSPACE_ID>"
-OCI_PROFILE = "DEFAULT"
-DEFAULT_CLUSTER = "<CLUSTER_ID>"
+# AIDP config — sourced from aidp_migrator.yaml (via aidp_config) with env-var fallback.
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 
 
 def build_wheel():
@@ -54,14 +56,32 @@ def build_wheel():
     return wheel_path
 
 
+# The CLI-selected YAML; published in main() beside cluster_lifecycle.configure()
+# so authentication uses the SAME config that selected the library repository
+# (PR #234 Param review: --config B must not auth with a discovered A).
+SELECTED_CONFIG_PATH = None
+
+
+def _publish_selected_config(config_path):
+    """Make the CLI-selected YAML authoritative for EVERY signer built in this
+    process — not only this module's get_signer. deploy_wheel() also creates an
+    AIDPSession, whose connect() builds its own signer via get_oci_signer(profile)
+    with no config argument (PR #234 review round 4): without this publication,
+    --config B could stage the wheel as a discovered YAML A's identity while the
+    library REST calls authenticate as B. $AIDP_CONFIG_PATH is the loader's own
+    documented env mechanism; an explicit config_path argument still outranks it.
+    """
+    global SELECTED_CONFIG_PATH
+    SELECTED_CONFIG_PATH = config_path
+    if config_path:
+        os.environ["AIDP_CONFIG_PATH"] = config_path
+
+
 def get_signer():
-    import oci
-    config = oci.config.from_file(profile_name=OCI_PROFILE)
-    return oci.signer.Signer(
-        tenancy=config["tenancy"], user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-    )
+    # Single auth source: oci_auth (Credential Store on-cluster → config file on laptop).
+    from oci_auth import get_oci_signer as _shared
+    _, signer = _shared(OCI_PROFILE, config_path=SELECTED_CONFIG_PATH)
+    return signer
 
 
 def deploy_wheel(wheel_path: str, cluster_id: str):
@@ -76,7 +96,10 @@ def deploy_wheel(wheel_path: str, cluster_id: str):
     with open(wheel_path, "rb") as f:
         wheel_bytes = f.read()
 
-    workspace_path = f"migration-dependencies/{wheel_name}"
+    # Stage into the YAML-configured dependency repository (single source of
+    # truth shared with dbx_export + cluster_lifecycle prerequisite checks).
+    from cluster_lifecycle import AIDP_LIB_DIR
+    workspace_path = f"{AIDP_LIB_DIR.lstrip('/').removeprefix('Workspace/')}/{wheel_name}"
 
     # Step 1: Upload wheel to /Workspace via cluster session (binary-safe)
     print(f"Uploading {wheel_name} ({len(wheel_bytes)} bytes) via cluster session...")
@@ -84,11 +107,16 @@ def deploy_wheel(wheel_path: str, cluster_id: str):
     from aidp_executor import AIDPSession
 
     async def _upload():
-        session = AIDPSession(cluster_id=cluster_id)
+        session = AIDPSession(
+            cluster_id=cluster_id,
+            lake_ocid=DATALAKE_OCID,
+            workspace_id=WORKSPACE_ID,
+            oci_profile=OCI_PROFILE,
+        )
         await session.connect()
 
         b64 = base64.b64encode(wheel_bytes).decode("ascii")
-        target = f"/Workspace/migration-dependencies/{wheel_name}"
+        target = f"{AIDP_LIB_DIR}/{wheel_name}"
         CHUNK = 40000
         chunks = [b64[i:i+CHUNK] for i in range(0, len(b64), CHUNK)]
 
@@ -136,23 +164,35 @@ print(f"{{size}} bytes, valid={{valid}}")
     print(f"Installing on cluster {cluster_id}...")
     libs_url = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/clusters/{cluster_id}/libraries"
 
-    # First uninstall old version
-    uninstall_body = json.dumps({
-        "uninstallLibraries": [{
-            "pypi": {"package": "aidp_compat"}
-        }]
-    })
-    resp = requests.patch(libs_url, data=uninstall_body, auth=signer,
-                          headers={"Content-Type": "application/json"})
-    print(f"  Uninstall old: {resp.status_code}")
+    # AIDP libraries API contract (matches scripts/cluster_lifecycle.py which
+    # already ships working install code). One PATCH per operation is the
+    # expected shape — batching multiple items in one PATCH races per
+    # "Install cluster libraries sequentially" ops rule.
+    workspace_full = workspace_path if workspace_path.startswith("/") else f"/Workspace/{workspace_path}"
+
+    # Uninstall any existing aidp_compat first (by workspace path pattern)
+    list_resp = requests.get(libs_url, auth=signer)
+    if list_resp.status_code == 200:
+        existing = list_resp.json().get("items", [])
+        for lib in existing:
+            p = lib.get("path", "")
+            if "aidp_compat" in p and p.endswith(".whl"):
+                un_body = {"items": [{
+                    "operation": "UNINSTALL",
+                    "type": "WORKSPACE_FILE",
+                    "path": p,
+                }]}
+                r = requests.patch(libs_url, json=un_body, auth=signer,
+                                   headers={"Content-Type": "application/json"})
+                print(f"  Uninstall {p.rsplit('/', 1)[-1]}: {r.status_code}")
 
     # Install new version
-    install_body = json.dumps({
-        "installLibraries": [{
-            "whl": f"/Workspace/{workspace_path}"
-        }]
-    })
-    resp = requests.patch(libs_url, data=install_body, auth=signer,
+    install_body = {"items": [{
+        "operation": "INSTALL",
+        "type": "WORKSPACE_FILE",
+        "path": workspace_full,
+    }]}
+    resp = requests.patch(libs_url, json=install_body, auth=signer,
                           headers={"Content-Type": "application/json"})
     print(f"  Install new: {resp.status_code}")
 
@@ -165,9 +205,20 @@ print(f"{{size}} bytes, valid={{valid}}")
 
 def main():
     parser = argparse.ArgumentParser(description="Build and deploy aidp_compat")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
+    parser.add_argument("--cluster", required=True,
+                        help="AIDP cluster ID (required — no default; must be provided explicitly)")
     parser.add_argument("--build-only", action="store_true", help="Only build, don't deploy")
+    parser.add_argument("--config", default=None,
+                        help="Path to aidp_migrator.yaml (falls back to "
+                             "$AIDP_CONFIG_PATH / default discovery). Resolves "
+                             "paths.lib_repository_dir — where the wheel is staged.")
     args = parser.parse_args()
+
+    # Re-resolve the dependency repository from the SAME --config the migrator
+    # uses so the wheel lands where the prerequisite check will look for it.
+    import cluster_lifecycle
+    cluster_lifecycle.configure(args.config)
+    _publish_selected_config(args.config)
 
     wheel_path = build_wheel()
 

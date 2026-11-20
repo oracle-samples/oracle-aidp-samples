@@ -59,7 +59,7 @@
 
 **Fix recipe:**
 - Batch all `CREATE SCHEMA` / `CREATE TABLE` into ONE WS execute call.
-- The catalog migrator's `migrate_catalog.py` does this automatically via `--chunk-size 25`.
+- The catalog migrator's `migrate_catalog.py` does this batching automatically (no flag needed).
 - For ad-hoc DDL, wrap in a single multi-statement Python cell:
   ```python
   for stmt in [...DDL list...]:

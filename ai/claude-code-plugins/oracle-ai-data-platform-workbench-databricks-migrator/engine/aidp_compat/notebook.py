@@ -369,30 +369,42 @@ class NotebookExit(Exception):
         super().__init__(value)
 
 
-# Module-level current notebook directory — set by the migration bootstrap so that
-# dbutils.notebook.run("../relative/path") resolves relative to the calling notebook's
-# directory rather than the workspace root.
+# Directory of the notebook currently executing, set by the migration tool's
+# injected bootstrap cell (`from aidp_compat import set_notebook_dir`).
+# Relative dbutils.notebook.run targets (e.g. "./Queries/RU") resolve against
+# this instead of the workspace root. None = no bootstrap ran (pre-existing
+# behavior: relative paths anchor at the workspace root).
 _current_notebook_dir: Optional[str] = None
 
 
 def set_notebook_dir(path: str) -> None:
-    """Set the directory of the currently-executing notebook.
+    """Record the running notebook's own directory for relative-path
+    resolution in notebook.run.
 
-    Called by the migration bootstrap before executing each notebook's cells:
-        from aidp_compat.notebook import set_notebook_dir
-        set_notebook_dir("/Users/user@example.com/path/to/notebook_dir")
-    """
+    Utility for the forthcoming artifact-bootstrap cell: it is NOT yet
+    injected by the migrator (no injector exists in scripts/ or
+    dbx_export/), so in migrated artifacts _current_notebook_dir stays
+    None and relative notebook.run targets anchor at the workspace root
+    unless a notebook calls this manually as its first cell."""
     global _current_notebook_dir
     _current_notebook_dir = path
 
 
 class _NotebookContext:
-    """Mock for dbutils.notebook.entry_point...getContext()."""
+    """Mock for dbutils.notebook.entry_point...getContext().
+
+    Customer-specific identity is read from env vars set on the cluster by the
+    migration tool (see dbx_export.cluster_converter.recommended_env_vars):
+      AIDP_WORKSPACE_ID  — cfg.aidp.workspace_id, injected at cluster create.
+      AIDP_CLUSTER_ID    — cluster's own id (not injectable at create; empty
+                            string if the operator's init script does not set
+                            it post-startup).
+    Nothing customer-identifying is hardcoded here."""
     def toJson(self):
-        import json
+        import json, os
         return json.dumps({
-            'workspaceid': '<WORKSPACE_ID>',
-            'clusterId': '<CLUSTER_ID>',
+            'workspaceid': os.environ.get("AIDP_WORKSPACE_ID", ""),
+            'clusterId':   os.environ.get("AIDP_CLUSTER_ID", ""),
             'orgId': '0',
             'notebookPath': '',
             'notebookId': '',
@@ -430,7 +442,18 @@ class AIDPNotebookUtils:
         return _EntryPoint()
 
     def _resolve_path(self, path: str) -> str:
-        """Resolve notebook path to actual filesystem path."""
+        """Resolve notebook path to actual filesystem path.
+
+        Most `dbutils.notebook.run("...")` paths are converted to absolute at
+        migration time (`_resolve_run_path` in scripts/job_migrate.py). A
+        relative path can still legitimately arrive at runtime for a LIVE
+        workflow run whose target was a variable or otherwise not
+        statically resolvable — those resolve against the calling
+        notebook's own directory via set_notebook_dir()/_current_notebook_dir
+        (registered by that notebook's injected bootstrap cell). If no
+        bootstrap ran, falls back to the workspace root as a defensive
+        default (matches AIDP's own behavior).
+        """
         # Add .ipynb if needed
         if not path.endswith(".ipynb"):
             path += ".ipynb"
@@ -439,11 +462,12 @@ class AIDPNotebookUtils:
         if path.startswith("/Workspace"):
             path = path.replace("/Workspace", self._workspace_root, 1)
 
-        # Handle relative paths — resolve against the current notebook's directory if known,
-        # otherwise fall back to the workspace root.
+        # Relative path: resolve against the running notebook's own directory
+        # when the bootstrap cell registered it (set_notebook_dir); otherwise
+        # fall back to the workspace root (pre-existing defensive default).
         if not path.startswith("/"):
-            base = _current_notebook_dir if _current_notebook_dir else self._workspace_root
-            path = os.path.normpath(os.path.join(base, path))
+            _base = _current_notebook_dir or self._workspace_root
+            path = os.path.normpath(os.path.join(_base, path))
 
         return path
 
@@ -504,6 +528,14 @@ class AIDPNotebookUtils:
             except Exception as e:
                 print(f"[notebook.run] warning: could not set widget parameters: {e}")
 
+        # Execute each code cell in the caller's namespace. Save/restore
+        # _current_notebook_dir around the run: if `path` is itself a saved
+        # artifact with its own bootstrap cell, exec()'ing it calls
+        # set_notebook_dir() for ITS OWN relative paths, which must not leak
+        # into the caller's subsequent notebook.run() calls after this
+        # returns (the global is shared across the whole kernel namespace).
+        global _current_notebook_dir
+        _saved_notebook_dir = _current_notebook_dir
         # Import / shim aliases and string constants seen so far in this run,
         # so `import os as o` in one cell still gates `o.environ` in the next.
         # The runtime SQL guard below is active for every cell of the run, so
@@ -550,6 +582,7 @@ class AIDPNotebookUtils:
             return str(e.value)
         finally:
             guard.restore()
+            _current_notebook_dir = _saved_notebook_dir
 
         return "ok"
 

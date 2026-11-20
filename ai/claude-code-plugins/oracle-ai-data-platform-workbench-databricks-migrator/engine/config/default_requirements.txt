@@ -1,0 +1,11 @@
+# Same range as requirements.txt (floor = the live control cluster's version).
+anthropic>=0.125.0,<1.0
+oci
+websocket-client
+requests
+nbformat
+
+# Pinned for PyArrow-based .toPandas() compatibility.
+numpy==1.26.4
+pyarrow==12.0.1
+pandas==2.2.3

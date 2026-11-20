@@ -61,7 +61,7 @@ For each risk, name the cell + the specific fix:
 Rough prediction of what `aidp-migrate-job` will do:
 - N cells expected to pass first-try
 - M cells will likely need 1 retry (specific cells: ...)
-- K cells likely to be marked PARTIAL even after 10 attempts — these need [`aidp-fixup-cell`](../skills/aidp-fixup-cell/SKILL.md) or manual
+- K cells likely to be marked PARTIAL even after the 5 fix attempts — these need [`aidp-fixup-cell`](../skills/aidp-fixup-cell/SKILL.md) or manual
 
 ## Recommendation
 

@@ -1,6 +1,6 @@
 # DDL Rewrite Rules — Databricks → AIDP
 
-The migrator's `${CLAUDE_PLUGIN_ROOT}/engine/scripts/catalog_ddl_rewriter.py` applies **18 rules** when porting Unity Catalog / HMS DDL to AIDP. This document is the reference; the actual implementation is `rewrite_table_ddl()` + `schema_create_sql()` in the migrator repo.
+The migrator's `${CLAUDE_PLUGIN_ROOT}/engine/scripts/catalog_ddl_rewriter.py` implements **10 rules** when porting Unity Catalog / HMS DDL to AIDP — a subset of an 18-rule design spec; the un-implemented spec rules surface as warnings. The implemented rule ids in code are R01, R02, R03, R09, R10, R11, R13, R14, R16, R17 (the numbering BELOW is this document's own reference numbering, not the code's rule ids). The actual implementation is `rewrite_table_ddl()` + `schema_create_sql()` in `catalog_ddl_rewriter.py`.
 
 Each rule below shows the **input shape** (what Databricks emits) and the **output shape** (what AIDP accepts).
 
@@ -18,7 +18,7 @@ CREATE TABLE <src_cat>.<schema>.<table> (...)
 CREATE TABLE <schema>.<table> (...)
 ```
 
-Only triggered when the source catalog appears in the catalog manifest. Without a manifest, 3-part names pass through unchanged (the migrator does not assume `<src_cat>` should map to `default`).
+With the default `--flatten-strategy catalog-remap`, EVERY 3-part name is flattened: a source catalog listed in `--catalog-map` maps to its declared target, and any unmapped source catalog maps to `--default-catalog` (default `default`). Alternative strategies: `schema-prefix` (`<cat>_<schema>.<table>` — preserves the origin catalog in the schema name) and `schema-only`.
 
 ### Rule 2: Backticked identifiers preserved through flatten
 
@@ -46,16 +46,17 @@ CREATE TABLE <schema>.<table> ... LOCATION 'oci://<bucket>@<namespace>/<path>'
 
 Bucket → namespace mapping comes from your `bucket_mapping.json` (see [`aidp-bucket-mapping`](../skills/aidp-bucket-mapping/SKILL.md)).
 
-### Rule 4: Reject when bucket not in mapping
+### Rule 4: Warn (do NOT reject) when bucket not in mapping
 
 ```
 -- IN with unknown bucket:
 CREATE TABLE ... LOCATION 's3://<unknown-bucket>/...'
 -- OUT:
-[SKIP] table <schema>.<table>: S3 bucket "<unknown-bucket>" not found in OCI bucket mapping
+CREATE TABLE ... LOCATION 's3://<unknown-bucket>/...'   -- unchanged
+-- plus audit entry: R02_BUCKET_UNMAPPED (severity: warn)
 ```
 
-Statement is omitted from the replay batch; the bad table is listed in the rewriter's `UnsupportedDDL` output.
+The statement is NOT skipped: the original `s3://` LOCATION passes through unchanged and the rewriter records an `R02_BUCKET_UNMAPPED` warning in its rule-application audit. Review every such warning in `--out-report` / `--dry-run` output — a replayed table that still points at `s3://` fails at first read on AIDP. Fix by adding the bucket to the mapping CSV and re-running.
 
 ### Rule 5: `dbfs:/` paths translated to `/Volumes/<vol>/`
 
@@ -187,7 +188,7 @@ CREATE STREAMING TABLE <schema>.<st> AS SELECT ... FROM STREAM ...
 CREATE VIEW <schema>.<v> AS SELECT * FROM <other_cat>.<other_schema>.<other_table>
 -- OUT (if <other_cat> not in manifest):
 [FLAG] view <schema>.<v>: references cross-catalog <other_cat>.<other_schema>.<other_table>;
-       review whether the source catalog should be added to --catalog-manifest before replay.
+       review whether the source catalog should be added to --catalog-map before replay.
 ```
 
 Statement IS replayed (views are cheap; let it fail loudly if the catalog truly doesn't resolve).
@@ -249,9 +250,13 @@ Note: the COMMENT clause is preserved on `CREATE TABLE` (only `CREATE SCHEMA` st
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py \
   --pack reports/catalog_pack.json \
+  --aidp-cluster <CLUSTER_ID> --aidp-lake <LAKE_OCID> --aidp-workspace <WORKSPACE_UUID> \
+  --out-manifest reports/catalog_manifest.json --out-report reports/catalog_report.md \
   --dry-run > /tmp/catalog_rewrite_preview.txt
 less /tmp/catalog_rewrite_preview.txt
 ```
+
+(`--aidp-cluster`, `--aidp-lake`, `--aidp-workspace`, `--out-manifest`, `--out-report` are required by argparse even for `--dry-run`.)
 
 ---
 

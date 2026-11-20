@@ -18,29 +18,39 @@ import argparse
 import oci
 import requests
 
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = "<DATALAKE_OCID>"
-WORKSPACE_ID = "<WORKSPACE_ID>"
-DEFAULT_CLUSTER = "<CLUSTER_ID>"
-OCI_PROFILE = "DEFAULT"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 
-# JARs to install (paths on the workspace)
-JARS_TO_INSTALL = [
-    # Edit per project. Example entry:
-    # "/Workspace/migration-dependencies/jars/your_jar.jar",
-]
+# Baseline JARs (generic Spark deps, not customer-specific).
+# Per-job JARs are attached separately by dbx_export at cluster-provision time.
+# Paths come from cluster_lifecycle so the YAML-configured dependency
+# repository (paths.lib_repository_dir) is the single source of truth.
+from cluster_lifecycle import BASELINE_JARS
 
-# requirements.txt for pip packages
-REQUIREMENTS_PATH = "/Workspace/migration-dependencies/requirements.txt"
+JARS_TO_INSTALL = list(BASELINE_JARS)
+
+# Target-cluster runtime pins. Per-job pip deps live in <job>/job_requirements.txt.
+# NOTE: default_requirements.txt (anthropic, websocket-client, ...) is the
+# CONTROL-cluster file — pointing this ops script at it installed
+# migration-control deps onto customer target clusters (PR#58 re-review
+# finding). Pass --control-requirements only when preparing the migration
+# control cluster itself.
+REQUIREMENTS_PATH = "/Workspace/migration-dependencies/target_runtime_requirements.txt"
+CONTROL_REQUIREMENTS_PATH = "/Workspace/migration-dependencies/default_requirements.txt"
 
 
-def get_signer(profile=OCI_PROFILE):
-    config = oci.config.from_file(profile_name=profile)
-    return oci.signer.Signer(
-        tenancy=config["tenancy"], user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-    )
+def get_signer(profile=OCI_PROFILE, config_path=None):
+    # Single auth source: oci_auth (Credential Store on-cluster → config file on
+    # laptop). config_path = the CLI --config, so its credential mapping is the
+    # one used on the store path (PR #234 Param review).
+    from oci_auth import get_oci_signer as _shared
+    _, signer = _shared(profile, config_path=config_path)
+    return signer
 
 
 def libraries_url(cluster_id):
@@ -65,14 +75,31 @@ def install_libraries(signer, cluster_id, items):
 
 def main():
     parser = argparse.ArgumentParser(description="Install libraries on AIDP cluster")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
+    parser.add_argument("--cluster", required=True,
+                        help="AIDP cluster ID (required — no default)")
     parser.add_argument("--profile", default=OCI_PROFILE)
     parser.add_argument("--status", action="store_true", help="Just check status")
     parser.add_argument("--jars-only", action="store_true")
     parser.add_argument("--pip-only", action="store_true")
+    parser.add_argument("--control-requirements", action="store_true",
+                        help="Install the CONTROL-cluster requirements file "
+                             "(anthropic, websocket-client, ...) instead of the "
+                             "target runtime pins. Only for the migration "
+                             "control cluster — never a customer target cluster.")
+    parser.add_argument("--config", default=None,
+                        help="Path to aidp_migrator.yaml (falls back to "
+                             "$AIDP_CONFIG_PATH / default discovery). Resolves "
+                             "paths.lib_repository_dir for the baseline JARs.")
     args = parser.parse_args()
 
-    signer = get_signer(args.profile)
+    # Re-resolve the dependency repository from the SAME --config the migrator
+    # uses, then refresh the derived JAR list.
+    import cluster_lifecycle
+    cluster_lifecycle.configure(args.config)
+    global JARS_TO_INSTALL
+    JARS_TO_INSTALL = list(cluster_lifecycle.BASELINE_JARS)
+
+    signer = get_signer(args.profile, config_path=args.config)
 
     if args.status:
         print(f"Library status for cluster {args.cluster}:")
@@ -110,11 +137,12 @@ def main():
 
     # requirements.txt
     if not args.jars_only:
-        if REQUIREMENTS_PATH not in existing_paths:
+        req_path = CONTROL_REQUIREMENTS_PATH if args.control_requirements else REQUIREMENTS_PATH
+        if req_path not in existing_paths:
             items.append({
                 "operation": "INSTALL",
                 "type": "WORKSPACE_FILE",
-                "path": REQUIREMENTS_PATH,
+                "path": req_path,
             })
             print(f"  INSTALL: requirements.txt")
         else:

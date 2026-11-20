@@ -1,5 +1,5 @@
 ---
-description: Pre-migration data-availability scan. Reads a manifest, probes every spark.read.* / saveAsTable target on the AIDP cluster, reports OK / MISSING / EMPTY.
+description: Pre-migration data-availability scan. Reads a manifest, probes every spark.read.* / saveAsTable target on the AIDP cluster, reports EXISTS / ERROR / MISSING.
 ---
 
 # `/check-data` — pre-migration scan
@@ -9,8 +9,8 @@ Light wrapper over [`aidp-check-data`](../skills/aidp-check-data/SKILL.md). Use 
 ## Workflow
 
 1. Find an existing manifest at `reports/<job>_manifest.json`. If none, ask the user to build one via [`/migrate-job`](./migrate-job.md) Phase 1, OR run [`aidp-build-dag`](../skills/aidp-build-dag/SKILL.md).
-2. Invoke `${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability.py` (or `_for_workflow.py` if the manifest came from a Databricks Job ID).
-3. Output a 3-section summary: TABLES (OK / MISSING / EMPTY), PATHS (same), and a remediation tip per category.
+2. Invoke `${CLAUDE_PLUGIN_ROOT}/engine/scripts/check_data_availability_for_workflow.py --job-key <workflow-key> --cluster <CLUSTER_ID> --config <customer>.yaml` (pass `--manifest` when one exists; use plain `check_data_availability.py --root ... --cluster ...` only for a path-rooted scan).
+3. Output a 2-section summary: Spark Tables (EXISTS / ERROR / MISSING), Storage Paths (EXISTS / ERROR / NOT FOUND), and a remediation tip per category. The scan ends with `RESULT: ALL DATA AVAILABLE - ready to migrate` or `RESULT: <n> data sources missing`.
 
 ## Args
 
@@ -24,15 +24,15 @@ If `$ARGUMENTS` names a manifest file or job name, use it; else infer from the m
 == Data availability for <MyJob> ==
 
 TABLES — 23 total
-  OK     21
-  MISSING  1   → '<catalog>.<schema>.<table_b>' — run /migrate-catalog or create manually
-  EMPTY    1   → '<catalog>.<schema>.<table_c>' (0 rows; data backfill needed)
+  EXISTS  21
+  MISSING  1   → '<schema>.<table_b>' — run /migrate-catalog or create manually
+  ERROR    1   → '<schema>.<table_c>' (probe failed; investigate before migrating)
 
 PATHS — 8 total
-  OK      7
-  MISSING 1   → 'oci://<bucket>@<ns>/path' — confirm bucket-mapping config
+  EXISTS     7
+  NOT FOUND  1   → 'oci://<bucket>@<ns>/path' — confirm bucket-mapping config
 
-VERDICT: 2 issues. Safe to proceed? (y / N / fix-first)
+RESULT: 2 data sources missing. Safe to proceed? (y / N / fix-first)
 ```
 
 ## When to STOP and remediate first

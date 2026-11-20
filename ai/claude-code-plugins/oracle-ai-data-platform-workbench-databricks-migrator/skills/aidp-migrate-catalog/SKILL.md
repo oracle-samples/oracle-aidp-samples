@@ -1,6 +1,6 @@
 ---
 name: aidp-migrate-catalog
-description: Migrate Databricks Unity Catalog / HMS schemas + tables onto AIDP. Two-stage extract→rewrite→replay pipeline. The rewriter applies 18 DDL rules (3-part→2-part flatten, s3://→oci:// via bucket-map, source-format preserved (Delta stays Delta) with delta.* property scrub, MV/streaming rejection, CREATE SCHEMA COMMENT-colon strip). Batched single-WebSocket DDL replay works around AIDP's per-statement-discard quirk. Use BEFORE aidp-migrate-job — schemas must exist before notebook reads.
+description: Migrate Databricks Unity Catalog / HMS schemas + tables onto AIDP. Two-stage extract→rewrite→replay pipeline. The rewriter applies 10 implemented DDL rules (3-part→2-part flatten, s3://→oci:// via bucket-map, source-format preserved (Delta stays Delta) with delta.* property scrub, MV/streaming rejection, CREATE SCHEMA COMMENT-colon strip). Batched single-WebSocket DDL replay works around AIDP's per-statement-discard quirk. Use BEFORE aidp-migrate-job — schemas must exist before notebook reads.
 ---
 
 # `aidp-migrate-catalog` — Unity Catalog / HMS → AIDP DDL migration
@@ -19,7 +19,7 @@ The notebook migration (Pass-2) reads tables. If the schemas + tables don't exis
 ┌─────────────────────────────────┐    ┌─────────────────────────────────┐
 │ Stage 1: extract_catalog_       │    │ Stage 2: migrate_catalog.py     │
 │           databricks.py         │ → │  reads catalog_pack.json,        │
-│  REST against Unity Catalog API │    │  applies 18 DDL rewrite rules,  │
+│  REST against Unity Catalog API │    │  applies the DDL rewrite rules, │
 │  reports/catalog_pack.json      │    │  batches into ONE WS execute    │
 │                                 │    │  on the AIDP cluster            │
 └─────────────────────────────────┘    └─────────────────────────────────┘
@@ -81,23 +81,30 @@ The extractor uses Unity Catalog's REST API (`/api/2.1/unity-catalog/tables` wit
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/migrate_catalog.py \
   --pack reports/catalog_pack.json \
-  --cluster <CLUSTER_ID> \
-  --aidp-base <AIDP_BASE> \
-  --datalake-ocid <DATALAKE_OCID> \
-  --workspace-id <WORKSPACE_UUID> \
-  --output-base <output-workspace-path> \
-  --oci-profile <profile>
+  --aidp-cluster <CLUSTER_ID> \
+  --aidp-lake <LAKE_OCID> \
+  --aidp-workspace <WORKSPACE_UUID> \
+  --aidp-profile <profile> \
+  --out-manifest reports/catalog_manifest.json \
+  --out-report reports/catalog_report.md
 ```
 
-Useful flags:
+`--pack`, `--aidp-cluster`, `--aidp-lake`, `--aidp-workspace`, `--out-manifest`, and `--out-report` are all **required** (`--aidp-profile` defaults to `AIDP_API`). The `--out-manifest` file is what you later feed to `job_migrate_from_workflow.py --catalog-manifest` so notebook literals get the same catalog remap.
+
+Optional flags:
 | Flag | Purpose |
 |---|---|
 | `--dry-run` | Print the rewritten DDL but do NOT execute. Use first time to inspect. |
-| `--chunk-size N` | Statements per WS execute batch (default 25). Reduce if you hit timeout. |
-| `--catalogs <list>` | Migrate only these catalogs from the pack. |
-| `--schemas <list>` | Migrate only these schemas. Format `<catalog>:<schema>`. |
+| `--catalog-map <path>` | Explicit source→target catalog map. |
+| `--default-catalog <name>` | Target catalog for flattened names (default `default`). |
+| `--bucket-map <path>` | S3→OCI 3-column CSV (`s3_bucket,oci_bucket,oci_namespace`) for LOCATION rewrites. |
+| `--flatten-strategy` | How 3-part names flatten (default `catalog-remap`). |
+| `--location-strategy` | `auto` (default: EXTERNAL keeps the rewritten LOCATION, MANAGED drops it) / `preserve` / `drop`. |
+| `--target-using <fmt>` | Force a storage format; default preserves the source format (Delta stays Delta). |
 
-## What the 18 DDL rewrite rules do
+There is **no `--chunk-size`, `--catalogs`, or `--schemas` flag** — filter at stage 1 (`--catalogs` / `--schemas-only` on the extractor) and the batching is automatic.
+
+## What the DDL rewrite rules do (10 implemented, from an 18-rule design spec)
 
 Full details in [references/ddl-rewrite-rules.md](../../references/ddl-rewrite-rules.md). Quick summary:
 
@@ -119,7 +126,7 @@ Full details in [references/ddl-rewrite-rules.md](../../references/ddl-rewrite-r
 
 ## The batched-DDL workaround (important)
 
-AIDP's Spark WS execute has a quirk: per-statement DDL is discarded if the session closes between statements. Workaround: batch all `CREATE SCHEMA` + `CREATE TABLE` (in dependency order) into ONE WS execute call. `migrate_catalog.py` does this automatically via `--chunk-size`.
+AIDP's Spark WS execute has a quirk: per-statement DDL is discarded if the session closes between statements. Workaround: batch all `CREATE SCHEMA` + `CREATE TABLE` (in dependency order) into ONE WS execute call. `migrate_catalog.py` does this batching automatically (there is no tuning flag).
 
 This means if a single statement in a chunk fails, the WHOLE chunk's reported status may say success even though some tables aren't created. The migrator therefore probes existence post-execute for every statement and reports per-statement results.
 

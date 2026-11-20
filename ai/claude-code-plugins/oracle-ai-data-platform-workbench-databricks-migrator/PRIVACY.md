@@ -17,7 +17,7 @@ This plugin **does not collect, store, transmit, or share any user data**. It is
   - `engine/scripts/` (Python engine modules) — `job_migrate.py`, `agent_migrate.py`, `cluster_session.py`, `aidp_executor.py`, `build_dag.py`, `check_data_availability.py`, `migrate_catalog.py`, `extract_catalog_databricks.py`, `acceptance_contract.py`, etc.
   - `engine/aidp_compat/` (21 Python files) — drop-in `dbutils` compatibility shim for AIDP clusters.
   - `engine/schemas/` — JSON schemas (acceptance contract).
-  - `engine/setup.py`, `engine/requirements.txt` — Python package metadata + deps.
+  - `engine/requirements.txt` — Python dependencies (the cluster wheel builds from `engine/aidp_compat/setup.py`).
   - `engine/run_migration.sh` — generic convenience script.
 
 No bundled credentials, no telemetry, no MCP server, no third-party network calls beyond the user's own infrastructure + their chosen model provider.

@@ -10,8 +10,11 @@ Maps Databricks DBFS operations to:
 Confirmed AIDP environment (tested 2026-03-22):
 - Hadoop FS via Spark JVM: AVAILABLE
 - OCI HDFS connector (BmcFilesystem): AVAILABLE
-- oci:// scheme: WORKS with OCI API key auth (config file)
-- BmcFilesystem auth: API key via /Workspace/<oci-config-workspace-path> (DEFAULT profile)
+- oci:// scheme: WORKS with OCI API key auth
+- OCI auth: on-cluster fetched from AIDP Credential Store via aidputils.secrets
+  (default credential name: `migration_tool_api` — overridable via env vars
+  set by the migrator's kernel bootstrap from cfg.aidp.oci_credentials). Laptop
+  dev falls back to standard OCI SDK resolution (~/.oci/config default profile).
 - Resource principal auth is NOT used on AIDP (known failure modes; forbidden by policy)
 - /Workspace filesystem: direct local access
 
@@ -32,44 +35,99 @@ from typing import List, Optional, Tuple
 from aidp_compat.notebook_policy import assert_path_in_sandbox
 
 
-# ── OCI Object Storage client (API key auth via CLI config file) ──
-# Used by all fs operations on oci:// paths. NEVER uses
-# oci.auth.signers.get_resource_principals_signer() — resource principal has
-# known failure modes on AIDP (see feedback memory). Override the config file
-# location via OCI_CONFIG_FILE / OCI_CONFIG_PROFILE env vars.
-_AIDP_OCI_CONFIG_FILE = os.environ.get(
-    "OCI_CONFIG_FILE", "/Workspace/<oci-config-workspace-path>"
-)
-_AIDP_OCI_CONFIG_PROFILE = os.environ.get("OCI_CONFIG_PROFILE", "DEFAULT")
+# ── OCI Object Storage client (API key auth) ──
+# On cluster: creds fetched from AIDP Credential Store via aidputils.secrets.
+# On laptop dev (aidputils unavailable): standard OCI SDK resolution.
+# Resource principal auth is NEVER used (known AIDP failure modes; forbidden).
 _oci_storage_client = None
 _oci_storage_namespace = None
 _oci_storage_region = None
 
 
+# Default key names inside migration_tool_api. Overridable per-field via env
+# vars (set by the migrator's kernel bootstrap from cfg.aidp.oci_credentials.keys)
+# so a customer can rename a key in AIDP UI without a code change.
+_OCI_KEY_ENV_PREFIX = "AIDP_CRED_OCI_KEY_"
+_DEFAULT_OCI_KEYS = {
+    "user": "user",
+    "fingerprint": "fingerprint",
+    "tenancy": "tenancy",
+    "region": "region",
+    "private_key_content": "key_file_content",
+}
+
+
+def _oci_key(field: str) -> str:
+    return os.environ.get(_OCI_KEY_ENV_PREFIX + field.upper()) or _DEFAULT_OCI_KEYS[field]
+
+
+def _get_aidputils_from_kernel():
+    """Return the AIDP kernel's `aidputils` global.
+
+    AIDP injects `aidputils` into `__main__`'s namespace on kernel startup
+    (validated on clusters cb027817 + c5eeec7a 2026-08-25). It is NOT
+    installable as a Python module — `import aidputils` raises
+    ModuleNotFoundError. It is also NOT in `builtins`. So module-scope code
+    (like this file) can't reach it via bare name or via `import`; only by
+    looking it up on `sys.modules['__main__']`. See docstring on
+    `_build_signer_and_config_from_aidputils` for the full rationale.
+
+    This module runs ONLY inside migrated notebooks executing on an AIDP
+    cluster (via `dbutils.fs.*` calls through `dbutils_shim`). There is no
+    laptop caller — a missing `aidputils` means we are not on an AIDP
+    kernel, which is a hard error (raise ImportError with clear message)."""
+    import sys
+    aidputils = getattr(sys.modules.get("__main__"), "aidputils", None)
+    if aidputils is None:
+        raise ImportError(
+            "aidputils global not found on __main__ — aidp_compat.fs requires "
+            "the AIDP cluster kernel's aidputils. If you're running outside a "
+            "notebook on the cluster, this file is not for you.")
+    return aidputils
+
+
+def _build_signer_and_config_from_aidputils():
+    """Cluster path: fetch OCI creds from AIDP Credential Store on demand.
+    Returns (signer, config_dict) — config_dict contains all fields AIDP's
+    validate_config requires (tenancy/user/fingerprint/key_content/region) so
+    ObjectStorageClient(config=..., signer=...) doesn't raise InvalidConfig.
+
+    aidputils is reached via `__main__` (see `_get_aidputils_from_kernel`).
+    Python module functions can't see the notebook cell's globals via bare
+    name lookup — LEGB stops at the function's OWN module globals. The
+    kernel puts `aidputils` in `__main__`, so we go through `sys.modules`."""
+    import oci.signer
+    aidputils = _get_aidputils_from_kernel()
+    cred = os.environ.get("AIDP_CRED_OCI_NAME") or "migration_tool_api"
+    tenancy     = aidputils.secrets.get(cred, key=_oci_key("tenancy")).strip()
+    user        = aidputils.secrets.get(cred, key=_oci_key("user")).strip()
+    fingerprint = aidputils.secrets.get(cred, key=_oci_key("fingerprint")).strip()
+    region      = aidputils.secrets.get(cred, key=_oci_key("region")).strip()
+    key_content = aidputils.secrets.get(cred, key=_oci_key("private_key_content"))
+    signer = oci.signer.Signer(
+        tenancy=tenancy, user=user, fingerprint=fingerprint,
+        private_key_file_location=None, private_key_content=key_content,
+    )
+    # AIDP's ARM oci.config.validate_config requires all 4 identity fields
+    # even when a signer is passed (cluster-probed 2026-08-24).
+    config = {"region": region, "tenancy": tenancy, "user": user,
+              "fingerprint": fingerprint, "key_content": key_content}
+    return signer, config
+
+
 def _get_oci_storage_client():
     """Return a cached OCI ObjectStorageClient (API key auth).
-    Also populates _oci_storage_region from the loaded config so copy_object
-    calls (which require destination_region) can use it without re-reading."""
+
+    Cluster-only: creds come from AIDP Credential Store via the kernel's
+    `aidputils` global (see `_get_aidputils_from_kernel`). NO OCI config
+    file is read — this module is never used from laptop, so no fallback."""
     global _oci_storage_client, _oci_storage_namespace, _oci_storage_region
     if _oci_storage_client is None:
         import oci
-        config = oci.config.from_file(_AIDP_OCI_CONFIG_FILE, _AIDP_OCI_CONFIG_PROFILE)
-        signer = oci.signer.Signer(
-            tenancy=config["tenancy"],
-            user=config["user"],
-            fingerprint=config["fingerprint"],
-            private_key_file_location=config["key_file"],
-            pass_phrase=oci.config.get_config_value_or_default(config, "pass_phrase"),
-        )
+        signer, config = _build_signer_and_config_from_aidputils()
         _oci_storage_client = oci.object_storage.ObjectStorageClient(
             config=config, signer=signer)
-        # Region is required by copy_object (destination_region). Read from
-        # config; fall back to the client's base_client region if config
-        # doesn't specify it.
-        _oci_storage_region = (
-            config.get("region")
-            or getattr(getattr(_oci_storage_client, "base_client", None), "region", None)
-        )
+        _oci_storage_region = config["region"]
     return _oci_storage_client
 
 
@@ -207,7 +265,7 @@ class AIDPFileSystemUtils:
     #
     # NOTE: The previous implementation of every fs operation used
     # jvm.org.apache.hadoop.fs.FileSystem (BmcFilesystem) which works during
-    # interactive notebook execution but FAILS in scheduled workflow
+    # interactive notebook execution but FAILS in customer's scheduled workflow
     # runs (BmcFilesystem JVM class is not initialized the same way in workflow
     # contexts). The current implementation routes oci:// operations through the
     # OCI Python SDK with API key auth — works in both interactive and

@@ -1,0 +1,24 @@
+{
+  "name": "external_clinical_extract",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "EXTERNAL",
+  "data_source_format": "PARQUET",
+  "full_name": "main.example_team.external_clinical_extract",
+  "storage_location": "s3://example-data-lake-prod/landing/clinical_extracts/v2/",
+  "owner": "test.user@example.com",
+  "comment": "Synthetic edge case: EXTERNAL parquet table backed by S3 — exercises bucket_map lookup",
+  "columns": [
+    {"name": "extract_id", "type_text": "string", "type_name": "STRING", "position": 0, "nullable": false},
+    {"name": "patient_hash", "type_text": "string", "type_name": "STRING", "position": 1, "nullable": false, "comment": "hashed identifier — no PHI"},
+    {"name": "encounter_dt", "type_text": "timestamp", "type_name": "TIMESTAMP", "position": 2, "nullable": false},
+    {"name": "diagnosis_code", "type_text": "string", "type_name": "STRING", "position": 3, "nullable": true},
+    {"name": "extract_dt", "type_text": "date", "type_name": "DATE", "position": 4, "nullable": false, "partition_index": 0}
+  ],
+  "properties": {
+    "EXTERNAL": "TRUE",
+    "transient_lastDdlTime": "1701234567",
+    "spark.sql.partitionProvider": "catalog"
+  },
+  "securable_kind": "TABLE_EXTERNAL"
+}

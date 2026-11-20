@@ -2,11 +2,11 @@
 """
 Job Pre-flight: Discovery & Resolution
 ========================================
-Parses the Databricks job definitions, resolves all notebook paths,
+Parses the 23 Databricks job definitions, resolves all notebook paths,
 discovers child notebooks, inspects init scripts, and produces a manifest.
 
 Usage:
-    python3 job_preflight.py --csv <path_to>/metadata_jobs.csv
+    python3 job_preflight.py --csv ~/Downloads/metadata_23_jobs.csv
 """
 
 import csv
@@ -27,21 +27,22 @@ import requests as http_requests
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# AIDP config
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = "<DATALAKE_OCID>"
-WORKSPACE_ID = "<WORKSPACE_ID>"
+# AIDP config — sourced from aidp_migrator.yaml (via aidp_config) with env-var fallback.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
-OCI_PROFILE = "DEFAULT"
 
 
 def get_signer():
-    config = oci.config.from_file(profile_name=OCI_PROFILE)
-    return oci.signer.Signer(
-        tenancy=config["tenancy"], user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-    )
+    # Single auth source: oci_auth (Credential Store on-cluster → config file on laptop).
+    from oci_auth import get_oci_signer as _shared
+    _, signer = _shared(OCI_PROFILE)
+    return signer
 
 
 def try_download(signer, path: str, file_type: str = "NOTEBOOK") -> Optional[bytes]:
@@ -219,9 +220,9 @@ def resolve_notebook_path(signer, path: str, inventory: Set[str]) -> Tuple[str, 
 
     # Try 6: Check in migration_staging paths
     staging_prefixes = [
-        "<internal_staging_root>/<internal_staging>/",
-        "<internal_staging_root>/<internal_staging>/migration_staging/",
-        "<validation_dir>/",
+        "testing/user0/automation/dbx_to_aidp/migration_staging/",
+        "testing/param/automation/dbxToaidp/migration_staging/",
+        "Notebook_Validation/",
     ]
     for prefix in staging_prefixes:
         for candidate in [prefix + normalized, prefix + normalized + ".ipynb",
@@ -273,12 +274,22 @@ def scan_for_children(notebook_content: str, notebook_path: str) -> List[str]:
             continue
         source = "".join(cell.get("source", []))
 
-        # %run magic
-        run_matches = re.findall(r'%run\s+(/[^\s$]+)', source)
-        for match in run_matches:
-            # Remove any $widget references
-            clean = re.sub(r'\$\w+', '', match).strip()
-            children.append(clean)
+        # %run magic: preserve quoted and unquoted absolute paths containing
+        # spaces; widget args delimit the target but are not part of it.
+        for match in re.finditer(r'(?m)^[ \t]*%run[ \t]+([^\r\n]*)', source):
+            text = match.group(1).strip()
+            clean = ""
+            if text.startswith(('"', "'")):
+                end = text.find(text[0], 1)
+                if end > 0:
+                    clean = text[1:end].strip().rstrip("/")
+            else:
+                boundary = re.search(r'(?=\s+(?:\$[A-Za-z_]\w*|#))', text)
+                clean = (text[:boundary.start()] if boundary else text).strip().rstrip("/")
+            if clean.startswith("/"):
+                children.append(clean)
+            elif not clean:
+                print("[WARN][%run] malformed or empty preflight target left unresolved")
 
         # dbutils.notebook.run
         nb_run_matches = re.findall(
@@ -377,7 +388,7 @@ def inspect_init_scripts(signer, script_paths: List[str]) -> List[dict]:
 
 def main():
     parser = argparse.ArgumentParser(description="Job pre-flight discovery")
-    parser.add_argument("--csv", required=True, help="Path to metadata_jobs.csv")
+    parser.add_argument("--csv", required=True, help="Path to metadata_23_jobs.csv")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -446,7 +457,7 @@ def main():
             if child not in all_notebook_paths:
                 all_children.add(child)
 
-    print(f"Discovered {len(all_children)} child notebooks not in the {len(all_notebook_paths)} job notebooks")
+    print(f"Discovered {len(all_children)} child notebooks not in the 71 job notebooks")
     for child in sorted(all_children):
         print(f"  CHILD: {child}")
 
@@ -472,7 +483,7 @@ def main():
         "child_notebook_graph": child_graph,
         "child_notebooks": sorted(all_children),
         "init_script_analysis": init_results,
-        "output_base_path": "/Workspace/<output-base>/job-migration",
+        "migrate_output_path": _defs.get("migrate_output") or "/Workspace/<migrate-output>/job-migration",
     }
 
     manifest_path = os.path.join(PROJECT_DIR, "reports", "job_manifest.json")
