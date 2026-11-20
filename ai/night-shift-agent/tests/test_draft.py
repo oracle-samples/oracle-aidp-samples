@@ -52,6 +52,11 @@ def test_ai_generate_sql_escapes_and_refuses_openai():
     (VALUES_DRAFT.replace(" WHEN NOT MATCHED", " WHEN NOT MATCHED") , VALUES_DRAFT),
     ("I cannot help with that.", None),
     ("", None), (None, None),
+    # prose that names the statement before giving it: the statement starts where a MERGE INTO <table> ... USING does
+    ("Here is the corrected MERGE INTO statement:\n" + UPSERT, UPSERT),
+    ("I rewrote the MERGE INTO statement so the newest row wins.\n\n" + UPSERT + ";", UPSERT),
+    ("The MERGE INTO statement using a guard on the ordering column:\n" + UPSERT, UPSERT),
+    ("Fixed: " + UPSERT, UPSERT),
 ])
 def test_extract_sql(raw, expected):
     assert D.extract_sql(raw) == expected

@@ -90,6 +90,23 @@ def ai_generate_sql(model: str, prompt: str) -> str:
 
 
 _FENCE = re.compile(r"```(?:sql)?\s*(.*?)```", re.I | re.S)
+_MERGE = re.compile(r"\bMERGE\s+INTO\b", re.I)
+# the head of a statement rather than the words in a sentence: a target name, an optional alias, then USING
+_MERGE_HEAD = re.compile(r"\bMERGE\s+INTO\s+[\w.`]+(?:\s+(?:AS\s+)?\w+)?\s+USING\b", re.I)
+
+
+def _statement_start(text: str) -> int | None:
+    """Where the MERGE statement starts in a reply. Prose often names the statement before giving it ("the corrected
+    MERGE INTO statement:"), so a statement head that opens a line wins, then any statement head; a reply with
+    neither starts at its first MERGE INTO and is left for the parser to reject."""
+    heads = [m.start() for m in _MERGE_HEAD.finditer(text)]
+    opening_a_line = [i for i in heads if not text[:i].rpartition("\n")[2].strip()]
+    if opening_a_line:
+        return opening_a_line[0]
+    if heads:
+        return heads[0]
+    first = _MERGE.search(text)
+    return first.start() if first else None
 
 
 def extract_sql(raw: str | None) -> str | None:
@@ -101,10 +118,10 @@ def extract_sql(raw: str | None) -> str | None:
     m = _FENCE.search(text)
     if m:
         text = m.group(1)
-    i = re.search(r"\bMERGE\s+INTO\b", text, re.I)
-    if not i:
+    start = _statement_start(text)
+    if start is None:
         return None
-    text = text[i.start():]
+    text = text[start:]
     text = text.split(";", 1)[0]
     text = re.split(r"\n\s*\n", text, maxsplit=1)[0]  # prose after a blank line is commentary, not SQL
     text = re.sub(r"\s+", " ", text).strip()
