@@ -4,6 +4,15 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ## [Unreleased]
 
+### Fixed (fix-forward on 0.3.0)
+- Restored the 0.2.x curated-only dependency rule lost in the engine re-sync:
+  an import name with no curated mapping is never installed just because a
+  same-named PyPI package exists (pinned by `tests/test_curated_pip_mappings.py`).
+- Removed a source-organisation name from rewriter comments; neutralized two
+  residual provenance strings; aligned the DDL-rewrite doc (rules 5/18) and the
+  migrate-job skill's log-tailing instructions with actual behaviour.
+
+
 ## [0.3.0] — 2026-11-19
 
 Engine re-synchronized with five months of migration-toolkit development; all

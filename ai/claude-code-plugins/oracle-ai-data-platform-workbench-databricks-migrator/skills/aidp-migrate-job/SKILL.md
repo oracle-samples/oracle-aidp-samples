@@ -41,7 +41,8 @@ The customer YAML (`--config`; falls back to `$AIDP_CONFIG_PATH`, `./aidp_migrat
 
 Tail the log in another terminal:
 ```bash
-tail -f /tmp/migration.log
+# the migrator streams to stdout; tee it yourself to follow from another shell:
+python3 ${CLAUDE_PLUGIN_ROOT}/engine/scripts/job_migrate_from_workflow.py ... 2>&1 | tee migration.log
 ```
 
 ## Useful flags
@@ -82,7 +83,7 @@ Pass 2 — TASKS (per task in topo order):
 
 ## Log patterns to watch for
 
-When tailing `/tmp/migration.log`, key lines:
+Key lines in the migrator's output:
 
 ```
 [12:34:56]   [<job>/<task>]    Cell 5/27: OK

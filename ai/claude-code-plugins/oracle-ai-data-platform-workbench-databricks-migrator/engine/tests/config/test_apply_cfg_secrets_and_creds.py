@@ -41,6 +41,7 @@ def _stage_and_load(tmp_path, fixture_name):
     (tmp_path / "mapping.json").write_text("s3_bucket,oci_bucket,oci_namespace\n")
     import os as _os
     _cwd = _os.getcwd()
+    _prev_home = _os.environ.get("HOME")
     _os.chdir(tmp_path)
     _os.environ["HOME"] = str(tmp_path)
     try:
@@ -48,6 +49,12 @@ def _stage_and_load(tmp_path, fixture_name):
         return load_config()
     finally:
         _os.chdir(_cwd)
+        # restore HOME: leaking it poisons config discovery for every later
+        # test in the process (first tripped by the curated-pip caller pins)
+        if _prev_home is None:
+            _os.environ.pop("HOME", None)
+        else:
+            _os.environ["HOME"] = _prev_home
 
 
 def test_apply_cfg_with_ref_secret_does_not_crash(tmp_path, monkeypatch):
