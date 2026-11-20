@@ -62,7 +62,7 @@ night-shift-agent/
        spark.sql(statement)
    ```
 
-   `sql/ddl_ops.sql` holds the same statements as plain Spark SQL, one per `;`. The ledger lives in `default.nightshift_ops`; to use another catalog or schema, pass it to `ddl_statements`, set `NS_OPS` on the job and regenerate the file with `python -m nightshift.ledger <catalog.schema>`. The laptop alternative is `python scripts/deploy_ops_schema.py --apply`.
+   `sql/ddl_ops.sql` holds the same statements as plain Spark SQL, one per `;`. The ledger lives in `default.nightshift_ops`; to use another catalog or schema, pass it to `ddl_statements`, set `NS_OPS` on the job and regenerate the file with `python -m nightshift.ledger <catalog.schema>`. The laptop alternative is `python scripts/deploy_ops_schema.py --apply`, which creates the schema `NS_OPS` names in `.env`.
 3. **Describe what to watch.** Edit `Shared/nightshift/watched_merges.json`: one entry per production statement with the target table, its ordering column (`ts`), the source table and the statement text. `"draft": true` lets this runner draft for that statement; start with `false` and turn it on once the verdicts look right. An entry may also name the key columns (`key`); without it the MERGE's ON columns are used. `draft` defaults to true when the key is absent. The file ships with two synthetic entries over `default.nightshift_demo.orders_bronze` / `orders_silver`, built by `notebooks/synthetic_failing_job.py` (or `scripts/run_synthetic.py` from a laptop): an insert-if-absent MERGE that grades `silent_wrong` on the revision hazard and is drafted for, and a guarded upsert that grades `replay_safe` and is only graded. A third, placeholder entry is there to replace with your own statement.
 4. **Set the ledger permissions.** Before the job runs on a schedule, set who may write the ledger (table below, and "Security model"). Access to catalog objects on the platform is managed through Workbench roles, not SQL `GRANT` statements, which is why `sql/ddl_ops.sql` carries none: give the roles these permissions on the `nightshift_ops` schema and its tables.
 
@@ -73,7 +73,7 @@ night-shift-agent/
    | everyone else | SELECT at most | INSERT or UPDATE on `approvals` or `policy_decisions` is the ability to forge or approve |
 
 5. **Schedule the job.** Workflows, create a job with one Python task pointing at `/Workspace/Shared/nightshift/nightshift_heartbeat.py` on your cluster, cron `0 15/30 * * * ?` (every 30 minutes), timeout 1800 s, max concurrent runs 1. Set the environment variables you need (table below). The first run creates and drops its per-run sandbox schema, grades the watched statements and writes the tick.
-6. **Review and approve.** Upload `notebooks/NightShift_Approvals.ipynb` to `Shared/nightshift/`. When an approval is pending, open it on the cluster, put the approval id in the first cell, run the Pending, Evidence and Draft cells, then run the Decide cell: it updates the row with `approved_by = current_user()`, your own identity. The next tick drains it and the last two cells show the runbook row and the executed approval.
+6. **Review and approve.** Upload `notebooks/NightShift_Approvals.ipynb` to `Shared/nightshift/`. When an approval is pending, open it on the cluster, put the approval id in the first cell, run the Pending, Evidence and Draft cells, then run the Decide cell: it updates the row with `approved_by = current_user()`, your own identity. The next tick drains it and the last two cells show the runbook row and the executed approval. If you also run the external actuator, its approvals (`cluster_update`, `cluster_stop`, `job_disable`, `job_update_schedule`) appear in the same Pending table: check the `kind` column. Approving one of those lets the actuator's next `--apply` run change the cluster or the job, so the Decide cell refuses it unless you set `ALLOW_CONTROL_PLANE = True` in that cell.
 
 ## Environment variables
 
@@ -81,7 +81,7 @@ Read by the scheduled heartbeat unless marked otherwise.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `NS_OPS` | `default.nightshift_ops` | the ledger schema (`<catalog>.<schema>`); the DDL in `sql/ddl_ops.sql` must be generated for the same name |
+| `NS_OPS` | `default.nightshift_ops` | the ledger schema (`<catalog>.<schema>`); the DDL in `sql/ddl_ops.sql` must be generated for the same name. The external actuator, the self-protection rule and every script in `scripts/` read this same variable (from `.env` on the laptop) |
 | `NS_PKG` | `/Workspace/Shared/nightshift/pkg` | where the heartbeat imports the `nightshift` package from |
 | `NS_SBX` | `default.nightshift_sbx` | sandbox base; each run uses `<base>_<tick>_<minute>` and drops it. A later run sweeps a schema left behind when its name is exactly that shape and its minute is between 3 h and 30 days back; no other schema sharing the base is touched |
 | `NS_WATCHED` | `/Workspace/Shared/nightshift/watched_merges.json` | the watch list |

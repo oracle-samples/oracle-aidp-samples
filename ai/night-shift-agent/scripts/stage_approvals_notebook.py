@@ -10,7 +10,13 @@ agent drafted and lifts or refuses the quarantine, inside the product, with thei
 Every cell is driven by APPROVAL_ID in the first code cell, so each query is an equality lookup on the ledger (a
 join-based evidence query is slow while a tick is replaying). Approving writes approvals.status = 'approved' with
 approved_by = current_user() (the kernel's identity, not an attestation typed on a laptop); the next scheduled heartbeat
-tick drains the row through the policy gate and writes the draft as a runbook row. Nothing here touches the control plane.
+tick drains the row through the policy gate and writes the draft as a runbook row.
+
+The notebook itself only updates the approvals table. What an approval then allows depends on the row's kind, which the
+Pending table shows. A `statement_repair` touches nothing but the ledger (a runbook row). The external actuator, when
+it is used, opens approvals of other kinds in the same table (`cluster_update`, `job_disable`, `cluster_stop`,
+`job_update_schedule`): approving one of those lets the actuator's next `--apply` run change the cluster or the job, so
+the Decide cell refuses it unless ALLOW_CONTROL_PLANE is set in that cell.
 """
 from __future__ import annotations
 
@@ -39,7 +45,8 @@ EVIDENCE = '''# The verdicts behind it: the original statement and the draft, sa
 _ops = "{ops}"
 _d = spark.sql(f"SELECT statement_sha256, verdict_id, table_name FROM {{_ops}}.repair_drafts WHERE approval_id = '{{APPROVAL_ID}}'").collect()
 if not _d:
-    raise ValueError(f"no draft row for approval {{APPROVAL_ID}}")
+    raise ValueError(f"no draft row for approval {{APPROVAL_ID}}: only a statement_repair has replay evidence "
+                     "(a control-plane approval from the external actuator has none; see its kind and note in the Pending table)")
 _sha, _vid, _table = _d[0]
 print(_table)
 _orig = spark.sql(f"SELECT 'original' AS which, verdict, diffs_json, elapsed_s FROM {{_ops}}.replay_verdicts WHERE statement_sha256 = '{{_sha}}' AND candidate NOT LIKE 'draft:%' ORDER BY created_at DESC LIMIT 1")
@@ -55,6 +62,10 @@ DECIDE = '''# Decide the approval named above. Set DECISION to "approve" or "rej
 # The row is updated only if it is still pending; approved_by is the identity this kernel runs as.
 DECISION = "approve"
 NOTE = ""
+# A row whose kind is not statement_repair is a control-plane action the external actuator proposed (stop or resize a
+# cluster, change or disable a job). Approving it lets the actuator's next --apply run execute it. Leave this False
+# unless that is what you mean to approve.
+ALLOW_CONTROL_PLANE = False
 
 _ops = "{ops}"
 _status = {{"approve": "approved", "reject": "rejected"}}[DECISION]
@@ -69,19 +80,30 @@ _esc = lambda s: s.replace("\\\\", "\\\\\\\\").replace("'", "\\\\'")  # noqa: E7
 _who_sql = _esc(_who)
 _note_sql = _esc(NOTE)
 print(f"deciding {{APPROVAL_ID}} as {{_who}}")
-_row = spark.sql(f"SELECT status FROM {{_ops}}.approvals WHERE approval_id = '{{APPROVAL_ID}}'").collect()
+_row = spark.sql(f"SELECT status, get_json_object(action_json, '$.kind'), get_json_object(action_json, '$.target') FROM {{_ops}}.approvals WHERE approval_id = '{{APPROVAL_ID}}'").collect()
 if not _row:
     raise ValueError(f"no approval {{APPROVAL_ID}}")
 if _row[0][0] != "pending":
     raise ValueError(f"approval {{APPROVAL_ID}} is {{_row[0][0]}}, not pending; nothing changed")
+_kind, _target = _row[0][1], _row[0][2]
+_is_repair = _kind == "statement_repair"
+print(f"kind: {{_kind}} on {{_target}}")
+if _status == "approved" and not _is_repair and not ALLOW_CONTROL_PLANE:
+    raise ValueError(f"approval {{APPROVAL_ID}} is a {{_kind}} on {{_target}}, not a statement_repair: approving it lets the external "
+                     "actuator's next --apply run execute that action. Set ALLOW_CONTROL_PLANE = True in this cell to approve it; nothing changed")
 _suffix = f"{{_status}} by {{_who_sql}}: workbench" + (f"; {{_note_sql}}" if NOTE else "")
 spark.sql(f"""UPDATE {{_ops}}.approvals
 SET status = '{{_status}}', approved_by = '{{_who_sql}}', approved_at = current_timestamp(),
     note = CASE WHEN note IS NULL THEN '{{_suffix}}' ELSE CONCAT(note, ' | ', '{{_suffix}}') END
 WHERE approval_id = '{{APPROVAL_ID}}' AND status = 'pending'""")
 spark.sql(f"SELECT approval_id, status, approved_by, approved_at, expires_at FROM {{_ops}}.approvals WHERE approval_id = '{{APPROVAL_ID}}'").show(truncate=False)
-print("approved: the next scheduled heartbeat tick (within 30 minutes) re-checks it through the gate and writes the runbook row"
-      if _status == "approved" else "rejected: recorded; the draft is never applied")
+if _status != "approved":
+    print("rejected: recorded; the draft is never applied" if _is_repair else f"rejected: recorded; the {{_kind}} is never executed")
+elif _is_repair:
+    print("approved: the next scheduled heartbeat tick (within 30 minutes) re-checks it through the gate and writes the runbook row")
+else:
+    print(f"approved: the external actuator's next --apply run re-checks it through the gate and executes the {{_kind}} on {{_target}} "
+          "(only when NS_APPROVERS is set where the actuator runs and names you)")
 '''
 
 
@@ -103,17 +125,23 @@ def cells(ops: str, approval_id: str = "") -> list[dict]:
     )
     intro = (
         "# Night Shift - approvals" + NL + NL +
-        "What the agent drafted overnight and proved by replay, waiting for a person. Every row here is a `statement_repair` "
-        "the policy gate quarantined: a replacement MERGE that graded replay_safe under late, duplicate, out-of-order, retried "
-        "and corrected deliveries, where the original did not." + NL + NL +
-        "Approving does not change anyone's job. The next scheduled heartbeat tick re-evaluates the approval through the same "
-        "gate (the verdict must still be fresh) and writes the draft as a runbook row with your name on it."
+        "What the agent drafted overnight and proved by replay, waiting for a person. The scheduled job opens one kind of "
+        "row, a `statement_repair` the policy gate quarantined: a replacement MERGE that graded replay_safe under late, "
+        "duplicate, out-of-order, retried and corrected deliveries, where the original did not." + NL + NL +
+        "Approving a `statement_repair` does not change anyone's job. The next scheduled heartbeat tick re-evaluates the "
+        "approval through the same gate (the verdict must still be fresh) and writes the draft as a runbook row with your name on it." + NL + NL +
+        "**Check the `kind` column.** If the optional external actuator is used, it opens its approvals in the same table: "
+        "`cluster_update`, `cluster_stop`, `job_disable`, `job_update_schedule`. Those are control-plane actions with no replay "
+        "evidence. Approving one lets the actuator's next `--apply` run stop or resize the cluster, or change or disable the job "
+        "(it runs only when `NS_APPROVERS` is set where the actuator runs and names you). The Decide cell refuses such a row "
+        "unless you set `ALLOW_CONTROL_PLANE = True` there."
     )
     after = "## 4. After the next tick" + NL + NL + "The runbook row carries who approved it and when, and the draft as its procedure."
     return [
         md(intro),
         code(PARAM.format(approval_id=approval_id)),                       # code 0
-        md("## 1. Pending"),
+        md("## 1. Pending" + NL + NL + "`kind` says what approving allows: a `statement_repair` writes a runbook row; any other kind "
+           "is a control-plane action of the external actuator (its `note` carries the rule and the reason; `verdict` is empty)."),
         q(pending),                                                        # code 1
         md("## 2. The evidence: original and draft, same hazards, same table"),
         code(EVIDENCE.format(ops=ops)),                                    # code 2
