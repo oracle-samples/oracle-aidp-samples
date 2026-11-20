@@ -450,3 +450,19 @@ def test_a_stale_drainer_cannot_reopen_or_overwrite_a_claimed_approval(ops_db):
                                         "action_json": {"kind": "cluster_update", "target": "c1"}}, NOW))
     con.execute(L.mark_approval_sql(ops, "ap2", "failed", note="approval.trace: DUPLICATE_APPROVAL_ID", now=LATER))
     assert con.execute(f"SELECT status FROM {ops}.approvals WHERE approval_id = 'ap2'").fetchone()[0] == "pending"
+
+
+def test_deploy_ops_schema_prints_the_ddl_for_the_ledger_ns_ops_names(monkeypatch, capsys):
+    """One ledger variable: the laptop script creates the schema the job writes (NS_OPS), or the one given with --ops."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("ns_deploy_ops_schema", Path(__file__).resolve().parents[1] / "scripts" / "deploy_ops_schema.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.setenv("NS_OPS", "lake.night_ops")
+    assert mod.main([]) == 0
+    out = capsys.readouterr().out
+    assert "lake.night_ops.approvals" in out and "default.nightshift_ops" not in out
+    assert mod.main(["--ops", "other.ops"]) == 0
+    out = capsys.readouterr().out
+    assert "other.ops.approvals" in out and "lake.night_ops" not in out

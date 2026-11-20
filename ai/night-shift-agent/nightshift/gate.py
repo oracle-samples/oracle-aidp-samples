@@ -272,10 +272,10 @@ def check_self(rule: Rule, action: Action, ctx: TickContext, counter: Counter | 
     prefixes = tuple(rule.params.get("target_prefixes", ("steward",)))
     if action.target.startswith(prefixes):
         return True, f"SELF_PROTECT: target {action.target}"
-    env = Env()
-    table_prefixes = tuple(rule.params.get("table_prefixes", (env.ops_schema, env.ops)))
+    env = Env()   # the ledger named by NS_OPS: the same schema the job and the actuator write
+    table_prefixes = tuple(str(p).lower() for p in rule.params.get("table_prefixes", (env.ops_schema, env.ops)))
     table = action.params.get("table")
-    if isinstance(table, str) and table.startswith(table_prefixes):
+    if isinstance(table, str) and table.lower().startswith(table_prefixes):   # Spark resolves names without case
         return True, f"SELF_PROTECT: table {table}"
     return False, "ok"
 

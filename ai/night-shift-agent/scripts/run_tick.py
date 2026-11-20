@@ -29,8 +29,8 @@ from nightshift.config import Env  # noqa: E402
 
 _ENV_FLAGS = {
     "region": "NS_REGION", "data_lake_id": "NS_DATA_LAKE_ID", "workspace_id": "NS_WORKSPACE_ID",
-    "cluster_id": "NS_CLUSTER_ID", "config_profile": "NS_OCI_PROFILE", "catalog": "NS_CATALOG",
-    "ops_schema": "NS_OPS_SCHEMA", "probe_notebook": "NS_NOTEBOOK",
+    "cluster_id": "NS_CLUSTER_ID", "config_profile": "NS_OCI_PROFILE", "ops": "NS_OPS",
+    "probe_notebook": "NS_NOTEBOOK",
 }
 
 

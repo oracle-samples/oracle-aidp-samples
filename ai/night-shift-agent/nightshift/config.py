@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import os
 import pathlib
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 
 _ENV_FILE = pathlib.Path(__file__).resolve().parents[1] / ".env"
 
@@ -34,6 +35,10 @@ def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
+DEFAULT_OPS = "default.nightshift_ops"
+_OPS_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$")
+
+
 @dataclass(frozen=True)
 class Env:
     region: str = _env("NS_REGION", "us-ashburn-1")
@@ -41,13 +46,23 @@ class Env:
     workspace_id: str = _env("NS_WORKSPACE_ID")
     cluster_id: str = _env("NS_CLUSTER_ID")
     config_profile: str = _env("NS_OCI_PROFILE", "DEFAULT")
-    catalog: str = _env("NS_CATALOG", "default")
-    ops_schema: str = _env("NS_OPS_SCHEMA", "nightshift_ops")
+    # The ledger location, `<catalog>.<schema>`: NS_OPS, the one variable the scheduled job, the external actuator,
+    # the self-protection rule and every script read. Read when the Env is built, not when this module is imported,
+    # so a kernel that sets NS_OPS before a pass gets it.
+    ops: str = field(default_factory=lambda: _env("NS_OPS", DEFAULT_OPS))
     probe_notebook: str = _env("NS_NOTEBOOK", "Shared/nightshift/_nightshift_runner.ipynb")
 
+    def __post_init__(self) -> None:
+        if not _OPS_RE.match(self.ops):
+            raise ValueError(f"NS_OPS must be <catalog>.<schema> (plain identifiers), got {self.ops!r}")
+
     @property
-    def ops(self) -> str:
-        return f"{self.catalog}.{self.ops_schema}"
+    def catalog(self) -> str:
+        return self.ops.split(".", 1)[0] if "." in self.ops else "default"
+
+    @property
+    def ops_schema(self) -> str:
+        return self.ops.rsplit(".", 1)[-1]
 
     def require_live(self) -> None:
         """Raise a clear error before any live call when the instance identifiers are missing."""

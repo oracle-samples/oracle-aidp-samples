@@ -424,3 +424,23 @@ def test_rate_limit_counts_applied_changes_from_the_ledger(ops_db):
 def test_a_quarantine_rule_without_a_kind_selector_makes_every_known_kind_approvable():
     eng = PolicyEngine([Rule("hold.everything", 1, {}, "quarantine")], lambda d, a: None)
     assert eng.approvable_kinds() == eng.known_kinds
+
+
+def test_the_self_protection_rule_follows_ns_ops_and_ignores_case(monkeypatch):
+    """One ledger variable: the rule guards the schema NS_OPS names, the same one the job and the actuator write, and
+    a table name is matched the way Spark resolves it (without case)."""
+    from nightshift import gate
+    monkeypatch.setenv("NS_OPS", "lake.night_ops")
+    assert (Env().ops, Env().catalog, Env().ops_schema) == ("lake.night_ops", "lake", "night_ops")
+    eng = gate.PolicyEngine(gate.default_rules(), lambda d, a: None, decision_counter=lambda *a: 0)
+    for table in ("lake.night_ops.approvals", "LAKE.Night_Ops.policy_decisions", "night_ops.ticks"):
+        d = eng.evaluate(Action("statement_repair", "job9", {"table": table}), ctx())
+        assert (d.decision, d.rule_id) == ("deny", "protect.self"), table
+    # the default ledger is not this instance's ledger any more, so the rule no longer names it
+    d = eng.evaluate(Action("statement_repair", "job9", {"table": "default.nightshift_ops.ticks"}), ctx())
+    assert d.rule_id != "protect.self"
+    monkeypatch.delenv("NS_OPS")
+    assert Env().ops == "default.nightshift_ops"
+    for bad in ("a.b.c", "lake.night ops", "x; DROP", ""):
+        with pytest.raises(ValueError, match="NS_OPS"):
+            Env(ops=bad)

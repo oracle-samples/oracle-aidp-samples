@@ -27,7 +27,8 @@ table and ``approved_by`` is an unauthenticated string:
   (``NS_APPROVERS``); without one the row stays ``approved`` with ``DENIED_ON_EXECUTE approver.allowlist``.
 
 None of this replaces the grants: INSERT on ``<ops>.approvals`` and ``<ops>.policy_decisions`` belongs to the agent's
-principal alone and UPDATE on ``<ops>.approvals`` to the approvers role (platform roles). The Workbench approvals
+principal alone; UPDATE on ``<ops>.approvals`` belongs to that principal (its drain claims, marks and expires rows)
+and to the approvers role, and to no one else (platform roles). The Workbench approvals
 notebook writes ``current_user()`` under the reviewer's own session, so the Delta history of the table records who ran
 the update.
 
