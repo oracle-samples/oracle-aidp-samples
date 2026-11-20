@@ -13,6 +13,7 @@ from nightshift.fingerprint import (
     ai_generate_sql,
     fingerprint,
     fingerprint_key,
+    incident_fingerprint,
     normalise,
     parse_ai_label,
 )
@@ -239,3 +240,59 @@ def test_timeout_does_not_match_inside_identifiers():
     from nightshift.fingerprint import fingerprint
     assert fingerprint("at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1633)")[0] != "TIMEOUT"
     assert fingerprint("java.util.concurrent.TimeoutException: Futures timed out after [300 seconds]")[0] == "TIMEOUT"
+
+
+# --- a status number only counts with HTTP context ----------------------------------------
+
+@pytest.mark.parametrize("text", [
+    "Job aborted due to stage failure: Task 3 in stage 403.0 failed 4 times ... java.lang.OutOfMemoryError: Java heap space",
+    "Job aborted due to stage failure: Task 401 in stage 12.0 failed 4 times ... java.lang.OutOfMemoryError: Java heap space",
+    "Lost task 429.0 in stage 7.0 (TID 9001): java.lang.OutOfMemoryError: GC overhead limit exceeded",
+])
+def test_spark_stage_and_task_numbers_are_not_http_statuses(text):
+    assert fingerprint(text)[0] == "OUT_OF_MEMORY"
+
+
+def test_bare_404_is_not_a_not_found():
+    assert fingerprint("Stage 404 contains a task of very large size (1200 KiB)") == ("UNKNOWN", 0.0)
+
+
+@pytest.mark.parametrize("text", [
+    "IllegalArgumentError: 403 is not a valid partition count",
+    "at org.apache.spark.sql.execution.Code.scala:403",
+    "SQLSTATE code: 42901",
+])
+def test_a_number_after_a_word_that_only_looks_like_context_is_not_a_status(text):
+    assert fingerprint(text) == ("UNKNOWN", 0.0)
+
+
+def test_same_failure_from_another_stage_keeps_one_incident_key():
+    oom = "Job aborted due to stage failure: Task 3 in stage {}.0 failed 4 times ... java.lang.OutOfMemoryError: Java heap space"
+    assert incident_fingerprint(oom.format(403)) == incident_fingerprint(oom.format(402))
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("request failed: HTTP 401", "PERMISSION_DENIED"),
+    ("HTTP/1.1 403", "PERMISSION_DENIED"),
+    ("catalog service answered with status code 403", "PERMISSION_DENIED"),
+    ("status_code=401", "PERMISSION_DENIED"),
+    ("403 Client Error for url: https://example.invalid/x", "PERMISSION_DENIED"),
+    ("HTTP 429", "RATE_LIMIT"),
+    ("urllib.error.HTTPError: HTTP Error 429", "RATE_LIMIT"),
+    ("HTTP status code 401 from the token endpoint", "PERMISSION_DENIED"),
+    ("response status: 429", "RATE_LIMIT"),
+    ("GET /n/ns/b/bucket/o/x returned HTTP 404", "NOT_FOUND"),
+    ("statusCode: 404", "NOT_FOUND"),
+    # the shapes a status takes in client errors and response bodies
+    ('{"status": 401, "message": "session ended"}', "PERMISSION_DENIED"),
+    ("{'status': '429'}", "RATE_LIMIT"),
+    ("requests.exceptions.HTTPError: 401", "PERMISSION_DENIED"),
+    ("HttpStatusCode: 403", "PERMISSION_DENIED"),
+    ("the catalog service answered with error 403", "PERMISSION_DENIED"),
+    ("ErrorCode: 404", "NOT_FOUND"),
+    ("code: 429", "RATE_LIMIT"),
+    ("(403) This request is not authorized to perform this operation", "PERMISSION_DENIED"),
+    ("BlobNotFound 404", "NOT_FOUND"),
+])
+def test_status_number_with_http_context_still_classifies(text, expected):
+    assert fingerprint(text)[0] == expected

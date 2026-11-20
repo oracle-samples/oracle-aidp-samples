@@ -8,9 +8,9 @@ Classification is deterministic: rules are tried in the order of ``RULES`` and t
 match wins. The priority order (most specific / most actionable first):
 
   1. POLICY_BLOCKED      our own gate said no; never confuse with an IAM 403
-  2. PERMISSION_DENIED   401/403/NotAuthorized*/AccessDenied (beats NOT_FOUND because OCI
+  2. PERMISSION_DENIED   HTTP 401/403/NotAuthorized*/AccessDenied (beats NOT_FOUND because OCI
                          reports "NotAuthorizedOrNotFound" for both)
-  3. RATE_LIMIT          429/throttle/TooManyRequests
+  3. RATE_LIMIT          HTTP 429/throttle/TooManyRequests
   4. OUT_OF_MEMORY       OutOfMemoryError, container killed for memory, ExecutorLostFailure
                          (lost executors are usually memory; lower confidence)
   5. SCHEMA_MISMATCH     unresolved column, DELTA_FAILED_TO_MERGE_FIELDS, schema mismatch
@@ -27,6 +27,10 @@ match wins. The priority order (most specific / most actionable first):
 
 Confidence is a per-rule constant in [0, 1]; it is not a probability, only a hint for the
 caller about whether the ai_generate fallback is worth a call.
+
+A status number (401, 403, 404, 429) only counts next to a word that makes it one ("HTTP 403", "HTTP Error 403",
+"status code 403", "error 403", {"status": 403}, "403 Client Error"): on its own it is as likely a Spark stage, task
+or line number.
 """
 from __future__ import annotations
 
@@ -56,6 +60,20 @@ LABELS: tuple[str, ...] = (
 
 _F = re.IGNORECASE | re.DOTALL
 
+
+# The words that make a number a status: HTTP (HTTP 403, HTTP/1.1 403, HTTP Error 403, HTTPError: 403,
+# HttpStatusCode: 403), status / response / error with an optional "code", or "code" alone. A quote and a ':' or '='
+# may sit between the word and the number, as in a response body ({"status": 401}).
+_STATUS_CONTEXT = (r"(?:\bHTTP(?:/\d(?:\.\d)?)?[ _]?(?:error|status)?[ _]?(?:code)?|\bstatus(?:[ _]?code)?|"
+                   r"\bresponse(?:[ _]?code)?|\berror(?:[ _]?code)?|\bcode)")
+
+
+def _http_status(codes: str) -> str:
+    """Pattern for one of `codes` written as a status, not as a bare number."""
+    return (rf"{_STATUS_CONTEXT}[\"']?\s*[:=]?\s*[\"']?(?:{codes})\b"
+            rf"|\b(?:{codes}) (?:Client|Server) Error\b")
+
+
 # (label, compiled pattern, confidence) in priority order. First match wins.
 RULES: tuple[tuple[str, re.Pattern[str], float], ...] = (
     # 1. POLICY_BLOCKED
@@ -64,12 +82,12 @@ RULES: tuple[tuple[str, re.Pattern[str], float], ...] = (
         r"CONFIRMATION_REQUIRED|quarantined by|guardrail (?:blocked|denied)", _F), 0.95),
     # 2. PERMISSION_DENIED
     ("PERMISSION_DENIED", re.compile(
-        r"\b40[13]\b|NotAuthorized|NotAuthenticated|AccessDenied|Access denied|"
-        r"PERMISSION_DENIED|Permission denied|Forbidden|Unauthori[sz]ed|"
+        _http_status("401|403") + r"|NotAuthorized|NotAuthenticated|AccessDenied|Access denied|"
+        r"PERMISSION_DENIED|Permission denied|Forbidden|Unauthori[sz]ed|not authori[sz]ed|"
         r"insufficient privileges|does not have (?:SELECT|INSERT|UPDATE|DELETE|MANAGE|WRITE|READ)\b", _F), 0.95),
     # 3. RATE_LIMIT
     ("RATE_LIMIT", re.compile(
-        r"\b429\b|throttl|TooManyRequests|Too many requests|rate limit|RateLimit|"
+        _http_status("429") + r"|throttl|TooManyRequests|Too many requests|rate limit|RateLimit|"
         r"quota exceeded|RESOURCE_EXHAUSTED", _F), 0.95),
     # 4. OUT_OF_MEMORY
     ("OUT_OF_MEMORY", re.compile(
@@ -137,7 +155,7 @@ RULES: tuple[tuple[str, re.Pattern[str], float], ...] = (
         r"files? under \d+ ?[kKmM]i?B|too many files|file count", _F), 0.85),
     # 13. NOT_FOUND
     ("NOT_FOUND", re.compile(
-        r"\b404\b|\bNotFound\b|not found|No such file|does not exist|"
+        _http_status("404") + r"|\b\w*NotFound\b|not found|No such file|does not exist|"
         r"ModuleNotFoundError|No module named|NoSuchKey|NoSuchBucket|ObjectNotFound", _F), 0.7),
 )
 
