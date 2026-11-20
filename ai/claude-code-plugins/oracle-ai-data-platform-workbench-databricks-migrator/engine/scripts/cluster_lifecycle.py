@@ -1715,10 +1715,15 @@ def _resolve_pip_name(import_name: str) -> str:
     mapped = _IMPORT_TO_PIP.get(lowered)
 
     if not _pypi_reachable():
-        # Network down — use mapping if available, else pass through as-is
-        result = mapped or lowered
-        _pypi_cache[lowered] = result
-        return result
+        # Network down — a curated mapping is authoritative and used as-is; an
+        # UNMAPPED name stays blocked (unreachability of the laptop-side check
+        # says nothing about what cluster-side pip would fetch).
+        if mapped is None:
+            print(f"[cluster-lifecycle] WARNING: import '{import_name}' has no curated pip "
+                  f"mapping and PyPI is unreachable for validation — NOT installed; add it "
+                  f"to _IMPORT_TO_PIP or install it via the cluster libraries API", flush=True)
+        _pypi_cache[lowered] = mapped
+        return mapped
 
     # 2. If mapped, validate mapped name on PyPI
     if mapped:
@@ -1731,17 +1736,23 @@ def _resolve_pip_name(import_name: str) -> str:
         _pypi_cache[lowered] = mapped
         return mapped
 
-    # 3. No mapping — validate import name directly on PyPI
+    # 3. No curated mapping — NEVER install an import name just because a PyPI
+    #    package of that name exists (a squatted/unrelated package would be
+    #    installed onto the customer's cluster). Report it for the operator to
+    #    add to _IMPORT_TO_PIP or install via the cluster libraries API.
     if _pypi_exists(lowered):
-        _pypi_cache[lowered] = lowered
-        return lowered
+        print(f"[cluster-lifecycle] WARNING: import '{import_name}' has no curated pip mapping; "
+              f"a PyPI package of that name exists but will NOT be installed automatically — "
+              f"add it to _IMPORT_TO_PIP or install it via the cluster libraries API", flush=True)
+        _pypi_cache[lowered] = None
+        return None
 
-    # 4. Not on PyPI either — pass through with warning (let pip fail explicitly
-    #    rather than silently skipping, which could mask a mapping we need to add)
+    # 4. Not on PyPI either — not installed; report rather than pass a name pip
+    #    would fail on (the operator may own a private package of that name).
     print(f"[cluster-lifecycle] WARNING: no PyPI package found for import "
-          f"'{import_name}' — passing through as-is", flush=True)
-    _pypi_cache[lowered] = lowered
-    return lowered
+          f"'{import_name}' — not installed", flush=True)
+    _pypi_cache[lowered] = None
+    return None
 
 # Standard library modules — never install these
 _STDLIB = {
@@ -2593,11 +2604,20 @@ async def ensure_requirements_installed(
     # Resolve import names to validated PyPI package names
     pip_packages = []
     _seen_pkgs = set()
+    skipped_unmapped = []
     for imp in missing_imports:
         pip_name = _resolve_pip_name(imp)
+        if pip_name is None:
+            # Curated-only rule: reported, never installed. One rejected import
+            # must not disrupt the rest of the batch.
+            skipped_unmapped.append(imp)
+            continue
         if pip_name not in _seen_pkgs:
             _seen_pkgs.add(pip_name)
             pip_packages.append(pip_name)
+    if skipped_unmapped:
+        print(f"[cluster-lifecycle] NOT installing (no curated mapping): "
+              f"{', '.join(sorted(skipped_unmapped))}", flush=True)
 
     if not pip_packages:
         return {"installed": [], "local_modules": sorted(local_modules),
@@ -2766,6 +2786,12 @@ async def install_missing_package(
     # Explicit pip cells already supply a distribution name. Import recovery
     # supplies an import name and still needs the established import->pip map.
     pip_name = _req_name if verify_distribution else _resolve_pip_name(_req_name)
+    if pip_name is None:
+        # Curated-only rule: an unmapped import name is reported, never installed.
+        print(f"[cluster-lifecycle] NOT installing '{_req_name}': no curated pip "
+              f"mapping — add it to _IMPORT_TO_PIP or install it via the cluster "
+              f"libraries API", flush=True)
+        return False  # callers treat the return as a boolean (installed?)
     # Preserve the requested pin in the persisted requirement line so a later
     # cluster restart re-installs the same version, not just any version.
     pip_line = f"{pip_name}{_req_spec}" if _req_spec is not None else pip_name

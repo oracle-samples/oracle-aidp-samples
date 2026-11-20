@@ -206,3 +206,14 @@
 | `S3 bucket "<name>" not found in OCI bucket mapping` | #14 |
 | `object datastax is not a member of package com` | #13 |
 | `<legacy_secret_udf> is not defined` / `AWS Secrets Manager` | #1 |
+
+
+## Missing imports are reported, not auto-installed
+
+Cluster-side dependency resolution installs CURATED mappings only. When a
+notebook imports something with no curated mapping, the migrator logs
+`no curated pip mapping ... will NOT be installed automatically` and moves on.
+To supply the dependency: install it through the cluster libraries API (or your
+workspace's library UI), or add an explicit `%pip install <distribution>` cell,
+or extend `_IMPORT_TO_PIP` in `engine/scripts/cluster_lifecycle.py` when the
+import→distribution mapping is unambiguous.

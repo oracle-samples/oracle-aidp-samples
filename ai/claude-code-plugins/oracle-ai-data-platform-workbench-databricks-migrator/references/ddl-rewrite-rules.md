@@ -58,16 +58,16 @@ CREATE TABLE ... LOCATION 's3://<unknown-bucket>/...'   -- unchanged
 
 The statement is NOT skipped: the original `s3://` LOCATION passes through unchanged and the rewriter records an `R02_BUCKET_UNMAPPED` warning in its rule-application audit. Review every such warning in `--out-report` / `--dry-run` output — a replayed table that still points at `s3://` fails at first read on AIDP. Fix by adding the bucket to the mapping CSV and re-running.
 
-### Rule 5: `dbfs:/` paths translated to `/Volumes/<vol>/`
+### Rule 5: `dbfs:/` paths — NOT rewritten (passed through; the caller warns and the path needs a separate dbfs mapping)
 
 ```
 -- IN:
 LOCATION 'dbfs:/FileStore/<path>'
--- OUT:
-LOCATION '/Volumes/default/default/dbfs/FileStore/<path>'
+-- OUT (unchanged; reported for a separate dbfs mapping):
+LOCATION 'dbfs:/FileStore/<path>'
 ```
 
-The migrator's `translate_path()` helper handles this.
+The DDL rewriter does NOT translate these; the migrator's runtime `translate_path()` applies only during notebook execution — a dbfs:/ LOCATION in DDL needs a manual mapping.
 
 ---
 
@@ -181,17 +181,18 @@ CREATE STREAMING TABLE <schema>.<st> AS SELECT ... FROM STREAM ...
 [SKIP] streaming table <schema>.<st>: AIDP does not support STREAMING TABLE (DLT-only). Re-implement as structured streaming + scheduled writer.
 ```
 
-### Rule 18: VIEW with cross-catalog FROM clause flagged
+### Rule 18 (spec only, not implemented): VIEW handling
 
+Views are not migrated by the rewriter: it records `R15_VIEW_DEFERRED` (the rewriter raises and the catalog run SKIPS the
+statement through for manual migration (the source-workspace samples contain no
+views, so this path is deliberately deferred).
 ```
 -- IN:
 CREATE VIEW <schema>.<v> AS SELECT * FROM <other_cat>.<other_schema>.<other_table>
--- OUT (if <other_cat> not in manifest):
-[FLAG] view <schema>.<v>: references cross-catalog <other_cat>.<other_schema>.<other_table>;
-       review whether the source catalog should be added to --catalog-map before replay.
+-- OUT: unchanged; verdict row R15_VIEW_DEFERRED
 ```
 
-Statement IS replayed (views are cheap; let it fail loudly if the catalog truly doesn't resolve).
+Statement is NOT migrated: the rewriter raises and the catalog run records `R15_VIEW_DEFERRED`, skipping the statement for manual follow-up.
 
 ---
 

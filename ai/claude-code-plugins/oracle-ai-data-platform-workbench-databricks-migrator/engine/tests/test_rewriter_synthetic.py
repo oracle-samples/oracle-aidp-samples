@@ -1,7 +1,7 @@
 """Unit tests for catalog_ddl_rewriter against synthetic UC-API-shaped fixtures.
 
 Validates that the rewriter handles edge-case Databricks UC features that we
-couldn't exercise via the live Cerner workspace (warehouse provisioning broken).
+couldn't exercise via the live source workspace (warehouse provisioning broken).
 
 Run: python -m pytest tests/test_rewriter_synthetic.py -v
 """
