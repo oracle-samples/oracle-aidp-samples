@@ -482,3 +482,19 @@ def test_the_sandbox_sweep_drops_only_stale_schemas_named_the_way_a_run_names_th
     dropped = " ".join(q for q in spark.statements if q.startswith("DROP SCHEMA"))
     assert stale in dropped
     assert not [name for name in [fresh, *foreign] if name in dropped]
+
+
+# ----------------------------------------------------------------------------- the drain never costs the tick
+def test_the_tick_is_still_graded_and_recorded_when_the_approval_drain_raises(ledger_db, tmp_path, monkeypatch, capsys):
+    def broken_drain(*args, **kwargs):
+        raise RuntimeError("approvals table unavailable")
+
+    monkeypatch.setattr("nightshift.drain.drain_approvals", broken_drain)
+    a = _entry(SILVER, BRONZE)
+
+    summary, _ = _run_heartbeat(monkeypatch, capsys, FakeSpark(ledger_db), _watch(tmp_path, [a]))
+
+    assert summary["approvals_drained"]["errors"] == ["drain failed: RuntimeError: approvals table unavailable"]
+    assert summary["approvals_drained"]["executed"] == []
+    assert [v["table"] for v in summary["replay_verdicts"]] == [SILVER]
+    assert ledger_db.execute(f"SELECT COUNT(*) FROM {OPS}.ticks").fetchone()[0] == 1

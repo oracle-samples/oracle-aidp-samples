@@ -144,12 +144,84 @@ def _err(e: BaseException, n: int = 160) -> str:
     return f"{type(e).__name__}: {first[:n]}"
 
 
+def _drain_row(store: Any, ops: str, ctx: Any, engine: Any, write_decision: Callable[..., Any], tick_id: str,
+               now: datetime, emit: Callable[..., Any], kinds: tuple[str, ...], approvers: Iterable[str] | None,
+               r: Any, aid: str, out: dict[str, Any]) -> None:
+    """One approved row: the row checks, the gate, the claim, the action and the outcome writes. Adds to ``out``.
+    Anything that raises here (in practice a ledger write) is reported against this row by ``drain_approvals``, which
+    goes on to the next."""
+    sig = str(_row_get(r, 1, "action_signature"))
+    approved_by = str(_row_get(r, 3, "approved_by") or "unknown")
+    try:
+        a = action_from_json(_row_get(r, 2, "action_json"))
+    except Exception as e:  # noqa: BLE001
+        store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=f"BAD_ACTION_JSON: {_err(e, 80)}", now=now))
+        out["errors"].append(f"{aid}: action_json unreadable")
+        return
+    if a.signature != sig:
+        store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note="SIGNATURE_MISMATCH", now=now))
+        out["errors"].append(f"{aid}: signature mismatch")
+        return
+    if a.kind not in kinds:
+        out["left"].append({"approval_id": aid, "kind": a.kind, "reason": "not drained here (control-plane action; the external actuator executes it)"})
+        return
+    blocked = approval_problem(store, ops, engine, a, aid, approved_by, approvers, now=now)
+    if blocked:
+        rule, problem, terminal = blocked
+        if terminal:
+            store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=f"{rule}: {problem}", now=now))
+            out["errors"].append(f"{aid}: {rule}: {problem}")
+        else:
+            store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {rule}: {problem}", now=now))
+            out["left"].append({"approval_id": aid, "kind": a.kind, "reason": f"{rule}: {problem}"})
+        emit("approval_denied_on_execute", approval_id=aid, rule=rule, reason=problem)
+        return
+    ctx.kv["approved_signatures"] = {sig: approved_by}
+    d = engine.evaluate(a, ctx)
+    if d.decision == "quarantine":
+        d = Decision(sig, "allow", d.rule_id, f"APPROVED_BY:{approved_by}", evaluated_rules=d.evaluated_rules,
+                     latency_ms=d.latency_ms)
+        try:
+            write_decision(d, a, provenance="approval", principal=approved_by)
+        except Exception as e:  # noqa: BLE001
+            d = Decision(sig, "deny", d.rule_id, f"AUDIT_WRITE_FAILED: {_err(e, 80)}", evaluated_rules=d.evaluated_rules)
+    if d.decision != "allow":
+        store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {d.rule_id}: {d.reason}", now=now))
+        out["left"].append({"approval_id": aid, "kind": a.kind, "reason": f"{d.rule_id}: {d.reason}"})
+        emit("approval_denied_on_execute", approval_id=aid, rule=d.rule_id, reason=d.reason)
+        return
+    claim = new_claim(tick_id, aid)
+    claimed, why = claim_approval(store, ops, aid, claim, now)
+    if not claimed:
+        out["left"].append({"approval_id": aid, "kind": a.kind, "reason": why})
+        return
+    # from here on this drainer holds the row: the outcome write names its claim
+    try:
+        outcome = _apply_statement_repair(store, ops, a, approved_by, now)
+        status = "applied"
+    except Exception as e:  # noqa: BLE001
+        outcome, status = {"error": _err(e, 200)}, "failed"
+    store.run_sql(ledger.insert_action(ops, {
+        "tick_id": tick_id, "action_signature": sig, "kind": a.kind, "target": a.target, "params": a.params,
+        "previous_value": None, "reversible": True, "decision_id": _sha16(tick_id, sig, d.decision, d.rule_id),
+        "status": status, "result": outcome, "applied_at": now if status == "applied" else None}, now=now))
+    if status == "failed":
+        store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=str(outcome.get("error")), now=now, claim=claim))
+        out["errors"].append(f"{aid}: {outcome.get('error')}")
+        emit("approval_failed", approval_id=aid, error=outcome.get("error"))
+    else:
+        store.run_sql(ledger.mark_approval_sql(ops, aid, "executed", note=f"applied by tick {tick_id[:12]}", now=now, claim=claim))
+        out["executed"].append({"approval_id": aid, "runbook_id": outcome.get("runbook_id"), "approved_by": approved_by})
+        emit("approval_executed", approval_id=aid, runbook_id=outcome.get("runbook_id"), approved_by=approved_by)
+
+
 def drain_approvals(store: Any, ops: str, ctx: Any, engine: Any, write_decision: Callable[..., Any], tick_id: str,
                     now: datetime, log: Callable[..., Any] | None = None, kinds: Iterable[str] = LEDGER_KINDS,
                     verdict_hours: int = 24, approvers: Iterable[str] | None = None) -> dict:
     """Expire stale rows, then execute every approved action of the given kinds through the gate. Returns a report:
     ``expired`` (ok or the error), ``executed`` [{approval_id, runbook_id, approved_by}], ``left`` [{approval_id, kind,
-    reason}] for rows that stay approved, ``errors`` [str] for rows marked failed or reads that failed."""
+    reason}] for rows that stay approved, ``errors`` [str] for rows marked failed, reads that failed, and rows the
+    drain raised on (it goes on to the next row; it does not raise for one row)."""
     kinds = tuple(kinds)
     emit = log or (lambda *a, **k: None)
     out: dict[str, Any] = {"expired": None, "executed": [], "left": [], "errors": []}
@@ -176,69 +248,12 @@ def drain_approvals(store: Any, ops: str, ctx: Any, engine: Any, write_decision:
     try:
         for r in approved_rows:
             aid = str(_row_get(r, 0, "approval_id"))
-            sig = str(_row_get(r, 1, "action_signature"))
-            approved_by = str(_row_get(r, 3, "approved_by") or "unknown")
             try:
-                a = action_from_json(_row_get(r, 2, "action_json"))
-            except Exception as e:  # noqa: BLE001
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=f"BAD_ACTION_JSON: {_err(e, 80)}", now=now))
-                out["errors"].append(f"{aid}: action_json unreadable")
-                continue
-            if a.signature != sig:
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note="SIGNATURE_MISMATCH", now=now))
-                out["errors"].append(f"{aid}: signature mismatch")
-                continue
-            if a.kind not in kinds:
-                out["left"].append({"approval_id": aid, "kind": a.kind, "reason": "not drained here (control-plane action; the external actuator executes it)"})
-                continue
-            blocked = approval_problem(store, ops, engine, a, aid, approved_by, approvers, now=now)
-            if blocked:
-                rule, problem, terminal = blocked
-                if terminal:
-                    store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=f"{rule}: {problem}", now=now))
-                    out["errors"].append(f"{aid}: {rule}: {problem}")
-                else:
-                    store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {rule}: {problem}", now=now))
-                    out["left"].append({"approval_id": aid, "kind": a.kind, "reason": f"{rule}: {problem}"})
-                emit("approval_denied_on_execute", approval_id=aid, rule=rule, reason=problem)
-                continue
-            ctx.kv["approved_signatures"] = {sig: approved_by}
-            d = engine.evaluate(a, ctx)
-            if d.decision == "quarantine":
-                d = Decision(sig, "allow", d.rule_id, f"APPROVED_BY:{approved_by}", evaluated_rules=d.evaluated_rules,
-                             latency_ms=d.latency_ms)
-                try:
-                    write_decision(d, a, provenance="approval", principal=approved_by)
-                except Exception as e:  # noqa: BLE001
-                    d = Decision(sig, "deny", d.rule_id, f"AUDIT_WRITE_FAILED: {_err(e, 80)}", evaluated_rules=d.evaluated_rules)
-            if d.decision != "allow":
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {d.rule_id}: {d.reason}", now=now))
-                out["left"].append({"approval_id": aid, "kind": a.kind, "reason": f"{d.rule_id}: {d.reason}"})
-                emit("approval_denied_on_execute", approval_id=aid, rule=d.rule_id, reason=d.reason)
-                continue
-            claim = new_claim(tick_id, aid)
-            claimed, why = claim_approval(store, ops, aid, claim, now)
-            if not claimed:
-                out["left"].append({"approval_id": aid, "kind": a.kind, "reason": why})
-                continue
-            # from here on this drainer holds the row: the outcome write names its claim
-            try:
-                outcome = _apply_statement_repair(store, ops, a, approved_by, now)
-                status = "applied"
-            except Exception as e:  # noqa: BLE001
-                outcome, status = {"error": _err(e, 200)}, "failed"
-            store.run_sql(ledger.insert_action(ops, {
-                "tick_id": tick_id, "action_signature": sig, "kind": a.kind, "target": a.target, "params": a.params,
-                "previous_value": None, "reversible": True, "decision_id": _sha16(tick_id, sig, d.decision, d.rule_id),
-                "status": status, "result": outcome, "applied_at": now if status == "applied" else None}, now=now))
-            if status == "failed":
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=str(outcome.get("error")), now=now, claim=claim))
-                out["errors"].append(f"{aid}: {outcome.get('error')}")
-                emit("approval_failed", approval_id=aid, error=outcome.get("error"))
-            else:
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "executed", note=f"applied by tick {tick_id[:12]}", now=now, claim=claim))
-                out["executed"].append({"approval_id": aid, "runbook_id": outcome.get("runbook_id"), "approved_by": approved_by})
-                emit("approval_executed", approval_id=aid, runbook_id=outcome.get("runbook_id"), approved_by=approved_by)
+                _drain_row(store, ops, ctx, engine, write_decision, tick_id, now, emit, kinds, approvers, r, aid, out)
+            except Exception as e:  # noqa: BLE001  (one row's failure, in practice a ledger write, costs neither the other rows nor the tick)
+                out["errors"].append(f"{aid}: not drained ({_err(e, 120)}); a row still approved is retried next tick, "
+                                     "a row this drainer claimed stays executing until it expires")
+                emit("approval_drain_error", approval_id=aid, error=_err(e, 120))
     finally:
         ctx.kv.pop("approved_signatures", None)
     return out

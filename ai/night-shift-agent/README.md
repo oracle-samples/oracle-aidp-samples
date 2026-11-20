@@ -98,7 +98,7 @@ Read by the scheduled heartbeat unless marked otherwise.
 | `NS_FORCE_TICK` | unset | `1` ignores the idempotent half-hour window (measurement runs) |
 | `NS_SHAPE_ALLOWLIST` | `amd.generic,VM.Standard.E4.Flex,VM.Standard.E5.Flex,VM.Standard3.Flex` | external actuator only: comma-separated worker shapes a resize action may choose from |
 
-The heartbeat prints one JSON line per step (`replaying`, `replay_skipped`, `statement_graded`, `verdict_reused`, `drafting`, `drafting_skipped`, `drafting_deferred`, `draft_received`, `draft_failed`, `draft_rejected`, `draft_validated`, `draft_graded`, `draft_replay_skipped`, `draft_proof_failed`, `claim_release_failed`, `approval_opened`, `approval_skipped`, `approval_executed`, `approval_failed`, `approval_denied_on_execute`) and a final summary, so the job's run output shows the tick as it happens.
+The heartbeat prints one JSON line per step (`replaying`, `replay_skipped`, `statement_graded`, `verdict_reused`, `drafting`, `drafting_skipped`, `drafting_deferred`, `draft_received`, `draft_failed`, `draft_rejected`, `draft_validated`, `draft_graded`, `draft_replay_skipped`, `draft_proof_failed`, `claim_release_failed`, `approval_opened`, `approval_skipped`, `approval_executed`, `approval_failed`, `approval_denied_on_execute`, `approval_drain_error`, `approval_drain_failed`) and a final summary, so the job's run output shows the tick as it happens.
 
 ## Validating
 

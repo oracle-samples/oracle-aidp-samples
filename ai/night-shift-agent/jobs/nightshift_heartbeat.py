@@ -295,7 +295,11 @@ if not ALREADY:
 
 
     APPROVERS = [a for a in os.environ.get("NS_APPROVERS", "").split(",") if a.strip()]   # optional allowlist of approver identities
-    summary["approvals_drained"] = drain_approvals(_LedgerStore(), OPS, ctx, engine, write_decision, tick_id, utcnow(), log=log, approvers=APPROVERS)
+    try:
+        summary["approvals_drained"] = drain_approvals(_LedgerStore(), OPS, ctx, engine, write_decision, tick_id, utcnow(), log=log, approvers=APPROVERS)
+    except Exception as e:  # noqa: BLE001  (the drain is one step of the tick: the statements are still graded and the tick row written)
+        summary["approvals_drained"] = {"expired": None, "executed": [], "left": [], "errors": [f"drain failed: {err_text(e, 120)}"]}
+        log("approval_drain_failed", error=err_text(e, 120))
 
 
     def record_draft(row, when=None):

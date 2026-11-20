@@ -166,3 +166,54 @@ def test_repair_claimed_by_another_drainer_is_left_alone():
     assert rep["executed"] == [] and store.count(f"MERGE INTO {OPS}.runbooks") == 0
     assert rep["left"] == [{"approval_id": "ap-1", "kind": "statement_repair", "reason": "claimed by another drainer"}]
 
+
+
+# ----------------------------------------------------------------------------- a ledger write that fails mid-drain
+class FailingWrites(RepairStore):
+    """RepairStore where a statement containing `needle` raises, the way a concurrent update or a missing grant does."""
+
+    def __init__(self, needle, *a, **kw):
+        super().__init__(*a, **kw)
+        self.needle = needle
+
+    def run_sql(self, sql, timeout=300):
+        if self.needle in sql:
+            raise RuntimeError("ConcurrentAppendException: files were added by a concurrent update")
+        return super().run_sql(sql, timeout)
+
+
+def test_a_row_whose_ledger_write_fails_is_reported_and_the_next_row_is_still_drained():
+    a = _repair()
+    bad_sig = ("ap-sig", "not-the-signature", _action_json(a), "reviewer", None)
+    store = FailingWrites("SIGNATURE_MISMATCH", [(DSHA, "replay_safe", 0.5)], budget_rows=[ROW_NORMAL],
+                          approved_rows=[bad_sig, _approved_row(a)])
+    engine, wd = _engine(store, [])
+
+    rep = drain_approvals(store, OPS, _ctx(FakeIO()), engine, wd, "tick0000", T0)
+
+    assert [e["approval_id"] for e in rep["executed"]] == ["ap-1"]
+    assert len(rep["errors"]) == 1
+    assert rep["errors"][0].startswith("ap-sig: ") and "ConcurrentAppendException" in rep["errors"][0]
+
+
+def test_an_outcome_write_that_fails_after_the_claim_is_reported_not_raised():
+    """The runbook is written and the row is this drainer's; the write that would mark it executed fails. The drain
+    writes nothing else to the row (it is left executing, the state that expires and is never picked up again), and
+    the report says which row and why."""
+    a = _repair()
+    store = FailingWrites("SET status = 'executed'", [(DSHA, "replay_safe", 0.5)], budget_rows=[ROW_NORMAL],
+                          approved_rows=[_approved_row(a)])
+    engine, wd = _engine(store, [])
+    ctx = _ctx(FakeIO())
+    events = []
+
+    rep = drain_approvals(store, OPS, ctx, engine, wd, "tick0000", T0, log=lambda ev, **kw: events.append(ev))
+
+    assert rep["executed"] == [] and rep["left"] == []
+    assert len(rep["errors"]) == 1
+    assert rep["errors"][0].startswith("ap-1: ") and "ConcurrentAppendException" in rep["errors"][0]
+    assert events == ["approval_drain_error"]
+    assert "approved_signatures" not in ctx.kv
+    assert store.count(f"MERGE INTO {OPS}.runbooks") == 1
+    row_writes = [s for s in store.sql if s.startswith(f"UPDATE {OPS}.approvals SET status") and "'ap-1'" in s]
+    assert len(row_writes) == 1 and row_writes[0].startswith(f"UPDATE {OPS}.approvals SET status = 'executing'")
