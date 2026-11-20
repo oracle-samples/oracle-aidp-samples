@@ -56,7 +56,7 @@ __all__ = ["JOB_SPECS", "SCRIPTS_FOLDER", "PLAN_FOLDER", "REPORTS_FOLDER",
            "BACKUP_FOLDER", "PLAN_BACKUP_FILES", "plan_backup_names",
            "COPY_JOB_PREFIX", "plan_copy_schemas", "copy_job_specs",
            "DOWNLOAD_TIMEOUT", "PLAN_PUSH_FILES", "plan_push_inputs",
-           "download_ws_file", "carry_forward",
+           "download_ws_file", "carry_forward", "workspace_proven_ours",
            "ProvisionTransportError",
            "make_provision_call", "provision", "render_provision",
            "source_config_payload", "source_config_objects",
@@ -596,6 +596,47 @@ def source_config_payload(path: pathlib.Path) -> dict:
     return source_config_objects(path)[0]
 
 
+def workspace_proven_ours(prior: dict | None, *, key: str | None = None,
+                          name: str | None = None,
+                          datalake_ocid: str | None = None) -> bool:
+    """Whether the earlier EXECUTED provision record proves this migration
+    created the workspace: by its key once the workspace is listed, by the
+    requested name in a dry run (which lists nothing). Re-pushes carry
+    `created` forward (`carry_forward`), so the runbook's own re-push into
+    its workspace is proven; one adopted with --reuse-existing is not."""
+    if not prior or prior.get("dry_run") is not False:
+        return False
+    ws = prior.get("workspace") or {}
+    if not ws.get("created"):
+        return False
+    if (datalake_ocid and prior.get("datalake_ocid")
+            and prior["datalake_ocid"] != datalake_ocid):
+        return False
+    if key is not None:
+        return ws.get("key") == key
+    return bool(name) and name in (ws.get("requested"), ws.get("name"))
+
+
+def _adopted_line(ws_name: str, *, allowed: bool) -> str:
+    """What --source-config onto an adopted workspace means, refused or
+    allowed (#175)."""
+    what = (f"workspace {ws_name!r} is not one provision_result.json here "
+            f"shows this migration created, and --source-config places the "
+            f"Snowflake credential where every member of it and every "
+            f"cluster in it can read it via /Workspace")
+    if allowed:
+        return (f"{what}: placed anyway, as "
+                f"--allow-credential-on-adopted-workspace asked. Remove it "
+                f"with `teardown --scope credential --execute` once the "
+                f"copies are done")
+    return (f"{what}. --execute refuses this unless "
+            f"--allow-credential-on-adopted-workspace is passed. "
+            f"Alternatives: a workspace this migration creates (another "
+            f"--workspace-name), or --source-mode external-catalog, which "
+            f"places no credential (it needs a completed catalog crawl and "
+            f"has no pushdown)")
+
+
 def _credential_line(source_name: str, remote: str,
                      what: str = "connection") -> str:
     carries = ("CARRIES THE SNOWFLAKE CREDENTIAL FILE" if what == "file"
@@ -813,6 +854,7 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
               delete_stale_copy_jobs: bool = False,
               prior: dict | None = None,
               datalake_ocid: str | None = None,
+              allow_credential_on_adopted_workspace: bool = False,
               now: datetime.datetime | None = None) -> dict:
     """Provision this migration's own environment inside AIDP.
 
@@ -988,6 +1030,9 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
                                else [inherited_credential]
                                if inherited_credential else []),
         "credential_requested": credential_object,
+        # True only when --allow-credential-on-adopted-workspace let the
+        # credential go onto a workspace this migration did not create.
+        "credential_on_adopted_workspace": False,
         # The config object (`plan/<stem>.json`) THIS push's notebooks are
         # pointed at -- never a credential file -- so a later re-push
         # inherits the config and nothing else. Settled below once the
@@ -1087,6 +1132,17 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
                      _credential_line(local.name, remote, "file"))
             step("upload", "would upload", None,
                  _credential_line(source_config.name, credential_object))
+            if reuse_existing and not workspace_proven_ours(
+                    prior, name=workspace_name, datalake_ocid=datalake_ocid):
+                # The key is unknown here, so this is a preview of the
+                # check --execute makes once the workspace is listed.
+                if allow_credential_on_adopted_workspace:
+                    out["credential_on_adopted_workspace"] = True
+                    step("credential", "would allow on an adopted workspace",
+                         None, _adopted_line(ws_name.name, allowed=True))
+                else:
+                    step("credential", "would refuse on an adopted workspace",
+                         None, _adopted_line(ws_name.name, allowed=False))
         for spec in job_specs:
             if spec["name"] in no_job:
                 continue
@@ -1126,7 +1182,23 @@ def provision(*, call: Callable[..., dict] | None, workspace_name: str,
         step("workspace", "create_requested" if found is None else "created",
              found is not None, detail)
     elif reuse_existing:
-        step("workspace", "reused", True, _key(found, ws_name.name))
+        adopted = _key(found, ws_name.name)
+        if credential_object and not workspace_proven_ours(
+                prior, key=adopted, datalake_ocid=datalake_ocid):
+            if not allow_credential_on_adopted_workspace:
+                # Before the key is recorded: nothing is created or
+                # uploaded, and the CLI keeps the earlier record.
+                step("credential", "refused_on_adopted_workspace", False,
+                     f"{ws_name.name} ({adopted}): not created by this "
+                     f"migration; the Snowflake credential was not placed")
+                step("halt", "stopped", False,
+                     _adopted_line(ws_name.name, allowed=False)
+                     + ". Nothing was created or uploaded.")
+                return out
+            out["credential_on_adopted_workspace"] = True
+            step("credential", "allowed_on_adopted_workspace", True,
+                 _adopted_line(ws_name.name, allowed=True))
+        step("workspace", "reused", True, adopted)
     else:
         step("workspace", "name_taken", False, ws_name.name)
         step("halt", "stopped", False,
@@ -2107,6 +2179,12 @@ def render_provision(res: dict) -> str:
             "reach Snowflake themselves. They are readable by **every member "
             "of this workspace and every cluster in it** via `/Workspace`, "
             "for as long as they stay there:", ""]
+        if res.get("credential_on_adopted_workspace"):
+            at = lines.index("## Credential placed on the workspace") + 2
+            lines[at:at] = [
+                "⚠️ **This workspace was adopted, not created by this "
+                "migration** (`--allow-credential-on-adopted-workspace`): "
+                "its members are whoever its owner let in.", ""]
         superseded = set(res.get("credential_superseded") or [])
         lines += [f"- `{obj}`" + (" -- superseded by this push's "
                                   "`--source-config`; it still holds the "

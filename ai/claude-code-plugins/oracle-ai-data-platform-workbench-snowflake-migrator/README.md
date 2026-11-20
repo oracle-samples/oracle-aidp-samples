@@ -367,6 +367,22 @@ only when every object it depends on was. A re-push with a different
 the previous credential, until you remove them. Remove them with
 `teardown --scope credential` once the copies are done (step 10).
 
+- **Who can read them.** Every member of the workspace and every cluster in
+  it, through `/Workspace`. So `--source-config` with `--reuse-existing` into
+  a workspace this migration did not create (the executed
+  `provision_result.json` here does not prove it) stops before anything is
+  created or uploaded, exit 1. Pass `--allow-credential-on-adopted-workspace`
+  only if everyone who can read that workspace may hold the credential. The
+  runbook's re-push into the workspace step 4 created is not affected.
+- **Key-pair auth.** With `key_passphrase_path:`, the passphrase file goes
+  up beside the private key, and both are readable by the same people. On
+  the workspace the passphrase does not protect the key: treat it as an
+  unencrypted key and rotate it when the migration is done.
+- **No credential at all.** `--source-mode external-catalog` reads through
+  the registered EXTERNAL catalog and places no credential on the
+  workspace. It needs a completed catalog crawl and has no pushdown (see
+  step 6).
+
 ### 5. Register the source as an EXTERNAL catalog, then create the INTERNAL target (S3, S4)
 
 One Snowflake database becomes one AIDP catalog. If the account holds
@@ -621,7 +637,11 @@ bin/snowmig teardown --scope all [--include-data] [--execute]   # undo the migra
 - **Default scope**: stops (or, with `--action delete`, deletes) only the
   clusters this migration created, and keeps its output — the workspace, the
   catalogs and the jobs. Stopping is reversible and leaves the copy jobs
-  runnable.
+  runnable. It does **not** remove the Snowflake credential `--source-config`
+  placed: while that is still on the workspace (looked for with `--execute`;
+  in a dry run, as recorded), it prints `SNOWFLAKE CREDENTIAL STILL ON THE
+  WORKSPACE` and puts a warning at the top of `TEARDOWN.md` naming each
+  object. The exit code is unchanged.
 - **`--scope credential`** removes the credential `--source-config` placed on
   the workspace. Run it after the copies: the copy jobs need it.
 - **`--scope all`** is for a lab, a rehearsal or an abandoned migration: the

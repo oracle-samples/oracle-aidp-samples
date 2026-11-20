@@ -508,7 +508,11 @@ teardown never picks one by name.
 `stop` (default, `teardown.action` in the config) is reversible and leaves the
 registered copy jobs working; `--action delete` is final and must be asked
 for. The workspace, the catalogs and the jobs are kept: they are the
-migration's output and its record.
+migration's output and its record. So is the Snowflake credential
+`--source-config` placed: when teardown prints `SNOWFLAKE CREDENTIAL STILL ON
+THE WORKSPACE` (exit code unchanged), tell the user it is readable by every
+workspace member, and offer `teardown --scope credential` once the copy jobs
+are done.
 
 **Teardown has three scopes**, each a dry run unless `--execute`: `compute`
 (the default, above), and two opt-in scopes:

@@ -6,6 +6,42 @@ migrator Codex plugin, newest first. The format loosely follows
 
 ## [Unreleased]
 
+### Security
+- The default (compute) `teardown` warns when the Snowflake credential
+  `provision --source-config` placed is still on the workspace (#175). It
+  never removed it, so an operator who stopped there left a credential every
+  workspace member can read. With `--execute` each recorded object is looked
+  for on the workspace, so a credential `--scope credential` already removed
+  is not reported; a lookup that fails is reported as unknown, never as gone.
+  A dry run reports what the record holds. The warning goes to stderr
+  (`SNOWFLAKE CREDENTIAL STILL ON THE WORKSPACE`), to the top of
+  `TEARDOWN.md`, and to `credential_left` in `teardown_result.json`. The exit
+  code is unchanged.
+- `provision --source-config --reuse-existing` into a workspace this
+  migration did not create (the executed `provision_result.json` does not
+  prove it) stops before anything is created or uploaded
+  (`refused_on_adopted_workspace`, exit 1, the earlier record kept), unless
+  `--allow-credential-on-adopted-workspace` is passed (#175). The dry run says
+  so in advance. The runbook's re-push into this migration's own workspace,
+  a workspace the run creates, and an adoption without `--source-config` are
+  unchanged. An allowed placement is recorded as
+  `credential_on_adopted_workspace` and called out in `PROVISION.md`.
+- `run` reminds, after a copy job or the reconcile succeeds, that the
+  Snowflake credential is still on the workspace and that `teardown --scope
+  credential --execute` removes it once the copies are done (#175). Only from
+  an executed record of the same workspace; never on a failed run.
+- `teardown --scope credential` and `--scope all` read each workspace-object
+  delete (the credential, and the notebooks on an adopted workspace) back by
+  the object's path, path leaf or display name, like every upload read-back
+  in this plugin. They matched the workspace-relative path exactly, which
+  the listing does not return in the SDK's documented form (a fully
+  qualified `path`, a leaf `displayName`), so every such delete read as gone
+  and one accepted but never applied was reported verified. It is now
+  `delete_requested`, unverified, exit 1 (#175).
+- README: who can read the credential on the workspace, that a key-pair
+  passphrase placed beside the key does not protect it there, and that
+  `--source-mode external-catalog` places no credential at all (#175).
+
 ### Fixed
 - `snowflake-connector-python` is pinned below 5 (`>=4.7.0,<5`) in
   `engine/requirements.txt` and in the commented fallback line of
