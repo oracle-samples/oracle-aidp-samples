@@ -60,8 +60,9 @@ DRAFT_BEFORE_REPLAY = os.environ.get("NS_DRAFT_BEFORE_REPLAY", "1") == "1"  # mo
 MAX_REPLAY_ROWS = int(os.environ.get("NS_REPLAY_MAX_ROWS", "2000000"))        # a replay stages the whole table through one global sort and re-applies the statement once per delivery; a larger table is reported as skipped
 TASK_MARGIN_S = 150
 SBX_STALE_HOURS = 3
+SBX_SWEEP_MAX_DAYS = 30                                           # the sweep leaves anything older alone: a number that far back is a date stamp, not a start minute
 sbx_catalog, sbx_schema = SBX_BASE.split(".", 1) if "." in SBX_BASE else ("default", SBX_BASE)
-SBX_NAME_RE = re.compile(rf"^{re.escape(sbx_schema)}\w*?_[0-9a-f]{{8}}_(\d+)$")  # built from the configured base so the sweep follows NS_SBX
+SBX_NAME_RE = re.compile(rf"^{re.escape(sbx_schema)}_[0-9a-f]{{8}}_(\d+)$")  # exactly the name a run gives its sandbox, built from the configured base so the sweep follows NS_SBX
 ORDERABLE = ("timestamp", "date", "number")
 
 
@@ -117,13 +118,15 @@ if not ALREADY:
 
 
     # 0b. sweep sandbox schemas a killed run left behind (a Python finally never runs when the platform kills the task);
-    # the start minute is in the schema name, so only schemas older than SBX_STALE_HOURS are touched
+    # the start minute is in the schema name, so only schemas older than SBX_STALE_HOURS are touched. The sweep drops
+    # with CASCADE, so a name has to be exactly a run's and its minute a recent one: a team schema that only shares
+    # the base (<base>_reports_20250131_2, <base>_20250101_20250131) is not this job's to drop
     swept = []
     try:
         for r in rows(f"SHOW SCHEMAS IN {sbx_catalog} LIKE '{sbx_schema}*'"):
             name = str(r[0])
             m = SBX_NAME_RE.match(name)
-            if m and (start_minute - int(m.group(1))) >= SBX_STALE_HOURS * 60:
+            if m and SBX_STALE_HOURS * 60 <= start_minute - int(m.group(1)) <= SBX_SWEEP_MAX_DAYS * 24 * 60:
                 run(f"DROP SCHEMA IF EXISTS {sbx_catalog}.{name} CASCADE")
                 swept.append(name)
     except Exception as e:  # noqa: BLE001  (housekeeping; never blocks the tick)

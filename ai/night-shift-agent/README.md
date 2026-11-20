@@ -83,7 +83,7 @@ Read by the scheduled heartbeat unless marked otherwise.
 |---|---|---|
 | `NS_OPS` | `default.nightshift_ops` | the ledger schema (`<catalog>.<schema>`); the DDL in `sql/ddl_ops.sql` must be generated for the same name |
 | `NS_PKG` | `/Workspace/Shared/nightshift/pkg` | where the heartbeat imports the `nightshift` package from |
-| `NS_SBX` | `default.nightshift_sbx` | sandbox base; each run uses `<base>_<tick>_<minute>` and drops it; stale ones are swept after 3 h |
+| `NS_SBX` | `default.nightshift_sbx` | sandbox base; each run uses `<base>_<tick>_<minute>` and drops it. A later run sweeps a schema left behind when its name is exactly that shape and its minute is between 3 h and 30 days back; no other schema sharing the base is touched |
 | `NS_WATCHED` | `/Workspace/Shared/nightshift/watched_merges.json` | the watch list |
 | `NS_DRAFT_ONLY` | unset | `1` skips the flight recorder and only grades, reuses verdicts and drafts (the external actuator's drafting pass) |
 | `NS_JOB_NAME` | `nightshift_heartbeat` | runner name written as provenance on verdicts, drafts and decisions; also the drafting-lease owner and the scope of the one-hour backoff after a failed model call |

@@ -450,3 +450,35 @@ def test_a_reused_insufficient_coverage_verdict_keeps_its_explanation(ledger_db,
     summary, _ = _run_heartbeat(monkeypatch, capsys, spark, _watch(tmp_path, [a]))
     entry = summary["replay_verdicts"][0]
     assert spark.events == [] and entry["verdict"] == "insufficient_coverage" and entry["error"] == why and "drafting" not in entry
+
+
+# ----------------------------------------------------------------------------- housekeeping: the stale-sandbox sweep
+class SchemaListingSpark(FakeSpark):
+    """FakeSpark whose catalog lists the given schemas, so the sweep has something to choose from."""
+
+    def __init__(self, con, schemas, **kw):
+        super().__init__(con, **kw)
+        self.schemas = schemas
+
+    def sql(self, q: str):
+        if q.startswith("SHOW SCHEMAS"):
+            self.statements.append(q)
+            return _Result([(s,) for s in self.schemas])
+        return super().sql(q)
+
+
+def test_the_sandbox_sweep_drops_only_stale_schemas_named_the_way_a_run_names_them(ledger_db, tmp_path, monkeypatch, capsys):
+    """A run's sandbox is <base>_<tick8>_<start minute>. Other schemas that merely share the base (a team's
+    date-stamped schema, a date range) are never dropped, and neither is a run that is still inside its window."""
+    minute = int(datetime.now(timezone.utc).timestamp()) // 60
+    stale, fresh = f"nightshift_sbx_0a1b2c3d_{minute - 600}", f"nightshift_sbx_0a1b2c3d_{minute - 10}"
+    foreign = ["nightshift_sbx_reports_20250131_2", "nightshift_sbx_archive_deadbeef_7",
+               "nightshift_sbx_20250131_2", "nightshift_sbx_20250101_20250131"]
+    spark = SchemaListingSpark(ledger_db, [stale, fresh, *foreign])
+
+    summary, _ = _run_heartbeat(monkeypatch, capsys, spark, _watch(tmp_path, []))
+
+    assert summary["sandbox_swept"] == [stale]
+    dropped = " ".join(q for q in spark.statements if q.startswith("DROP SCHEMA"))
+    assert stale in dropped
+    assert not [name for name in [fresh, *foreign] if name in dropped]
