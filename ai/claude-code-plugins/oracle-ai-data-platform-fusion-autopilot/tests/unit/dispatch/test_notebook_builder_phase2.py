@@ -472,9 +472,20 @@ class TestPhase3dSchemaSnapshotStaging:
         factory.resolve_task_run_key = RealAidpRestClient.resolve_task_run_key
         monkeypatch.setattr(dispatch_mod, "AidpRestClient", factory)
 
+        # A schema-valid bundle: dispatch parses it (for the catalog name)
+        # before the remote preflight, even with local preflight stubbed.
         bundle_path = tmp_path / "bundle.yaml"
         bundle_path.write_text(
-            "apiVersion: aidp-fusion-autopilot/v1\nproject: x\n", encoding="utf-8"
+            "apiVersion: aidp-fusion-autopilot/v1\n"
+            "project: x\n"
+            "fusion:\n"
+            "  serviceUrl: https://fusion.example.com\n"
+            "  username: user\n"
+            "  password: not-a-secret\n"
+            "  externalStorage: storage-1\n"
+            "datasets:\n"
+            "  - id: erp_suppliers\n",
+            encoding="utf-8",
         )
 
         from oracle_ai_data_platform_fusion_autopilot.schema.bundle import (

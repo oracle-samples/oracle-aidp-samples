@@ -155,7 +155,7 @@ def dispatch_via_rest(
 
     1. Local preflight (bundle.yaml, dispatch coords, OCI profile + session).
     2. Build the :class:`AidpRestClient` once local preflight is all-PASS.
-    3. Remote preflight (control plane, credential store, cluster state).
+    3. Remote preflight (control plane, catalog, credential store, cluster state).
     4. **If** ``dry_run`` — return :meth:`RunSummary.empty` and stop.
     5. Build the wheel (content-hash cached).
     6. Generate the 4-cell notebook in-memory.
@@ -227,11 +227,19 @@ def dispatch_via_rest(
         raise DispatchAuthError(str(exc)) from exc
 
     # ---- Remote preflight -------------------------------------------------
+    # The bundle YAML was already validated by local preflight; load_bundle
+    # here is a sub-millisecond re-parse with no Spark involvement. The
+    # catalog name feeds the catalog-existence check, and the dry-run
+    # short-circuit below reuses the parsed bundle.
+    from ..schema.bundle import load_bundle
+
+    bundle, paths = load_bundle(bundle_path)
     remote_results = run_remote_preflight(
         client=client,
         env=env,
         auto_start_cluster=auto_start_cluster,
         log=log,
+        catalog=bundle.aidp.catalog,
     )
     log(render_preflight(remote_results))
     if any_failed(remote_results):
@@ -239,11 +247,8 @@ def dispatch_via_rest(
 
     # ---- Dry-run short-circuit -------------------------------------------
     # Resolve the plan laptop-side from neutral schema metadata so the renderer
-    # can show "Would dispatch" + "Extra-plan prerequisites" Rich tables. The
-    # bundle YAML was already validated by local preflight; load_bundle here is
-    # a sub-millisecond re-parse with no Spark involvement.
+    # can show "Would dispatch" + "Extra-plan prerequisites" Rich tables.
     if dry_run:
-        from ..schema.bundle import load_bundle
         from ..schema.plan_resolver import resolve_dry_run_plan
 
         if resolved_pack is None:
@@ -253,7 +258,6 @@ def dispatch_via_rest(
                 "load_full_chain(...) and pass it in. This preserves "
                 "the dispatch import boundary."
             )
-        bundle, paths = load_bundle(bundle_path)
         plan_nodes, prereq_nodes = resolve_dry_run_plan(
             resolved_pack, bundle, paths,
             datasets=datasets, layers=layers,

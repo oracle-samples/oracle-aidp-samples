@@ -283,6 +283,9 @@ def _stub_client(monkeypatch, **overrides):
     client_mock.list_clusters.return_value = [
         ClusterSummary(key="cluster-uuid-1", display_name="dev", state="ACTIVE")
     ]
+    client_mock.check_catalog_exists.return_value = True
+    client_mock.check_credential_exists.return_value = True
+    client_mock.get_credential_key_names.return_value = ("password",)
     client_mock.upload_notebook.return_value = "/Workspace/Shared/x/run.ipynb"
     client_mock.create_notebook_job.return_value = "job-key-1"
     client_mock.submit_run.return_value = "job-run-key-1"
@@ -567,6 +570,35 @@ class TestHappyPath:
         client.submit_run.assert_called_once()
         client.poll_run.assert_called_once()
         client.fetch_output.assert_called_once_with("task-run-key-1")
+
+
+class TestCatalogPreflight:
+    """``run`` checks ``bundle.aidp.catalog`` exists before building the
+    wheel or touching the cluster."""
+
+    def test_missing_catalog_fails_before_any_dispatch(
+        self, bundle_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        client = _stub_client(monkeypatch)
+        client.check_catalog_exists.return_value = False
+        build_wheel = MagicMock(side_effect=AssertionError("wheel must not be built"))
+        monkeypatch.setattr(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.build_wheel", build_wheel
+        )
+        with pytest.raises(DispatchPreflightError, match="AIDP catalog"):
+            dispatch_via_rest(
+                bundle_path=bundle_path,
+                config=_config(),
+                env=_env(),
+                env_name="dev",
+                mode="seed",
+                datasets=None,
+                layers=None,
+            )
+        # The test bundle has no `aidp:` block, so the default catalog applies.
+        client.check_catalog_exists.assert_called_once_with("fusion_catalog")
+        build_wheel.assert_not_called()
+        client.upload_notebook.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

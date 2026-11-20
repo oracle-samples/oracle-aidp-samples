@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from rich.markup import escape
+
 from ..dispatch import _collect_runtime_env_passthrough
 from ..dispatch.errors import (
     DispatchError,
@@ -55,7 +57,7 @@ from ..dispatch.notebook_builder import (
     _markdown_cell,
 )
 from ..dispatch.notebook_dispatch import dispatch_notebook_and_fetch_marker
-from ..dispatch.preflight import _check_bicc_credential
+from ..dispatch.preflight import _check_aidp_catalog, _check_bicc_credential, render
 from ..dispatch.rest_client import AidpRestClient
 from ..dispatch.wheel_builder import build_wheel
 from ..orchestrator.content_pack_staging import stage_pack_files
@@ -111,7 +113,8 @@ class ClusterDispatchFailureContext:
     """
 
     failed_step: str
-    """One of ``build_wheel`` / ``stage_pack`` / ``upload_notebook`` /
+    """One of ``build_wheel`` / ``stage_pack`` / ``catalog_preflight`` /
+    ``credential_preflight`` / ``upload_notebook`` /
     ``create_notebook_job`` / ``submit_run`` / ``poll_run`` /
     ``fetch_output`` (the dispatch helper's exception-class taxonomy
     mapped to a stable artifact-side enum)."""
@@ -624,23 +627,46 @@ def dispatch_cluster_probe(
         )
     )
 
-    # ---- Credential preflight (Step 5a) ----
-    # The creds cell fetches FUSION_BICC_PASSWORD from the AIDP credential
-    # store; if that entry is missing the failure would otherwise surface
-    # only mid-notebook (after wheel build, upload, submit, cluster ramp) as
-    # a generic run failure with no executed-stdout detail. Fast-fail here
-    # with the credential-specific message — mirrors the run dispatcher's
-    # remote preflight (`_check_bicc_credential`).
-    cred_check = _check_bicc_credential(
-        client, env.bicc_secret_name, env.bicc_secret_key
+    # ---- Catalog + credential preflight (Step 5a) ----
+    # The probe cell DESCRIBEs tables in ``bundle.aidp.catalog``, and the
+    # creds cell fetches FUSION_BICC_PASSWORD from the AIDP credential store.
+    # A missing catalog, a missing credential entry, or a credential without
+    # the configured key would otherwise surface only mid-notebook (after
+    # upload, submit, cluster ramp) as a generic run failure. Fast-fail here
+    # with a specific message — mirrors the run dispatcher's remote preflight.
+    preflight_checks = (
+        (
+            "catalog_preflight",
+            "CatalogPreflightFailed",
+            lambda: _check_aidp_catalog(client, bundle.aidp.catalog),
+        ),
+        (
+            "credential_preflight",
+            "CredentialPreflightFailed",
+            lambda: _check_bicc_credential(
+                client, env.bicc_secret_name, env.bicc_secret_key
+            ),
+        ),
     )
-    if cred_check.status != "PASS":
+    for failed_step, cause_type, run_check in preflight_checks:
+        check = run_check()
+        if check.status == "PASS":
+            # Print every pass, as ``run`` does: a lookup that could not give
+            # a definite answer passes as "not verified", and the operator
+            # should see which one. Escaped so Rich prints the ``[preflight]``
+            # prefix (and any brackets in the detail) instead of reading them
+            # as markup.
+            log(escape(render([check])))
+            continue
+        cause = check.detail
+        if check.remediation:
+            cause = f"{cause} — {check.remediation}"
         raise ClusterDispatchError(
-            f"BICC credential preflight failed: {cred_check.detail}",
+            f"{check.name} preflight failed: {cause}",
             failure_context=ClusterDispatchFailureContext(
-                failed_step="credential_preflight",
-                cause_type="CredentialPreflightFailed",
-                cause_message=cred_check.detail[:2000],
+                failed_step=failed_step,
+                cause_type=cause_type,
+                cause_message=cause[:2000],
                 cluster_key=dispatch_config.cluster_key,
             ),
         )

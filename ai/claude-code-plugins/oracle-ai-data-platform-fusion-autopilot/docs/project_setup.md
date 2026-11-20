@@ -122,6 +122,7 @@ Before a real bootstrap or seed, confirm these exist:
 | Fusion BICC | Fusion user with BICC privileges. |
 | Fusion BICC | External Storage profile configured in the BICC console. |
 | AIDP | AI Data Platform OCID, workspace, and cluster. |
+| AIDP | The catalog named in `bundle.yaml` → `aidp.catalog` (default `fusion_catalog`). Runs create the bronze/silver/gold schemas, not the catalog. |
 | AIDP | Credential-store entry for the Fusion BICC password. Default name: `fusion_bicc_password`; default key: `password`. |
 | OAC | OAC instance where the AIDP connection, dataset, and workbook will live. |
 | OAC | User for operator MCP setup; use least privilege, especially because OAC MCP v1.4 exposes write/delete/ACL tools. |
@@ -131,7 +132,11 @@ dispatch. The cluster notebook reads it with
 `aidputils.secrets.get(name=<biccSecretName>, key=<biccSecretKey>)`; by default
 that means name `fusion_bicc_password` and key `password`. If you change
 `biccSecretName` or `biccSecretKey` in `aidp.config.yaml`, the AIDP credential
-store must use the same values.
+store must use the same values. The key is the name of the secret inside the
+entry, not the entry's name. If the entry stores the password under another
+key, set `biccSecretKey` to that key. `bootstrap` and `run` compare the
+entry's key names (never its value) with `biccSecretKey`, and check that the
+catalog exists, before anything is dispatched to the cluster.
 
 For more REST job dispatch details, including AIDP credential-store setup, see
 [rest_dispatch_setup.md](rest_dispatch_setup.md).
@@ -378,6 +383,7 @@ Common drift and failure codes are documented in
 - `bundle.yaml` has a `contentPack` block.
 - `aidp.config.yaml` resolves the AIDP workspace and cluster.
 - Fusion BICC user and External Storage profile exist.
+- The AIDP catalog named in `bundle.yaml` → `aidp.catalog` exists.
 - AIDP credential-store entry for the Fusion BICC password exists
   (`fusion_bicc_password` / key `password`, unless overridden in
   `aidp.config.yaml`).

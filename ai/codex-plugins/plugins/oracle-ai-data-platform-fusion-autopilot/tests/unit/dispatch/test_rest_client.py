@@ -478,3 +478,274 @@ class TestExtractCellErrorsStderrStream:
         assert len(errors) == 1
         assert errors[0]["ename"] == "ValueError"
         assert errors[0]["evalue"] == "split-list shape"
+
+
+# ---------------------------------------------------------------------------
+# Catalog + credential-key lookups backing the dispatch preflight.
+# ---------------------------------------------------------------------------
+
+
+def _resp(status: int, body: dict | None = None) -> MagicMock:
+    resp = MagicMock(status_code=status, text="{}", url="https://x")
+    resp.json.return_value = body if body is not None else {}
+    return resp
+
+
+_DATALAKE = (
+    "https://datalake.us-ashburn-1.oci.oraclecloud.com/20260430/"
+    "aiDataPlatforms/ocid1.datalake.oc1.iad.test"
+)
+
+
+class TestCheckCatalogExists:
+    def test_returns_true_on_200_and_targets_the_catalog_route(self) -> None:
+        client = _make_client()
+        with patch.object(client, "_request", return_value=_resp(200)) as spy:
+            assert client.check_catalog_exists("fusion_catalog") is True
+        method, url = spy.call_args.args
+        assert method == "GET"
+        assert url == f"{_DATALAKE}/catalogs/fusion_catalog"
+
+    def test_returns_false_when_aidp_reports_an_unknown_catalog(self) -> None:
+        """The body AIDP returns, live, for a catalog that does not exist."""
+        client = _make_client()
+        body = {
+            "code": "NotAuthorizedOrNotFound",
+            "message": "Unknown resource: missing_catalog",
+        }
+        with patch.object(client, "_request", return_value=_resp(404, body)):
+            assert client.check_catalog_exists("missing_catalog") is False
+
+    def test_unknown_catalog_match_ignores_case(self) -> None:
+        """AIDP resolves catalog names case-insensitively, so an answer that
+        names the catalog in a different case is about the same catalog."""
+        client = _make_client()
+        body = {
+            "code": "NotAuthorizedOrNotFound",
+            "message": "Unknown resource: missing_catalog",
+        }
+        with patch.object(client, "_request", return_value=_resp(404, body)):
+            assert client.check_catalog_exists("Missing_Catalog") is False
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Unknown resource: some_other_resource",
+            "Unknown resource: fusion_catalog_archive",
+            "Unknown resource",
+        ],
+    )
+    def test_unknown_resource_naming_something_else_raises(self, message) -> None:
+        """Only a 404 that names the requested catalog means that catalog is
+        missing: one naming another resource says nothing about it."""
+        client = _make_client()
+        body = {"code": "NotAuthorizedOrNotFound", "message": message}
+        with patch.object(client, "_request", return_value=_resp(404, body)):
+            with pytest.raises(AidpRestError, match="HTTP 404"):
+                client.check_catalog_exists("fusion_catalog")
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "code": "NotAuthorizedOrNotFound",
+                "message": "Authorization failed or requested resource not found.",
+            },
+            {"code": "NotAuthorizedOrNotFound"},
+            {},
+        ],
+    )
+    def test_ambiguous_404_raises_instead_of_reporting_missing(self, body) -> None:
+        """``NotAuthorizedOrNotFound`` also covers a catalog the caller may
+        not see, so only AIDP's explicit "Unknown resource" means missing."""
+        client = _make_client()
+        with patch.object(client, "_request", return_value=_resp(404, body)):
+            with pytest.raises(AidpRestError, match="HTTP 404"):
+                client.check_catalog_exists("fusion_catalog")
+
+    def test_non_json_404_raises(self) -> None:
+        client = _make_client()
+        resp = _resp(404)
+        resp.json.side_effect = ValueError("not json")
+        with patch.object(client, "_request", return_value=resp):
+            with pytest.raises(AidpRestError, match="HTTP 404"):
+                client.check_catalog_exists("fusion_catalog")
+
+    def test_raises_on_other_errors(self) -> None:
+        client = _make_client()
+        with patch.object(client, "_request", return_value=_resp(500)):
+            with pytest.raises(AidpRestError):
+                client.check_catalog_exists("fusion_catalog")
+
+    def test_empty_name_is_not_found_without_a_request(self) -> None:
+        """``GET /catalogs/`` is the list route; an empty name must not
+        read as an existing catalog."""
+        client = _make_client()
+        with patch.object(client, "_request") as spy:
+            assert client.check_catalog_exists("") is False
+        spy.assert_not_called()
+
+    def test_url_encodes_the_catalog_name(self) -> None:
+        client = _make_client()
+        with patch.object(client, "_request", return_value=_resp(200)) as spy:
+            client.check_catalog_exists("bad/name")
+        assert spy.call_args.args[1].endswith("/catalogs/bad%2Fname")
+
+
+def _credential_list(*names_and_keys: tuple[str, str]) -> dict:
+    return {
+        "items": [
+            {"displayName": name, "key": key, "credentialType": "SECRET_TOKEN"}
+            for name, key in names_and_keys
+        ]
+    }
+
+
+class TestCheckCredentialExists:
+    def test_lists_with_the_exact_display_name_filter(self) -> None:
+        """Filtering server-side keeps the answer independent of paging:
+        the unfiltered list returns one page (100 entries by default)."""
+        client = _make_client()
+        with patch.object(
+            client, "_request", return_value=_resp(200, _credential_list(("a b/c", "uuid-1")))
+        ) as spy:
+            assert client.check_credential_exists("a b/c") is True
+        # %20, not "+": a server that does not decode "+" as a space would
+        # otherwise search for a different name and report the entry missing.
+        assert spy.call_args.args == ("GET", f"{_DATALAKE}/credentials?displayName=a%20b%2Fc")
+
+    def test_matches_the_name_exactly_even_if_the_filter_is_ignored(self) -> None:
+        client = _make_client()
+        with patch.object(
+            client, "_request", return_value=_resp(200, _credential_list(("other", "uuid-0")))
+        ):
+            assert client.check_credential_exists("fusion_bicc_password") is False
+
+
+class TestGetCredentialKeyNames:
+    def test_lists_with_the_exact_display_name_filter(self) -> None:
+        client = _make_client()
+        detail = {"credentialDetails": {"secretTokenPair": [{"secretKey": "password"}]}}
+        responses = [
+            _resp(200, _credential_list(("fusion_bicc_password", "uuid-1"))),
+            _resp(200, detail),
+        ]
+        with patch.object(client, "_request", side_effect=responses) as spy:
+            client.get_credential_key_names("fusion_bicc_password")
+        assert spy.call_args_list[0].args == (
+            "GET", f"{_DATALAKE}/credentials?displayName=fusion_bicc_password",
+        )
+
+    @pytest.mark.parametrize("order", [(0, 1), (1, 0)])
+    def test_duplicate_display_names_are_ambiguous_in_either_order(self, order) -> None:
+        """Display names need not be unique. The notebook's choice between
+        same-named entries is unknown, so no single entry's keys decide."""
+        from oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client import (
+            AmbiguousCredentialError,
+        )
+
+        client = _make_client()
+        entries = [("fusion_bicc_password", "uuid-1"), ("fusion_bicc_password", "uuid-2")]
+        listing = _credential_list(*(entries[i] for i in order))
+        with patch.object(client, "_request", return_value=_resp(200, listing)) as spy:
+            with pytest.raises(AmbiguousCredentialError, match="2 credentials"):
+                client.get_credential_key_names("fusion_bicc_password")
+        assert spy.call_count == 1  # no detail lookup for an ambiguous name
+
+    def test_returns_key_names_of_the_matching_credential(self) -> None:
+        client = _make_client()
+        detail = {
+            "displayName": "fusion_bicc_password",
+            "credentialDetails": {
+                "credentialType": "SECRET_TOKEN",
+                "secretTokenPair": [
+                    {"secretKey": "fusion_bicc_password", "secretValue": None}
+                ],
+            },
+        }
+        responses = [
+            _resp(200, _credential_list(("other", "uuid-0"), ("fusion_bicc_password", "uuid-1"))),
+            _resp(200, detail),
+        ]
+        with patch.object(client, "_request", side_effect=responses) as spy:
+            keys = client.get_credential_key_names("fusion_bicc_password")
+        assert keys == ("fusion_bicc_password",)
+        # The per-resource route takes the credential UUID, not the name.
+        assert spy.call_args_list[1].args == ("GET", f"{_DATALAKE}/credentials/uuid-1")
+
+    def test_never_returns_secret_values(self) -> None:
+        client = _make_client()
+        detail = {
+            "credentialDetails": {
+                "secretTokenPair": [
+                    {"secretKey": "password", "secretValue": "s3cr3t-value"}
+                ]
+            }
+        }
+        responses = [_resp(200, _credential_list(("c", "uuid-1"))), _resp(200, detail)]
+        with patch.object(client, "_request", side_effect=responses):
+            keys = client.get_credential_key_names("c")
+        assert keys == ("password",)
+        assert "s3cr3t-value" not in repr(keys)
+
+    def test_unknown_credential_returns_empty_without_a_detail_call(self) -> None:
+        client = _make_client()
+        with patch.object(
+            client, "_request", return_value=_resp(200, _credential_list(("other", "uuid-0")))
+        ) as spy:
+            assert client.get_credential_key_names("fusion_bicc_password") == ()
+        assert spy.call_count == 1
+
+    def test_credential_without_token_pairs_returns_empty(self) -> None:
+        """A vault-reference credential stores no key/value pairs."""
+        client = _make_client()
+        detail = {"credentialDetails": {"credentialType": "VAULT_REFERENCE", "secretId": "ocid1.x"}}
+        responses = [_resp(200, _credential_list(("c", "uuid-1"))), _resp(200, detail)]
+        with patch.object(client, "_request", side_effect=responses):
+            assert client.get_credential_key_names("c") == ()
+
+    def test_detail_error_raises_without_echoing_the_body(self) -> None:
+        client = _make_client()
+        error = _resp(403)
+        error.text = '{"secretValue": "s3cr3t-value"}'
+        responses = [_resp(200, _credential_list(("c", "uuid-1"))), error]
+        with patch.object(client, "_request", side_effect=responses):
+            with pytest.raises(AidpRestError) as excinfo:
+                client.get_credential_key_names("c")
+        assert "403" in str(excinfo.value)
+        assert "s3cr3t-value" not in str(excinfo.value)
+
+    def test_non_json_detail_raises_without_echoing_the_body(self) -> None:
+        client = _make_client()
+        garbled = _resp(200)
+        garbled.json.side_effect = ValueError("not json")
+        garbled.text = "secretValue=s3cr3t-value"
+        responses = [_resp(200, _credential_list(("c", "uuid-1"))), garbled]
+        with patch.object(client, "_request", side_effect=responses):
+            with pytest.raises(AidpRestError) as excinfo:
+                client.get_credential_key_names("c")
+        assert "s3cr3t-value" not in str(excinfo.value)
+
+    @pytest.mark.parametrize(
+        "detail",
+        [
+            {"credentialDetails": ["unexpected"]},
+            {"credentialDetails": {"secretTokenPair": "unexpected"}},
+            {"credentialDetails": {"secretTokenPair": [None, 7, {"secretKey": 3}]}},
+            ["not", "a", "dict"],
+        ],
+    )
+    def test_unexpected_detail_shapes_return_empty(self, detail) -> None:
+        client = _make_client()
+        responses = [_resp(200, _credential_list(("c", "uuid-1"))), _resp(200, detail)]
+        with patch.object(client, "_request", side_effect=responses):
+            assert client.get_credential_key_names("c") == ()
+
+    def test_non_dict_list_items_are_ignored(self) -> None:
+        client = _make_client()
+        body = {"items": ["junk", None, {"displayName": "c", "key": "uuid-1"}]}
+        detail = {"credentialDetails": {"secretTokenPair": [{"secretKey": "password"}]}}
+        with patch.object(
+            client, "_request", side_effect=[_resp(200, body), _resp(200, detail)]
+        ):
+            assert client.get_credential_key_names("c") == ("password",)

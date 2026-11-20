@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import oci
 import pytest
+import requests
 
 from oracle_ai_data_platform_fusion_autopilot.dispatch.preflight import (
     PreflightResult,
@@ -297,11 +298,22 @@ def _client_with(
     wait_active=None,
     credential_exists=True,  # P1.5ε-fix1: default to PASS so existing
                              # tests don't have to opt into check 6.
+    credential_keys=("password",),  # matches the default biccSecretKey
+    catalog_exists=True,
 ) -> MagicMock:
     client = MagicMock(spec=[
         "list_clusters", "start_cluster", "wait_cluster_active", "get_cluster",
-        "check_credential_exists",
+        "check_credential_exists", "get_credential_key_names",
+        "check_catalog_exists",
     ])
+    if isinstance(credential_keys, BaseException):
+        client.get_credential_key_names.side_effect = credential_keys
+    else:
+        client.get_credential_key_names.return_value = credential_keys
+    if isinstance(catalog_exists, BaseException):
+        client.check_catalog_exists.side_effect = catalog_exists
+    else:
+        client.check_catalog_exists.return_value = catalog_exists
     if list_clusters is not None:
         if isinstance(list_clusters, BaseException):
             client.list_clusters.side_effect = list_clusters
@@ -615,3 +627,353 @@ class TestBiccCredentialCheck:
             f"remediation leaked the default 'password' key when "
             f"biccSecretKey='custom_key'; got: {cred_result.remediation!r}"
         )
+
+
+class TestBiccCredentialKeyCheck:
+    """The credential entry exists, but the notebook asks for one key by
+    name. A key mismatch used to PASS preflight and then die on the cluster
+    with ``TypeError: str expected, not NoneType``."""
+
+    def test_key_mismatch_fails_and_names_the_stored_keys(self) -> None:
+        client = _client_with(
+            list_clusters=_active_cluster_list(),
+            credential_keys=("fusion_bicc_password",),
+        )
+        results = run_remote_preflight(client=client, env=_env())
+        cred = results[1]
+        assert cred.name == "BICC credential"
+        assert cred.status == "FAIL"
+        assert "'password'" in cred.detail
+        assert "'fusion_bicc_password'" in cred.detail
+        assert cred.remediation is not None
+        assert "biccSecretKey" in cred.remediation
+
+    def test_key_mismatch_skips_cluster_check_without_starting_compute(self) -> None:
+        client = _client_with(
+            list_clusters=[
+                ClusterSummary(key="cluster-uuid-1", display_name="dev", state="STOPPED")
+            ],
+            credential_keys=("something_else",),
+        )
+        results = run_remote_preflight(client=client, env=_env(), auto_start_cluster=True)
+        assert results[1].status == "FAIL"
+        assert results[2].status == "SKIP"
+        client.start_cluster.assert_not_called()
+
+    def test_custom_key_present_passes(self) -> None:
+        client = _client_with(
+            list_clusters=_active_cluster_list(),
+            credential_keys=("user", "custom_key"),
+        )
+        env = _env(biccSecretKey="custom_key")
+        results = run_remote_preflight(client=client, env=env)
+        assert results[1].status == "PASS"
+        client.get_credential_key_names.assert_called_once_with("fusion_bicc_password")
+
+    def test_credential_without_listed_keys_passes(self) -> None:
+        """No key/value pairs to compare against (e.g. a vault reference):
+        nothing to contradict, so the existence check decides."""
+        client = _client_with(list_clusters=_active_cluster_list(), credential_keys=())
+        results = run_remote_preflight(client=client, env=_env())
+        assert results[1].status == "PASS"
+
+    def test_key_lookup_error_does_not_block_an_existing_credential(self) -> None:
+        client = _client_with(
+            list_clusters=_active_cluster_list(),
+            credential_keys=AidpRestError("HTTP 403 body=not authorized"),
+        )
+        results = run_remote_preflight(client=client, env=_env())
+        assert results[1].status == "PASS"
+        assert "not verified" in results[1].detail
+
+    def test_missing_credential_does_not_look_up_keys(self) -> None:
+        client = _client_with(
+            list_clusters=_active_cluster_list(), credential_exists=False
+        )
+        run_remote_preflight(client=client, env=_env())
+        client.get_credential_key_names.assert_not_called()
+
+
+class TestCatalogCheck:
+    """``catalog=`` adds an existence check for ``bundle.aidp.catalog``
+    before the credential and cluster checks. A missing catalog used to
+    surface only on the cluster, as a raw SCHEMA_NOT_FOUND stack trace."""
+
+    def test_existing_catalog_passes(self) -> None:
+        client = _client_with(list_clusters=_active_cluster_list())
+        results = run_remote_preflight(client=client, env=_env(), catalog="fusion_catalog")
+        assert [r.name for r in results] == [
+            "AIDP control plane", "AIDP catalog", "BICC credential", "cluster state",
+        ]
+        assert results[1].status == "PASS"
+        assert "fusion_catalog" in results[1].detail
+        client.check_catalog_exists.assert_called_once_with("fusion_catalog")
+
+    def test_missing_catalog_fails_and_skips_later_checks(self) -> None:
+        client = _client_with(
+            list_clusters=[
+                ClusterSummary(key="cluster-uuid-1", display_name="dev", state="STOPPED")
+            ],
+            catalog_exists=False,
+        )
+        results = run_remote_preflight(
+            client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=True
+        )
+        catalog = results[1]
+        assert catalog.name == "AIDP catalog"
+        assert catalog.status == "FAIL"
+        assert "fusion_catalog" in catalog.detail
+        assert catalog.remediation is not None
+        assert "create" in catalog.remediation.lower()
+        assert [(r.name, r.status) for r in results[2:]] == [
+            ("BICC credential", "SKIP"), ("cluster state", "SKIP"),
+        ]
+        client.check_credential_exists.assert_not_called()
+        client.start_cluster.assert_not_called()
+
+    def test_catalog_lookup_error_does_not_block(self) -> None:
+        """The check exists to turn a late cluster stack trace into an early
+        message; a lookup that errors (not a 404) must not add a new way
+        for a working run to fail."""
+        client = _client_with(
+            list_clusters=_active_cluster_list(),
+            catalog_exists=AidpRestError("HTTP 403 body=not authorized"),
+        )
+        results = run_remote_preflight(client=client, env=_env(), catalog="fusion_catalog")
+        assert results[1].name == "AIDP catalog"
+        assert results[1].status == "PASS"
+        assert "not verified" in results[1].detail
+        assert "403" in results[1].detail
+        assert [r.status for r in results[2:]] == ["PASS", "PASS"]
+
+    def test_no_catalog_argument_keeps_the_three_check_shape(self) -> None:
+        client = _client_with(list_clusters=_active_cluster_list())
+        results = run_remote_preflight(client=client, env=_env())
+        assert [r.name for r in results] == [
+            "AIDP control plane", "BICC credential", "cluster state",
+        ]
+        client.check_catalog_exists.assert_not_called()
+
+    def test_control_plane_failure_skips_catalog_check(self) -> None:
+        client = _client_with(list_clusters=AidpRestError("HTTP 401 body=bad signature"))
+        results = run_remote_preflight(client=client, env=_env(), catalog="fusion_catalog")
+        assert results[0].status == "FAIL"
+        assert all(r.status == "SKIP" for r in results[1:])
+        assert "AIDP catalog" in [r.name for r in results]
+        client.check_catalog_exists.assert_not_called()
+
+
+class TestOptionalLookupsNeverBlockARun:
+    """The catalog lookup and the credential key lookup only sharpen the
+    message for two setup mistakes. Anything short of a definite answer
+    (an ambiguous name, a timeout, a dropped connection) must report
+    "not verified" and let dispatch continue."""
+
+    def test_ambiguous_credential_name_is_not_verified(self) -> None:
+        from oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client import (
+            AmbiguousCredentialError,
+        )
+
+        client = _client_with(
+            list_clusters=_active_cluster_list(),
+            credential_keys=AmbiguousCredentialError(
+                "2 credentials are named 'fusion_bicc_password'"
+            ),
+        )
+        results = run_remote_preflight(client=client, env=_env())
+        assert results[1].status == "PASS"
+        assert "not verified" in results[1].detail
+        assert "2 credentials" in results[1].detail
+
+    @pytest.mark.parametrize(
+        "exc",
+        [requests.exceptions.ReadTimeout("read timed out"),
+         requests.exceptions.ConnectionError("connection reset"),
+         # requests raises some of these without a message; str() is "".
+         requests.exceptions.ReadTimeout()],
+    )
+    def test_transport_error_in_the_key_lookup_is_not_verified(self, exc) -> None:
+        client = _client_with(list_clusters=_active_cluster_list(), credential_keys=exc)
+        results = run_remote_preflight(client=client, env=_env())
+        assert results[1].status == "PASS"
+        assert "not verified" in results[1].detail
+        assert results[2].status == "PASS"
+
+    @pytest.mark.parametrize(
+        "exc",
+        [requests.exceptions.ReadTimeout("read timed out"),
+         requests.exceptions.ConnectionError("connection reset"),
+         requests.exceptions.ConnectionError()],
+    )
+    def test_transport_error_in_the_catalog_lookup_is_not_verified(self, exc) -> None:
+        client = _client_with(list_clusters=_active_cluster_list(), catalog_exists=exc)
+        results = run_remote_preflight(client=client, env=_env(), catalog="fusion_catalog")
+        assert results[1].name == "AIDP catalog"
+        assert results[1].status == "PASS"
+        assert "not verified" in results[1].detail
+        assert [r.status for r in results[2:]] == ["PASS", "PASS"]
+
+
+def _real_client():
+    """A real ``AidpRestClient`` that never touches ``~/.oci/config``."""
+    from oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client import (
+        AidpRestClient,
+    )
+
+    with (
+        patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.oci.config.from_file",
+            return_value={"tenancy": "t", "user": "u", "fingerprint": "f", "key_file": "/tmp/k"},
+        ),
+        patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.oci.signer.Signer",
+            return_value=MagicMock(),
+        ),
+    ):
+        return AidpRestClient(
+            region="us-ashburn-1",
+            aidp_id="ocid1.datalake.oc1.iad.test",
+            workspace_key="wk-123",
+        )
+
+
+def _http_response(status: int, body: dict) -> MagicMock:
+    response = MagicMock(status_code=status, text="{}", url="https://x")
+    response.json.return_value = body
+    return response
+
+
+class TestTransportErrorsAtTheHttpBoundary:
+    """Drive a real client through ``requests.request`` so the test pins
+    what the transport actually raises, not what a mock is told to."""
+
+    @staticmethod
+    def _transport(
+        *, timeout_on: str = "<never>", bare_timeout: bool = False, catalog_response=None
+    ):
+        def fake_request(method, url, **kwargs):
+            if timeout_on in url:
+                if bare_timeout:  # requests sometimes raises these without a message
+                    raise requests.exceptions.ReadTimeout()
+                raise requests.exceptions.ReadTimeout(f"read timed out: {url}")
+            if catalog_response is not None and "/catalogs/" in url:
+                return catalog_response
+            if url.endswith("/clusters"):
+                return _http_response(
+                    200,
+                    {"items": [{"key": "cluster-uuid-1", "displayName": "dev", "state": "ACTIVE"}]},
+                )
+            if "/credentials?" in url:
+                return _http_response(
+                    200,
+                    {"items": [{"displayName": "fusion_bicc_password", "key": "uuid-1"}]},
+                )
+            if "/credentials/uuid-1" in url:
+                return _http_response(
+                    200, {"credentialDetails": {"secretTokenPair": [{"secretKey": "password"}]}}
+                )
+            if "/catalogs/" in url:
+                return _http_response(200, {"displayName": "fusion_catalog"})
+            raise AssertionError(f"unexpected request: {method} {url}")
+
+        return fake_request
+
+    def test_catalog_lookup_timeout_is_not_verified(self) -> None:
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(timeout_on="/catalogs/"),
+        ):
+            results = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )
+        assert [(r.name, r.status) for r in results] == [
+            ("AIDP control plane", "PASS"),
+            ("AIDP catalog", "PASS"),
+            ("BICC credential", "PASS"),
+            ("cluster state", "PASS"),
+        ]
+        assert "not verified" in results[1].detail
+
+    def test_credential_key_lookup_timeout_is_not_verified(self) -> None:
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(timeout_on="/credentials/uuid-1"),
+        ):
+            results = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )
+        assert [r.status for r in results] == ["PASS", "PASS", "PASS", "PASS"]
+        assert "key names not verified" in results[2].detail
+
+    def test_message_less_timeout_is_not_verified(self) -> None:
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(timeout_on="/catalogs/", bare_timeout=True),
+        ):
+            result = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )[1]
+        assert (result.name, result.status) == ("AIDP catalog", "PASS")
+        assert "not verified: ReadTimeout" in result.detail
+
+    def test_permission_ambiguous_catalog_404_is_not_verified(self) -> None:
+        """A 404 without AIDP's "Unknown resource" body may be a catalog this
+        profile cannot see, so it must not stop the run."""
+        hidden = _http_response(
+            404,
+            {
+                "code": "NotAuthorizedOrNotFound",
+                "message": "Authorization failed or requested resource not found.",
+            },
+        )
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(catalog_response=hidden),
+        ):
+            results = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )
+        assert [r.status for r in results] == ["PASS", "PASS", "PASS", "PASS"]
+        assert "not verified" in results[1].detail
+
+    def test_404_naming_another_resource_is_not_verified(self) -> None:
+        """An "Unknown resource" answer about something other than the
+        requested catalog must not be reported as that catalog missing."""
+        other = _http_response(
+            404,
+            {"code": "NotAuthorizedOrNotFound", "message": "Unknown resource: some_other_resource"},
+        )
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(catalog_response=other),
+        ):
+            results = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )
+        assert [r.status for r in results] == ["PASS", "PASS", "PASS", "PASS"]
+        assert "not verified" in results[1].detail
+
+    def test_unknown_catalog_404_fails(self) -> None:
+        missing = _http_response(
+            404,
+            {"code": "NotAuthorizedOrNotFound", "message": "Unknown resource: fusion_catalog"},
+        )
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(catalog_response=missing),
+        ):
+            results = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )
+        assert [(r.name, r.status) for r in results] == [
+            ("AIDP control plane", "PASS"),
+            ("AIDP catalog", "FAIL"),
+            ("BICC credential", "SKIP"),
+            ("cluster state", "SKIP"),
+        ]

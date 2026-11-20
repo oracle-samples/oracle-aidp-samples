@@ -55,6 +55,41 @@ class AidpRestError(RuntimeError):
     """REST call returned a non-success status or unexpected shape."""
 
 
+class AmbiguousCredentialError(AidpRestError):
+    """More than one credential carries the requested display name.
+
+    AIDP does not require credential display names to be unique, and which
+    entry ``aidputils.secrets.get(name=...)`` resolves to is not documented,
+    so no single entry's key names can stand in for that name.
+    """
+
+
+# ``GET /catalogs/<name>`` answers ``404 NotAuthorizedOrNotFound`` for a
+# catalog that does not exist and, by OCI convention, can answer the same for
+# one the caller is not allowed to see. The body for a catalog that does not
+# exist names it, ``Unknown resource: <name>``, echoing the name as requested
+# (observed on API 20260430). Only that body, naming the requested catalog, is
+# read as "missing"; any other 404 as "cannot tell".
+_UNKNOWN_CATALOG_MESSAGE = "Unknown resource: {catalog}"
+
+
+def _is_unknown_catalog_404(response: requests.Response, catalog: str) -> bool:
+    """Whether a 404 body says that ``catalog`` itself does not exist.
+
+    Compared without regard to case, because AIDP resolves catalog names
+    case-insensitively.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    message = body.get("message") if isinstance(body, dict) else None
+    if not isinstance(message, str):
+        return False
+    expected = _UNKNOWN_CATALOG_MESSAGE.format(catalog=catalog)
+    return message.strip().casefold() == expected.casefold()
+
+
 # ---------------------------------------------------------------------------
 # Signer factory
 # ---------------------------------------------------------------------------
@@ -220,6 +255,36 @@ class AidpRestClient:
 
     # ---- Credential store -----------------------------------------------
 
+    def _list_credentials_named(
+        self,
+        display_name: str,
+        *,
+        timeout: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return every credential summary whose ``displayName`` is exactly
+        ``display_name``.
+
+        Uses the list route's exact ``displayName`` filter, so the answer
+        does not depend on paging: an unfiltered list returns a single page
+        (100 entries by default). Names are compared again client-side in
+        case a server ignores the filter. Summaries carry no secret values.
+        """
+        # quote (spaces as %20), not urlencode's default quote_plus: "+" for a
+        # space is a form-encoding convention a server need not apply here.
+        query = urllib.parse.urlencode(
+            {"displayName": display_name}, quote_via=urllib.parse.quote
+        )
+        r = self._request(
+            "GET", f"{self.datalake_base}/credentials?{query}", timeout=timeout
+        )
+        body = self._ok(r, context="list_credentials")
+        items = body.get("items", []) if isinstance(body, dict) else []
+        return [
+            it
+            for it in items
+            if isinstance(it, dict) and it.get("displayName") == display_name
+        ]
+
     def check_credential_exists(
         self,
         display_name: str,
@@ -232,25 +297,101 @@ class AidpRestClient:
         **Per-AIDP scope, NOT per-workspace**. All workspaces under the
         same ``aiDataPlatformId`` share one credential store.
 
-        Implementation note: the per-resource ``GET /credentials/<key>``
-        endpoint expects a UUID, not a display name (it 400s with
-        ``Invalid credentialV2Key`` on names). So this primitive LISTs
-        and walks ``items[]``. Today's tenant has ~2 entries — LIST cost
-        is dominated by network RTT, not body size.
+        The per-resource ``GET /credentials/<key>`` route takes the
+        credential's UUID, not its name (it 400s with
+        ``Invalid credentialV2Key`` on names), so this lists by name instead.
 
-        Future pagination: if AIDP downstream adds a ``nextPage`` token,
-        follow it transparently. No paginated response observed today.
-
-        Raises :class:`AidpRestError` on any non-2xx (transport / IAM /
-        endpoint-shape regression). Distinct from "credential not found"
-        which returns ``False`` cleanly.
+        Raises :class:`AidpRestError` on any non-2xx (IAM / endpoint-shape
+        regression). Distinct from "credential not found", which returns
+        ``False`` cleanly.
         """
+        return bool(self._list_credentials_named(display_name, timeout=timeout))
+
+    def get_credential_key_names(
+        self,
+        display_name: str,
+        *,
+        timeout: int | None = None,
+    ) -> tuple[str, ...]:
+        """Return the key NAMES stored in credential ``display_name``.
+
+        Never returns secret values. The detail route reports
+        ``credentialDetails.secretTokenPair[].secretValue`` as null, and this
+        method reads only ``secretKey`` either way.
+
+        Returns ``()`` when no credential has that display name, or when it
+        holds no key/value pairs (a vault-reference credential, for example).
+
+        Raises :class:`AmbiguousCredentialError` when several credentials
+        share the name, and :class:`AidpRestError` on any non-2xx.
+        """
+        matches = self._list_credentials_named(display_name, timeout=timeout)
+        if not matches:
+            return ()
+        if len(matches) > 1:
+            raise AmbiguousCredentialError(
+                f"{len(matches)} credentials are named {display_name!r}; "
+                "cannot tell which one the cluster reads"
+            )
+        uuid_key = matches[0].get("key")
+        if not isinstance(uuid_key, str) or not uuid_key:
+            return ()
         r = self._request(
-            "GET", f"{self.datalake_base}/credentials", timeout=timeout
+            "GET",
+            f"{self.datalake_base}/credentials/{urllib.parse.quote(uuid_key, safe='')}",
+            timeout=timeout,
         )
-        body = self._ok(r, context="list_credentials")
-        items = body.get("items", []) if isinstance(body, dict) else []
-        return any(it.get("displayName") == display_name for it in items)
+        # Unlike _ok, never echo this body into the error: it is the one
+        # response in the client that can carry secret material.
+        if r.status_code != 200:
+            raise AidpRestError(f"get_credential: HTTP {r.status_code}")
+        try:
+            detail = r.json()
+        except ValueError as exc:
+            raise AidpRestError("get_credential: non-JSON response") from exc
+        details = detail.get("credentialDetails") if isinstance(detail, dict) else None
+        pairs = details.get("secretTokenPair") if isinstance(details, dict) else None
+        if not isinstance(pairs, list):
+            return ()
+        return tuple(
+            p["secretKey"]
+            for p in pairs
+            if isinstance(p, dict) and isinstance(p.get("secretKey"), str)
+        )
+
+    # ---- Catalogs -------------------------------------------------------
+
+    def check_catalog_exists(
+        self,
+        catalog: str,
+        *,
+        timeout: int | None = None,
+    ) -> bool:
+        """Return whether catalog ``catalog`` exists in this AI Data Platform.
+
+        ``False`` only when AIDP says this catalog is unknown (see
+        ``_UNKNOWN_CATALOG_MESSAGE``). Any other 404, including one naming a
+        different resource, may be a catalog this profile cannot see, so it
+        raises :class:`AidpRestError` like every other non-2xx: the caller
+        cannot tell either way. An empty name is ``False`` without a request
+        (``GET /catalogs/`` is the list route).
+        """
+        if not catalog:
+            return False
+        r = self._request(
+            "GET",
+            f"{self.datalake_base}/catalogs/{urllib.parse.quote(catalog, safe='')}",
+            timeout=timeout,
+        )
+        if r.status_code == 404:
+            if _is_unknown_catalog_404(r, catalog):
+                return False
+            raise AidpRestError(
+                "get_catalog: HTTP 404 that does not name the catalog as "
+                "unknown (it may exist but not be visible to this profile)"
+            )
+        self._ok(r, context="get_catalog")
+        return True
 
     def list_clusters(self) -> list[ClusterSummary]:
         r = self._request("GET", f"{self.base}/clusters")

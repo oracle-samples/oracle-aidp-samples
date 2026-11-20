@@ -147,6 +147,16 @@ def _build_runtime_dep_preflight() -> str:
     )
 
 
+def _missing_secret_message(secret_name: str, secret_key: str) -> str:
+    return (
+        f"AIDP credential store returned no value for name={secret_name!r} "
+        f"key={secret_key!r}. Check that the credential {secret_name!r} "
+        f"exists and stores the BICC password under the key {secret_key!r}; "
+        f"if it uses another key, set environments.<env>.biccSecretKey in "
+        f"aidp.config.yaml to that key."
+    )
+
+
 def _build_creds_cell(
     *,
     bundle_yaml: str,
@@ -167,13 +177,17 @@ def _build_creds_cell(
         f"    os.environ[_k] = _v\n"
         f"if _RUNTIME_ENV:\n"
         f'    print("runtime env loaded: " + ", ".join(sorted(_RUNTIME_ENV)))\n'
-        f'os.environ["FUSION_BICC_PASSWORD"] = aidputils.secrets.get(  # noqa: F821\n'
+        f"_bicc_password = aidputils.secrets.get(  # noqa: F821\n"
         f"    name={bicc_secret_name!r}, key={bicc_secret_key!r}\n"
         f")\n"
-        f'assert os.environ["FUSION_BICC_PASSWORD"], (\n'
-        f'    f"AIDP credential store returned empty value for "\n'
-        f'    f"name={bicc_secret_name!r} key={bicc_secret_key!r}"\n'
-        f")\n"
+        # secrets.get returns None for a key the credential does not hold;
+        # check before os.environ, which raises an opaque TypeError on None.
+        f"if not _bicc_password:\n"
+        f"    raise RuntimeError(\n"
+        f"        {_missing_secret_message(bicc_secret_name, bicc_secret_key)!r}\n"
+        f"    )\n"
+        f'os.environ["FUSION_BICC_PASSWORD"] = _bicc_password\n'
+        f"del _bicc_password\n"
         f'print("FUSION_BICC_PASSWORD loaded")\n'
         f'BUNDLE_PATH = Path("bundle.yaml")\n'
         f"BUNDLE_PATH.write_text({bundle_yaml!r})\n"

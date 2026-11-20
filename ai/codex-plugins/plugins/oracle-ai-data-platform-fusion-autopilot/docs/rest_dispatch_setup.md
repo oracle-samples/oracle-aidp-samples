@@ -115,6 +115,12 @@ The notebook's creds-cell calls `aidputils.secrets.get(name=<biccSecretName>, ke
 >
 > The credential store is **per-AIDP / per-data-lake**, NOT per-workspace — all workspaces under the same `aiDataPlatformId` share one store. Operators with multiple workspaces against the same AIDP only need to register the entry once.
 
+The **key** is the name you give the secret value inside the entry. It is separate from the entry's name: an entry named `fusion_bicc_password` can store the password under the key `fusion_bicc_password`, `password`, or anything else, and only the configured `biccSecretKey` is read. The preflight reads the entry's key names (never the values) and fails before dispatch when `biccSecretKey` is not one of them, naming the keys it found. Display names do not have to be unique: if several entries share the name, or the key lookup times out or errors, the key is reported as `not verified` and the run continues. Fix it by setting `biccSecretKey` to the key that holds the password, or by adding a key with that name to the entry.
+
+### 5. AIDP catalog
+
+The catalog named in `bundle.yaml` → `aidp.catalog` (default `fusion_catalog`) must exist before the first `bootstrap` or `run`. Runs create the `bronze` / `silver` / `gold` schemas inside it, but not the catalog itself. Both `bootstrap` and `run` check the catalog exists before anything is dispatched, and stop with `AIDP catalog: catalog '<name>' does not exist` when AIDP's answer names that catalog as unknown. If the lookup cannot give a definite answer (a 404 about another resource, a 404 that may only mean the catalog is not visible to your OCI profile, a timeout, any other error), the check reports `not verified` and the run continues. Both commands print every check before dispatching (`[preflight] PASS AIDP catalog: catalog '<name>' not verified: …`), so an inconclusive lookup is visible.
+
 ## First run
 
 ```bash
@@ -123,6 +129,7 @@ $ aidp-fusion-autopilot run --mode seed --env dev
 [preflight] PASS aidp.config.yaml dispatch coords: all dispatch coords present for env='dev'
 [preflight] PASS OCI profile: session-token profile 'AIDP_SESSION' valid
 [preflight] PASS AIDP control plane: reachable; 2 cluster(s) visible
+[preflight] PASS AIDP catalog: catalog 'fusion_catalog' exists
 [preflight] PASS BICC credential: credential 'fusion_bicc_password' present in AIDP store
 [preflight] PASS cluster state: cluster '...' ACTIVE
 [dispatch] wheel cache hit
@@ -161,6 +168,7 @@ Sample `--dry-run` output (P1.5ε-fix9 lands the laptop-side plan rendering — 
  PASS aidp.config.yaml dispatch coords: all dispatch coords present for env='dev'
  PASS OCI profile: API-key profile 'DEFAULT' loaded
  PASS AIDP control plane: reachable; 8 cluster(s) visible
+ PASS AIDP catalog: catalog '<your-catalog>' exists
  PASS BICC credential: credential '<your-secret-name>' present in AIDP store
  PASS cluster state: cluster '<your-cluster-uuid>' ACTIVE
 dry-run requested — skipping wheel build + upload + dispatch

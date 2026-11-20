@@ -4,6 +4,37 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Fixed — first-run preflight for a missing catalog or a mis-keyed credential
+- **A missing catalog now stops `bootstrap` and `run` before dispatch.** The
+  catalog in `bundle.yaml` → `aidp.catalog` is an admin prerequisite (runs
+  create its bronze/silver/gold schemas, not the catalog). When it was
+  missing, bootstrap built and uploaded the wheel, started a cluster job, and
+  failed with a raw `SCHEMA_NOT_FOUND` stack trace (`AIDPF-2049`). A new
+  `AIDP catalog` preflight check fails in about a second instead, before the
+  cluster is touched, and says to create the catalog.
+- **A credential entry that lacks `biccSecretKey` now fails preflight.** The
+  check only confirmed an entry named `biccSecretName` existed, so an entry
+  storing the password under another key passed, and the cluster notebook
+  then died with `TypeError: str expected, not NoneType`. Preflight now reads
+  the entry's key names (never the values) and fails with the keys it found
+  and the `biccSecretKey` to change. The cluster notebook also checks for a
+  missing secret itself and raises a readable error naming the credential,
+  the key and `biccSecretKey`.
+- **Neither new lookup can fail a run that would succeed.** A catalog fails
+  only when AIDP's 404 names that catalog as unknown; a 404 about another
+  resource or one that may just mean "not visible to this profile", a timeout
+  or any other error reports `not verified`. The key check reports `not
+  verified` when several credentials share the display name (names need not
+  be unique) or when its lookup times out or errors. `run` and `bootstrap`
+  both print every check, so the operator sees which lookup was inconclusive.
+  Credentials are now looked up with the API's exact `displayName` filter,
+  so the existence check no longer depends on the first page of the list.
+- **Bootstrap reports preflight failures instead of crashing.** The
+  `AIDPF-2048` diagnostic rejected the existing `credential_preflight` step,
+  so a missing credential during bootstrap ended in a pydantic
+  `ValidationError`. Both preflight steps are now valid, and the console line
+  names the problem inline.
+
 ### Fixed — `supplier_spend` incremental render (issue #176, part 1)
 - **`gold.supplier_spend` now runs in `--mode incremental`.** Its SQL carried
   `{{ watermark_predicate }}` although the node is a full rebuild
