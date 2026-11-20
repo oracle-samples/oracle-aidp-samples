@@ -57,7 +57,7 @@ DBUTILS_PATTERNS = {
         "pattern": r"dbutils\.credentials\.\w+",
         "severity": "HIGH",
         "description": "IAM role credential passthrough",
-        "migration": "Replace with OCI API key auth (oci.config.from_file('/Workspace/<oci-config-workspace-path>', 'DEFAULT') + oci.signer.Signer). Do NOT use resource principal."
+        "migration": "Replace with OCI API-key auth: fetch credentials from AIDP Credential Store via aidputils.secrets.get('migration_tool_api', key=...) and build oci.signer.Signer with private_key_content=. Do NOT use resource principal."
     },
     "dbutils.data": {
         "pattern": r"dbutils\.data\.\w+",

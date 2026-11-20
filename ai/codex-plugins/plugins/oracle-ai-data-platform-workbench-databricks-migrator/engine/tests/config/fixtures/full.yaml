@@ -1,0 +1,36 @@
+aidp:
+  region: us-phoenix-1
+  lake_ocid: ocid1.aidataplatform.oc1.us-phoenix-1.amaaaaaaexampleexampleexampleexampleexampleexampleexample001
+  workspace_id: 12345678-1234-1234-1234-123456789012
+  oci_profile: PROD
+  default_namespace: exmplnspace1
+paths:
+  migrate_output: /Workspace/customer/output
+  export_output: /Workspace/customer/target
+bucket_mapping:
+  path: mapping.json
+dbx_source:
+  host: https://customer.cloud.databricks.com
+secrets:
+  mlflow_tracking_uri: https://user:pass@mlflow.customer.internal
+  entity_crypto_arn: arn:aws:sts::123456789012:assumed-role/example/session
+  entity_crypto_registrar: com.example.dp.UdfRegistrar
+spark_config:
+  spark.sql.autoBroadcastJoinThreshold: 200m
+  spark.sql.shuffle.partitions: 800
+  spark.sql.execution.arrow.pyspark.selfDestruct.enabled: true
+autoscale_config:
+  spark.aidp.compute.autoscale.executorIdleTimeoutSeconds: 900
+runtime:
+  cell_execute_timeout_s: 7200
+  fix_max_attempts: 5
+  ws_recycle_interval_s: 60
+
+llm:
+  provider: anthropic
+  model: claude-opus-5-5
+
+redirect:
+  bucket: migration_sandbox
+  namespace: exmplnspace1
+  table_prefix: default.migration_sandbox_overwrite

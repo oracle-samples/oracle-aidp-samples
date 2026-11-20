@@ -1,14 +1,42 @@
 """
-context_compactor.py â€” Multi-tier context compaction for OpenAI Responses API tool loops.
+context_compactor.py — Multi-tier context compaction for Claude API tool loops.
 
-Tier 1 (always-on): Tool result truncation â€” saves full result to disk, returns
+Tier 1 (always-on): Tool result truncation — saves full result to disk, returns
                      first 8000 chars with a truncation notice.
 Tier 2 (~500K tokens): Keep first message + last 6 messages, drop middle.
-Tier 3 (~850K tokens): OpenAI summarization â€” replace conversation with a dense
-                        summary. Falls back to Tier 2 if OpenAI call fails.
+Tier 3 (~850K tokens): LLM summarization (the configured model) — replace the
+                        conversation with a dense summary. Falls back to Tier 2 if
+                        the summarization call fails.
 """
 
+import llm_config  # central model/provider config
 import os
+import tempfile
+
+_THINKING_BLOCK_TYPES = ("thinking", "redacted_thinking")
+
+
+def strip_thinking_blocks(messages: list) -> list:
+    """Return a copy of ``messages`` without thinking / redacted_thinking blocks.
+
+    A thinking block's signature is bound to the exact prefix it was produced
+    under (system, tools, every earlier message). Any client-side compaction —
+    dropping middle turns, or replaying the turns under a different system /
+    no tools for a summary — breaks that prefix, and on enforced accounts the
+    API rejects the replayed block with a 400. Text and tool_use blocks stay, so
+    every tool_result still has its tool_use. The input list is not mutated.
+    """
+    stripped = []
+    for message in messages:
+        content = message.get("content")
+        if message.get("role") != "assistant" or not isinstance(content, list):
+            stripped.append(message)
+            continue
+        kept = [b for b in content
+                if (b.get("type") if isinstance(b, dict) else getattr(b, "type", None))
+                not in _THINKING_BLOCK_TYPES]
+        stripped.append(message if len(kept) == len(content) else {**message, "content": kept})
+    return stripped
 import re
 from typing import List, Optional
 
@@ -41,19 +69,50 @@ def validate_output_filename(filename) -> Optional[str]:
 
 
 class ContextCompactor:
-    """Multi-tier context compaction for a single OpenAI Responses tool-call session."""
+    """Multi-tier context compaction for a single Claude API tool-call session."""
 
     TIER2_THRESHOLD = 500_000   # tokens
     TIER3_THRESHOLD = 850_000   # tokens
     TRUNCATE_AT = 8_000         # chars kept from each tool result
 
-    def __init__(self, call_id: str, log_fn=None):
+    def __init__(self, call_id: str, log_fn=None, record_usage=None):
         self._call_id = call_id
         self._log = log_fn if log_fn is not None else print
+        # Called with the Tier-3 response's `usage` so the summary request is
+        # billed in the caller's usage ledger (agent_migrate._record_usage).
+        self._record_usage = record_usage
         self._tool_call_count = 0
-        tmp_root = os.environ.get("AIDP_TMP_DIR", "/tmp")
-        self._base_dir = f"{tmp_root}/aidp_context/{call_id}"
-        os.makedirs(self._base_dir, exist_ok=True)
+        self._base_dir = None
+
+        # AIDP_TMP_DIR can point at a per-migration directory created by a
+        # different cluster user.  Context compaction is optional, so a stale
+        # or inaccessible directory must not abort the entire migration.
+        tmp_root = tempfile.gettempdir()
+        per_user_root = None
+        if hasattr(os, "getuid"):
+            per_user_root = os.path.join(tmp_root, f"aidp_ctx_{os.getuid()}")
+        roots = [
+            os.environ.get("AIDP_TMP_DIR"),
+            "/tmp",
+            per_user_root,
+            tmp_root,
+        ]
+        errors = []
+        for root in dict.fromkeys(root for root in roots if root):
+            candidate = os.path.join(root, "aidp_context", call_id)
+            try:
+                os.makedirs(candidate, exist_ok=True)
+            except OSError as exc:
+                errors.append(f"{candidate}: {exc}")
+                continue
+            self._base_dir = candidate
+            break
+
+        if self._base_dir is None:
+            self._log(
+                "[compaction] WARNING: context-file storage is unavailable; "
+                "continuing without disk-backed compaction. " + "; ".join(errors)
+            )
 
     # ------------------------------------------------------------------
     # Public properties
@@ -64,7 +123,7 @@ class ContextCompactor:
         return self._call_id
 
     # ------------------------------------------------------------------
-    # Tier 1 â€” Tool result truncation
+    # Tier 1 — Tool result truncation
     # ------------------------------------------------------------------
 
     def save_and_truncate(self, tool_name: str, result_str: str) -> str:
@@ -79,12 +138,17 @@ class ContextCompactor:
         self._tool_call_count += 1
 
         filename = f"tool_{n:03d}_{tool_name}.txt"
+        if self._base_dir is None:
+            # Do not claim that output was saved when no writable directory
+            # exists. Returning it intact preserves the migration's context.
+            return result_str
+
         filepath = os.path.join(self._base_dir, filename)
 
         total_len = len(result_str)
 
         if total_len <= self.TRUNCATE_AT:
-            # Short result â€” no need to save to disk, return as-is
+            # Short result — no need to save to disk, return as-is
             return result_str
 
         try:
@@ -96,7 +160,7 @@ class ContextCompactor:
         truncated = result_str[: self.TRUNCATE_AT]
         notice = (
             f"\n... [truncated, {total_len} chars total. "
-            f"Full output saved to {filename} â€” use get_tool_output tool to retrieve]"
+            f"Full output saved to {filename} — use get_tool_output tool to retrieve]"
         )
         return truncated + notice
 
@@ -110,13 +174,13 @@ class ContextCompactor:
         return sum(len(str(m)) for m in messages) // 4
 
     # ------------------------------------------------------------------
-    # Tier 2 â€” Drop middle messages
+    # Tier 2 — Drop middle messages
     # ------------------------------------------------------------------
 
     def _compact_tier2(self, messages: list) -> list:
         """Keep the first message and the last 6 messages, drop everything in between.
 
-        Ensures the OpenAI API constraint that messages must alternate roles is
+        Ensures the Anthropic API constraint that messages must alternate roles is
         maintained: if the last-6 block starts with a user turn (same role as the
         first message), insert a synthetic assistant separator.
         """
@@ -132,55 +196,74 @@ class ContextCompactor:
             f"(keeping first 1 + last 6 of {len(messages)} total)."
         )
 
-        # the model message format expects clean role alternation. If both kept_first[-1] and
+        # Anthropic API requires alternating roles. If both kept_first[-1] and
         # kept_last[0] are "user" turns, the splice would produce [user, user, ...]
         # which the API rejects. Insert a synthetic assistant separator.
         if kept_last[0].get("role") == "user":
-            separator = [{"role": "assistant", "content": "[context trimmed â€” prior tool rounds omitted]"}]
-            return kept_first + separator + kept_last
+            separator = [{"role": "assistant", "content": "[context trimmed — prior tool rounds omitted]"}]
+            kept_last = separator + kept_last
 
-        return kept_first + kept_last
+        # The retained turns' thinking was produced with the dropped turns
+        # present; replaying it after the splice is a 400 on enforced accounts.
+        return strip_thinking_blocks(kept_first + kept_last)
 
     # ------------------------------------------------------------------
-    # Tier 3 â€” OpenAI summarization
+    # Tier 3 — LLM summarization
     # ------------------------------------------------------------------
 
     def _compact_tier3(self, messages: list, system: str = "") -> list:
         """
-        Summarize the conversation with OpenAI model and replace messages with a
+        Summarize the conversation with the configured LLM and replace messages with a
         3-message list: [original_prompt, assistant_summary, continue_prompt].
 
-        Falls back to Tier 2 if the OpenAI call fails.
+        Falls back to Tier 2 if the summarization call fails.
         """
         self._log(
-            f"[compaction/tier3] Attempting OpenAI summarization "
+            f"[compaction/tier3] Attempting LLM summarization "
             f"({self.estimate_tokens(messages):,} estimated tokens, {len(messages)} messages)."
         )
 
         try:
-            from openai_model import generate_text
+            import anthropic  # imported here to avoid hard dependency at module load
 
+            import llm_config
+            client = llm_config.make_client()
             summary_prompt = (
                 "Summarize this conversation for context compaction. This is a migration tool loop where "
-                "an OpenAI model is migrating a Databricks notebook cell to OCI AIDP. Produce a dense summary covering:\n"
+                "Claude is migrating a Databricks notebook cell to OCI AIDP. Produce a dense summary covering:\n"
                 "1. What cell is being migrated (notebook, cell index, what it does)\n"
                 "2. What tools were called and what they returned (key findings only)\n"
                 "3. What errors occurred and what fixes were attempted\n"
                 "4. Current state: what code has been submitted, what's still failing\n"
                 "5. What approaches have NOT been tried yet\n"
-                "Be specific - include actual path names, error messages, variable names. Aim for ~2000 words."
+                "Be specific — include actual path names, error messages, variable names. Aim for ~2000 words."
             )
 
-            summary_text, _ = generate_text(
-                summary_prompt,
-                str(messages),
-                max_tokens=4096,
-                timeout=600,
+            response = client.messages.create(
+                model=llm_config.MODEL,
+                # Thinking is on by default for the Opus-5 family and counts
+                # against max_tokens; 4096 could not hold it plus ~2000 words.
+                max_tokens=llm_config.MAX_TOKENS,
+                system=summary_prompt,
+                # Different system and no tools than the loop's turns were
+                # produced under: their thinking blocks would be rejected.
+                messages=strip_thinking_blocks(messages),
             )
+            if self._record_usage is not None:
+                self._record_usage(response.usage)
+            # Thinking blocks come first on this model family: read the text
+            # blocks. Only end_turn is a complete summary — max_tokens cuts it
+            # off and a refusal is HTTP 200 with partial text — and a partial
+            # summary would silently drop conversation state, so anything else
+            # takes the Tier 2 fallback below.
+            summary_text = "".join(b.text for b in response.content
+                                   if getattr(b, "type", "") == "text").strip()
+            if response.stop_reason != "end_turn" or not summary_text:
+                raise RuntimeError(f"no complete summary (stop_reason={response.stop_reason})")
 
         except Exception as exc:
             self._log(
-                f"[compaction/tier3] OpenAI summarization failed ({exc}); falling back to Tier 2."
+                f"[compaction/tier3] LLM summarization failed ({exc}); falling back to Tier 2."
             )
             return self._compact_tier2(messages)
 
@@ -199,7 +282,7 @@ class ContextCompactor:
                 "role": "user",
                 "content": (
                     "Continue from the summary above. Note: prior tool call results are captured in "
-                    "the summary â€” if you need fresh data from a path or table, re-call the relevant "
+                    "the summary — if you need fresh data from a path or table, re-call the relevant "
                     "tool (explore_path, run_on_cluster, etc.). Use submit_code when ready."
                 ),
             },
@@ -207,7 +290,7 @@ class ContextCompactor:
         return new_messages
 
     # ------------------------------------------------------------------
-    # maybe_compact â€” called before each API call
+    # maybe_compact — called before each API call
     # ------------------------------------------------------------------
 
     def maybe_compact(self, messages: list, system: str = "") -> list:
@@ -215,9 +298,9 @@ class ContextCompactor:
         Inspect the estimated token count and apply the appropriate compaction
         tier, returning the (possibly modified) messages list.
 
-        - Below 500K tokens  â†’ return unchanged
-        - 500Kâ€“850K tokens   â†’ Tier 2 (drop middle)
-        - Above 850K tokens  â†’ Tier 3 (OpenAI summarization, fallback to Tier 2)
+        - Below 500K tokens  → return unchanged
+        - 500K–850K tokens   → Tier 2 (drop middle)
+        - Above 850K tokens  → Tier 3 (LLM summarization, fallback to Tier 2)
         """
         if not messages:
             return messages
@@ -233,7 +316,7 @@ class ContextCompactor:
         return messages
 
     # ------------------------------------------------------------------
-    # get_saved_output â€” retrieve a previously-saved tool result
+    # get_saved_output — retrieve a previously-saved tool result
     # ------------------------------------------------------------------
 
     def list_saved_outputs(self) -> List[str]:
@@ -256,6 +339,9 @@ class ContextCompactor:
         refused with a ``REFUSED_PREFIX`` string and logged. Error strings
         never echo host paths.
         """
+        if self._base_dir is None:
+            return "[context_compactor] Disk-backed context storage is unavailable."
+
         reason = validate_output_filename(filename)
         if reason is not None:
             self._log(f"[compaction] REFUSED get_saved_output({filename!r}): {reason}")

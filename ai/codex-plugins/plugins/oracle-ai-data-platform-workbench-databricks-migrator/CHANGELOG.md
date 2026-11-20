@@ -4,7 +4,98 @@ All notable changes to this plugin are documented here. Format loosely follows [
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-20
+
+Engine re-synchronized with five months of migration-toolkit development AND
+re-adapted to OpenAI for this Codex bundle: model calls go through a
+provider-dispatched client factory (`scripts/llm_config.py: make_client()`),
+with **`openai` as the default provider** routed through
+`scripts/openai_model.py` (an OpenAI Responses adapter) and `anthropic` also
+dispatchable. All plugin-side security hardening from the 0.2.x line is
+carried over (see the carried-detail subsection at the end of this entry).
+
+### Added
+- `engine/dbx_export/` — the canonical Databricks ingestion (3 phases:
+  discover+download → upload → clusters+workflow), with a new
+  `aidp-dbx-export` skill and README section. Dependency resolution is
+  AIDP-first via `paths.lib_repository_dir`.
+- `engine/aidp_config/` — YAML config loader + JSON schema;
+  `--config` discovery (`--config` > `$AIDP_CONFIG_PATH` > `./aidp_migrator.yaml`
+  > `~/aidp_migrator.yaml`) documented across the UX layer; template at
+  `engine/default_aidp_migrator.yaml`. The `llm` block is REQUIRED
+  (`llm.provider` + `llm.model`, no code default); this bundle's template
+  defaults to `provider: openai`, `model: gpt-5.5`.
+- **Provider-dispatched client factory** — `llm_config.make_client()`
+  dispatches `openai` (via `scripts/openai_model.py`: tools, system blocks,
+  tool results and the token ledger mapped onto OpenAI Responses;
+  `output_config.effort` → Responses `reasoning.effort`; transport errors
+  translated for the engine's retry logic) and `anthropic` (unchanged
+  Messages path, needs `ANTHROPIC_API_KEY`). Adapter pinned by
+  `engine/tests/test_openai_model_adapter.py`; `requirements.txt` adds
+  `openai>=1.99.0` alongside the toolkit's `anthropic>=0.125.0,<1.0`.
+- `engine/config/` — compatibility policy, shape limits, writer-wrapper
+  catalog (ships INERT as `writer_wrappers.json.example`), default/target
+  runtime requirements, and a `bucket_map.csv.example` (the real mapping is a
+  deployment artifact, never shipped).
+- Canonical entry points: `build_dag_from_workflow.py` (AIDP Job API,
+  `--job-key`) and `job_migrate_from_workflow.py` (`--config`, per-task
+  clusters from the manifest). `build_dag.py` and direct `job_migrate.py` /
+  `run_migration.sh` invocation are deprecated (library/legacy).
+- Conditional-exit coverage, customization-pack layer, `/tmp` write
+  redirection, strict cell gating, context compaction with provider
+  reasoning-block stripping, WS in-flight recovery with a kernel latch, and
+  ~250 upstream fixes; the engine test suite shipped in `engine/tests/`.
+
+### Changed
+- The write-redirect sandbox (catalog/schema/bucket) is **config-derived**
+  (customer YAML `write_redirect`), no longer built-in: the kernel bootstrap
+  declares the notebook policy only when the redirect is configured, and
+  `build_sandbox_policy_snippet` refuses to fabricate one
+  (`_write_redirect_configured()` is the single gate).
+- The notebook-policy report log is never fetched through a latched main
+  kernel (unknown in-flight outcome): it is skipped, not routed to the kernel.
+- Fix-attempt default is 5 (`AIDP_MAX_FIX_ATTEMPTS`); job-report table gains
+  DataUnavail/Tokens columns and an extended status vocabulary; all skills
+  and references re-verified flag-by-flag against the engine argparse.
+- UX layer (skills, flow skills, references, README) rewritten against the
+  new engine: `~/.aidp-migrator/engine/...` invocation paths (SessionStart
+  staging unchanged), `OPENAI_API_KEY` as the default-provider key,
+  provider-neutral model wording.
+- `requirements.txt` now carries the loader runtime deps (PyYAML, jsonschema)
+  and `packaging` (exporter requirement parsing).
+
+### Removed
+- Private-toolkit dev tooling not meaningful in the plugin:
+  `scripts/ci/policy_gate_checks.py` (+ its test) and the cluster-side probe
+  `scripts/test_jar_functionality.py`.
+- Legacy modules superseded upstream: `aidp_compat/credentials.py`,
+  `glue_compat.py`, `spark_config.py`, `s3_compat.py`,
+  `scripts/upload_migration_dependencies.py`, and the stale `engine/setup.py`
+  (the wheel builds from `aidp_compat/setup.py`).
+- Customer-pack content tests (the pack itself is not distributed; the
+  customization-pack mechanism and its synthetic-fixture tests remain).
+
 ### Security
+- All 0.2.x hardening preserved and re-integrated: the mandatory notebook
+  sandbox gate (`notebook_policy`), runtime SQL guard, `safe_io` runtime
+  assertions, context-compactor filename/path-traversal guards, token-file
+  ingress (`--token-file`, argv redaction, 0600 enforcement with a platform
+  seam), and plaintext-secrets gating.
+- New whole-tree publication guard
+  (`tests/config/test_publication_scrub.py`): every tracked file — tests,
+  fixtures, config, schemas, docs — is scanned for identifier shapes
+  (non-synthetic UUIDs, namespace-shaped tokens, real VCN hosts); a
+  banned-token list is read from AIDP_PUBLICATION_BANLIST (kept OUTSIDE the
+  repository — the list must never ship in any reversible form).
+- The entity-crypto registrar class is a config key
+  (`secrets.entity_crypto_registrar`, or `AIDP_ENTITY_CRYPTO_REGISTRAR`);
+  a config with `entity_crypto_arn` but no registrar is refused, and
+  import/call detection uses one shared regex so injected Scala can never
+  reference a class it did not import.
+- The hardcoded-customer-values ban-list now also forbids the pilot
+  customer's name in any source file, permanently.
+
+### Security — hardening detail carried from the unreleased 0.2.x line
 - Cluster-side dependency resolution no longer installs an import name just because a PyPI
   package of that name exists; only curated mappings are installed and the rest are
   reported for the operator to add explicitly. The generated availability check follows

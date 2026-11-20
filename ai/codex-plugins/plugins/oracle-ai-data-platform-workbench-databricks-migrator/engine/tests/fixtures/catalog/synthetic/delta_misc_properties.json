@@ -1,0 +1,28 @@
+{
+  "name": "table_with_misc_delta_props",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "MANAGED",
+  "data_source_format": "DELTA",
+  "full_name": "main.example_team.table_with_misc_delta_props",
+  "storage_location": "s3://examplehealth-uc-managed-bucket/managed/abc/tables/m",
+  "owner": "test.user@example.com",
+  "comment": "Regression case for catch-all delta prefix scrubbing.",
+  "columns": [
+    {"name": "id", "type_text": "bigint", "type_name": "LONG", "position": 0, "nullable": false},
+    {"name": "name", "type_text": "string", "type_name": "STRING", "position": 1, "nullable": true}
+  ],
+  "properties": {
+    "delta.columnMapping.mode": "name",
+    "delta.columnMapping.maxColumnId": "42",
+    "delta.autoOptimize.optimizeWrite": "true",
+    "delta.autoOptimize.autoCompact": "true",
+    "delta.targetFileSize": "1073741824",
+    "delta.tuneFileSizesForRewrites": "true",
+    "delta.logRetentionDuration": "interval 30 days",
+    "delta.deletedFileRetentionDuration": "interval 7 days",
+    "delta.appendOnly": "true",
+    "delta.randomizeFilePrefixes": "true",
+    "delta.dataSkippingNumIndexedCols": "32"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "kafka_ingest_stream",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "STREAMING_TABLE",
+  "data_source_format": "DELTA",
+  "full_name": "main.example_team.kafka_ingest_stream",
+  "storage_location": "s3://examplehealth-uc-managed-bucket/managed/abc-def-123/tables/st1",
+  "owner": "test.user@example.com",
+  "comment": "Synthetic edge case: STREAMING TABLE — must be flagged unsupported on AIDP",
+  "view_definition": "CREATE STREAMING TABLE kafka_ingest_stream AS SELECT * FROM STREAM read_kafka('events_topic')",
+  "columns": [
+    {"name": "msg_key", "type_text": "string", "type_name": "STRING", "position": 0, "nullable": false},
+    {"name": "msg_value", "type_text": "binary", "type_name": "BINARY", "position": 1, "nullable": true},
+    {"name": "msg_ts", "type_text": "timestamp", "type_name": "TIMESTAMP", "position": 2, "nullable": false},
+    {"name": "partition", "type_text": "int", "type_name": "INT", "position": 3, "nullable": false}
+  ],
+  "properties": {
+    "delta.feature.streamingTable": "supported",
+    "pipelines.streamingTable.refreshSchedule": "*/5 * * * *"
+  },
+  "securable_kind": "TABLE_STREAMING"
+}

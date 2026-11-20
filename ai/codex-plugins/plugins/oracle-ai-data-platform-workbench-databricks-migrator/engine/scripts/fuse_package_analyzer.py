@@ -1,23 +1,24 @@
 """
 AIDP FUSE Package Analyzer
 ============================
-Uses an OpenAI model to analyze installed Python packages for FUSE risk.
+Uses the configured migration LLM (llm_config.MODEL) to analyze installed Python packages for FUSE risk.
 For packages NOT in the built-in fuse_scanner.py FUSE_RISKY_PACKAGES dict.
 
 For each package:
 1. pip show <pkg> to find the installed source location
 2. Read key I/O modules (looking for file open, mmap, sqlite, WAL patterns)
-3. Feed source + prompt to the OpenAI model for FUSE risk analysis
+3. Feed source + prompt to the configured migration LLM for FUSE risk analysis
 4. Return a risk card in FUSE_RISKY_PACKAGES format
-5. Append to $HOME/.aidp-migrator/engine/scripts/fuse_risk_db.json for future scanner use
+5. Append to scripts/fuse_risk_db.json for future scanner use
 
 Usage:
-    python3 $HOME/.aidp-migrator/engine/scripts/fuse_package_analyzer.py --packages econml hyperopt skopt knockknock
-    python3 $HOME/.aidp-migrator/engine/scripts/fuse_package_analyzer.py --packages econml --output /tmp/econml_risk.json
+    python3 scripts/fuse_package_analyzer.py --packages econml hyperopt skopt knockknock
+    python3 scripts/fuse_package_analyzer.py --packages econml --output /tmp/econml_risk.json
 """
 
 from __future__ import annotations
 
+import llm_config  # central model/provider config
 import argparse
 import json
 import os
@@ -26,22 +27,23 @@ import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# OpenAI API client
+# Claude API client
 # ---------------------------------------------------------------------------
 
-def _get_openai_client():
+def _get_anthropic_client():
     try:
-        from openai_model import OpenAIModelCompatClient
+        import anthropic
     except ImportError:
-        print("openai SDK not installed. Run: pip install openai", file=sys.stderr)
+        print("anthropic SDK not installed. Run: pip install anthropic", file=sys.stderr)
         sys.exit(1)
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    key_var = "OPENAI_API_KEY" if llm_config.PROVIDER == "openai" else "ANTHROPIC_API_KEY"
+    api_key = os.environ.get(key_var)
     if not api_key:
-        print("OPENAI_API_KEY not set.", file=sys.stderr)
+        print(f"{key_var} not set.", file=sys.stderr)
         sys.exit(1)
 
-    return OpenAIModelCompatClient(api_key=api_key)
+    return llm_config.make_client(api_key=api_key)
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +125,7 @@ def _collect_io_source(pkg_dir: str, max_chars: int = 40_000) -> str:
 
 
 # ---------------------------------------------------------------------------
-# OpenAI model analysis
+# Claude analysis
 # ---------------------------------------------------------------------------
 
 _ANALYSIS_PROMPT = """You are analyzing a Python package for FUSE filesystem compatibility on OCI AIDP.
@@ -149,7 +151,7 @@ Analyze this package for FUSE risks. Return a JSON object ONLY (no prose) with e
   "reason": "one sentence explaining the FUSE risk",
   "patterns": ["list of regex patterns that detect risky usage in notebook source"],
   "mitigation": "one sentence fix",
-  "import_names": ["list of import aliases users might use, e.g. import lightgbm as lgb â†’ ['lightgbm', 'lgb']"]
+  "import_names": ["list of import aliases users might use, e.g. import lightgbm as lgb → ['lightgbm', 'lgb']"]
 }}
 
 If no FUSE risk, set risk to "NONE" and patterns to [].
@@ -158,7 +160,7 @@ Respond with ONLY the JSON object, no markdown fences, no explanation.
 
 
 def analyze_package(client, package: str) -> dict:
-    """Analyze one package for FUSE risk using OpenAI GPT-5.5."""
+    """Analyze one package for FUSE risk using the configured migration LLM."""
     print(f"  Analyzing {package}...", file=sys.stderr)
 
     pip_info = _pip_show(package)
@@ -167,7 +169,7 @@ def analyze_package(client, package: str) -> dict:
     pkg_dir = _find_package_source(package)
     source = _collect_io_source(pkg_dir) if pkg_dir else ""
     if not source:
-        source = "(source not found â€” analyzing based on package name and pip metadata only)"
+        source = "(source not found — analyzing based on package name and pip metadata only)"
 
     prompt = _ANALYSIS_PROMPT.format(
         package=package,
@@ -176,7 +178,7 @@ def analyze_package(client, package: str) -> dict:
     )
 
     message = client.messages.create(
-        model=os.environ.get("OPENAI_MODEL", "gpt-5.5"),
+        model=llm_config.MODEL,
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -228,30 +230,36 @@ def _save_db(db_path: str, db: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze Python packages for FUSE risk using OpenAI GPT-5.5")
+    parser = argparse.ArgumentParser(description="Analyze Python packages for FUSE risk using the configured LLM")
     parser.add_argument("--packages", nargs="+", required=True,
                         help="Package names to analyze (pip package names)")
     parser.add_argument("--db", default=os.path.join(os.path.dirname(__file__), "fuse_risk_db.json"),
-                        help="Path to fuse_risk_db.json (default: $HOME/.aidp-migrator/engine/scripts/fuse_risk_db.json)")
+                        help="Path to fuse_risk_db.json (default: scripts/fuse_risk_db.json)")
     parser.add_argument("--output", help="Write results JSON to this path (default: stdout)")
     parser.add_argument("--force", action="store_true",
                         help="Re-analyze packages already in the DB")
+    parser.add_argument("--config", default=None,
+                        help="aidp_config YAML path (highest precedence; else "
+                             "$AIDP_CONFIG_PATH / ./aidp_migrator.yaml / ~).")
     args = parser.parse_args()
 
-    client = _get_openai_client()
+    # Standalone entrypoint: resolve the model from YAML (no code default).
+    # --config has highest precedence, matching the documented loader contract.
+    llm_config.ensure_configured(args.config)
+    client = _get_anthropic_client()
     db = _load_db(args.db)
     results = {}
 
     for pkg in args.packages:
         if pkg in db and not args.force:
-            print(f"  {pkg}: already in DB (risk={db[pkg]['risk']}) â€” skipping. Use --force to re-analyze.", file=sys.stderr)
+            print(f"  {pkg}: already in DB (risk={db[pkg]['risk']}) — skipping. Use --force to re-analyze.", file=sys.stderr)
             results[pkg] = db[pkg]
             continue
 
         risk_card = analyze_package(client, pkg)
         db[pkg] = risk_card
         results[pkg] = risk_card
-        print(f"  {pkg}: risk={risk_card['risk']} â€” {risk_card['reason'][:80]}", file=sys.stderr)
+        print(f"  {pkg}: risk={risk_card['risk']} — {risk_card['reason'][:80]}", file=sys.stderr)
 
     _save_db(args.db, db)
     print(f"  DB updated: {args.db} ({len(db)} entries)", file=sys.stderr)

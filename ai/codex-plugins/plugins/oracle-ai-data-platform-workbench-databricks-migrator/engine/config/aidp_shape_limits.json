@@ -1,0 +1,170 @@
+{
+  "_meta": {
+    "method": "Derived from the AIDP create-cluster API's own 400 validation messages ('Valid values are: [...]') via invalid-body probes. To re-verify or add a shape (e.g. gpu.a10) by hand: POST to .../dataLakes/<ocid>/workspaces/<ws>/clusters a normal create body with ocpus=999 -> the 400 lists the valid OCPU counts; then for each valid count POST memoryInGBs=17 -> the 400 lists that count's valid memory values. Every probe 400s and creates nothing. At runtime, the exporter also learns these facts automatically from real create 400s (entries marked 'partial').",
+    "notes": [
+      "GLOBAL table: shape-validation limits were live-probed IDENTICAL across us-ashburn-1, us-phoenix-1, ap-mumbai-1 and ap-tokyo-1 (2026-07-30) \u2014 they are service constants, not regional data. One table serves every region (resolution: --shape-limits-path > AIDP_SHAPE_LIMITS_PATH > this file).",
+      "The API's memory list for 1 OCPU is [8,16,32], but the global memoryInGBs>=16 floor rejects 8; effective list is [16,32]",
+      "gpu.a10 is the GPU shape name observed on real clusters but has no validity table yet \u2014 the exporter passes GPU configs through unvalidated and learns the real limits from the first create 400 (lazy self-heal); to fill it in proactively, use the manual probe recipe in _meta.method on a GPU-enabled instance",
+      "nvidia.gpu.generic was live-REJECTED by the create API; its fixed_combos entry only preserves the platform-doc claim (1 GPU = 15 OCPU, 2 GPU = 30 OCPU)",
+      "Cluster-level bounds: minWorkerCount>=1, maxWorkerCount<=2000, autoTerminationMinutes in [15,44640] (business rule; schema alone claims [5,59940]), sparkVersions: 2.4.4, 3.0.2, 3.0.2_runtime_v2, 3.2.1, 3.5.0"
+    ],
+    "verification": {
+      "amd.generic": {
+        "date": "2026-07-30",
+        "source": "4-region probe (iad/phx/bom/nrt), identical matrices",
+        "status": "verified"
+      },
+      "arm.generic": {
+        "date": "2026-07-30",
+        "source": "4-region probe (iad/phx/bom/nrt), identical matrices",
+        "status": "verified"
+      },
+      "intel.generic": {
+        "date": "2026-07-30",
+        "source": "4-region probe (iad/phx/bom/nrt), identical matrices",
+        "status": "verified"
+      }
+    },
+    "verified_in_regions": [
+      "ap-mumbai-1",
+      "ap-tokyo-1",
+      "us-ashburn-1",
+      "us-phoenix-1"
+    ]
+  },
+  "amd.generic": {
+    "memory_by_ocpu": {
+      "1": [
+        16,
+        32
+      ],
+      "16": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "2": [
+        16,
+        32,
+        64
+      ],
+      "32": [
+        128,
+        256,
+        512
+      ],
+      "4": [
+        32,
+        64,
+        128
+      ],
+      "64": [
+        256,
+        512,
+        1024
+      ],
+      "8": [
+        32,
+        64,
+        128,
+        256
+      ]
+    },
+    "ocpus_valid": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ]
+  },
+  "arm.generic": {
+    "memory_by_ocpu": {
+      "16": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "2": [
+        16,
+        32,
+        64
+      ],
+      "32": [
+        128,
+        256,
+        512
+      ],
+      "4": [
+        32,
+        64,
+        128
+      ],
+      "64": [
+        256,
+        512
+      ],
+      "8": [
+        32,
+        64,
+        128,
+        256
+      ]
+    },
+    "ocpus_valid": [
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ]
+  },
+  "intel.generic": {
+    "memory_by_ocpu": {
+      "1": [
+        16,
+        32
+      ],
+      "16": [
+        64,
+        128,
+        256,
+        512
+      ],
+      "2": [
+        16,
+        32,
+        64
+      ],
+      "32": [
+        128,
+        256,
+        512
+      ],
+      "4": [
+        32,
+        64,
+        128
+      ],
+      "8": [
+        32,
+        64,
+        128,
+        256
+      ]
+    },
+    "ocpus_valid": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ]
+  }
+}

@@ -17,23 +17,23 @@ from datetime import datetime, timedelta, timezone
 import oci
 import requests
 
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = os.environ.get("AIDP_DATALAKE", "")
-WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
-DEFAULT_CLUSTER = os.environ.get("AIDP_CLUSTER", "")
-OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 
 
 def get_signer():
-    config = oci.config.from_file(profile_name=OCI_PROFILE)
-    return oci.signer.Signer(
-        tenancy=config["tenancy"], user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-    )
+    # Single auth source: oci_auth (Credential Store on-cluster → config file on laptop).
+    from oci_auth import get_oci_signer as _shared
+    _, signer = _shared(OCI_PROFILE)
+    return signer
 
 
-def fetch_logs(cluster_id: str = DEFAULT_CLUSTER,
+def fetch_logs(cluster_id: str,
                minutes_back: int = 60,
                log_level: str = "error",
                subject: str = "spark-driver",
@@ -83,7 +83,8 @@ def extract_python_errors(logs: dict) -> list:
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch AIDP Spark logs")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
+    parser.add_argument("--cluster", required=True,
+                        help="AIDP cluster ID (required — no default)")
     parser.add_argument("--last", type=int, default=60, help="Minutes to look back")
     parser.add_argument("--level", default="error", choices=["error", "warn", "info"])
     parser.add_argument("--raw", action="store_true", help="Show raw JSON")

@@ -17,11 +17,42 @@ DST = os.path.join(DST_ROOT, "engine")
 SKIP_DIRS = {"__pycache__", ".pytest_cache", ".git", "reports", "env"}
 
 
+def _prune(src: str, dst: str) -> int:
+    """Remove staged files/dirs that no longer exist in the bundled engine, so an
+    upgrade never leaves a deleted or renamed module importable from the old
+    staging (e.g. 0.2.x scripts removed in 0.3.0)."""
+    removed = 0
+    if not os.path.isdir(dst):
+        return 0
+    for root, dirs, files in os.walk(dst, topdown=False):
+        rel = os.path.relpath(root, dst)
+        src_root = src if rel == "." else os.path.join(src, rel)
+        for name in files:
+            if name.endswith(".pyc"):
+                continue
+            if not os.path.exists(os.path.join(src_root, name)):
+                try:
+                    os.remove(os.path.join(root, name))
+                    removed += 1
+                except OSError:
+                    pass
+        if rel != "." and not os.path.isdir(src_root):
+            try:
+                shutil.rmtree(root)
+                removed += 1
+            except OSError:
+                pass
+    return removed
+
+
 def stage():
     if not os.path.isdir(SRC):
         print(f"[aidp-migrator] bundled engine not found at {SRC}", file=sys.stderr)
         return False
     os.makedirs(DST, exist_ok=True)
+    pruned = _prune(SRC, DST)
+    if pruned:
+        print(f"[aidp-migrator] pruned {pruned} stale staged file(s) from {DST}")
     for root, dirs, files in os.walk(SRC):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         rel = os.path.relpath(root, SRC)

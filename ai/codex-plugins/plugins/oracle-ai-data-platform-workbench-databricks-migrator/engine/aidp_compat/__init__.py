@@ -1,43 +1,41 @@
 """
 AIDP Compatibility Layer for Databricks
 =========================================
-Complete drop-in replacement for Databricks-specific APIs on OCI AIDP (Spark 3.5).
+Drop-in replacement for the parts of Databricks that AIDP does NOT provide
+natively. Modules covered here:
 
-Provides:
-- dbutils.fs       -> OCI Object Storage / HDFS operations
-- dbutils.secrets  -> OCI Vault secrets (plaintext fallbacks only with AIDP_ALLOW_PLAINTEXT_SECRETS=1)
-- dbutils.widgets  -> Environment variables / notebook parameters
-- dbutils.notebook -> Notebook orchestration (every cell passes the notebook_policy sandbox gate)
-- notebook_policy  -> Mandatory sandbox (AIDP_SANDBOX_CATALOG/SCHEMA/PREFIX) + AST gate + policy log
-- dbutils.jobs     -> Job parameters via environment variables
-- display()        -> DataFrame/visualization display
-- sql()            -> %sql magic replacement
-- translate_path() -> DBFS/S3/mount path translation to OCI
+- dbutils.fs         -> OCI Object Storage / HDFS operations (no AIDP native)
+- dbutils.notebook.entry_point.getContext() mock  (no AIDP native)
+- translate_path()   -> DBFS/S3/mount path translation to OCI
+- oci_throttle       -> 429 hardening for large parallel migrations
+- bucket_shard       -> S3→OCI bucket routing
+- entity_crypto             -> entity-crypto entity_decrypt/encrypt ARN registration
+- budget, cost_observability -> Migration-run cost tracking
+- notebook_policy    -> Mandatory sandbox (AIDP_SANDBOX_CATALOG/SCHEMA/PREFIX) + AST gate + policy log
 
-Usage in migrated notebooks:
-    # Full import (recommended at top of every migrated notebook)
-    from aidp_compat import dbutils, display, displayHTML, sql, translate_path
+Parts of Databricks that AIDP DOES provide natively (and hence NOT wrapped
+here anymore):
+- display()          -> AIDP-native for Spark DataFrames. For pandas DataFrames
+                        use IPython.display.display (already available as
+                        `Idisplay` in the migration bootstrap) or leave the
+                        DataFrame as the last expression (Jupyter auto-renders).
+                        aidp_compat does NOT re-export display — the migrator
+                        emits IPython-native patterns instead.
+- %sql cell magic    -> native Jupyter kernel magic
+- dbutils.widgets    -> aidputils.widgets
+- dbutils.secrets.get-> aidputils.secrets.get
+- dbutils.notebook.run/exit -> aidputils.notebook.run/exit
+  (Opus prompts rewrite call sites to use aidputils.* directly.)
 
-    # The above makes these globally available, matching Databricks behavior
+Usage in migrated notebooks (as injected by the migration bootstrap):
+    from aidp_compat import dbutils, translate_path
 """
 
 from aidp_compat.dbutils_shim import DBUtils
-from aidp_compat.display import display, displayHTML
-from aidp_compat.sql_magic import sql
 from aidp_compat.path_translator import translate_path, PathTranslator
-from aidp_compat.safe_io import (
-    safe_pickle_dump, safe_pickle_load,
-    safe_write_parquet, safe_save_as_table,
-    safe_read_modify_write_parquet, safe_pandas_to_csv,
-    safe_materialize, safe_unpersist, safe_read_file,
-    load_saved_model_from_volumes,
-    safe_joblib_dump, safe_joblib_load,
-    safe_write_parquet_coalesced, safe_save_as_table_coalesced,
-)
+from aidp_compat import dbfs_open_hook as _dbfs_open_hook
+_dbfs_open_hook.install()  # idempotent — /dbfs/* open() fallback to /Volumes
 from aidp_compat.optuna_compat import safe_optuna_create_study, finalize_optuna_study
-from aidp_compat.glue_compat import get_glue_table_s3_location
-from aidp_compat.s3_compat import read_s3_object, write_s3_object
-from aidp_compat.notebook import set_notebook_dir
 from aidp_compat.notebook_policy import (
     SandboxPolicy,
     PolicyViolation,
@@ -51,39 +49,26 @@ from aidp_compat.oci_throttle import (
     tune_for_parallel_migration,
 )
 from aidp_compat.bucket_shard import BucketRouter, parse_oci_uri
+from aidp_compat.entity_crypto import ensure_entity_crypto_arn
+# NOTE: set_notebook_dir is a utility for the forthcoming artifact
+# bootstrap — the migrator does NOT yet inject it into saved artifacts;
+# it only takes effect when a notebook calls it manually.
+from aidp_compat.notebook import set_notebook_dir
+from aidp_compat import budget, cost_observability
 
 # Global dbutils instance - mimics Databricks behavior
 dbutils = DBUtils()
 
-__version__ = "0.5.0"
+# Single source of truth for the aidp_compat version. Both setup.py (build)
+# and scripts/cluster_lifecycle.py (target wheel path resolution) read this.
+__version__ = "0.5.13"
 __all__ = [
     "dbutils",
     "DBUtils",
-    "display",
-    "displayHTML",
-    "sql",
     "translate_path",
     "PathTranslator",
-    "safe_pickle_dump",
-    "safe_pickle_load",
-    "safe_write_parquet",
-    "safe_save_as_table",
-    "safe_write_parquet_coalesced",
-    "safe_save_as_table_coalesced",
-    "safe_read_modify_write_parquet",
-    "safe_pandas_to_csv",
-    "safe_materialize",
-    "safe_unpersist",
-    "safe_read_file",
-    "load_saved_model_from_volumes",
-    "safe_joblib_dump",
-    "safe_joblib_load",
     "safe_optuna_create_study",
     "finalize_optuna_study",
-    "get_glue_table_s3_location",
-    "read_s3_object",
-    "write_s3_object",
-    "set_notebook_dir",
     "SandboxPolicy",
     "PolicyViolation",
     "SandboxUndeclaredError",
@@ -94,4 +79,8 @@ __all__ = [
     "tune_for_parallel_migration",
     "BucketRouter",
     "parse_oci_uri",
+    "ensure_entity_crypto_arn",
+    "set_notebook_dir",
+    "budget",
+    "cost_observability",
 ]

@@ -48,9 +48,11 @@ def _usage_value(usage: Any, name: str, default: int = 0) -> int:
 
 def usage_dict(response: Any) -> Dict[str, int]:
     usage = getattr(response, "usage", None)
+    details = getattr(usage, "input_tokens_details", None)
     return {
         "input": _usage_value(usage, "input_tokens"),
         "output": _usage_value(usage, "output_tokens"),
+        "cached": _usage_value(details, "cached_tokens"),
     }
 
 
@@ -85,14 +87,20 @@ def responses_create(
     tools: Optional[List[Dict[str, Any]]] = None,
     max_tokens: Optional[int] = None,
     timeout: Optional[float] = None,
+    effort: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> Any:
     client = openai_client()
     call_client = client.with_options(timeout=timeout) if timeout else client
     kwargs = _response_create_kwargs(max_tokens=max_tokens)
+    if effort:
+        kwargs["reasoning"] = {"effort": effort}
     if tools is not None:
         kwargs["tools"] = tools
+    # Per-call model (= the schema-validated llm.model from YAML) is honored;
+    # the OPENAI_MODEL env var remains an explicit operator override.
     return call_client.responses.create(
-        model=OPENAI_MODEL,
+        model=os.environ.get("OPENAI_MODEL") or model or OPENAI_MODEL,
         instructions=instructions or None,
         input=input,
         **kwargs,
@@ -113,6 +121,60 @@ def generate_text(
         timeout=timeout,
     )
     return response_text(response), usage_dict(response)
+
+
+def _system_text(system: Any) -> Optional[str]:
+    """v0.3.0 sends system as a LIST of text blocks carrying cache_control
+    markers; OpenAI Responses takes one instructions string. Join the text and
+    drop the markers (Responses manages caching server-side)."""
+    if system is None or isinstance(system, str):
+        return system
+    if isinstance(system, list):
+        parts = []
+        for block in system:
+            if isinstance(block, dict):
+                parts.append(str(block.get("text", "")))
+            else:
+                parts.append(str(getattr(block, "text", block)))
+        return "\n\n".join(p for p in parts if p)
+    return str(system)
+
+
+def _strip_cache_control(block: Any) -> Any:
+    if isinstance(block, dict) and "cache_control" in block:
+        return {k: v for k, v in block.items() if k != "cache_control"}
+    return block
+
+
+def _tool_result_text(content: Any) -> str:
+    """tool_result content may be a plain string or a list of text blocks."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            str(b.get("text", "")) if isinstance(b, dict) else str(getattr(b, "text", b))
+            for b in content
+        )
+    return str(content)
+
+
+def _translate_error(exc: Exception) -> Exception:
+    """Map OpenAI SDK transport errors onto the Anthropic exception types the
+    engine's retry logic isinstance-checks, so transient handling keeps working
+    under the openai provider. Status errors pass through: the 529/overloaded
+    retry matches on the exception STRING, which repr()s fine either way."""
+    try:
+        import openai as _openai
+        import anthropic as _anthropic
+        import httpx as _httpx
+    except ImportError:
+        return exc
+    req = getattr(exc, "request", None) or _httpx.Request("POST", "https://api.openai.com/v1/responses")
+    if isinstance(exc, getattr(_openai, "APITimeoutError", ())):
+        return _anthropic.APITimeoutError(request=req)
+    if isinstance(exc, getattr(_openai, "APIConnectionError", ())):
+        return _anthropic.APIConnectionError(message=str(exc), request=req)
+    return exc
 
 
 def openai_tools_from_legacy(tools: Optional[Iterable[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
@@ -138,6 +200,11 @@ class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     thinking_tokens: int = 0
+    # The v0.3.0 token ledger reads the Anthropic cache fields; OpenAI Responses
+    # reports cached input under usage.input_tokens_details.cached_tokens, which
+    # we surface as cache reads (writes have no OpenAI equivalent -> 0).
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 @dataclass
@@ -155,7 +222,8 @@ class CompatResponse:
     def __init__(self, response: Any):
         self._response = response
         usage = usage_dict(response)
-        self.usage = Usage(input_tokens=usage["input"], output_tokens=usage["output"])
+        self.usage = Usage(input_tokens=usage["input"], output_tokens=usage["output"],
+                           cache_read_input_tokens=usage.get("cached", 0))
         self.content = self._content_blocks(response)
         self.stop_reason = "tool_use" if any(b.type == "tool_use" for b in self.content) else "end_turn"
 
@@ -236,11 +304,15 @@ class CompatMessages:
                         {
                             "type": "function_call_output",
                             "call_id": block.get("tool_use_id"),
-                            "output": block.get("content", ""),
+                            "output": _tool_result_text(block.get("content", "")),
                         }
                     )
+                elif isinstance(block, dict) and block.get("type") == "text":
+                    converted.append({"type": "output_text", "text": str(block.get("text", ""))})
+                elif isinstance(block, dict) and block.get("type") in ("thinking", "redacted_thinking"):
+                    continue  # provider-internal; never replayed
                 else:
-                    converted.append(block)
+                    converted.append(_strip_cache_control(block))
             return converted
         return str(content)
 
@@ -262,6 +334,8 @@ class CompatMessages:
                 for item in cls._convert_content(content):
                     if isinstance(item, dict) and item.get("type") == "function_call_output":
                         converted.append(item)
+                    elif isinstance(item, dict) and item.get("type") in ("output_text", "text"):
+                        converted.append({"role": "user", "content": str(item.get("text", ""))})
                     else:
                         converted.append({"role": "user", "content": str(item)})
             else:
@@ -269,15 +343,25 @@ class CompatMessages:
         return converted
 
     def create(self, *, model: str, max_tokens: Optional[int] = None, timeout: Optional[float] = None,
-               system: Optional[str] = None, messages: Optional[List[Dict[str, Any]]] = None,
-               tools: Optional[List[Dict[str, Any]]] = None, **_: Any) -> CompatResponse:
-        response = responses_create(
-            instructions=system,
-            input=self._convert_messages(messages or []),
-            tools=openai_tools_from_legacy(tools),
-            max_tokens=max_tokens,
-            timeout=timeout,
-        )
+               system: Any = None, messages: Optional[List[Dict[str, Any]]] = None,
+               tools: Optional[List[Dict[str, Any]]] = None,
+               output_config: Optional[Dict[str, Any]] = None, **_: Any) -> CompatResponse:
+        # `thinking`, `tool_choice` and cache_control markers arrive via **_ /
+        # block fields and are intentionally absorbed: Responses reasons by
+        # default, and output_config.effort maps onto reasoning effort below.
+        effort = (output_config or {}).get("effort")
+        try:
+            response = responses_create(
+                instructions=_system_text(system),
+                input=self._convert_messages(messages or []),
+                tools=openai_tools_from_legacy(tools),
+                max_tokens=max_tokens,
+                timeout=timeout,
+                effort=effort,
+                model=model,
+            )
+        except Exception as exc:  # translate transport errors for the engine's retry logic
+            raise _translate_error(exc) from exc
         return CompatResponse(response)
 
     def stream(self, **kwargs: Any) -> CompatStream:

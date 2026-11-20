@@ -6,11 +6,11 @@
 
 ## Summary
 
-This plugin **does not collect, store, transmit, or share any user data**. It ships Markdown skills, reference docs, and a bundled Python migration engine that runs locally under your Codex environment. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy, **your own** Databricks workspace, and **your own** OpenAI API key.
+This plugin **does not collect, store, transmit, or share any user data**. It ships Markdown skills, reference docs, and a bundled Python migration engine that runs locally under your Codex environment. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy, **your own** Databricks workspace, and **your own** model-provider API key (OpenAI by default; Anthropic optional).
 
 ## What the plugin ships
 
-- **16 SKILL.md** files (Markdown with frontmatter).
+- **17 SKILL.md** files (Markdown with frontmatter).
 - **5 reference docs** (Markdown - DDL rewrite rules, gotchas, env-coords scaffold, JOB_REPORT.md format, CLI map).
 - **Bundled Python engine** under `engine/`, staged by the SessionStart hook to `~/.aidp-migrator/engine`.
 
@@ -30,7 +30,7 @@ All of this is under your own credentials, against your own infrastructure, **wi
 ## What the plugin does NOT do
 
 - **No telemetry.** The plugin sends nothing to the author or to any third party. No analytics, no error reporting, no usage metrics.
-- **No credential collection.** OCI authentication, Databricks PATs, and OpenAI API keys are read from your local environment by the migrator scripts. The plugin's SKILL Markdown files cannot collect or transmit them.
+- **No credential collection.** OCI authentication, Databricks PATs, and model-provider API keys (OPENAI_API_KEY by default; ANTHROPIC_API_KEY for the alternative provider) are read from your local environment by the migrator scripts. The plugin's SKILL Markdown files cannot collect or transmit them.
 - **No phone-home.** The skills make no outbound calls to the author. Every network call goes to **your** Databricks workspace, **your** AIDP REST endpoint, and **your** model provider under **your** key.
 
 ## Data flow
@@ -38,7 +38,7 @@ All of this is under your own credentials, against your own infrastructure, **wi
 ```
 You (Codex CLI) → plugin skill
                 → bundled migrator CLI (Python, staged locally)
-                → YOUR Databricks workspace + YOUR AIDP tenancy + OpenAI (your key)
+                → YOUR Databricks workspace + YOUR AIDP tenancy + your model provider (your key)
 ```
 
 There is no party between you and your infrastructure. The plugin author has no visibility into any of it.

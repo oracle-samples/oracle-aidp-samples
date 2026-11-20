@@ -1,0 +1,23 @@
+{
+  "name": "partition_reverse_order",
+  "catalog_name": "main",
+  "schema_name": "example_team",
+  "table_type": "MANAGED",
+  "data_source_format": "DELTA",
+  "full_name": "main.example_team.partition_reverse_order",
+  "storage_location": "s3://examplehealth-uc-managed-bucket/managed/abc/tables/x",
+  "owner": "test.user@example.com",
+  "comment": "Regression case: partition_index order != column position order. region (position 1) is partition #0; year (position 5) is partition #1. Correct DDL must be PARTITIONED BY (region, year), NOT (year, region).",
+  "columns": [
+    {"name": "event_id", "type_text": "string", "type_name": "STRING", "position": 0, "nullable": false},
+    {"name": "region", "type_text": "string", "type_name": "STRING", "position": 1, "nullable": false, "partition_index": 0},
+    {"name": "amount", "type_text": "decimal(10,2)", "type_name": "DECIMAL", "position": 2, "nullable": true},
+    {"name": "customer_id", "type_text": "string", "type_name": "STRING", "position": 3, "nullable": false},
+    {"name": "event_ts", "type_text": "timestamp", "type_name": "TIMESTAMP", "position": 4, "nullable": false},
+    {"name": "year", "type_text": "int", "type_name": "INT", "position": 5, "nullable": false, "partition_index": 1}
+  ],
+  "properties": {
+    "delta.minReaderVersion": "1",
+    "delta.minWriterVersion": "2"
+  }
+}

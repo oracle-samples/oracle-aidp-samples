@@ -7,7 +7,7 @@ Output: a catalog_pack.json with the per-table descriptors needed by
 migrate_catalog.py to reconstruct AIDP DDL.
 
 Usage:
-    python $HOME/.aidp-migrator/engine/scripts/extract_catalog_databricks.py \
+    python scripts/extract_catalog_databricks.py \
         --host https://workspace.cloud.databricks.com \
         --token-file ~/.databricks/token \
         --catalogs samples,main \
@@ -127,6 +127,12 @@ def _file_mode(path: Path) -> int:
     return path.stat().st_mode & 0o777
 
 
+def _default_enforce_mode() -> bool:
+    """POSIX enforces the 0600 rule; Windows reports 0666 for every ordinary
+    file regardless of its ACL, so the check is skipped there with a note."""
+    return os.name != "nt"
+
+
 def read_token_file(path: str | None, *, enforce_mode: bool | None = None) -> str:
     """Return the token held in *path* (first line, stripped), or ``""`` when
     no path was given.
@@ -143,7 +149,7 @@ def read_token_file(path: str | None, *, enforce_mode: bool | None = None) -> st
         return ""
     p = Path(path).expanduser()
     if enforce_mode is None:
-        enforce_mode = os.name != "nt"
+        enforce_mode = _default_enforce_mode()
     try:
         if enforce_mode:
             mode = _file_mode(p)

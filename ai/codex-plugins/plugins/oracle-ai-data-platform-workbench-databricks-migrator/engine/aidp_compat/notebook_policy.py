@@ -17,7 +17,7 @@ Two pieces:
    environment::
 
        AIDP_SANDBOX_CATALOG=default
-       AIDP_SANDBOX_SCHEMA=migration_sandbox
+       AIDP_SANDBOX_SCHEMA=<sandbox-schema>
        AIDP_SANDBOX_PREFIX=oci://sandbox-bucket@namespace/migration/,/tmp/
        AIDP_SANDBOX_ALLOW_NETWORK=0          # optional, default off
 

@@ -1,0 +1,400 @@
+# AIDP workload-cluster Python compatibility policy.
+#
+# This file is applied while each cluster's single consolidated requirements
+# file is generated. Package names follow PEP 503 normalization, so underscores
+# and hyphens are equivalent.
+schema_version: 1
+
+# These versions are required by the AIDP notebook/kernel runtime. They replace
+# workload-provided pins so an exported dependency cannot break kernel-to-driver
+# communication.
+protected_packages:
+  typing-extensions: "==4.16.0"
+  # pandas/numpy: the migration profile installs these exact versions
+  # (config/default_requirements.txt — PyArrow/.toPandas() compatibility;
+  # numpy shadowing broke kernels in the manual-pip _ARRAY_API incident).
+  # A workload pin never changes them: it is REPLACED and reported in the
+  # consolidated file's header. Note this supersedes the flexibility the
+  # target_runtime_requirements.txt ranges allowed pip — if a workload
+  # package genuinely requires a different numpy/pandas, the single-
+  # transaction pip resolve fails visibly and this policy gets a reviewed
+  # rule (operator decision 2026-09-09: installed versions must not change).
+  numpy: "==1.26.4"
+  pandas: "==2.2.3"
+  # Ray must stay identical across the notebook driver, head, and workers.
+  # Replace workload pins/extras so the generated requirement is deterministic.
+  ray: "==2.55.0"
+
+# Packages the AIDP runtime ships with PLATFORM INTEGRATION. Every workload
+# pin — including conflicting pins across sources (the export-blocking
+# two-version incident, 2026-09-09) — collapses to the bare package name, so
+# pip judges the runtime's integrated version satisfied and leaves it alone.
+# Installing a pinned version over a runtime-integrated package shadows the
+# platform copy (the manual-pip numpy _ARRAY_API incident class). Keep this
+# list NARROW and explicit: unlisted packages keep customer pins verbatim
+# (e.g. xgboost — the model file requires the exact training version).
+# SUPERSEDING DECISION (2026-09-16, PR #109): unlisted packages with CONFLICTING
+# exact pins are consolidated highest-wins (never block cluster creation; the
+# collapse is recorded in the export report as requirements-conflict). This
+# reverses the earlier 2026-09-09 (#88) "unlisted conflicting pins fail loudly"
+# decision, which blocked multi-task per_task jobs on a duplicated read. An
+# exact pin that a co-asserted range/exclusion forbids is KEPT (pin-override,
+# reported). Only unsatisfiable PURE-range combinations (no pin to override
+# with), conflicting pins across overlapping markers, and conflicting === pins
+# still fail loudly.
+# NOTE: pandas/numpy do NOT belong here — they are deliberately constrained
+# by config/default_requirements.txt + config/target_runtime_requirements.txt
+# (PyArrow/.toPandas() compatibility profile).
+runtime_provided_packages:
+  - mlflow
+
+# Conservative export-time import audit. Only these reviewed mappings may
+# create a workload requirement; every other third-party import is reported.
+# Keep version pins here only when backed by a target-runtime compatibility
+# contract. These mappings are intentionally unpinned otherwise.
+import_to_distribution:
+  # The protected-package rule above supplies Ray 2.55 and replaces any
+  # conflicting source pin or extras declaration.
+  ray: ray
+  matplotlib: matplotlib
+  seaborn: seaborn
+  PIL:
+    requirement: Pillow
+    # pillow-simd supplies the same PIL namespace and must take precedence when
+    # the customer selected it explicitly.
+    aliases:
+      - pillow-simd
+  sklearn: scikit-learn
+  dateutil: python-dateutil
+  joblib: joblib
+  pytz: pytz
+  cv2:
+    requirement: opencv-python
+    # OpenCV explicitly requires one provider variant per environment.
+    aliases:
+      - opencv-python-headless
+      - opencv-contrib-python
+      - opencv-contrib-python-headless
+  yaml: PyYAML
+  bs4: beautifulsoup4
+  attr: attrs
+
+# Python roots already supplied by AIDP, Spark, or the migration runtime.
+# runtime_provided_packages above is also folded into this set by the audit.
+provided_imports:
+  - IPython
+  - aidp_compat
+  - aidp_dbutils
+  - aidputils
+  - dbutils
+  - nbformat
+  - oci
+  - oidlUtils
+  - py4j
+  - pyspark
+  - spark
+
+# Scala/Java import roots can appear in default-language notebook cells. They
+# are JVM namespaces, never Python distributions.
+jvm_roots:
+  - com
+  - io
+  - java
+  - javax
+  - net
+  - org
+  - scala
+
+# Python 3.9 does not expose sys.stdlib_module_names. This reviewed fallback
+# keeps the audit behavior consistent with supported 3.9+ exporter hosts.
+stdlib_imports:
+  - __future__
+  - abc
+  - argparse
+  - array
+  - ast
+  - asyncio
+  - base64
+  - bisect
+  - builtins
+  - cmath
+  - code
+  - codeop
+  - collections
+  - concurrent
+  - configparser
+  - contextlib
+  - copy
+  - csv
+  - ctypes
+  - dataclasses
+  - datetime
+  - decimal
+  - dis
+  - doctest
+  - email
+  - enum
+  - fractions
+  - functools
+  - getopt
+  - glob
+  - gzip
+  - hashlib
+  - heapq
+  - html
+  - http
+  - importlib
+  - inspect
+  - io
+  - itertools
+  - json
+  - logging
+  - math
+  - mmap
+  - multiprocessing
+  - operator
+  - os
+  - pathlib
+  - pdb
+  - pickle
+  - platform
+  - pprint
+  - profile
+  - queue
+  - random
+  - re
+  - secrets
+  - select
+  - selectors
+  - shelve
+  - shutil
+  - signal
+  - socket
+  - sqlite3
+  - ssl
+  - statistics
+  - string
+  - struct
+  - subprocess
+  - sys
+  - syslog
+  - tempfile
+  - textwrap
+  - threading
+  - time
+  - timeit
+  - tomllib
+  - traceback
+  - types
+  - typing
+  - unittest
+  - urllib
+  - uuid
+  - warnings
+  - weakref
+  - xml
+  - zipfile
+
+  # Remaining public Python 3.11 standard-library roots. Keep this explicit so
+  # exporters running on Python 3.9 do not depend on the host interpreter's
+  # incomplete fallback surface.
+  - aifc
+  - antigravity
+  - asynchat
+  - asyncore
+  - atexit
+  - audioop
+  - bdb
+  - binascii
+  - bz2
+  - calendar
+  - cgi
+  - cgitb
+  - chunk
+  - cmd
+  - codecs
+  - colorsys
+  - compileall
+  - contextvars
+  - copyreg
+  - crypt
+  - cProfile
+  - curses
+  - dbm
+  - difflib
+  - distutils
+  - encodings
+  - ensurepip
+  - errno
+  - faulthandler
+  - fcntl
+  - filecmp
+  - fileinput
+  - fnmatch
+  - ftplib
+  - gc
+  - genericpath
+  - getpass
+  - gettext
+  - graphlib
+  - grp
+  - hmac
+  - idlelib
+  - imaplib
+  - imghdr
+  - imp
+  - ipaddress
+  - keyword
+  - linecache
+  - locale
+  - lzma
+  - mailbox
+  - mailcap
+  - marshal
+  - mimetypes
+  - modulefinder
+  - msilib
+  - msvcrt
+  - netrc
+  - nis
+  - nntplib
+  - nt
+  - ntpath
+  - nturl2path
+  - numbers
+  - opcode
+  - optparse
+  - ossaudiodev
+  - pickletools
+  - pipes
+  - pkgutil
+  - plistlib
+  - poplib
+  - posix
+  - posixpath
+  - pstats
+  - pty
+  - pwd
+  - py_compile
+  - pyclbr
+  - pydoc
+  - pydoc_data
+  - pyexpat
+  - quopri
+  - readline
+  - reprlib
+  - resource
+  - rlcompleter
+  - runpy
+  - sched
+  - shlex
+  - site
+  - smtpd
+  - smtplib
+  - sndhdr
+  - socketserver
+  - spwd
+  - sre_compile
+  - sre_constants
+  - sre_parse
+  - stat
+  - stringprep
+  - sunau
+  - symtable
+  - sysconfig
+  - tabnanny
+  - tarfile
+  - telnetlib
+  - termios
+  - this
+  - tkinter
+  - token
+  - tokenize
+  - trace
+  - tracemalloc
+  - tty
+  - turtle
+  - turtledemo
+  - uu
+  - unicodedata
+  - venv
+  - wave
+  - webbrowser
+  - winreg
+  - winsound
+  - wsgiref
+  - xdrlib
+  - xmlrpc
+  - zipapp
+  - zipimport
+  - zlib
+  - zoneinfo
+
+# Conditional, reviewed rewrites for known source-to-target incompatibilities.
+# A VERSIONED `when` condition fires only when every listed package has an
+# exact discovered pin satisfying the configured specifier. An EMPTY condition
+# (`when: {package: ""}`) is presence-match — any discovered form, including
+# unpinned — reserved for packages uninstallable from the index at EVERY
+# version (see _condition_matches in dbx_export/requirements.py). All listed
+# `requirements` then replace the source constraints in the consolidated file.
+rules:
+  - id: tensorflow-2.13-typing-extensions-aidp-runtime
+    when:
+      tensorflow: "==2.13.*"
+    requirements:
+      tensorflow: "==2.14.1"
+      typing-extensions: "==4.16.0"
+    reason: >-
+      TensorFlow 2.13 requires typing-extensions<4.6, which conflicts with the
+      AIDP kernel runtime. TensorFlow 2.14.1 removes that upper bound.
+  - id: tensorflow-2.12-numpy-1.26-aidp-runtime
+    when:
+      tensorflow: "==2.12.*"
+    requirements:
+      tensorflow: "==2.15.0"
+      # keras is pinned in lockstep with the TF bump. If a source pins tensorflow
+      # behind an environment marker but omits keras, the injected keras INHERITS
+      # that marker (one keras line per marker when tensorflow is pinned under
+      # several), so keras installs exactly where — and only where — tensorflow
+      # does. AIDP is a MIXED fleet (ARM/AMD/Intel/GPU), so an unconditional
+      # injection could land keras on a node with no matching tensorflow; marker
+      # propagation avoids that. Absent-package injection is under the trigger's
+      # marker(s); see _replace_policy_requirement in dbx_export/requirements.py.
+      keras: "==2.15.0"
+    reason: >-
+      TensorFlow 2.12 caps numpy<1.24, which conflicts with the protected
+      numpy==1.26.4 above — the single-transaction pip resolve fails
+      ResolutionImpossible ("numpy==1.26.4 and tensorflow ... conflicting
+      dependencies"; observed 2026-09 at cluster readiness, live-reproduced
+      in ~7s). TF 2.15 accepts numpy>=1.23.5,<2.0 (1.26.4 satisfies) and —
+      critically — stays on the Keras-2 API (keras 2.15). We pin keras in
+      lockstep and never bump to TF 2.16+, which would force Keras 3 (a breaking
+      runtime API change for exported Keras-2 notebook code, invisible to a
+      resolution check).
+  - id: flash-attn-prebuilt-wheel-torch-2.5-cu12-cp311-glibc214
+    when:
+      flash-attn: ""
+    requirements:
+      torch: "==2.5.1"
+      flash-attn: "@ https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1%2Bcu12torch2.5cxx11abiFALSE-cp311-cp311-linux_x86_64.whl"
+    reason: >-
+      flash-attn publishes prebuilt wheels ONLY on GitHub releases; PyPI (and
+      an internal package mirror) carry sdists whose build imports torch — which is
+      never present in the isolated cluster-library install env, so EVERY
+      index-resolved install fails (LibraryTaskException with an empty message;
+      incident job STANDALONE_GENERIC_E2E 1000000000061_84953597, reproduced
+      live 2026-10-05 on an A10/py3.11 cluster: unpinned, torch==2.5.0,
+      torch==2.5.1, and flash-attn==2.7.3 all FAILED; torch alone INSTALLED).
+      The fix pins torch==2.5.1 and installs flash-attn from the matching
+      cu12torch2.5/cxx11abiFALSE/cp311 GitHub wheel directly. torch 2.8.0 +
+      the newest wheel line (v2.8.3) was tried FIRST and REJECTED: it
+      INSTALLED but failed to import — every v2.8.3 wheel requires
+      GLIBC_2.32 (objdump-verified), which the cluster runtime does not
+      provide; the 2.7.4.post1 cu12torch2.5 wheel needs only GLIBC_2.14.
+      The shipped pair INSTALLED through the real dfcs installer (408s) and
+      passed a kernel flash-attn op (fp16, A10); the full 25-package
+      consolidated file co-resolved and INSTALLED in one transaction (516s).
+      Wheel tags must match the GPU runtime — and the glibc requirement is
+      NOT carried in the wheel tag: revalidate when the runtime's
+      Python/CUDA/glibc changes [verified: 2026-10, py3.11/cu12.4/A10,
+      glibc<2.32].
