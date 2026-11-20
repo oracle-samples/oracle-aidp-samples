@@ -26,7 +26,9 @@ defined as candidates that pass snapshot but fail replay) and is not a crash. A 
 passes every check while a check exercised no row at all (a table too small to move, repeat or
 revise anything) gets 'insufficient_coverage', never 'replay_safe': a hazard that selected
 nothing proved nothing. The verdict dict carries `coverage` (rows each check exercised) and
-`uncovered` (the checks that exercised none).
+`uncovered` (the checks that exercised none). A payload column the revision check cannot change
+(an array, map, struct or binary value) is listed there as `revision:<column>`: an UPDATE that
+forgets that column would not be caught, so that is insufficient coverage too.
 
 The revision schedule has two trailing deliveries: the corrections, then the superseded originals
 of the same keys again. The second one is the case a blind last-write-wins upsert gets wrong (an
@@ -71,6 +73,19 @@ _STREAM = {"late": 1, "duplicate": 2, "out_of_order": 3, "retried": 4, "revision
 # Plan tag prefix: every emitted Spark statement starts with "-- ns:<stage>:<name>" so the
 # notebook can route results (pin version, diff counts) and split cleanup from work.
 PLAN_TAG_PREFIX = "-- ns:"
+
+# A coverage count named "revision:<column>" stands for a payload column the revision check cannot change (an array,
+# map, struct or binary value). It is always 0: an UPDATE that forgets that column is not caught, so the verdict
+# cannot be replay_safe (settle_verdict lists the name in `uncovered`).
+UNREVISED_PREFIX = "revision:"
+
+
+def check_ordering_not_key(key_cols: Sequence[str], ts_col: str) -> None:
+    """The ordering column must not be one of the keys. A correction is the same key with a later ordering value;
+    when the ordering column is part of the key, the corrected row is a new key, never meets its original, and the
+    revision check would pass without exercising anything."""
+    if ts_col.lower() in {str(k).lower() for k in key_cols}:
+        raise ValueError(f"the ordering column cannot be a key: {ts_col!r} is in the key {list(key_cols)}")
 
 
 # --------------------------------------------------------------------------------------
@@ -175,16 +190,36 @@ def _shift_series(s: pd.Series) -> pd.Series:
     raise TypeError(f"ordering column {s.name!r} must be datetime or numeric for the revision hazard")
 
 
-def _mutate_series(s: pd.Series) -> pd.Series:
-    """A visibly different value of the same type: numbers +1, booleans flipped, datetimes +1 day,
-    everything else gets a '_rev' suffix as text."""
+_COMPLEX_VALUES = (list, tuple, dict, set, frozenset, bytes, bytearray, np.ndarray)
+
+
+def _is_complex_series(s: pd.Series) -> bool:
+    """A column of arrays, maps, structs or binary values: the live plan has no expression that changes one."""
+    return s.dtype == object and any(isinstance(v, _COMPLEX_VALUES) for v in s.dropna())
+
+
+def _mutate_series(s: pd.Series) -> pd.Series | None:
+    """A visibly different value of the same type, for every row: numbers +1, booleans flipped, datetimes +1 day,
+    text gets a '_rev' suffix. A NULL becomes a fixed value of the type (1, True, 1970-01-02, 'ns_rev'), so a
+    column that is NULL in the corrected rows still changes. None for a column of arrays, maps, structs or binary
+    values. Same rule as the live plan (spark_mutate_expr), so the local tests prove no more than the plan does."""
+    if _is_complex_series(s):
+        return None
     if pd.api.types.is_bool_dtype(s):
-        return ~s.astype(bool)
+        return (~s.astype("boolean")).fillna(True).astype(s.dtype)
     if pd.api.types.is_datetime64_any_dtype(s):
-        return s + pd.Timedelta(days=1)
+        return (s + pd.Timedelta(days=1)).fillna(pd.Timestamp("1970-01-02", tz=s.dt.tz))
     if pd.api.types.is_numeric_dtype(s):
-        return s + 1
-    return s.astype(str) + "_rev"
+        return (s + 1).fillna(1)
+    return (s.astype(str) + "_rev").where(s.notna(), "ns_rev")
+
+
+def unrevised_columns(df: pd.DataFrame, key_cols: Sequence[str], ts_col: str, cfg: HazardConfig) -> list[str]:
+    """Payload columns a correction leaves as they are, because their values are arrays, maps, structs or binary.
+    Empty when cfg.revise_col narrows the correction to one column: that is the caller's choice, not a gap."""
+    if cfg.revise_col is not None:
+        return []
+    return [c for c in df.columns if c not in key_cols and c != ts_col and _is_complex_series(df[c])]
 
 
 def _revision_rows(df_ordered: pd.DataFrame, ts_col: str, cfg: HazardConfig) -> np.ndarray:
@@ -208,7 +243,8 @@ def make_stale_batch(df_ordered: pd.DataFrame, ts_col: str, cfg: HazardConfig) -
 def make_revision_batch(df_ordered: pd.DataFrame, key_cols: list[str], ts_col: str, cfg: HazardConfig) -> pd.DataFrame:
     """cfg.rev_fraction of the rows re-delivered as revisions: same key, ordering column moved later, and every other
     column changed (only cfg.revise_col when that is set). The batch truth must therefore contain these rows. Every
-    payload column changes so that an UPDATE which forgets a column is caught."""
+    payload column changes, a NULL included, so that an UPDATE which forgets a column is caught. The exception is a
+    column of arrays, maps, structs or binary values, which stays as it is (see unrevised_columns)."""
     rows = _revision_rows(df_ordered, ts_col, cfg)
     rev = df_ordered.iloc[rows].reset_index(drop=True).copy()
     if len(rev) == 0:
@@ -219,7 +255,12 @@ def make_revision_batch(df_ordered: pd.DataFrame, key_cols: list[str], ts_col: s
     else:
         cols = [c for c in df_ordered.columns if c not in key_cols and c != ts_col]
     for col in cols:
-        rev[col] = _mutate_series(rev[col])
+        changed = _mutate_series(rev[col])
+        if changed is None:
+            if cfg.revise_col is not None:
+                raise TypeError(f"revise_col {col!r} holds arrays, maps, structs or binary values, which the harness cannot mutate")
+            continue
+        rev[col] = changed
     return rev
 
 
@@ -247,6 +288,7 @@ def make_hazard_batches(
     The baseline is split into effective_batches(len(df), cfg) deliveries, so a frame with fewer rows
     than cfg.n_batches has no empty batch.
     """
+    check_ordering_not_key(key_cols, ts_col)
     base = _ordered(df, key_cols, ts_col)
     n = effective_batches(len(base), cfg)
     bounds = np.linspace(0, len(base), n + 1).round().astype(int)
@@ -538,8 +580,13 @@ def settle_verdict(diffs: dict[str, int], hazard_names: Sequence[str], coverage:
     """The verdict fields from the per-check diff counts and the coverage counts; one rule for the local harness and
     the live plan. replay_safe needs the baseline, run-twice and every named hazard to diff to zero AND each of those
     checks to have exercised at least one row; passing with a vacuous check is insufficient_coverage. No coverage
-    at all (None) is read as nothing exercised."""
+    at all (None) is read as nothing exercised. A coverage count named "revision:<column>" (UNREVISED_PREFIX) is a
+    payload column the revision check could not change; it is uncovered too, by name."""
     hazards = {h: diffs[h] == 0 for h in hazard_names if h in diffs}
+    cov = coverage or {}
+    uncovered = [c for c in ("run_twice", *hazard_names) if int(cov.get(c) or 0) < 1]
+    if "revision" in hazard_names:
+        uncovered += [str(k) for k, n in cov.items() if str(k).startswith(UNREVISED_PREFIX) and int(n or 0) < 1]
     out: dict[str, Any] = {
         "passes_snapshot": diffs.get("baseline", 1) == 0,
         "passes_run_twice": diffs.get("run_twice", 1) == 0,
@@ -548,7 +595,7 @@ def settle_verdict(diffs: dict[str, int], hazard_names: Sequence[str], coverage:
         "coverage": dict(coverage) if coverage is not None else None,
         # reported with every verdict: a failing statement on a table that leaves a check vacuous can be fixed, but the
         # fix can never be proven there
-        "uncovered": [c for c in ("run_twice", *hazard_names) if int((coverage or {}).get(c) or 0) < 1],
+        "uncovered": uncovered,
     }
     if not out["passes_snapshot"]:
         out["verdict"] = VERDICT_SNAPSHOT_WRONG
@@ -572,6 +619,8 @@ def replay_verdict(
     truth = recompute_fn(df, key_cols, ts_col)
     schedules = make_hazard_batches(df, key_cols, ts_col, cfg)
     coverage = hazard_coverage(schedules)
+    for col in unrevised_columns(df, key_cols, ts_col, cfg):
+        coverage[f"{UNREVISED_PREFIX}{col}"] = 0
     diffs: dict[str, int] = {}
     hazards = {h: False for h in HAZARDS}
     out: dict[str, Any] = {
@@ -747,19 +796,34 @@ def spark_shift_expr(col: str, spark_type: str) -> str:
 
 
 def spark_mutate_expr(col: str, spark_type: str) -> str | None:
-    """SQL for a visibly changed value of the same type, or None when the type is not mutable here."""
+    """SQL for a visibly changed value of the same type, or None when the type is not mutable here (array, map,
+    struct, binary). Every expression is wrapped in COALESCE with a fixed value of the type: `NULL + 1`,
+    `concat(NULL, '_rev')` and `NOT NULL` are all NULL, and a correction that leaves a NULL as it is cannot show
+    that an UPDATE forgot the column."""
     fam = _spark_type_family(spark_type)
     if fam == "number":
-        return f"{col} + 1"
+        return f"coalesce({col} + 1, 1)"
     if fam == "boolean":
-        return f"NOT {col}"
+        return f"coalesce(NOT {col}, true)"
     if fam == "string":
-        return f"concat({col}, '_rev')"
+        return f"coalesce(concat({col}, '_rev'), 'ns_rev')"
     if fam == "timestamp":
-        return f"{col} + INTERVAL 1 DAY"
+        t = spark_type.strip().lower()
+        # the fallback is cast to the column's own type so a timestamp_ntz column is not mixed with a zoned literal
+        t = t if t in ("timestamp", "timestamp_ntz", "timestamp_ltz") else "timestamp"
+        return f"coalesce({col} + INTERVAL 1 DAY, CAST('1970-01-02 00:00:00' AS {t}))"
     if fam == "date":
-        return f"date_add({col}, 1)"
+        return f"coalesce(date_add({col}, 1), DATE '1970-01-02')"
     return None
+
+
+def spark_unrevised_columns(columns: Sequence[tuple[str, str]], key_cols: Sequence[str], ts_col: str,
+                            cfg: HazardConfig = HazardConfig()) -> list[str]:
+    """Payload columns the live corrections pass through unchanged, because spark_mutate_expr has no expression for
+    their type. Empty when cfg.revise_col narrows the correction to one column: that is the caller's choice."""
+    if cfg.revise_col is not None:
+        return []
+    return [c for c, t in columns if c not in key_cols and c != ts_col and spark_mutate_expr(c, t) is None]
 
 
 def pick_spark_revise_col(columns: Sequence[tuple[str, str]], key_cols: Sequence[str], ts_col: str,
@@ -802,9 +866,12 @@ def spark_sql_plan(
 
     `columns` ((name, spark type) in table order) is required only for the `revision` hazard: the
     corrections table is built with an explicit select list that moves the ordering column later and
-    changes every other non-key column whose type spark_mutate_expr can change (only cfg.revise_col
-    when that is set), because Spark SQL cannot override a column out of `struct(*)` without naming
-    it. A row with a NULL ordering value is never revised (it could not carry a later value). The revision truth is the recompute over staging plus the
+    changes every other non-key column whose type spark_mutate_expr can change, a NULL included (only
+    cfg.revise_col when that is set), because Spark SQL cannot override a column out of `struct(*)`
+    without naming it. A column of a type it cannot change (array, map, struct, binary) is passed through
+    and the coverage statement reports it as a zero count named `revision:<column>`, which settle_verdict
+    turns into insufficient_coverage. The ordering column must not be a key (check_ordering_not_key).
+    A row with a NULL ordering value is never revised (it could not carry a later value). The revision truth is the recompute over staging plus the
     corrections, so a repair that never updates a matched key keeps the stale row and fails this hazard.
     After the corrections the superseded originals of the same keys are delivered once more; a repair
     that lets the last delivery win puts the stale row back and fails there.
@@ -830,6 +897,7 @@ def spark_sql_plan(
         raise ValueError("repair_sql_template must contain both {target} and {batch} placeholders")
     if not key_cols:
         raise ValueError("key_cols must not be empty")
+    check_ordering_not_key(key_cols, ts_col)
 
     n = effective_batches(n_rows, cfg)
     t = prod_table.split(".")[-1]
@@ -856,6 +924,7 @@ def spark_sql_plan(
 
     with_revision = "revision" in hazards
     rev_select: str | None = None
+    unrevised: list[str] = []
     if with_revision:
         if not columns:
             raise ValueError("the revision hazard needs `columns` ((name, spark type) in table order)")
@@ -878,6 +947,7 @@ def spark_sql_plan(
                 changed = spark_mutate_expr(c, types[c])   # None for a type the harness cannot change: passed through
             parts.append(f"{changed} AS {c}" if changed else c)
         rev_select = ",\n       ".join(parts)
+        unrevised = spark_unrevised_columns(columns, key_cols, ts_col, cfg)   # and reported by the coverage statement
 
     created_tables = [sbx, stage, *targets.values(), twice] + ([rev] if with_revision else [])
     drops = [_tag("cleanup", f"drop_{x.split('.')[-1]}", f"DROP TABLE IF EXISTS {x}") for x in created_tables]
@@ -908,7 +978,7 @@ def spark_sql_plan(
         f")"
     )))
 
-    # corrections table for the revision hazard (same keys, ordering column later, one payload column changed)
+    # corrections table for the revision hazard (same keys, ordering column later, the payload columns changed)
     if with_revision:
         plan.append(_tag("stage", "revisions", (
             f"CREATE TABLE {rev} USING DELTA AS\n"
@@ -932,6 +1002,8 @@ def spark_sql_plan(
         cover["retried"] = counted(f"ns_batch IN ({retry_batches})") if retry_batches else "0"
     if "revision" in hazards:
         cover["revision"] = counted("ns_rev")
+        for c in unrevised:   # a column the corrections could not change: a zero count under its own name
+            cover["`" + UNREVISED_PREFIX + c.replace("`", "``") + "`"] = "0"
     plan.append(_tag("coverage", "counts", (
         "SELECT COUNT(*) AS n_rows,\n       "
         + ",\n       ".join(f"{expr} AS {name}" for name, expr in cover.items())

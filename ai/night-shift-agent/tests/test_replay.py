@@ -481,8 +481,8 @@ class _StubSpark:
         if "AS diff_rows" in q:
             return _Rows([(self.diff_count,)])
         if q.startswith("SELECT COUNT(*) AS n_rows"):
-            names = re.findall(r" AS (\w+)", q)
-            return _Rows([] if self.coverage is None else [{n: self.coverage.get(n, 7) for n in names}])
+            names = re.findall(r" AS `?([\w:]+)`?", q)
+            return _Rows([] if self.coverage is None else [{n: self.coverage.get(n, 0 if n.startswith("revision:") else 7) for n in names}])
         return _Rows([])
 
 
@@ -550,3 +550,15 @@ def test_notebook_template_reports_insufficient_coverage_instead_of_replay_safe(
     assert verdict["verdict"] == "insufficient_coverage" and verdict["uncovered"] == uncovered
     assert verdict["passes_snapshot"] and verdict["passes_run_twice"] and verdict["diff_rows"] == 0
 
+
+def test_notebook_template_names_a_column_the_corrections_cannot_change(capsys):
+    """Every diff is zero and every check exercised rows, but the table has an array column the corrections pass
+    through: the cell reports it by name and does not print replay_safe (same rule as settle_verdict)."""
+    columns = [("k", "bigint"), ("tags", "array<string>"), ("v", "string"), ("ts", "timestamp")]
+    plan = R.spark_sql_plan("default.bank.core_load", "default.ops_sandbox", TEMPLATE, ["k"], "ts", list(R.HAZARDS), columns=columns)
+    verdict = _run_template(plan, _StubSpark(diff_count=0), capsys)
+    assert verdict["verdict"] == "insufficient_coverage" and verdict["uncovered"] == ["revision:tags"]
+    assert verdict["coverage"]["revision:tags"] == 0 and verdict["diff_rows"] == 0
+    plain = R.spark_sql_plan("default.bank.core_load", "default.ops_sandbox", TEMPLATE, ["k"], "ts", list(R.HAZARDS),
+                             columns=[c for c in columns if c[0] != "tags"])
+    assert _run_template(plain, _StubSpark(diff_count=0), capsys)["verdict"] == "replay_safe"

@@ -196,8 +196,16 @@ if not ALREADY:
             # exercised at least one row; a pass with a vacuous check is insufficient_coverage
             v.update(replay.settle_verdict(v["diffs"], HAZARDS, v["coverage"]))
             if v["verdict"] == replay.VERDICT_INSUFFICIENT:
-                v["error"] = (f"insufficient coverage: no row exercised {', '.join(v['uncovered'])} "
-                              f"({(v['coverage'] or {}).get('n_rows', 0)} row(s) in the table)")
+                # a check that exercised no row, or a column the corrections could not change (reported by name)
+                fixed = [u[len(replay.UNREVISED_PREFIX):] for u in v["uncovered"] if u.startswith(replay.UNREVISED_PREFIX)]
+                idle = [u for u in v["uncovered"] if not u.startswith(replay.UNREVISED_PREFIX)]
+                why = []
+                if idle:
+                    why.append(f"no row exercised {', '.join(idle)} ({(v['coverage'] or {}).get('n_rows', 0)} row(s) in the table)")
+                if fixed:
+                    why.append(f"a correction cannot change {', '.join(fixed)} (array, map, struct or binary), "
+                               "so an UPDATE that forgets it is not caught")
+                v["error"] = "insufficient coverage: " + "; ".join(why)
         except Exception as e:  # noqa: BLE001
             v["error"] = err_text(e, 160)
         finally:

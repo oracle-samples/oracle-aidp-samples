@@ -119,12 +119,16 @@ def test_spark_plan_revision_builds_corrections_table_and_delivery():
     assert "CREATE TABLE sbx.core_load_rev USING DELTA AS" in rev_sql
     assert "ts + INTERVAL 1 HOUR AS ts" in rev_sql                  # ordering column moved later
     assert rev_sql.startswith("CREATE TABLE sbx.core_load_rev USING DELTA AS\nSELECT k,\n")   # the key passes through
-    for changed in ("concat(v, '_rev') AS v", "amt + 1 AS amt", "NOT flag AS flag"):   # every payload column changes
+    # every payload column changes, and a NULL changes too (NULL + 1, concat(NULL, ...) and NOT NULL are all NULL)
+    for changed in ("coalesce(concat(v, '_rev'), 'ns_rev') AS v", "coalesce(amt + 1, 1) AS amt", "coalesce(NOT flag, true) AS flag"):
         assert changed in rev_sql
     one = next(R.parse_plan_tag(s)[2] for s in _plan(cfg=R.HazardConfig(revise_col="amt")) if R.parse_plan_tag(s)[1] == "revisions")
-    assert "amt + 1 AS amt" in one and "\n       v,\n" in one and one.rstrip().split("\n")[-2].strip() == "flag"   # revise_col: that one only
+    assert "coalesce(amt + 1, 1) AS amt" in one and "\n       v,\n" in one and one.rstrip().split("\n")[-2].strip() == "flag"   # revise_col: that one only
     odd = R.spark_sql_plan("p.t", "s", TEMPLATE, ["k"], "ts", ["revision"], columns=[("k", "bigint"), ("tags", "array<string>"), ("ts", "timestamp")])
     assert "\n       tags,\n" in next(R.parse_plan_tag(s)[2] for s in odd if R.parse_plan_tag(s)[1] == "revisions")   # unchangeable type: passed through
+    # ... and reported: the coverage statement carries a zero count under the column's name
+    assert "0 AS `revision:tags`" in next(R.parse_plan_tag(s)[2] for s in odd if R.parse_plan_tag(s)[0] == "coverage")
+    assert "revision:" not in next(R.parse_plan_tag(s)[2] for s in plan if R.parse_plan_tag(s)[0] == "coverage")
     assert "WHERE ns_rev" in rev_sql
     # four baseline deliveries, the corrections delivery, then the superseded originals again; each a view + an apply
     rev_views = [s for s in plan if R.parse_plan_tag(s)[0] == "repair" and R.parse_plan_tag(s)[1].startswith("revision_") and "VIEW" in s]
@@ -144,7 +148,16 @@ def test_spark_plan_revision_builds_corrections_table_and_delivery():
 def test_spark_plan_revision_type_rules_and_errors():
     assert R.spark_shift_expr("d", "date") == "date_add(d, 1)"
     assert R.spark_shift_expr("n", "bigint") == "n + 1"
-    assert R.spark_mutate_expr("b", "boolean") == "NOT b"
+    assert R.spark_mutate_expr("b", "boolean") == "coalesce(NOT b, true)"
+    assert R.spark_mutate_expr("n", "decimal(10,2)") == "coalesce(n + 1, 1)"
+    assert R.spark_mutate_expr("d", "date") == "coalesce(date_add(d, 1), DATE '1970-01-02')"
+    # the fallback of a timestamp is cast to the column's own type
+    assert R.spark_mutate_expr("t", "timestamp_ntz") == "coalesce(t + INTERVAL 1 DAY, CAST('1970-01-02 00:00:00' AS timestamp_ntz))"
+    for complex_type in ("map<string,int>", "struct<a:int>", "binary"):
+        assert R.spark_mutate_expr("x", complex_type) is None
+    cols = [("k", "bigint"), ("ts", "timestamp"), ("x", "array<string>"), ("n", "int"), ("m", "map<string,int>")]
+    assert R.spark_unrevised_columns(cols, ["k"], "ts") == ["x", "m"]
+    assert R.spark_unrevised_columns(cols, ["k"], "ts", R.HazardConfig(revise_col="n")) == []   # one column by choice: not a gap
     assert R.spark_mutate_expr("x", "array<string>") is None
     assert R.pick_spark_revise_col([("k", "bigint"), ("ts", "timestamp"), ("x", "array<string>"), ("n", "int")], ["k"], "ts") == ("n", "int")
     assert R.pick_spark_revise_col([("k", "bigint"), ("ts", "timestamp")], ["k"], "ts") is None
@@ -315,3 +328,71 @@ def test_uncovered_checks_are_reported_with_a_failing_verdict_too():
     one = _events(1)
     v = R.replay_verdict(R.insert_if_absent(KEYS), one, KEYS, TS, R.HazardConfig())
     assert v["verdict"] == "silent_wrong" and v["uncovered"] == ["late", "out_of_order"]   # wrong, and unprovable here
+
+
+# --------------------------------------------------------------------------------------
+# review round 3: the ordering column as a key, NULL values, values the check cannot change
+# --------------------------------------------------------------------------------------
+def test_the_ordering_column_cannot_be_a_key(events):
+    """A correction is the same key with a later ordering value. With the ordering column in the key the corrected
+    row is a new key, never meets its original, and the check would pass having exercised nothing."""
+    with pytest.raises(ValueError, match="ordering column cannot be a key"):
+        R.make_hazard_batches(events, ["k", "ts"], TS, R.HazardConfig())
+    with pytest.raises(ValueError, match="ordering column cannot be a key"):
+        R.replay_verdict(R.insert_if_absent(["k", "ts"]), events, ["k", "ts"], TS)
+    with pytest.raises(ValueError, match="ordering column cannot be a key"):
+        R.spark_sql_plan("p.t", "s", TEMPLATE, ["k", "TS"], "ts", ["revision"], columns=COLUMNS)   # names compare without case
+    with pytest.raises(ValueError, match="ordering column cannot be a key"):
+        R.spark_sql_plan("p.t", "s", TEMPLATE, ["ts"], "ts", ["late"])                               # any plan, not only revision
+
+
+def _forgets(col: str):
+    """An upsert guarded on the ordering column whose UPDATE leaves `col` as it was."""
+    def apply(state, batch):
+        if state is None or len(state) == 0:
+            return batch.copy()
+        old = state.set_index("k")
+        out = R.merge_on_keys(KEYS, TS)(state, batch).set_index("k")
+        kept = [k for k in out.index if k in old.index]
+        out.loc[kept, col] = old.loc[kept, col]
+        return out.reset_index()[list(state.columns)]
+    return apply
+
+
+@pytest.mark.parametrize("col,null", [("amt", np.nan), ("v", None), ("seen", pd.NaT)])
+def test_a_correction_changes_a_null_so_a_forgotten_null_column_is_caught(events, col, null):
+    """NaN + 1 is NaN and NaT + a day is NaT: a correction that left a NULL as it was could not show that an UPDATE
+    forgot the column. Every value is NULL here, so only the fixed fallback can make the correction differ."""
+    events["seen"] = events[TS]
+    events[col] = null
+    corr = R.make_hazard_batches(events, KEYS, TS, R.HazardConfig())["revision"][-2]
+    assert corr[col].notna().all()
+    v = R.replay_verdict(_forgets(col), events, KEYS, TS)
+    assert v["verdict"] == "silent_wrong" and v["hazards"]["revision"] is False
+    assert R.replay_verdict(R.merge_on_keys(KEYS, TS), events, KEYS, TS)["verdict"] == "replay_safe"
+
+
+def test_a_column_the_check_cannot_change_is_reported_not_passed(events):
+    """Arrays, maps, structs and binary values are passed through unchanged (the live plan has no expression for them),
+    so the local harness leaves them alone too and both say so by name instead of grading replay_safe."""
+    events["tags"] = [["a", str(i)] for i in range(len(events))]
+    corr = R.make_hazard_batches(events, KEYS, TS, R.HazardConfig())["revision"][-2]
+    assert list(corr["tags"]) == list(events.set_index("k").loc[corr["k"], "tags"])
+    assert R.unrevised_columns(events, KEYS, TS, R.HazardConfig()) == ["tags"]
+    v = R.replay_verdict(R.merge_on_keys(KEYS, TS), events, KEYS, TS)
+    assert v["verdict"] == "insufficient_coverage" and v["uncovered"] == ["revision:tags"] and v["diff_rows"] == 0
+    assert v["coverage"]["revision:tags"] == 0 and v["coverage"]["revision"] == 6
+    with pytest.raises(TypeError):
+        R.make_hazard_batches(events, KEYS, TS, R.HazardConfig(revise_col="tags"))
+    # narrowed to one column by choice: nothing is reported
+    assert R.replay_verdict(R.merge_on_keys(KEYS, TS), events, KEYS, TS, R.HazardConfig(revise_col="v"))["verdict"] == "replay_safe"
+
+
+def test_settle_verdict_lists_an_unrevised_column_only_for_the_revision_check():
+    diffs = {"baseline": 0, "run_twice": 0, "late": 0, "revision": 0}
+    cov = {"n_rows": 9, "run_twice": 2, "late": 1, "revision": 1, "revision:tags": 0}
+    v = R.settle_verdict(diffs, ["late", "revision"], cov)
+    assert v["verdict"] == "insufficient_coverage" and v["uncovered"] == ["revision:tags"]
+    assert R.settle_verdict({"baseline": 0, "run_twice": 0, "late": 0}, ["late"], cov)["verdict"] == "replay_safe"
+    wrong = R.settle_verdict({**diffs, "revision": 4}, ["late", "revision"], cov)
+    assert wrong["verdict"] == "silent_wrong" and wrong["uncovered"] == ["revision:tags"]

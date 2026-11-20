@@ -54,6 +54,17 @@ class Row(tuple):
         return super().__getitem__(self._names.index(k)) if isinstance(k, str) else super().__getitem__(k)
 
 
+class _NamedRow(tuple):
+    """A row whose column names need not be identifiers (a coverage count named `revision:<column>`)."""
+    def __new__(cls, data):
+        self = super().__new__(cls, data.values())
+        self._data = dict(data)
+        return self
+
+    def asDict(self):
+        return dict(self._data)
+
+
 class _Result:
     def __init__(self, rows):
         self._rows = rows
@@ -112,8 +123,9 @@ class FakeSpark:
         elif q.startswith("MERGE INTO"):
             self.last_merge = q
         elif q.startswith("SELECT COUNT(*) AS n_rows"):
-            names = re.findall(r" AS (\w+)", q)
-            return _Result([Row(**{n: (self.coverage or {}).get(n, self.n_rows if n == "n_rows" else 50) for n in names})])
+            names = re.findall(r" AS `?([\w:]+)`?", q)
+            default = lambda n: self.n_rows if n == "n_rows" else 0 if n.startswith("revision:") else 50   # noqa: E731
+            return _Result([_NamedRow({n: (self.coverage or {}).get(n, default(n)) for n in names})])
         elif "AS diff_rows" in q:
             # an insert-only statement keeps the stale row under the revision hazard; a guarded upsert is clean
             wrong = "WHEN MATCHED" not in self.last_merge and "_tgt_revision" in q
@@ -526,3 +538,43 @@ def test_the_tick_says_ok_when_the_flight_recorder_wrote_its_rows(ledger_db, tmp
 
     assert summary["flight_recorder"] == "ok"
     assert len(sink.saved) == 1 and len(sink.saved[0][2]) == 1
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# review round 3
+# ---------------------------------------------------------------------------------------------------------------------
+VERSIONED = ("MERGE INTO {t} t USING {s} s ON t.order_id = s.order_id AND t.updated_at = s.updated_at WHEN NOT MATCHED THEN INSERT "
+             "(order_id, status, amount, updated_at) VALUES (s.order_id, s.status, s.amount, s.updated_at)")
+
+
+def test_an_ordering_column_in_the_key_is_rejected_before_any_replay_or_model_call(ledger_db, tmp_path, monkeypatch, capsys):
+    """The keys come from the statement's ON equalities in the first entry and from `key` in the second. Neither is
+    replayed, drafted for or written to the ledger as a verdict: with the ordering column in the key the revision
+    check would have passed without exercising anything."""
+    from_on = {"table": SILVER, "ts": "updated_at", "source": BRONZE, "statement": VERSIONED.format(t=SILVER, s=BRONZE)}
+    declared = _entry(SILVER, BRONZE, key=["order_id", "updated_at"])
+    _seed_verdict(ledger_db, declared["statement"])
+    spark = FakeSpark(ledger_db)
+    summary, events = _run_heartbeat(monkeypatch, capsys, spark, _watch(tmp_path, [from_on, declared]))
+    assert [(v["verdict"], v["table"]) for v in summary["replay_verdicts"]] == [("rejected", SILVER)] * 2
+    assert all("ordering column cannot be a key" in v["error"] for v in summary["replay_verdicts"])
+    assert spark.events == [] and _approvals(ledger_db) == []
+    assert ledger_db.execute(f"SELECT COUNT(*) FROM {OPS}.replay_verdicts WHERE tick_id <> 'earlier-tick'").fetchone()[0] == 0
+    # the same statement with the business key declared is graded
+    graded = {**from_on, "key": ["order_id"], "draft": False}
+    summary, _ = _run_heartbeat(monkeypatch, capsys, FakeSpark(ledger_db), _watch(tmp_path, [graded]), NS_FORCE_TICK="1")
+    assert summary["replay_verdicts"][0]["verdict"] == "silent_wrong"
+
+
+def test_a_table_with_a_column_a_correction_cannot_change_is_insufficient_coverage_by_name(ledger_db, tmp_path, monkeypatch, capsys):
+    """An array column is passed through the corrections unchanged, so an UPDATE that forgets it would look right. The
+    plan reports a zero count under the column's name; the verdict is not replay_safe and the ledger row says why."""
+    monkeypatch.setitem(globals(), "COLS", [*COLS, ("tags", "array<string>")])
+    a = _entry(SILVER, BRONZE, statement=GUARDED, draft=False)
+    spark = FakeSpark(ledger_db)
+    summary, _ = _run_heartbeat(monkeypatch, capsys, spark, _watch(tmp_path, [a]))
+    v = summary["replay_verdicts"][0]
+    assert v["verdict"] == "insufficient_coverage" and v["coverage"]["revision:tags"] == 0 and v["coverage"]["revision"] == 50
+    assert any("0 AS `revision:tags`" in q for q in spark.statements)
+    row = ledger_db.execute(f"SELECT verdict, error FROM {OPS}.replay_verdicts").fetchone()
+    assert row[0] == "insufficient_coverage" and "a correction cannot change tags" in row[1] and "no row exercised" not in row[1]

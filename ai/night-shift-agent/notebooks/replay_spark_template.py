@@ -11,8 +11,11 @@
 # hazards {name: bool}, diff_rows and verdict (replay_safe | silent_wrong | snapshot_wrong |
 # insufficient_coverage | crash), plus diffs, coverage (rows each check exercised), uncovered,
 # source_version, statements_run, elapsed_s and error details. A statement that passes every check
-# while a check exercised no row is insufficient_coverage, never replay_safe (same rule as
-# nightshift.replay.settle_verdict).
+# while a check exercised no row is insufficient_coverage, never replay_safe. So is one graded on a
+# table with a column the corrections cannot change (array, map, struct, binary): the coverage row
+# carries a zero count named "revision:<column>" and it is listed in uncovered. Same coverage rule
+# as nightshift.replay.settle_verdict, with one difference: this cell grades the hazards its PLAN
+# contains, while the scheduled job requires all five (a plan with fewer is silent_wrong there).
 import json
 import time
 
@@ -75,6 +78,8 @@ try:
     elif verdict["passes_run_twice"] and all(verdict["hazards"].values()):
         covered = verdict["coverage"] or {}
         verdict["uncovered"] = [c for c in ("run_twice", *verdict["hazards"]) if int(covered.get(c) or 0) < 1]
+        if "revision" in verdict["hazards"]:
+            verdict["uncovered"] += [k for k, n in covered.items() if k.startswith("revision:") and int(n or 0) < 1]
         verdict["verdict"] = "insufficient_coverage" if verdict["uncovered"] else "replay_safe"
     else:
         verdict["verdict"] = "silent_wrong"

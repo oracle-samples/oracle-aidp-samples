@@ -117,6 +117,19 @@ def test_checked_watch_accepts_good_and_rejects_hostile():
             checked_watch(sp, {**w, "statement": bad})
 
 
+def test_checked_watch_refuses_an_ordering_column_that_is_a_key():
+    """GOOD joins on sensor_id and event_ts. Ordered by event_ts, a correction would be a new key and the revision
+    check would exercise nothing; the entry is refused whether the keys come from the ON clause or from `key`."""
+    sp = _StubSpark()
+    w = {"table": "demo.silver.sensor_reading", "source": "demo.bronze.sensor_reading_raw", "statement": GOOD}
+    with pytest.raises(ValueError, match="ordering column cannot be a key"):
+        checked_watch(sp, {**w, "ts": "event_ts"})                                      # keys from the ON equalities
+    with pytest.raises(ValueError, match="ordering column cannot be a key"):
+        checked_watch(sp, {**w, "ts": "ingest_ts", "key": ["sensor_id", "INGEST_TS"]})  # declared keys, any case
+    _, ts, keys, _ = checked_watch(sp, {**w, "ts": "event_ts", "key": ["sensor_id"]})   # the business key alone is graded
+    assert (ts, keys) == ("event_ts", ["sensor_id"])
+
+
 # --------------------------------------------------------------------------------------------- gate rules
 def _ctx(verdicts):
     return TickContext(now_utc=NOW, budget_remaining_pct=80.0, projected_overrun_pct=0.0, llm_remaining_pct=50.0,

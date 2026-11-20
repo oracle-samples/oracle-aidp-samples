@@ -113,6 +113,10 @@ def checked_watch(spark: Any, w: dict, require_source: bool = False) -> tuple[st
     keys = [str(k) for k in (w.get("key") or list(a.key_cols))]
     if not keys or any(not _IDENT.match(k) for k in keys):
         raise ValueError(f"keys are not plain identifiers: {keys!r}")
+    if ts.lower() in {k.lower() for k in keys}:
+        # a correction is the same key with a later ordering value: with the ordering column in the key it becomes a
+        # new key, WHEN MATCHED never fires, and the revision check would pass without exercising anything
+        raise ValueError(f"the ordering column cannot be a key: {ts!r} is in the key {keys}")
     return table, ts, keys, a
 
 

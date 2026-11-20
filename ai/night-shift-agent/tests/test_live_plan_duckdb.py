@@ -6,8 +6,9 @@ flags, every delivery view and every MERGE, the corrections table, the stale re-
 and the coverage counts. The verdict comes from the same settle_verdict rule.
 
 duckdb is not Spark, so each statement goes through a small, explicit translation (``_translate``): Delta syntax is
-dropped, SHALLOW CLONE becomes a copy, ``struct(*)`` becomes the row itself, ``pmod`` and ``date_add`` are mapped, and
-the target alias is removed from the left of a MERGE assignment (duckdb does not take it there). Nothing else is
+dropped, SHALLOW CLONE becomes a copy, ``struct(*)`` becomes the row itself, ``pmod`` and ``date_add`` are mapped, a
+backquoted name becomes a double-quoted one, and the target alias is removed from the left of a MERGE assignment
+(duckdb does not take it there). Nothing else is
 changed: the predicates, the window functions and the statements under test are the plan's own. What this does not
 prove is Spark's own parser and Delta's MERGE; the first tick on an instance does that.
 """
@@ -48,6 +49,7 @@ def _translate(sql: str) -> str | None:
     sql = re.sub(r"struct\(\*\) AS ns_row,(.*?)FROM (\S+)\n\)", r"ns_src AS ns_row,\1FROM \2 ns_src\n)", sql, flags=re.S)
     sql = sql.replace("(SELECT struct(*) AS ns_row FROM delivered)", "(SELECT delivered AS ns_row FROM delivered)")
     sql = re.sub(r"date_add\((\w+), 1\)", r"(\1 + 1)", sql)
+    sql = sql.replace("`", '"')
     if sql.startswith("MERGE INTO"):  # duckdb takes no target alias on the left of an assignment
         sql = re.sub(r"UPDATE SET (.*?)(?= WHEN NOT MATCHED|$)",
                      lambda m: "UPDATE SET " + re.sub(r"(?<![\w.])t\.(\w+)\s*=", r"\1 =", m.group(1)), sql, flags=re.S)
@@ -182,3 +184,66 @@ def test_one_hazard_at_a_time_matches_the_full_plan(con):
     for h in R.HAZARDS:
         alone = _grade(con, INSERT_ONLY, 120, hazards=(h,))
         assert alone["diffs"][h] == full["diffs"][h] and alone["coverage"][h] == full["coverage"][h]
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# review round 3: the ordering column as a key, NULL values, values the corrections cannot change
+# ---------------------------------------------------------------------------------------------------------------------
+VERSIONED = ("MERGE INTO {target} t USING {batch} s ON t.order_id = s.order_id AND t.updated_at = s.updated_at " + INSERT)
+
+
+def test_an_ordering_column_in_the_merge_key_is_refused_not_graded(con):
+    """One row per version under a business key of order_id: the statement the revision hazard exists to catch. With
+    the ordering column in the key a correction is a new key and never meets its original, so the check would pass
+    having exercised nothing. The keys are the statement's own ON equalities; the plan refuses them."""
+    keys = list(adapt_merge(VERSIONED.format(target="prod.orders_silver", batch="prod.orders_bronze")).key_cols)
+    assert keys == ["order_id", "updated_at"]
+    for hazards in (list(R.HAZARDS), ["revision"], ["late"]):
+        with pytest.raises(ValueError, match="ordering column cannot be a key"):
+            R.spark_sql_plan(PROD, SBX, VERSIONED, keys, "updated_at", hazards, R.HazardConfig(), columns=COLUMNS, n_rows=300)
+    # the same statement graded on the business key alone is what it is: silently wrong on a correction
+    v = _grade(con, VERSIONED, 300)
+    assert v["verdict"] == "silent_wrong" and v["hazards"]["revision"] is False
+
+
+def _forgetting(col: str) -> str:
+    kept = ", ".join(f"t.{c} = s.{c}" for c, _ in COLUMNS if c not in ("order_id", col))
+    return HEAD + f"WHEN MATCHED AND s.updated_at > t.updated_at THEN UPDATE SET {kept} " + INSERT
+
+
+@pytest.mark.parametrize("col", ["region", "amount", "quantity", "order_date"])
+def test_an_update_that_forgets_a_column_that_is_null_in_every_row_is_caught(con, col):
+    """NULL + 1, concat(NULL, '_rev') and date_add(NULL, 1) are NULL (duckdb's concat skips a NULL, Spark's does not;
+    the COALESCE covers both). Without the fallback the correction carries the same NULL and the forgotten column
+    cannot be seen."""
+    i = [c for c, _ in COLUMNS].index(col)
+    rows = [r[:i] + (None,) + r[i + 1:] for r in _orders(300)]
+    v = _grade(con, _forgetting(col), 300, rows=rows)
+    assert v["verdict"] == "silent_wrong" and [h for h, ok in v["hazards"].items() if not ok] == ["revision"]
+    assert v["diffs"]["revision"] == 2 * v["coverage"]["revision"] == 60     # per corrected key: the row kept with its NULL, the correction missing
+    assert _grade(con, GUARDED, 300, rows=rows)["verdict"] == "replay_safe"   # the full upsert still passes on those rows
+
+
+def test_a_column_the_corrections_cannot_change_is_insufficient_coverage_by_name(con):
+    """An array column is passed through unchanged, so an UPDATE that forgets it looks exactly like one that sets it.
+    The plan says so: a zero coverage count under the column's name, and the verdict is not replay_safe."""
+    con.execute("CREATE TABLE prod.events (id INT, tags VARCHAR[], note VARCHAR, updated_at TIMESTAMP)")
+    con.executemany("INSERT INTO prod.events VALUES (?, ?, ?, ?)",
+                    [(i, ["a", str(i)], f"n{i}", f"2026-11-01 23:{i // 60 % 60:02d}:{i % 60:02d}") for i in range(1, 121)])
+    columns = [("id", "int"), ("tags", "array<string>"), ("note", "string"), ("updated_at", "timestamp")]
+    head = "MERGE INTO {target} t USING {batch} s ON t.id = s.id WHEN MATCHED AND s.updated_at > t.updated_at THEN UPDATE SET "
+    insert = " WHEN NOT MATCHED THEN INSERT (id, tags, note, updated_at) VALUES (s.id, s.tags, s.note, s.updated_at)"
+    sets_all = head + "t.tags = s.tags, t.note = s.note, t.updated_at = s.updated_at" + insert
+    forgets_tags = head + "t.note = s.note, t.updated_at = s.updated_at" + insert
+    for template in (sets_all, forgets_tags):
+        plan = R.spark_sql_plan("prod.events", SBX, template, ["id"], "updated_at", list(R.HAZARDS), R.HazardConfig(), columns=columns, n_rows=120)
+        v = _execute(con, plan)
+        assert v["verdict"] == "insufficient_coverage" and v["uncovered"] == ["revision:tags"] and v["diff_rows"] == 0
+        assert v["coverage"]["revision:tags"] == 0 and v["coverage"]["revision"] == 12
+    # with the array column out of the table the same upsert is proven
+    con.execute("ALTER TABLE prod.events DROP COLUMN tags")
+    plain = (head + "t.note = s.note, t.updated_at = s.updated_at"
+             + " WHEN NOT MATCHED THEN INSERT (id, note, updated_at) VALUES (s.id, s.note, s.updated_at)")
+    plan = R.spark_sql_plan("prod.events", SBX, plain, ["id"], "updated_at", list(R.HAZARDS), R.HazardConfig(),
+                            columns=[c for c in columns if c[0] != "tags"], n_rows=120)
+    assert _execute(con, plan)["verdict"] == "replay_safe"
