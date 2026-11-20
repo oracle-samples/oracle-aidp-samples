@@ -34,6 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from rich.markup import escape
+
 from ..dispatch import _collect_runtime_env_passthrough
 from ..dispatch.errors import (
     DispatchError,
@@ -55,7 +57,7 @@ from ..dispatch.notebook_builder import (
     _markdown_cell,
 )
 from ..dispatch.notebook_dispatch import dispatch_notebook_and_fetch_marker
-from ..dispatch.preflight import _check_aidp_catalog, _check_bicc_credential
+from ..dispatch.preflight import _check_aidp_catalog, _check_bicc_credential, render
 from ..dispatch.rest_client import AidpRestClient
 from ..dispatch.wheel_builder import build_wheel
 from ..orchestrator.content_pack_staging import stage_pack_files
@@ -576,6 +578,12 @@ def dispatch_cluster_probe(
     for failed_step, cause_type, run_check in preflight_checks:
         check = run_check()
         if check.status == "PASS":
+            # Print every pass, as ``run`` does: a lookup that could not give
+            # a definite answer passes as "not verified", and the operator
+            # should see which one. Escaped so Rich prints the ``[preflight]``
+            # prefix (and any brackets in the detail) instead of reading them
+            # as markup.
+            log(escape(render([check])))
             continue
         cause = check.detail
         if check.remediation:

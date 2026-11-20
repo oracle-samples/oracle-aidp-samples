@@ -138,6 +138,18 @@ def _call(monkeypatch, tmp_path: Path, **overrides):
     return cbp.dispatch_cluster_probe(**kwargs)
 
 
+def _recording_console():
+    """A real Rich console writing plain text to a buffer, so assertions see
+    what an operator would (including whether markup ate a ``[prefix]``)."""
+    import io
+
+    from rich.console import Console
+
+    output = io.StringIO()
+    console = Console(file=output, width=400, log_time=False, log_path=False)
+    return console, output
+
+
 @pytest.fixture
 def fake_wheel(tmp_path: Path) -> Path:
     """A tiny on-disk file usable by ``_build_install_cell`` (it
@@ -298,18 +310,38 @@ class TestBootstrapPreDispatchPreflight:
 
     def test_lookup_timeouts_do_not_stop_dispatch(self, monkeypatch, tmp_path) -> None:
         """Both optional lookups time out (without a message, as requests
-        sometimes raises them); bootstrap still dispatches."""
+        sometimes raises them); bootstrap says so, then still dispatches."""
         import requests
 
         helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
         client = _fake_client()
         client.check_catalog_exists.side_effect = requests.exceptions.ReadTimeout()
         client.get_credential_key_names.side_effect = requests.exceptions.ConnectionError()
+        console, output = _recording_console()
         _call(
             monkeypatch, tmp_path,
             bundle=self._bundle(), env=self._env(), client_factory=lambda: client,
+            console=console,
         )
         helper.assert_called_once()
+        printed = output.getvalue()
+        assert (
+            "[preflight] PASS AIDP catalog: catalog 'fusion_catalog' not verified: ReadTimeout"
+            in printed
+        )
+        assert "[preflight] PASS BICC credential:" in printed
+        assert "key names not verified: ConnectionError" in printed
+
+    def test_passing_checks_are_printed(self, monkeypatch, tmp_path) -> None:
+        _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())
+        client = _fake_client(credential_keys=("password",))
+        console, output = _recording_console()
+        _call(
+            monkeypatch, tmp_path,
+            bundle=self._bundle(), env=self._env(), client_factory=lambda: client,
+            console=console,
+        )
+        assert "[preflight] PASS AIDP catalog: catalog 'fusion_catalog' exists" in output.getvalue()
 
     def test_passing_checks_reach_dispatch(self, monkeypatch, tmp_path) -> None:
         helper = _patch_chain(monkeypatch, tmp_path, helper_return=_happy_marker_payload())

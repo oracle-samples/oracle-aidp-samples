@@ -516,6 +516,34 @@ class TestCheckCatalogExists:
         with patch.object(client, "_request", return_value=_resp(404, body)):
             assert client.check_catalog_exists("missing_catalog") is False
 
+    def test_unknown_catalog_match_ignores_case(self) -> None:
+        """AIDP resolves catalog names case-insensitively, so an answer that
+        names the catalog in a different case is about the same catalog."""
+        client = _make_client()
+        body = {
+            "code": "NotAuthorizedOrNotFound",
+            "message": "Unknown resource: missing_catalog",
+        }
+        with patch.object(client, "_request", return_value=_resp(404, body)):
+            assert client.check_catalog_exists("Missing_Catalog") is False
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "Unknown resource: some_other_resource",
+            "Unknown resource: fusion_catalog_archive",
+            "Unknown resource",
+        ],
+    )
+    def test_unknown_resource_naming_something_else_raises(self, message) -> None:
+        """Only a 404 that names the requested catalog means that catalog is
+        missing: one naming another resource says nothing about it."""
+        client = _make_client()
+        body = {"code": "NotAuthorizedOrNotFound", "message": message}
+        with patch.object(client, "_request", return_value=_resp(404, body)):
+            with pytest.raises(AidpRestError, match="HTTP 404"):
+                client.check_catalog_exists("fusion_catalog")
+
     @pytest.mark.parametrize(
         "body",
         [

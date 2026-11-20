@@ -940,6 +940,24 @@ class TestTransportErrorsAtTheHttpBoundary:
         assert [r.status for r in results] == ["PASS", "PASS", "PASS", "PASS"]
         assert "not verified" in results[1].detail
 
+    def test_404_naming_another_resource_is_not_verified(self) -> None:
+        """An "Unknown resource" answer about something other than the
+        requested catalog must not be reported as that catalog missing."""
+        other = _http_response(
+            404,
+            {"code": "NotAuthorizedOrNotFound", "message": "Unknown resource: some_other_resource"},
+        )
+        client = _real_client()
+        with patch(
+            "oracle_ai_data_platform_fusion_autopilot.dispatch.rest_client.requests.request",
+            side_effect=self._transport(catalog_response=other),
+        ):
+            results = run_remote_preflight(
+                client=client, env=_env(), catalog="fusion_catalog", auto_start_cluster=False
+            )
+        assert [r.status for r in results] == ["PASS", "PASS", "PASS", "PASS"]
+        assert "not verified" in results[1].detail
+
     def test_unknown_catalog_404_fails(self) -> None:
         missing = _http_response(
             404,

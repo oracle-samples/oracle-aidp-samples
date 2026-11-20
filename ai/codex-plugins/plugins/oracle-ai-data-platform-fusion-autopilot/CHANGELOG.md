@@ -21,10 +21,12 @@ All notable changes to this project are documented here.
   missing secret itself and raises a readable error naming the credential,
   the key and `biccSecretKey`.
 - **Neither new lookup can fail a run that would succeed.** A catalog fails
-  only when AIDP reports it unknown; a 404 that may just mean "not visible to
-  this profile", a timeout or any other error reports `not verified`. The key
-  check reports `not verified` when several credentials share the display
-  name (names need not be unique) or when its lookup times out or errors.
+  only when AIDP's 404 names that catalog as unknown; a 404 about another
+  resource or one that may just mean "not visible to this profile", a timeout
+  or any other error reports `not verified`. The key check reports `not
+  verified` when several credentials share the display name (names need not
+  be unique) or when its lookup times out or errors. `run` and `bootstrap`
+  both print every check, so the operator sees which lookup was inconclusive.
   Credentials are now looked up with the API's exact `displayName` filter,
   so the existence check no longer depends on the first page of the list.
 - **Bootstrap reports preflight failures instead of crashing.** The

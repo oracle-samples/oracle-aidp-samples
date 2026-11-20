@@ -119,7 +119,7 @@ The **key** is the name you give the secret value inside the entry. It is separa
 
 ### 5. AIDP catalog
 
-The catalog named in `bundle.yaml` → `aidp.catalog` (default `fusion_catalog`) must exist before the first `bootstrap` or `run`. Runs create the `bronze` / `silver` / `gold` schemas inside it, but not the catalog itself. Both `bootstrap` and `run` check the catalog exists before anything is dispatched, and stop with `AIDP catalog: catalog '<name>' does not exist` when AIDP reports it unknown. If the lookup cannot give a definite answer (a 404 that may only mean the catalog is not visible to your OCI profile, a timeout, any other error), the check reports `not verified` and the run continues.
+The catalog named in `bundle.yaml` → `aidp.catalog` (default `fusion_catalog`) must exist before the first `bootstrap` or `run`. Runs create the `bronze` / `silver` / `gold` schemas inside it, but not the catalog itself. Both `bootstrap` and `run` check the catalog exists before anything is dispatched, and stop with `AIDP catalog: catalog '<name>' does not exist` when AIDP's answer names that catalog as unknown. If the lookup cannot give a definite answer (a 404 about another resource, a 404 that may only mean the catalog is not visible to your OCI profile, a timeout, any other error), the check reports `not verified` and the run continues. Both commands print every check before dispatching (`[preflight] PASS AIDP catalog: catalog '<name>' not verified: …`), so an inconclusive lookup is visible.
 
 ## First run
 

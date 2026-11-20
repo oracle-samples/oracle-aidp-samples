@@ -67,20 +67,27 @@ class AmbiguousCredentialError(AidpRestError):
 # ``GET /catalogs/<name>`` answers ``404 NotAuthorizedOrNotFound`` for a
 # catalog that does not exist and, by OCI convention, can answer the same for
 # one the caller is not allowed to see. The body for a catalog that does not
-# exist says ``Unknown resource: <name>`` (observed on API 20260430); only
-# that body is read as "missing", any other 404 as "cannot tell".
-_UNKNOWN_RESOURCE_MESSAGE_PREFIX = "Unknown resource"
+# exist names it, ``Unknown resource: <name>``, echoing the name as requested
+# (observed on API 20260430). Only that body, naming the requested catalog, is
+# read as "missing"; any other 404 as "cannot tell".
+_UNKNOWN_CATALOG_MESSAGE = "Unknown resource: {catalog}"
 
 
-def _is_unknown_resource_404(response: requests.Response) -> bool:
+def _is_unknown_catalog_404(response: requests.Response, catalog: str) -> bool:
+    """Whether a 404 body says that ``catalog`` itself does not exist.
+
+    Compared without regard to case, because AIDP resolves catalog names
+    case-insensitively.
+    """
     try:
         body = response.json()
     except ValueError:
         return False
     message = body.get("message") if isinstance(body, dict) else None
-    return isinstance(message, str) and message.startswith(
-        _UNKNOWN_RESOURCE_MESSAGE_PREFIX
-    )
+    if not isinstance(message, str):
+        return False
+    expected = _UNKNOWN_CATALOG_MESSAGE.format(catalog=catalog)
+    return message.strip().casefold() == expected.casefold()
 
 
 # ---------------------------------------------------------------------------
@@ -362,11 +369,12 @@ class AidpRestClient:
     ) -> bool:
         """Return whether catalog ``catalog`` exists in this AI Data Platform.
 
-        ``False`` only when AIDP says the catalog is unknown (see
-        ``_UNKNOWN_RESOURCE_MESSAGE_PREFIX``). Any other 404 may be a catalog
-        this profile cannot see, so it raises :class:`AidpRestError` like
-        every other non-2xx: the caller cannot tell either way. An empty name
-        is ``False`` without a request (``GET /catalogs/`` is the list route).
+        ``False`` only when AIDP says this catalog is unknown (see
+        ``_UNKNOWN_CATALOG_MESSAGE``). Any other 404, including one naming a
+        different resource, may be a catalog this profile cannot see, so it
+        raises :class:`AidpRestError` like every other non-2xx: the caller
+        cannot tell either way. An empty name is ``False`` without a request
+        (``GET /catalogs/`` is the list route).
         """
         if not catalog:
             return False
@@ -376,11 +384,11 @@ class AidpRestClient:
             timeout=timeout,
         )
         if r.status_code == 404:
-            if _is_unknown_resource_404(r):
+            if _is_unknown_catalog_404(r, catalog):
                 return False
             raise AidpRestError(
-                "get_catalog: HTTP 404 without 'Unknown resource' (the catalog "
-                "may exist but not be visible to this profile)"
+                "get_catalog: HTTP 404 that does not name the catalog as "
+                "unknown (it may exist but not be visible to this profile)"
             )
         self._ok(r, context="get_catalog")
         return True
