@@ -53,6 +53,9 @@ _DONE_STATES = _FAILED_STATES | {"SUCCEEDED", "SUCCESS", "SUCCESSFUL", "COMPLETE
 # workspace through kv['monthly_compute_budget'] / kv['monthly_llm_budget'] or the NS_* env vars.
 DEFAULT_COMPUTE_BUDGET = float(os.environ.get("NS_MONTHLY_COMPUTE_BUDGET", "1000"))
 DEFAULT_LLM_BUDGET = float(os.environ.get("NS_MONTHLY_LLM_BUDGET", "200"))
+# Settings the drafting pass copies into the kernel that runs the heartbeat: the approver allowlist, the sandbox base
+# and the drafting models. The kernel's environment is the cluster's, not this process's.
+KERNEL_FORWARDED_ENV = ("NS_APPROVERS", "NS_SBX", "NS_DRAFT_MODEL", "NS_DRAFT_MODEL_LOW")
 
 
 @dataclass
@@ -446,16 +449,23 @@ def ledger_mod():
 
 
 def heartbeat_kernel_code(work: list[dict], sources: dict[str, str] | None = None, job_name: str = "nightshift_actuator",
-                          reuse_hours: int = 24, attempts: int = 1, budget_s: int = DRAFT_PASS_TIMEOUT_S) -> str:
+                          reuse_hours: int = 24, attempts: int = 1, budget_s: int = DRAFT_PASS_TIMEOUT_S,
+                          ops: str | None = None) -> str:
     """The cell the actuator runs in the kernel: the heartbeat, in draft-only mode on the pass's watch list, reusing a
     verdict the scheduled job produced inside `reuse_hours`. Same code path as the job, same gate. The heartbeat
     source, the package modules and the watch list all travel inside the cell; the kernel writes them to a private
-    temp dir on the driver, imports the package from there (NS_PKG) and execs the heartbeat text it was given."""
+    temp dir on the driver, imports the package from there (NS_PKG) and execs the heartbeat text it was given.
+
+    The kernel has its own environment, so the settings that decide where the heartbeat writes and whose approvals it
+    drains travel with the cell too: `ops` (the ledger this tick used) and the actuator's KERNEL_FORWARDED_ENV. A
+    setting the actuator does not have is left as the kernel has it."""
     sources = bundle_sources() if sources is None else sources
     if "nightshift_heartbeat.py" not in sources:
         raise ValueError("the source bundle has no heartbeat")
     knobs = {"NS_FORCE_TICK": "1", "NS_DRAFT_ONLY": "1", "NS_REUSE_VERDICT_H": str(reuse_hours),
-             "NS_DRAFT_ATTEMPTS": str(attempts), "NS_JOB_NAME": job_name, "NS_TASK_BUDGET_S": str(budget_s)}
+             "NS_DRAFT_ATTEMPTS": str(attempts), "NS_JOB_NAME": job_name, "NS_TASK_BUDGET_S": str(budget_s),
+             **({"NS_OPS": ops} if ops else {}),
+             **{name: os.environ[name] for name in KERNEL_FORWARDED_ENV if os.environ.get(name)}}
     return (
         "import json, os, shutil, sys, tempfile\n"
         "sys.dont_write_bytecode = True\n"
@@ -517,7 +527,7 @@ def run_draft_pass(io: Any, store: Any, ops: str, watched: list[dict], now: date
     sources = bundle_sources()
     report["sources"] = len(sources)
     t0 = time.time()
-    result = io.run_code(heartbeat_kernel_code(work, sources, budget_s=max(600, timeout_s - 300)), timeout=timeout_s)
+    result = io.run_code(heartbeat_kernel_code(work, sources, budget_s=max(600, timeout_s - 300), ops=ops), timeout=timeout_s)
     summary, events = parse_heartbeat_output(result)
     report["seconds"] = round(time.time() - t0, 1)
     report["events"] = [e.get("event") for e in events]

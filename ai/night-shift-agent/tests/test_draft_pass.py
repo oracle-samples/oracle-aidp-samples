@@ -4,6 +4,7 @@ heartbeat's printed lines, and the plumbing through tick(). The heartbeat itself
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -179,6 +180,45 @@ def test_heartbeat_kernel_code_bundles_sources_sets_knobs_and_execs_from_a_priva
     compile(code, "cell", "exec")   # it is valid Python
     with pytest.raises(ValueError):
         A.heartbeat_kernel_code([W1], {"pkg/nightshift/x.py": ""})
+
+
+FORWARDED = ("NS_APPROVERS", "NS_SBX", "NS_DRAFT_MODEL", "NS_DRAFT_MODEL_LOW")
+
+
+def _kernel_env(code: str) -> dict:
+    """The environment the cell sets in the kernel before it runs the heartbeat."""
+    return json.loads(re.search(r"^os\.environ\.update\((\{.*\})\)$", code, re.M).group(1))
+
+
+def test_the_kernel_heartbeat_runs_with_the_actuators_ledger_allowlist_sandbox_and_models(monkeypatch):
+    """The kernel has its own environment. Without these the heartbeat would drain approvals with no allowlist and
+    grade against the default ledger, whatever the actuator was configured with."""
+    for name, value in zip(FORWARDED, ("alice,priya", "main.ns_sbx", "model.a", "model.b")):
+        monkeypatch.setenv(name, value)
+
+    env = _kernel_env(A.heartbeat_kernel_code([W1], {"nightshift_heartbeat.py": "print('hb')"}, ops="main.ns_ops"))
+
+    assert env["NS_OPS"] == "main.ns_ops"
+    assert [env[name] for name in FORWARDED] == ["alice,priya", "main.ns_sbx", "model.a", "model.b"]
+
+
+def test_a_setting_the_actuator_does_not_have_is_left_to_the_kernel(monkeypatch):
+    for name in FORWARDED:
+        monkeypatch.delenv(name, raising=False)
+
+    env = _kernel_env(A.heartbeat_kernel_code([W1], {"nightshift_heartbeat.py": "print('hb')"}, ops="main.ns_ops"))
+
+    assert not set(FORWARDED) & env.keys()
+
+
+def test_the_draft_pass_points_the_kernel_heartbeat_at_the_ledger_the_tick_used():
+    out = {"outputs": [{"output_type": "stream", "text": json.dumps(SUMMARY) + "\n"}]}
+    io = KernelIO(out)
+    store = DraftStore(graded=[SHA["a"]], needing=[SHA["a"]], budget_rows=[ROW_NORMAL])
+
+    run(io, store, draft=True, watched=[W1])
+
+    assert _kernel_env(io.codes[0][0])["NS_OPS"] == OPS
 
 
 def test_bundle_sources_has_heartbeat_and_every_package_module(tmp_path):
