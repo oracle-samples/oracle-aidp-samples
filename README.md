@@ -35,6 +35,7 @@ oracle-aidp-samples/
 │   │   └── agent-samples/
 │   ├── agent-flows/          # Agent orchestration and scheduling
 │   ├── ml-datascience/       # ML, LLM, and AI service integrations
+│   ├── night-shift-agent/    # Replay-verified pipeline-repair agent
 │   └── skills/               # Agent Skills (SKILL.md packages) by product domain
 │       └── analytics/        # Oracle Analytics skills
 └── shared-utils/             # Reusable utilities and data generators
@@ -294,6 +295,7 @@ Python tool packages that extend agent flows with user-authored capabilities. Up
 | [Multi-MCP Chat Agent](ai/agent-flows/code-first/multi-mcp-chat-agent/README.md) | Natural-language chat agent that fans out across Oracle Autonomous Database (Select AI MCP), Oracle Analytics Cloud (Logical SQL MCP), and Oracle Integration Cloud (project-scoped MCP). Each integration can be enabled or disabled independently via config. |
 | [ReAct Agent with RAG Tool](ai/agent-flows/code-first/react-with-rag-tool/README.md) | Simple code-authored ReAct agent that uses a RAG tool over PDFs stored in an AIDP Knowledge Base — runs as a code-first agent flow with the standard playground/test loop. |
 | [Supply Chain Agent](ai/supply_chain_agent/README.md) | Multi-agent system for supply-chain operations using OCI Generative AI (Grok-4) over AIDP catalog tables — data generation, table provisioning, and agent configuration walkthrough included. |
+| [Night Shift Agent](ai/night-shift-agent/README.md) | Run a scheduled Workflow job that replays watched MERGE statements under delivery hazards on a shallow clone, drafts a replay-verified repair with `ai_generate`, and routes it through policy gates to a reviewer's approval notebook, with the full audit trail in Delta tables. |
 
 #### Agent Skills
 
