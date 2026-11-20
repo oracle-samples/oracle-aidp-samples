@@ -36,6 +36,12 @@ def main() -> int:
         c = io.get_cluster(env.cluster_id)
         d_ocpu = int(((c.get("driverConfig") or {}).get("driverShapeConfig") or {}).get("ocpus") or 0)
         w_ocpu = int(((c.get("workerConfig") or {}).get("workerShapeConfig") or {}).get("ocpus") or 0)
+        if d_ocpu <= 0 or (args.workers > 0 and w_ocpu <= 0):
+            # zero-OCPU rows would read as a known budget with everything remaining, and rows are insert-if-absent
+            # per day, so a later run could not correct them
+            print(f"cluster {env.cluster_id}: the cluster body does not state its ocpus (driverShapeConfig.ocpus = {d_ocpu}, "
+                  f"workerShapeConfig.ocpus = {w_ocpu}); nothing seeded, the budget stays unknown", file=sys.stderr)
+            return 1
         ocpus = d_ocpu + args.workers * w_ocpu
         now = dt.datetime.now(dt.timezone.utc)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
