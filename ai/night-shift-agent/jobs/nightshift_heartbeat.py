@@ -160,8 +160,11 @@ if not ALREADY:
         summary["flight_recorder"] = "skipped: draft-only run"
     else:
         try:
-            exec(compile(recorder_cell(OPS, JOB_NAME, tick_id[:12], max_stages=100), "flight_recorder_cell", "exec"), {"spark": spark, "__name__": "__fr__"})
-            summary["flight_recorder"] = "ok"
+            fr_ns = {"spark": spark, "__name__": "__fr__"}
+            exec(compile(recorder_cell(OPS, JOB_NAME, tick_id[:12], max_stages=100), "flight_recorder_cell", "exec"), fr_ns)
+            # the cell catches its own errors and prints them, so "it ran" is not "it recorded": report what it reported
+            fr = fr_ns.get("_ns_summary") or {}
+            summary["flight_recorder"] = "ok" if fr.get("ok") else f"skipped: {str(fr.get('error') or 'the cell left no summary')[:120]}"
         except Exception as e:  # noqa: BLE001  (evidence is best effort; the tick must still be recorded)
             summary["flight_recorder"] = f"skipped: {err_text(e, 120)}"
 

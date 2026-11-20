@@ -16,6 +16,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import duckdb
 import pytest
@@ -24,7 +25,7 @@ from nightshift import draft as D
 from nightshift import ledger as L
 from nightshift import replay as R
 
-from helpers import _to_duckdb
+from helpers import FrameSink, _to_duckdb, stub_spark_ui
 
 ROOT = Path(__file__).resolve().parents[1]
 OPS = "nightshift_ops"
@@ -498,3 +499,30 @@ def test_the_tick_is_still_graded_and_recorded_when_the_approval_drain_raises(le
     assert summary["approvals_drained"]["executed"] == []
     assert [v["table"] for v in summary["replay_verdicts"]] == [SILVER]
     assert ledger_db.execute(f"SELECT COUNT(*) FROM {OPS}.ticks").fetchone()[0] == 1
+
+
+# ----------------------------------------------------------------------------- evidence: the flight recorder's own report
+UI_SAMPLE = {"app_id": "app-1", "jobs": [], "sql": [], "executors": [],
+             "stages": [{"stageId": 1, "attemptId": 0, "status": "COMPLETE", "numTasks": 1, "name": "count at <stdin>:1"}]}
+
+
+def test_the_tick_says_why_when_the_flight_recorder_recorded_nothing(ledger_db, tmp_path, monkeypatch, capsys):
+    """The generated cell catches its own errors and prints them; the tick summary repeats what the cell reported."""
+    stub_spark_ui(monkeypatch, None)
+
+    summary, _ = _run_heartbeat(monkeypatch, capsys, FakeSpark(ledger_db), _watch(tmp_path, []), NS_DRAFT_ONLY="0")
+
+    assert summary["flight_recorder"].startswith("skipped: ")
+    assert "no applications from Spark UI" in summary["flight_recorder"]
+
+
+def test_the_tick_says_ok_when_the_flight_recorder_wrote_its_rows(ledger_db, tmp_path, monkeypatch, capsys):
+    stub_spark_ui(monkeypatch, UI_SAMPLE)
+    spark, sink = FakeSpark(ledger_db), FrameSink()
+    spark.sparkContext = SimpleNamespace(uiWebUrl="http://driver:4040")
+    spark.createDataFrame = sink.createDataFrame
+
+    summary, _ = _run_heartbeat(monkeypatch, capsys, spark, _watch(tmp_path, []), NS_DRAFT_ONLY="0")
+
+    assert summary["flight_recorder"] == "ok"
+    assert len(sink.saved) == 1 and len(sink.saved[0][2]) == 1

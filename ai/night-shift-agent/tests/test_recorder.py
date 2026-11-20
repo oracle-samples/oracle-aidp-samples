@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import ast
 import json
+from types import SimpleNamespace
 
 import pytest
 
+from nightshift import ledger as L
 from nightshift.recorder import FLIGHT_COLUMNS, _ns_parse_ts, recorder_cell, shape_rows, summary_from_output
+
+from helpers import FrameSink, stub_spark_ui
 
 # Trimmed from a real Spark 3.5 /api/v1 response shape (stages?withSummaries=true, sql, jobs, executors).
 SAMPLE = {
@@ -159,3 +163,52 @@ def test_summary_from_output_picks_last_json_line():
     ]}
     assert summary_from_output(result) == {"ok": True, "rows": 5}
     assert summary_from_output({"outputs": []}) is None
+
+
+# ----------------------------------------------------------------------------- the cell, run against a stand-in UI
+def _run_cell(monkeypatch, payload):
+    """Execute the generated cell the way the heartbeat does; returns its namespace and what it wrote."""
+    stub_spark_ui(monkeypatch, payload)
+    sink = FrameSink()
+    spark = SimpleNamespace(sparkContext=SimpleNamespace(uiWebUrl="http://driver:4040"), createDataFrame=sink.createDataFrame)
+    namespace = {"spark": spark, "__name__": "__fr__"}
+    exec(compile(recorder_cell("default.nightshift_ops", "orders_silver", "run-1"), "flight_recorder_cell", "exec"), namespace)
+    return namespace, sink
+
+
+def test_the_cell_writes_every_column_of_the_table(monkeypatch, capsys):
+    _, sink = _run_cell(monkeypatch, SAMPLE)
+
+    (table, columns, rows), = sink.saved
+    assert table == "default.nightshift_ops.flight_recorder"
+    assert columns == [c for c, _ in L.COLUMNS["flight_recorder"]]
+    assert all(len(row) == len(columns) for row in rows)
+    spark_type = {"STRING": "StringType", "TIMESTAMP": "TimestampType", "BIGINT": "LongType", "INT": "IntegerType"}
+    assert sink.types == [[spark_type[t] for _, t in L.COLUMNS["flight_recorder"]]]
+
+
+def test_a_recorded_row_carries_the_ledgers_record_id_and_a_created_at(monkeypatch, capsys):
+    _, sink = _run_cell(monkeypatch, SAMPLE)
+
+    (_, columns, rows), = sink.saved
+    records = [dict(zip(columns, row)) for row in rows]
+    assert records
+    for r in records:
+        assert r["record_id"] == L._sha16(r["run_id"], r["kind"], r["entity_id"])
+        assert r["created_at"] is not None and r["created_at"] == r["recorded_at"]
+    assert len({r["record_id"] for r in records}) == len(records)
+
+
+def test_the_cell_leaves_its_summary_for_the_code_that_ran_it(monkeypatch, capsys):
+    namespace, sink = _run_cell(monkeypatch, SAMPLE)
+
+    assert namespace["_ns_summary"]["ok"] is True
+    assert namespace["_ns_summary"]["rows"] == len(sink.saved[0][2])
+
+
+def test_an_unreachable_spark_ui_is_in_the_summary_and_nothing_is_written(monkeypatch, capsys):
+    namespace, sink = _run_cell(monkeypatch, None)
+
+    assert namespace["_ns_summary"]["ok"] is False
+    assert "no applications from Spark UI" in namespace["_ns_summary"]["error"]
+    assert sink.saved == []

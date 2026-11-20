@@ -274,3 +274,81 @@ class DuckStore:
             "INSERT INTO nightshift_ops.approvals (approval_id, tick_id, action_signature, action_json, decision_id, status, "
             "approved_by, approved_at, requested_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [approval_id, tick_id, action.signature, _action_json(action), decision_id, status, by, ts, ts, ts])
+
+
+# ----------------------------------------------------------------------------- flight recorder stand-ins
+class _StubType:
+    def __init__(self, *args) -> None:
+        self.args = args
+
+
+class _StubField:
+    def __init__(self, name, dtype) -> None:
+        self.name, self.dtype = name, dtype
+
+
+class _StubStruct:
+    def __init__(self, fields) -> None:
+        self.fields = fields
+
+    @property
+    def names(self):
+        return [f.name for f in self.fields]
+
+
+def stub_spark_ui(monkeypatch, payload: dict | None) -> None:
+    """What the flight-recorder cell needs outside a cluster: ``pyspark.sql.types`` and a Spark UI that answers from
+    ``payload`` (keys app_id, jobs, stages, sql, executors). ``payload=None`` is a Spark UI nobody answers."""
+    import io
+    import sys
+    import types
+    import urllib.error
+    import urllib.request
+
+    spark_types = types.ModuleType("pyspark.sql.types")
+    spark_types.StructType, spark_types.StructField = _StubStruct, _StubField
+    for name in ("StringType", "TimestampType", "LongType", "IntegerType"):
+        setattr(spark_types, name, type(name, (_StubType,), {}))
+    spark_sql = types.ModuleType("pyspark.sql")
+    spark_sql.types = spark_types
+    pyspark = types.ModuleType("pyspark")
+    pyspark.sql = spark_sql
+    for name, mod in (("pyspark", pyspark), ("pyspark.sql", spark_sql), ("pyspark.sql.types", spark_types)):
+        monkeypatch.setitem(sys.modules, name, mod)
+
+    def urlopen(url, context=None, timeout=None):
+        if payload is None:
+            raise urllib.error.URLError("connection refused")
+        path = url.split("/api/v1/applications", 1)[1]
+        body = ([{"id": payload["app_id"]}] if path == "" else
+                payload["jobs"] if path.endswith("/jobs") else
+                payload["stages"] if "/stages" in path else
+                payload["sql"] if "/sql" in path else
+                payload["executors"])
+        return io.BytesIO(json.dumps(body).encode("utf-8"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+
+
+class FrameSink:
+    """Records ``spark.createDataFrame(data, schema).write.mode("append").saveAsTable(name)``."""
+
+    def __init__(self) -> None:
+        self.saved: list[tuple[str, list[str], list[tuple]]] = []   # (table, column names, rows)
+        self.types: list[list[str]] = []                             # per saved frame: the Spark type name of each column
+
+    def createDataFrame(self, data, schema):
+        sink = self
+
+        class _Writer:
+            def mode(self, _mode):
+                return self
+
+            def saveAsTable(self, name):
+                sink.saved.append((name, schema.names, list(data)))
+                sink.types.append([type(f.dtype).__name__ for f in schema.fields])
+
+        class _Frame:
+            write = _Writer()
+
+        return _Frame()
