@@ -236,15 +236,15 @@ def _sql_str(value: str) -> str:
 def ai_generate_sql(model: str | None = None, text: str = "", labels: Iterable[str] = LABELS) -> str:
     """Spark SQL that asks ai_generate for exactly one label. Returns a SELECT statement string.
 
-    model defaults to MODEL_LADDER['low_compute']. openai.* names are refused (not in
-    MODEL_LADDER). The error text is truncated to AI_TEXT_MAX_CHARS before escaping.
+    model defaults to MODEL_LADDER['low_compute']. openai.* names are refused on purpose, whatever
+    the environment names. The error text is truncated to AI_TEXT_MAX_CHARS before escaping.
     """
     if model is None:
         model = MODEL_LADDER["low_compute"]
     if not model:
         raise ValueError("no ai_generate model available for this tier")
-    if model.lower().startswith("openai."):
-        raise ValueError(f"model {model!r} is not in MODEL_LADDER")
+    if model.lower().startswith("openai."):   # a deliberate refusal, not a lookup (see draft.ai_generate_sql)
+        raise ValueError(f"model {model!r} is refused: this sample does not use openai.* models; choose another model name")
     label_list = ", ".join(labels)
     body = (text or "")[:AI_TEXT_MAX_CHARS]
     prompt = (

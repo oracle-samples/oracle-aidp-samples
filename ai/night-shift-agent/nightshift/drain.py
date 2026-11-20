@@ -33,7 +33,10 @@ the update.
 
 Two drainers can reach the same row (the heartbeat and the actuator both drain repairs; two actuators can overlap), so
 the one that acts first claims the row (``approved`` -> ``executing``, ``claim_approval``) and only the claim holder
-executes. A row left ``executing`` by a drainer that died is never retried; it expires and a person decides again.
+executes. Every write a drainer makes is scoped to what it holds (``ledger.mark_approval_sql``): before a claim it can
+touch ``approved`` rows only, so a drainer working from a stale read cannot put another drainer's ``executing`` row
+back to ``approved`` (it would be claimed and applied twice), and after its claim it can touch only the row carrying
+that claim. A row left ``executing`` by a drainer that died is never retried; it expires and a person decides again.
 
 ``store.run_sql(sql)`` returns rows (tuples or Row objects) for a SELECT and may return anything for a write.
 ``write_decision(decision, action, provenance=..., principal=...)`` writes the decision row first; if it raises, the
@@ -213,10 +216,12 @@ def drain_approvals(store: Any, ops: str, ctx: Any, engine: Any, write_decision:
                 out["left"].append({"approval_id": aid, "kind": a.kind, "reason": f"{d.rule_id}: {d.reason}"})
                 emit("approval_denied_on_execute", approval_id=aid, rule=d.rule_id, reason=d.reason)
                 continue
-            claimed, why = claim_approval(store, ops, aid, new_claim(tick_id, aid), now)
+            claim = new_claim(tick_id, aid)
+            claimed, why = claim_approval(store, ops, aid, claim, now)
             if not claimed:
                 out["left"].append({"approval_id": aid, "kind": a.kind, "reason": why})
                 continue
+            # from here on this drainer holds the row: the outcome write names its claim
             try:
                 outcome = _apply_statement_repair(store, ops, a, approved_by, now)
                 status = "applied"
@@ -227,11 +232,11 @@ def drain_approvals(store: Any, ops: str, ctx: Any, engine: Any, write_decision:
                 "previous_value": None, "reversible": True, "decision_id": _sha16(tick_id, sig, d.decision, d.rule_id),
                 "status": status, "result": outcome, "applied_at": now if status == "applied" else None}, now=now))
             if status == "failed":
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=str(outcome.get("error")), now=now))
+                store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=str(outcome.get("error")), now=now, claim=claim))
                 out["errors"].append(f"{aid}: {outcome.get('error')}")
                 emit("approval_failed", approval_id=aid, error=outcome.get("error"))
             else:
-                store.run_sql(ledger.mark_approval_sql(ops, aid, "executed", note=f"applied by tick {tick_id[:12]}", now=now))
+                store.run_sql(ledger.mark_approval_sql(ops, aid, "executed", note=f"applied by tick {tick_id[:12]}", now=now, claim=claim))
                 out["executed"].append({"approval_id": aid, "runbook_id": outcome.get("runbook_id"), "approved_by": approved_by})
                 emit("approval_executed", approval_id=aid, runbook_id=outcome.get("runbook_id"), approved_by=approved_by)
     finally:

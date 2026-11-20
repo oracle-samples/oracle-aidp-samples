@@ -37,7 +37,7 @@ def test_prompt_contains_facts_and_forces_the_reply_shape():
 def test_ai_generate_sql_escapes_and_refuses_openai():
     sql = D.ai_generate_sql("xai.grok-4.7", "it's a 'test'\\n")
     assert sql.startswith("SELECT ai_generate('xai.grok-4.7', '") and "it\\'s" in sql and "\\\\n" in sql
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is refused: the draft step does not use openai"):   # a rule, not a missing entry
         D.ai_generate_sql("openai.gpt-5.4", "x")
     with pytest.raises(ValueError):
         D.ai_generate_sql(None, "x")

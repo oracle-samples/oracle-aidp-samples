@@ -650,11 +650,20 @@ def release_claim_sql(ops: str, approval_id: str, claim: str, now: datetime | No
     )
 
 
-def mark_approval_sql(ops: str, approval_id: str, status: str, note: str | None = None, now: datetime | None = None) -> str:
-    """Actuator outcome on an open (pending / approved / executing) row: ``executed`` / ``failed`` / ``expired``.
-    ``status='approved'`` is allowed as a note-only update (re-evaluation denied: the row stays approved
-    and is retried next tick). The appended note carries the status and the tick clock, since the table
-    has no executed_at column."""
+def mark_approval_sql(ops: str, approval_id: str, status: str, note: str | None = None, now: datetime | None = None,
+                      claim: str | None = None) -> str:
+    """A drainer's write on an approval row: ``executed`` / ``failed`` / ``expired``, or ``approved`` as a note-only
+    update (the row stays approved and is retried next tick). The appended note carries the status and the tick clock,
+    since the table has no executed_at column.
+
+    Which rows it may touch depends on whether the drainer holds the row:
+
+    * without ``claim`` (every write made BEFORE a claim: a denial, a row that is not the gate's own) it matches
+      ``approved`` rows only. It never matches ``executing``: a drainer that read the row before another one claimed
+      it would otherwise put that row back to ``approved`` while its action is being applied, and it would be
+      claimed and applied a second time. It never matches ``pending`` either: a drainer only ever reads approved rows;
+    * with ``claim`` (every write made AFTER this drainer's claim: the outcome, or handing a planned-only action back)
+      it matches the ``executing`` row whose note ends with this drainer's own claim, and nothing else."""
     if not approval_id:
         raise ValueError("approval_id is required")
     if status not in ("approved", "executed", "failed", "expired"):
@@ -663,9 +672,13 @@ def mark_approval_sql(ops: str, approval_id: str, status: str, note: str | None 
     if ts.tzinfo is not None:
         ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
     suffix = f"{status} {ts.strftime('%Y-%m-%dT%H:%M:%SZ')}" + (f": {note}" if note else "")
+    if claim:
+        held = f"status = 'executing' AND note LIKE {lit('%' + APPROVAL_CLAIM_TAG + claim)}"
+    else:
+        held = "status = 'approved'"
     return (
         f"UPDATE {ops}.approvals SET status = {lit(status)}, note = {_note_append_expr(suffix)}\n"
-        f"WHERE approval_id = {lit(approval_id)} AND status IN ({', '.join(lit(s) for s in _APPROVAL_OPEN)})"
+        f"WHERE approval_id = {lit(approval_id)} AND {held}"
     )
 
 

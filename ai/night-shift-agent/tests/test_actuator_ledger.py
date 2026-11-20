@@ -155,3 +155,73 @@ def test_applied_resizes_spend_the_daily_quota_and_dry_runs_do_not():
     assert applied[3] == [("deny", "rate.resizes_daily")] and applied[4] == [("deny", "rate.resizes_daily")]
     assert store.rows("SELECT COUNT(*) FROM {ops}.actions WHERE status = 'applied' AND kind = 'cluster_update'") == [(3,)]
     assert store.rows("SELECT COUNT(*) FROM {ops}.actions WHERE status = 'dry_run'")[0][0] >= 3
+
+
+# ----------------------------------------------------------------------------- overlapping drainers on real rows
+class _OverlapStore(DuckStore):
+    """A second drainer claims the approval right after this tick has read the approved rows: from then on this
+    tick works from a stale read, exactly the interleaving of two overlapping ticks."""
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.other_claims = None   # approval id the other drainer takes, once
+
+    def run_sql(self, sql, timeout=300):
+        rows = super().run_sql(sql, timeout)
+        if self.other_claims and "status = 'approved' AND (expires_at IS NULL" in sql:
+            aid, self.other_claims = self.other_claims, None
+            super().run_sql(L.claim_approval_sql(store_ops(), aid, "0therdra1ner", T0))
+        return rows
+
+
+def test_a_denial_from_a_stale_read_does_not_reopen_the_row_another_drainer_is_applying():
+    """The review's round-2 repro through the production tick. Drainer B has claimed the approved resize and is
+    applying it. This tick read the row before that claim; a job is running, so its gate denies and it writes its
+    denial note. The row must stay executing under B's claim, so nothing can claim it again and apply it twice."""
+    io, store, kv = FakeIO(), _OverlapStore(ROW_LOW), MemoryKV()
+    aid, did, action = _open_real_approval(io, store, kv)
+    store.run_sql(L.approve_sql(store_ops(), aid, "reviewer", now=T0 + timedelta(minutes=5)))
+    io.runs = [{"key": "r1", "state": {"status": "RUNNING"}}]            # safety.active_runs will deny the resize
+    store.other_claims = aid
+    report = _tick(io, store, 1, kv)
+    assert report.approvals_executed == 0 and _resizes(io) == []
+    assert any("re-evaluation denied (safety.active_runs" in n for n in report.notes)
+    status, note = store.rows("SELECT status, note FROM {ops}.approvals")[0]
+    assert status == "executing" and note.endswith("claim:0therdra1ner") and "DENIED_ON_EXECUTE" not in note
+    # a later tick finds no approved row to take: the action cannot be applied a second time from here
+    io.runs = []
+    later = _tick(io, store, 2, kv)
+    assert later.approvals_executed == 0 and _resizes(io) == []
+    # drainer B writes its outcome under its own claim
+    store.run_sql(L.mark_approval_sql(store_ops(), aid, "executed", note="applied by tick b", now=T0, claim="0therdra1ner"))
+    assert store.rows("SELECT status FROM {ops}.approvals")[0][0] == "executed"
+
+
+def test_this_tick_does_not_act_when_another_drainer_claimed_first_and_leaves_its_row_alone():
+    io, store, kv = FakeIO(), _OverlapStore(ROW_LOW), MemoryKV()
+    aid, did, action = _open_real_approval(io, store, kv)
+    store.run_sql(L.approve_sql(store_ops(), aid, "reviewer", now=T0 + timedelta(minutes=5)))
+    store.other_claims = aid
+    report = _tick(io, store, 1, kv)                                      # the gate allows; this tick's own claim finds the row taken
+    assert report.approvals_executed == 0 and _resizes(io) == []
+    assert any("claimed by another drainer" in n for n in report.notes)
+    status, note = store.rows("SELECT status, note FROM {ops}.approvals")[0]
+    assert status == "executing" and note.endswith("claim:0therdra1ner")
+
+
+def test_a_copied_id_of_a_pending_approval_fails_the_copy_and_leaves_the_pending_row_for_the_reviewer():
+    """A row inserted with the id of an approval that is still pending, already 'approved'. The drain marks the row it
+    is looking at failed and does not cancel the gate's pending row behind the reviewer's back. Nothing is executed,
+    then or after the reviewer approves (two rows carry the id, so neither is trusted, and the reason is on the row)."""
+    io, store, kv = FakeIO(), DuckStore(ROW_LOW), MemoryKV()
+    aid, did, action = _open_real_approval(io, store, kv)
+    store.forge(aid, action, by="reviewer", decision_id=did, tick_id=action.opened_in)     # same approval id
+    report = _tick(io, store, 1, kv)
+    assert report.approvals_executed == 0 and _resizes(io) == []
+    rows = sorted(store.rows("SELECT status, tick_id FROM {ops}.approvals"))
+    assert [s for s, _ in rows] == ["failed", "pending"]                  # the copy failed; the real row is still pending
+    assert "DUPLICATE_APPROVAL_ID" in store.rows("SELECT note FROM {ops}.approvals WHERE status = 'failed'")[0][0]
+    store.run_sql(L.approve_sql(store_ops(), aid, "reviewer", now=T0 + timedelta(minutes=40)))
+    report = _tick(io, store, 2, kv)
+    assert report.approvals_executed == 0 and _resizes(io) == []
+    assert any("DUPLICATE_APPROVAL_ID" in n for n in report.notes)

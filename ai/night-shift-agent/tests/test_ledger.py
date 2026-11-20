@@ -287,7 +287,11 @@ def test_pending_and_approved_select_shapes():
 def test_mark_and_expire_sql_shapes():
     sql = L.mark_approval_sql("o.s", "ap1", "executed", note="dry_run by tick abc", now=LATER)
     assert sql.startswith("UPDATE o.s.approvals SET status = 'executed', note = CASE WHEN note IS NULL THEN 'executed 2026-11-02T07:00:00Z: dry_run by tick abc'")
-    assert "WHERE approval_id = 'ap1' AND status IN ('pending', 'approved', 'executing')" in sql
+    assert sql.endswith("WHERE approval_id = 'ap1' AND status = 'approved'")           # before a claim: approved rows only
+    held = L.mark_approval_sql("o.s", "ap1", "executed", note="applied", now=LATER, claim="abcd1234")
+    assert held.endswith("WHERE approval_id = 'ap1' AND status = 'executing' AND note LIKE '%claim:abcd1234'")   # after it: the holder's row only
+    for status in ("approved", "failed", "expired"):
+        assert "'executing'" not in L.mark_approval_sql("o.s", "ap1", status, note="x", now=LATER)   # never without the claim
     assert "'failed 2026-11-02T07:00:00Z: boom'" in L.mark_approval_sql("o.s", "ap1", "failed", note="boom", now=LATER)
     assert "'expired 2026-11-02T07:00:00Z'" in L.mark_approval_sql("o.s", "ap1", "expired", now=LATER)
     assert "SET status = 'approved'" in L.mark_approval_sql("o.s", "ap1", "approved", note="DENIED_ON_EXECUTE", now=LATER)
@@ -388,7 +392,7 @@ def test_approval_binding_trace_and_claim_against_the_ledger(ops_db):
     status, note = con.execute(L.approval_claim_sql(ops, "ap1")).fetchone()
     assert status == "approved" and note.endswith("claim released 2026-11-02T07:00:00Z")
     con.execute(L.claim_approval_sql(ops, "ap1", "cccc", LATER))
-    con.execute(L.mark_approval_sql(ops, "ap1", "executed", note="applied", now=LATER))
+    con.execute(L.mark_approval_sql(ops, "ap1", "executed", note="applied", now=LATER, claim="cccc"))
     assert con.execute(f"SELECT status FROM {ops}.approvals").fetchone()[0] == "executed"
     with pytest.raises(ValueError):
         L.claim_approval_sql(ops, "ap1", "")
@@ -406,3 +410,43 @@ def test_an_executing_row_expires_an_hour_after_the_others(ops_db):
     assert dict(con.execute(f"SELECT approval_id, status FROM {ops}.approvals").fetchall()) == {"p": "expired", "a": "expired", "e": "executing"}
     con.execute(_to_duckdb(L.expire_approvals_sql(ops, datetime(2026, 11, 2, 7, 31))))  # more than an hour past it
     assert con.execute(f"SELECT status FROM {ops}.approvals WHERE approval_id = 'e'").fetchone()[0] == "expired"
+
+
+def test_a_stale_drainer_cannot_reopen_or_overwrite_a_claimed_approval(ops_db):
+    """Two drainers read the same approved row. One claims it and is applying the action. The other, still working
+    from its earlier read, gets a deny from the gate and writes its note-only 'approved' mark, or decides the row is
+    not the gate's and writes 'failed'. Neither write may touch the claimed row: put back to approved it would be
+    claimed and applied a second time. Then the sequence from the review, with the production SQL: first claim, stale
+    denial, second claim."""
+    ops, con = ops_db
+    con.execute(L.insert_approval(ops, {"approval_id": "ap1", "tick_id": "t1", "action_signature": "sig1", "decision_id": "d1",
+                                        "action_json": {"kind": "cluster_update", "target": "c1"}, "note": "budget.big_resize"}, NOW))
+    con.execute(L.approve_sql(ops, "ap1", "reviewer", now=LATER))
+
+    def row():
+        return con.execute(f"SELECT status, note FROM {ops}.approvals").fetchone()
+
+    con.execute(L.claim_approval_sql(ops, "ap1", "first", LATER))                       # drainer A holds the row
+    for stale in (L.mark_approval_sql(ops, "ap1", "approved", note="DENIED_ON_EXECUTE safety.active_runs", now=LATER),
+                  L.mark_approval_sql(ops, "ap1", "failed", note="approval.trace: DUPLICATE_APPROVAL_ID", now=LATER),
+                  L.mark_approval_sql(ops, "ap1", "executed", note="applied by tick x", now=LATER),
+                  L.mark_approval_sql(ops, "ap1", "expired", now=LATER)):
+        con.execute(stale)                                                             # drainer B, from its stale read
+        status, note = row()
+        assert status == "executing" and note.endswith("claim:first") and "DENIED" not in note and "DUPLICATE" not in note
+    con.execute(L.claim_approval_sql(ops, "ap1", "second", LATER))                      # so a second claim finds nothing to take
+    assert row()[1].endswith("claim:first")
+    assert con.execute(_to_duckdb(L.approved_unexecuted_sql(ops, LATER))).fetchall() == []
+
+    # another drainer's claim does not let it write the outcome either; only the holder's does
+    con.execute(L.mark_approval_sql(ops, "ap1", "executed", note="applied", now=LATER, claim="second"))
+    assert row()[0] == "executing"
+    con.execute(L.mark_approval_sql(ops, "ap1", "executed", note="applied by tick t2", now=LATER, claim="first"))
+    status, note = row()
+    assert status == "executed" and note.endswith("applied by tick t2")
+
+    # a write made before any claim never touches a pending row (a drainer only reads approved ones)
+    con.execute(L.insert_approval(ops, {"approval_id": "ap2", "tick_id": "t1", "action_signature": "sig2",
+                                        "action_json": {"kind": "cluster_update", "target": "c1"}}, NOW))
+    con.execute(L.mark_approval_sql(ops, "ap2", "failed", note="approval.trace: DUPLICATE_APPROVAL_ID", now=LATER))
+    assert con.execute(f"SELECT status FROM {ops}.approvals WHERE approval_id = 'ap2'").fetchone()[0] == "pending"

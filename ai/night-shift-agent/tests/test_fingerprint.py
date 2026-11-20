@@ -197,7 +197,7 @@ def test_ai_generate_sql_truncates():
 
 
 def test_ai_generate_sql_refuses_openai_and_missing_model():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is refused"):
         ai_generate_sql("openai.gpt-4o", "boom")
     with pytest.raises(ValueError):
         ai_generate_sql("", "boom")  # empty model name

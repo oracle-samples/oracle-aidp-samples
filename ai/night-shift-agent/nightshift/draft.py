@@ -80,8 +80,12 @@ def ai_generate_sql(model: str, prompt: str) -> str:
     """Spark SQL that asks the platform's ai_generate for the draft (one string column named draft)."""
     if not model:
         raise ValueError("no drafting model for this tier")
+    # A deliberate refusal, not a lookup: the model ids come from the environment (NS_DRAFT_MODEL, NS_DRAFT_MODEL_LOW),
+    # and this sample does not send a statement to an openai.* model whatever the environment names. Do not "fix" it
+    # by adding the id to a list; choose another model id.
     if model.lower().startswith("openai."):
-        raise ValueError(f"model {model!r} is not in MODEL_LADDER")
+        raise ValueError(f"model {model!r} is refused: the draft step does not use openai.* models; set NS_DRAFT_MODEL / "
+                         "NS_DRAFT_MODEL_LOW to another model name")
     return f"SELECT ai_generate('{sql_str(model)}', '{sql_str(prompt)}') AS draft"
 
 

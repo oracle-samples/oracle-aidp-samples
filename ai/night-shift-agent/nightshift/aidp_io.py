@@ -138,11 +138,15 @@ class AidpIO:
 
     def list_active_runs(self) -> list[dict]:
         """Every job run in an active state, asked for by status so the answer does not depend on how far back one
-        page of the run history reaches. Raises when a query fails or a response is not a run list; the tick reads that
-        as unknown, never as idle."""
+        page of the run history reaches. Raises when a query fails, when a response is not a run list, or when a status
+        returns a full page (there may be more than the page holds, and the ones cut off could be the runs on the
+        cluster in question); the tick reads any of these as unknown, never as idle."""
         out: list[dict] = []
         for status in ACTIVE_RUN_STATUSES:
-            out.extend(self._run_items(self.client.list_job_runs(status=status, limit=RUN_PAGE)))
+            page = self._run_items(self.client.list_job_runs(status=status, limit=RUN_PAGE))
+            if len(page) >= RUN_PAGE:
+                raise RuntimeError(f"{len(page)} job runs in state {status} fill a whole page; the list may be cut off, active runs unknown")
+            out.extend(page)
         return out
 
     @staticmethod

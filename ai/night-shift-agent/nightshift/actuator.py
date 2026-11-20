@@ -752,18 +752,20 @@ def tick(io: Any, store: Any, now: datetime | None = None, dry_run: bool = True,
             notes.append(f"approval {aid}: re-evaluation denied ({d.rule_id} {d.reason}); left approved, not executed")
             store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"DENIED_ON_EXECUTE {d.rule_id}: {d.reason}", now=now))
             continue
-        claimed, why = claim_approval(store, ops, aid, new_claim(tick_id, aid), now)
+        claim = new_claim(tick_id, aid)
+        claimed, why = claim_approval(store, ops, aid, claim, now)
         if not claimed:
             notes.append(f"approval {aid}: {why}; not executed here")
             continue
+        # from here on this drainer holds the row: every write names its claim, so it can only touch its own
         status = act_and_record(a, decision_ids.get(sig))
         if status == "failed":
-            store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=str(outcomes[sig].get("error")), now=now))
+            store.run_sql(ledger.mark_approval_sql(ops, aid, "failed", note=str(outcomes[sig].get("error")), now=now, claim=claim))
         elif status == "planned_only":
             notes.append(f"approval {aid}: {a.kind} on {a.target} still planned only; left approved")
-            store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"PLANNED_ONLY: {outcomes[sig].get('skipped')}", now=now))
+            store.run_sql(ledger.mark_approval_sql(ops, aid, "approved", note=f"PLANNED_ONLY: {outcomes[sig].get('skipped')}", now=now, claim=claim))
         else:
-            store.run_sql(ledger.mark_approval_sql(ops, aid, "executed", note=f"{status} by tick {tick_id[:12]}", now=now))
+            store.run_sql(ledger.mark_approval_sql(ops, aid, "executed", note=f"{status} by tick {tick_id[:12]}", now=now, claim=claim))
             approvals_executed += 1
             executed_sigs.add(sig)
             notes.append(f"approval {aid}: executed {a.kind} on {a.target} ({status}, approved by {by})")

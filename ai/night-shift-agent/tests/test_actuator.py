@@ -946,3 +946,16 @@ def test_failed_run_list_read_means_unknown_and_nothing_is_stopped_or_resized():
     assert report.decisions and all(d.decision == "deny" and d.rule_id == "safety.active_runs"
                                     and d.reason.startswith("ACTIVE_RUNS_UNKNOWN") for d in report.decisions)
 
+
+def test_a_full_page_of_active_runs_is_unknown_not_a_count():
+    """The status query returns at most one page. A full page may be cut off, and the runs left out could be the ones
+    on this cluster, so it is an error (unknown, which denies), never a count."""
+    page = [{"key": f"r{i}", "state": {"status": "RUNNING"}} for i in range(100)]
+    io = AidpIO(Env(), client=RunsClient({"items": []}, active={"RUNNING": page}))
+    with pytest.raises(RuntimeError, match="fill a whole page"):
+        io.list_active_runs()
+    notes: list[str] = []
+    assert build_context(_ClusterIO(io), FakeStore(), T0, notes=notes).kv["active_runs"] == {}
+    assert any("active runs unknown" in n for n in notes)
+    under = AidpIO(Env(), client=RunsClient({"items": []}, active={"RUNNING": page[:99]}))
+    assert len(under.list_active_runs()) == 99
