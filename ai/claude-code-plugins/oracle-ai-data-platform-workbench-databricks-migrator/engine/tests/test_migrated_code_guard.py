@@ -4,7 +4,7 @@ Root cause: in the migration extraction path, `submit_code` sometimes does not
 fire and `call_opus_with_tools` returns the model's raw text, which
 `_extract_code_from_response` passes through unchanged. A prose preamble like
 "Producing the final migrated code." was then persisted AS the cell's code,
-silently destroying the real definition (observed: `SaveTableUtils_2` Cell 0's
+silently destroying the real definition (observed: `SaveTableHelpers_2` Cell 0's
 2903-char `createTable` overwritten by a 34-char preamble → downstream
 `NameError: name 'createTable' is not defined`).
 

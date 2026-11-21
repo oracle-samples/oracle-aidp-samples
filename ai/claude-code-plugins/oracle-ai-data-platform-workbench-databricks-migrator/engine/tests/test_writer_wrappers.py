@@ -51,7 +51,7 @@ def _build_test_namespace():
     """Build a fake kernel namespace with example customer wrappers."""
     ns = {}
 
-    # createTable: SaveTableUtils signature
+    # createTable: SaveTableHelpers signature
     def createTable(df, table_name, database_name, write_mode='append',
                     write_format='parquet', bucket_name='example-datascience-temporary-bucket',
                     pod_name='default_user', partition_by_column=None):
@@ -62,12 +62,12 @@ def _build_test_namespace():
         return True
 
     # drop_database: destructive
-    def drop_database(db, bucket_name='example-datascience-userspace-bucket',
+    def drop_database(db, bucket_name='example-workspace-bucket',
                       pod_name='default_user', delete_paths=False):
         ns['_last_drop_database_args'] = {'db': db, 'bucket_name': bucket_name}
         return True
 
-    def drop_table(table_name, bucket_name='example-datascience-userspace-bucket',
+    def drop_table(table_name, bucket_name='example-workspace-bucket',
                    pod_name='default_user', delete_paths=False):
         ns['_last_drop_table_args'] = {
             'table_name': table_name, 'bucket_name': bucket_name,

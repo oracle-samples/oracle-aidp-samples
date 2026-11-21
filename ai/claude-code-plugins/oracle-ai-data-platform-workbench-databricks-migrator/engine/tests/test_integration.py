@@ -770,7 +770,7 @@ result.write.mode("overwrite").parquet("oci://oci-example-data-lake@exmplnspace2
 
     def test_create_table_with_s3_path(self):
         """createTable function that references S3 bucket."""
-        code = 'createTable(df, "test_table", "test_db", "overwrite", "parquet", bucket_name="example-datascience-userspace-bucket")'
+        code = 'createTable(df, "test_table", "test_db", "overwrite", "parquet", bucket_name="example-workspace-bucket")'
         plan = self.analyze(0, code, [code], [])
         assert plan["action"] == "migrate"
 
@@ -820,7 +820,7 @@ class TestRealWorldCellContext:
 
         # Cache some tool results
         ctx.add_tool_result("explore_path",
-                            {"path": "oci://oci-example-datascience-userspace-bucket@exmplnspace1/db_tables/"},
+                            {"path": "oci://oci-example-workspace-bucket@exmplnspace1/db_tables/"},
                             "Status: EXISTS")
         ctx.add_tool_result("search_catalog",
                             {"query": "upi_examplevendor_optimizer_realtime"},
@@ -839,7 +839,7 @@ class TestRealWorldCellContext:
 
         # Verify cache works
         cached = ctx.get_cached("explore_path",
-                                {"path": "oci://oci-example-datascience-userspace-bucket@exmplnspace1/db_tables/"})
+                                {"path": "oci://oci-example-workspace-bucket@exmplnspace1/db_tables/"})
         assert cached is not None
         assert "EXISTS" in cached
 

@@ -535,8 +535,8 @@ def test_aidp_first_source_jar_wins_over_ambiguous_class_candidates():
         "dbfs:/FileStore/jars/Production Jar/"
         "Example Decrypt UDF 1.0.2.jar"
     )
-    declared_path = f"{fallback}/Spark_Decrypt_UDF_1.0.2_Final.jar"
-    newer_path = f"{fallback}/Spark_Decrypt_UDF_1.0.6_Final.jar"
+    declared_path = f"{fallback}/Example_Decrypt_UDF_1.0.2.jar"
+    newer_path = f"{fallback}/Example_Decrypt_UDF_1.0.6_Final.jar"
     class_name = "com.example.dp.UdfRegistrar"
     graph, context = _graph(f"import {class_name}")
     graph.files[declared_uri] = FileNode(
@@ -546,7 +546,7 @@ def test_aidp_first_source_jar_wins_over_ambiguous_class_candidates():
         aidp_repo_path=declared_path,
         aidp_repo_provenance=(
             "AIDP-first: exact basename "
-            "Spark_Decrypt_UDF_1.0.2_Final.jar present in "
+            "Example_Decrypt_UDF_1.0.2.jar present in "
             "/Workspace/migration-dependencies/libs"
         ),
     )
@@ -580,9 +580,9 @@ def test_aidp_first_source_jar_wins_over_ambiguous_class_candidates():
 
 def test_non_exact_aidp_first_substitution_does_not_override_ambiguity():
     fallback = "/Workspace/migration-dependencies/libs"
-    declared_uri = "dbfs:/FileStore/jars/Spark_Decrypt_UDF_1.0.2_Final.jar"
-    substituted_path = f"{fallback}/Spark_Decrypt_UDF_1.0.6_Final.jar"
-    other_path = f"{fallback}/Spark_Decrypt_UDF_1.0.7_Final.jar"
+    declared_uri = "dbfs:/FileStore/jars/Example_Decrypt_UDF_1.0.2.jar"
+    substituted_path = f"{fallback}/Example_Decrypt_UDF_1.0.6_Final.jar"
+    other_path = f"{fallback}/Example_Decrypt_UDF_1.0.7_Final.jar"
     class_name = "com.example.dp.UdfRegistrar"
     graph, context = _graph(f"import {class_name}")
     graph.files[declared_uri] = FileNode(
@@ -591,7 +591,7 @@ def test_non_exact_aidp_first_substitution_does_not_override_ambiguity():
         referenced_by=["job:123/task:score"],
         aidp_repo_path=substituted_path,
         aidp_repo_provenance=(
-            "AIDP-first: Spark_Decrypt_UDF requested==1.0.2 not staged; "
+            "AIDP-first: Example_Decrypt_UDF requested==1.0.2 not staged; "
             "using highest available 1.0.6"
         ),
     )

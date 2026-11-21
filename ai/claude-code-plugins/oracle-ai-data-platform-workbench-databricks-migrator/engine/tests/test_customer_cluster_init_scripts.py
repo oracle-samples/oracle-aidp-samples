@@ -14,7 +14,7 @@ from dbx_export.customer_cluster_init_scripts import (
 from test_customer_cluster_libraries import graph, report
 
 
-SCRIPT = "/Workspace/migration-dependencies/initscript/init_feature_library_resources.sh"
+SCRIPT = "/Workspace/migration-dependencies/initscript/init_example_lib_resources.sh"
 
 
 def pack(tmp_path, *, destination=SCRIPT):
