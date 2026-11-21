@@ -2,7 +2,7 @@
 Cell-by-Cell Analysis Engine
 ==============================
 Produces actionable per-cell migration plans by analyzing each cell
-with OpenAI model (adaptive thinking + tools). The plans are then followed
+with Opus (adaptive thinking + tools). The plans are then followed
 during the actual migration pass, making migration deterministic.
 
 Each cell gets:
@@ -84,7 +84,7 @@ FUSE_PATTERNS = [
         # Two open(..., "r") or open(..., "rb") calls in the same cell.
         # FUSE can evict the inode cache between the first and second read,
         # causing FileNotFoundError on the second open even though the file exists.
-        # Confirmed: dicretizer_quality23.txt in ExampleJob job.
+        # Confirmed: dicretizer_quality23.txt in Example_Optimizer_Realtime job.
         "name": "volumes_double_read",
         "pattern": r"open\s*\([^)]+['\"]r[b]?['\"]\)",
         "followup": r"open\s*\([^)]+['\"]r[b]?['\"]\)",
@@ -103,38 +103,38 @@ DATABRICKS_PATTERNS = [
     # dbfs:/ URI format (Databricks colon notation)
     {"pattern": r"dbfs:/", "action": "Translate dbfs:/path → /Volumes/default/default/dbfs/path using translate_path() from aidp_compat"},
     # /dbfs/ filesystem format (no colon) — same DBFS root, different notation
-    # e.g. base_path = "/dbfs/FileStore/bsrisk" → "/Volumes/default/default/dbfs/FileStore/bsrisk"
+    # e.g. base_path = "/dbfs/FileStore/exrisk" → "/Volumes/default/default/dbfs/FileStore/exrisk"
     {"pattern": r"""['"]/dbfs/|= ?['"]/dbfs""", "action": "Translate /dbfs/path → /Volumes/default/default/dbfs/path using translate_path() from aidp_compat"},
     {"pattern": r"s3[a]?://", "action": "Translate to oci:// using bucket mapping"},
     {"pattern": r"requests\.post.*slack|send_slack|slack_webhook", "action": "Skip (Slack notification)"},
-    {"pattern": r"display\s*\(", "action": "Use display() from aidp_compat"},
-    # dbutils widget/job/notebook replacements — flagged here so OpenAI model sees them in changes_needed
+    {"pattern": r"display\s*\(", "action": "For pandas DataFrames/Series use Idisplay(df) (bootstrap-imported from IPython.display) or a bare `df` last expression; for Spark DataFrames use df.show() or a bare `df`. Do NOT import display from aidp_compat — the wheel does not export it (ImportError)"},
+    # dbutils widget/job/notebook replacements — flagged here so Opus sees them in changes_needed
     {"pattern": r"dbutils\.widgets\.get\s*\(",
-     "action": "Replace dbutils.widgets.get('x') → oidlUtils.parameters.getParameter('x', '') — comment original line, add oidlUtils line below tagged # Oracle tool modification:"},
+     "action": "Replace dbutils.widgets.get('x') → aidputils.widgets.get('x') in Python and Scala — preserve required-read failures, comment original line, add native call below tagged # Oracle tool modification:"},
     {"pattern": r"dbutils\.jobs\.taskValues\.(get|set)\s*\(",
      "action": "Replace dbutils.jobs.taskValues.get/set → oidlUtils.parameters.getParameter/setTaskValue — tag # Oracle tool modification:"},
     # dbutils.fs.* — file system operations
     {"pattern": r"dbutils\.fs\.(ls|cp|mv|rm|mkdirs|put|head|mount|unmount|mounts|refreshMounts)\s*\(",
      "action": "dbutils.fs is available via aidp_compat — ensure 'from aidp_compat import dbutils' is present. dbutils.fs.ls/cp/mv/rm/mkdirs/put/head work as-is on AIDP. dbutils.fs.mount/unmount/mounts: comment out — AIDP does not use mount points, use oci:// paths directly"},
-    # dbutils.widgets registration (text/dropdown/combobox/multiselect) — not supported on AIDP
+    # Native widget registration is supported in Python and Scala (REF-202).
     {"pattern": r"dbutils\.widgets\.(text|dropdown|combobox|multiselect)\s*\(",
-     "action": "Comment out dbutils.widgets.text/dropdown/combobox/multiselect — widget registration not supported on AIDP. Parameters come from oidlUtils.parameters. Tag: # Oracle tool modification: widget registration not supported on AIDP"},
+     "action": "Replace dbutils.widgets.text/dropdown/combobox/multiselect with aidputils.widgets.* in Python and Scala; preserve registration and customer defaults. Comment original line and tag the replacement # Oracle tool modification:"},
     # sc.addJar() — cannot add JARs at runtime on AIDP
     {"pattern": r"sc\.addJar\s*\(|spark\._jsc\.addJar\s*\(",
      "action": "Comment out sc.addJar() / spark._jsc.addJar() — AIDP does not support runtime JAR loading. JARs must be installed via cluster libraries API before cluster start. Tag: # Oracle tool modification: sc.addJar() not supported — JAR must be pre-installed via cluster libraries API"},
-    # get_glue_table_s3_location — keep call sites UNCHANGED. The function is
-    # a path-returning helper; on AIDP its DEFINITION body uses DESCRIBE FORMATTED
-    # (see the AIDP LOCATION EXTRACTION rule in CELL_MIGRATE_PROMPT). Do NOT
-    # rewrite call sites or replace the variable value with a catalog identifier.
+    # get_glue_table_s3_location — path-returning helper. If it is DEFINED in the
+    # notebook (or a %run dep), body-swap the definition to use inline DESCRIBE
+    # FORMATTED. If only called (definition elsewhere), inline the DESCRIBE
+    # FORMATTED extraction at the call site. Do NOT add an import from aidp_compat.
     {"pattern": r"get_glue_table_s3_location\s*\(",
-     "action": "KEEP call sites unchanged. <var> = get_glue_table_s3_location('db','tbl') stays as-is. The function DEFINITION (if found in this cell or a %run dep) is body-swapped to use DESCRIBE FORMATTED on the AIDP metastore via the prompt's AIDP LOCATION EXTRACTION rule. Downstream `spark.read.parquet(<var>)` etc. continue to work because <var> still holds a path string."},
+     "action": "Replace with inline DESCRIBE FORMATTED extraction on the AIDP metastore. If the function is DEFINED in this cell or a %run dep, body-swap the definition to: rows = spark.sql(f'DESCRIBE FORMATTED `{db}`.`{tbl}`').collect(); return next(r[1].strip() for r in rows if r[0].strip().lower() == 'location'). If only called, inline the same 2-line extraction at the call site."},
     # Hudi reads — supported on AIDP (the Hudi 0.15.0 Spark-3.5 bundle JAR is
     # pre-installed). Leave path reads as-is; do NOT convert to spark.read.table.
     {"pattern": r"spark\.read\.format\s*\(\s*[\"'](?:org\.apache\.)?hudi[\"']\s*\)",
-     "action": "KEEP spark.read.format('hudi').load(<path>) AS-IS. Hudi is supported on AIDP when a matching Hudi Spark bundle JAR is pre-installed. Do NOT convert to spark.read.table; do NOT comment out. The OCI path translation already handles the underlying storage URI."},
+     "action": "KEEP spark.read.format('hudi').load(<path>) AS-IS. Hudi is supported on AIDP via the pre-installed hudi-spark3.5-bundle_2.12-0.15.0 JAR. Do NOT convert to spark.read.table; do NOT comment out. The OCI path translation already handles the underlying storage URI."},
 ]
 
-# Additional risk patterns — flagged in cell_plan["risks"] for OpenAI model to handle
+# Additional risk patterns — flagged in cell_plan["risks"] for Opus to handle
 RISK_PATTERNS = [
     {
         "name": "delete_dml",
@@ -152,13 +152,13 @@ RISK_PATTERNS = [
         "name": "boto3_aws",
         "pattern": r"import\s+boto3|boto3\.client|boto3\.resource",
         "severity": "HIGH",
-        "fix": "No AWS SDK on AIDP — replace boto3.client('s3') with aidp_compat.read_s3_object/write_s3_object, boto3.client('glue') with aidp_compat.get_glue_table_s3_location",
+        "fix": "No AWS SDK on AIDP. For S3 data: stage into /Volumes or oci:// beforehand and read via Spark / pandas / etc. For Glue table lookups: inline spark.sql(f'DESCRIBE FORMATTED `{db}`.`{tbl}`').collect() and read the 'Location' field.",
     },
     {
         "name": "glue_lookup",
         "pattern": r"get_glue_table_s3_location|glue.*get_table|GetTable.*glue",
         "severity": "MEDIUM",
-        "fix": "Use: from aidp_compat import get_glue_table_s3_location (drop-in shim using DESCRIBE FORMATTED)",
+        "fix": "Body-swap or inline: rows = spark.sql(f'DESCRIBE FORMATTED `{db}`.`{tbl}`').collect(); location = next(r[1].strip() for r in rows if r[0].strip().lower() == 'location').",
     },
     {
         "name": "spark_catalog",
@@ -174,9 +174,9 @@ RISK_PATTERNS = [
     },
     {
         "name": "internal_endpoint",
-        "pattern": r"https?://[^\s\"']*(?:internal|intranet|corp|private)[^\s\"']*",
+        "pattern": r"internal-gateway\.example\.com|ds-internal-gateway",  # EXAMPLE endpoints — extend with your environment's internal hosts
         "severity": "HIGH",
-        "fix": "Private/internal endpoint, possibly not reachable from OCI. If side-effect only: print('AIDP: Skipped'). If fetches data: use explore_path/describe_table to find equivalent data in OCI",
+        "fix": "AWS-internal endpoint, not reachable from OCI. If side-effect only: print('AIDP: Skipped'). If fetches data: use explore_path/describe_table to find equivalent data in OCI",
     },
     {
         # /dbfs/ or dbfs:/ paths loaded from DB/config at runtime — cannot be
@@ -206,7 +206,7 @@ RISK_PATTERNS = [
         # Catches TF SavedModel I/O where the path is a variable (not a /Volumes literal).
         # e.g. model.save(model_path) where model_path was set to a /Volumes path earlier.
         # The FUSE_PATTERNS above cover hard-coded /Volumes strings; this catches the
-        # broader pattern so OpenAI model is prompted to check any TF model I/O.
+        # broader pattern so Opus is prompted to check any TF model I/O.
         "name": "tensorflow_model_io",
         "pattern": r"(?:model\.save|tf\.saved_model\.save|tf\.keras\.models\.load_model|tf\.saved_model\.load|keras\.models\.load_model)\s*\(",
         "severity": "HIGH",
@@ -222,7 +222,7 @@ RISK_PATTERNS = [
     },
     {
         # %scala magic cells share the same SparkSession on Databricks but AIDP is
-        # Python-only. OpenAI model should port the Scala logic to Python (UDFs, DataFrame ops)
+        # Python-only. Opus should port the Scala logic to Python (UDFs, DataFrame ops)
         # rather than skipping — only skip if JVM-specific library has no Python equiv.
         "name": "scala_magic",
         "pattern": r"^%scala",
@@ -231,7 +231,7 @@ RISK_PATTERNS = [
             "%scala cell — AIDP kernel is Python-only. Port to Python: "
             "(1) Scala UDF registrations → spark.udf.register('name', python_fn, ReturnType()); "
             "(2) DataFrame ops → PySpark equivalents. "
-            "Use run_on_cluster to verify. Only comment out if JVM-only library (e.g. legacy_decrypt) — "
+            "Use run_on_cluster to verify. Only comment out if JVM-only library (e.g. entity_decrypt) — "
             "add: # AIDP: <feature> disabled — Scala-only library, no Python equivalent"
         ),
     },
@@ -249,13 +249,24 @@ RISK_PATTERNS = [
         ),
     },
     {
-        "name": "legacy_decrypt_udf",
-        "pattern": r"legacy_decrypt|LegacyDecrypt|legacy_encrypt|LegacyEncrypt",
+        "name": "entity_decrypt_udf",
+        "pattern": r"entity_decrypt|EntityDecrypt|entity_encrypt|EntityEncrypt",
         "severity": "HIGH",
         "fix": (
-            "legacy_decrypt/legacy_encrypt UDF requires AWS Secrets Manager keys — not available on OCI. "
-            "Comment out the call and add: # Oracle tool modification: legacy_decrypt disabled — "
-            "AWS Secrets Manager not available on OCI"
+            "entity_decrypt/entity_encrypt is a entity-crypto JVM UDF. On Databricks it read the assumed-role ARN "
+            "from the EC2 instance role; on AIDP that ARN is absent, so the UDF errors unless ENTITY_CRYPTO_ARN is set "
+            "explicitly. FIELD-VALIDATED FIX (the pilot deployment/the operator): set ENTITY_CRYPTO_ARN and wrap the decrypted column with an "
+            "ensure_arn UDF that guarantees the property is set on each executor, then call entity_decrypt as before. "
+            "In a %scala cell register it once:\n"
+            "  val arn = \"arn:aws:sts::<acct>:assumed-role/databricks-ec2-role/<instance>\"\n"
+            "  System.setProperty(\"ENTITY_CRYPTO_ARN\", arn)\n"
+            "  spark.udf.register(\"ensure_arn\", udf((data: String) => {\n"
+            "    if (System.getProperty(\"ENTITY_CRYPTO_ARN\") == null) System.setProperty(\"ENTITY_CRYPTO_ARN\", arn); data }))\n"
+            "then  entity_decrypt(ensure_arn(col), 'NLSP', 'COL', '')  as before. "
+            "The Python equivalent is aidp_compat.ensure_entity_crypto_arn(spark, arn). Use run_on_cluster to confirm the "
+            "entity-crypto JAR is present and the UDF resolves. ONLY fall back to commenting the call out (add: "
+            "# Oracle tool modification: entity_decrypt disabled — entity-crypto UDF unavailable on this cluster) if the "
+            "JAR is genuinely missing."
         ),
     },
     {
@@ -264,10 +275,11 @@ RISK_PATTERNS = [
         "severity": "HIGH",
         "fix": (
             "AWS credentials detected — not available on OCI AIDP. "
-            "AIDP uses OCI API key auth via config file at /Workspace/<oci-config-workspace-path> "
-            "(DEFAULT profile). NEVER use oci.auth.signers.get_resource_principals_signer() — "
+            "AIDP uses OCI API-key auth fetched from AIDP Credential Store via "
+            "aidputils.secrets.get('migration_tool_api', key=...). "
+            "NEVER use oci.auth.signers.get_resource_principals_signer() — "
             "resource principal has known failure modes on AIDP. "
-            "Comment out AWS credential setup. For S3 access use aidp_compat.s3_compat or translate_path() + spark.read. "
+            "Comment out AWS credential setup. For S3 access read the OCI path from suggest_oci_path with spark.read (BmcFilesystem handles OCI auth at cluster level). "
             "Tag: # Oracle tool modification: AWS credentials not available on OCI — using API key auth"
         ),
     },
@@ -295,7 +307,9 @@ RISK_PATTERNS = [
 # but only reads actual bytes at write() time. Any overwrite between those two points
 # produces a stale plan, causing AnalysisException or silent wrong-data writes.
 #
-# Fix: inject safe_materialize(df) before the write in Cell C.
+# Fix: materialize before the overwrite — df = df.cache(); df.count() — so the
+# plan's input files are read before they are replaced. (aidp_compat.safe_io's
+# safe_materialize() was removed with the 0.5.9 wheel trim.)
 
 # Detect: var = spark.read.FORMAT("path") or spark.read.option(...).FORMAT("path")
 _SPARK_READ_RE = re.compile(
@@ -444,10 +458,9 @@ def detect_stale_lazy_eval_risks(all_sources: List[str]) -> Dict[int, List[dict]
                         "fix": (
                             f"Materialize '{df_var}' before write — source path was "
                             f"overwritten in cell {write_cell_idx}. "
-                            f"Inject: from aidp_compat import safe_materialize, safe_unpersist; "
-                            f"{df_var} = safe_materialize({df_var}); "
-                            f"<your write here>; "
-                            f"safe_unpersist({df_var})"
+                            f"Inject before the write: {df_var} = {df_var}.cache(); "
+                            f"{df_var}.count()  # forces materialization; "
+                            f"then after the write: {df_var}.unpersist()"
                         ),
                     })
 
@@ -462,8 +475,8 @@ def detect_stale_lazy_eval_risks(all_sources: List[str]) -> Dict[int, List[dict]
 #   Cell B: open("/Volumes/.../file.txt", "r")  → FileNotFoundError (path exists!)
 #
 # Also occurs within a class when the same file is read in two methods.
-# Fix: use safe_read_file(path) from aidp_compat — retries with delay on eviction.
-# Confirmed: dicretizer_quality23.txt in ExampleJob notebook.
+# FUSE consistency issues were resolved on AIDP in 2026-04-11 — detector remains
+# as a diagnostic (flags suspicious patterns) but no code rewrite is required.
 
 # Match: open("path", "r") or open("path", "rb") — capture the path literal
 _FILE_READ_LITERAL_RE = re.compile(
@@ -502,9 +515,10 @@ def detect_double_read_risks(all_sources: List[str]) -> Dict[int, List[dict]]:
         Cell A: open("/Volumes/.../file.txt", "r")  → FUSE caches inode
         Cell B: open("/Volumes/.../file.txt", "r")  → FUSE cache evicted → FileNotFoundError
 
-    File exists on disk — the error is caused by the FUSE kernel cache being evicted
-    between the two reads. Adding a delay before the second open fixes it. The robust
-    fix is safe_read_file() from aidp_compat which retries automatically.
+    Historically caused by FUSE kernel cache eviction between reads. FUSE
+    consistency issues were resolved on AIDP in 2026-04-11 — detector remains as
+    a diagnostic (surfaces suspicious patterns for human review); no automatic
+    code rewrite is required.
 
     Only flags the SECOND (and later) reads of the same path — the first read is safe.
     Both literal paths and variable names are tracked.
@@ -589,10 +603,10 @@ def _is_unconditional_notebook_exit(source: str) -> bool:
     unconditional. (Python conditional bodies are indented, so depth stays 0 and
     the indent check still handles them.)
 
-    Bias to safety: if brace counting is thrown off (e.g. braces in strings),
-    it can only over-count depth → we under-report "unconditional" → cells are
-    executed rather than wrongly skipped. The dangerous direction (skipping
-    reachable cells) is what we guard against.
+    Count only code braces, not quoted text or trailing comments: either an
+    extra opening OR closing brace can change the skip/coverage decision.
+    This remains a line-based classifier, not a Python/Scala parser; multiline
+    triple-quoted contents retain the owner-accepted limitation (PR #210).
     """
     depth = 0
     for line in source.splitlines():
@@ -600,12 +614,17 @@ def _is_unconditional_notebook_exit(source: str) -> bool:
         if stripped.startswith("#") or stripped.startswith("//"):
             continue
         if (stripped.startswith("oidlUtils.notebook.exit(") or
+                stripped.startswith("aidputils.notebook.exit(") or
                 stripped.startswith("dbutils.notebook.exit(")):
             indent = len(line) - len(stripped)
             if indent == 0 and depth == 0:
                 return True
         # Update brace depth AFTER the exit check (the if-open is on a prior line).
-        depth += stripped.count("{") - stripped.count("}")
+        # PR #210: a literal/regex/docstring or trailing comment containing a
+        # brace must not revive a dead tail or hide a conditionally live one.
+        # Match strings first so quoted # and // are not treated as comments.
+        code = re.sub(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|#.*|//.*''', '', stripped)
+        depth += code.count("{") - code.count("}")
     return False
 
 
@@ -616,7 +635,7 @@ def analyze_cell_static(cell_index: int, cell_source: str,
     Extracts paths, tables, FUSE risks, and Databricks patterns
     using regex. Fast and deterministic.
 
-    Returns a partial plan that can be enriched by OpenAI model.
+    Returns a partial plan that can be enriched by Opus.
     """
     plan = {
         "cell_index": cell_index,
@@ -780,7 +799,7 @@ def analyze_cell_static(cell_index: int, cell_source: str,
 
 
 def render_cell_plan(plan: dict) -> str:
-    """Render a cell plan as text for the OpenAI model migration prompt."""
+    """Render a cell plan as text for the Opus migration prompt."""
     parts = [f"Cell {plan['cell_index']} plan:"]
     parts.append(f"  Action: {plan['action']}")
 
@@ -861,6 +880,8 @@ async def analyze_notebook_cells(
                 plans.append({
                     "cell_index": j,
                     "action": "skip_after_exit",
+                    # Recheck the final source: migration may repair the guard.
+                    "exit_cell_index": i,
                     "changes_needed": [],
                     "storage_paths": [],
                     "table_refs": [],
@@ -883,7 +904,9 @@ async def analyze_notebook_cells(
                 fix_msg = (
                     f"[stale_lazy_eval] '{risk['dataframe']}' read in cell {risk['read_cell']}, "
                     f"source overwritten in cell {risk['overwritten_by_cell']} — "
-                    f"inject safe_materialize({risk['dataframe']}) before write"
+                    f"materialize before the overwrite: {risk['dataframe']} = "
+                    f"{risk['dataframe']}.cache(); {risk['dataframe']}.count() "
+                    f"(do NOT use safe_materialize — removed from aidp_compat in 0.5.9)"
                 )
                 if fix_msg not in plans[cell_idx]["changes_needed"]:
                     plans[cell_idx]["changes_needed"].append(fix_msg)

@@ -1,6 +1,6 @@
 ---
 name: aidp-migrate-job
-description: Run the full Databricks→AIDP migration against a manifest. Pass-1 walks the %run dep tree and rewrites Databricks APIs in each dep notebook code-only. Pass-2 executes each task cell-by-cell on a live AIDP cluster, runs 4-way verify (exec error / stderr patterns / Spark logs / model eval), and re-attempts up to 10 times via OpenAI model with tool use. Use when the user is ready to actually port the workload (not just plan it). Long-running — typical job takes 10–60 minutes per task depending on cell count.
+description: Run the full Databricks→AIDP migration against a manifest. Pass-1 walks the %run dep tree and rewrites Databricks APIs in each dep notebook code-only. Pass-2 executes each task cell-by-cell on a live AIDP cluster, runs 4-way verify (exec error / stderr patterns / Spark logs / model eval), and re-attempts up to 5 times via the configured OpenAI model with tool use (default `MAX_FIX_ATTEMPTS`; tunable via `AIDP_MAX_FIX_ATTEMPTS` / `runtime.fix_max_attempts`). Use when the user is ready to actually port the workload (not just plan it). Long-running — typical job takes 10–60 minutes per task depending on cell count.
 ---
 
 # `aidp-migrate-job` — execute the migration
@@ -21,45 +21,38 @@ This is the main event. Pass-1 fixes the code, Pass-2 proves it runs.
 
 ## Canonical invocation
 
+`job_migrate_from_workflow.py` is the canonical runner (it drives the core `job_migrate.py` library — do not invoke `job_migrate.py` directly):
+
 ```bash
-export OPENAI_API_KEY=<your-openai-api-key>
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
-  --manifest reports/<MyJob>_manifest.json \
-  --cluster <CLUSTER_ID> \
-  --aidp-base <AIDP_BASE> \
-  --datalake-ocid <DATALAKE_OCID> \
-  --workspace-id <WORKSPACE_UUID> \
-  --output-base <output-workspace-path> \
-  --oci-profile <profile>
+export OPENAI_API_KEY=sk-...
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
+  --job-key <workflow-key>
 ```
 
-For the workflow-shape variant (preserves the Databricks Job task DAG):
+Or against a pre-built manifest:
 ```bash
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
-  --manifest reports/<MyJob>_manifest.json \
-  --cluster <CLUSTER_ID> \
-  --aidp-base <AIDP_BASE> \
-  --datalake-ocid <DATALAKE_OCID> \
-  --workspace-id <WORKSPACE_UUID> \
-  --output-base <output-workspace-path> \
-  --oci-profile <profile>
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
+  --manifest reports/<MyJob>_manifest.json
 ```
+
+The customer YAML (`--config`; falls back to `$AIDP_CONFIG_PATH`, `./aidp_migrator.yaml`, `~/aidp_migrator.yaml`) supplies the AIDP coordinates and `paths.migrate_output`; `--migrate-output <path>` is a per-run override (`--output-base` is a deprecated alias). **Never pass `--cluster`** — it is a deprecated, warned no-op; per-task clusters come from the workflow/manifest.
 
 Tail the log in another terminal:
 ```bash
-tail -f /tmp/migration.log
+# the migrator streams to stdout; redirect it yourself to follow from another shell:
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py ... 2>&1 | tee migration.log
 ```
 
 ## Useful flags
 
 | Flag | When to use |
 |---|---|
-| `--jobs <name>,<name>` | Migrate only specific jobs from the manifest. |
 | `--start-task <substring>` | Resume from this task (skip everything before). Pairs with [`aidp-resume-migration`](../aidp-resume-migration/SKILL.md). |
 | `--only-tasks <names>` | Run ONLY these specific tasks. Useful for re-running a single failed task. |
-| `--skip-migrated` | Skip notebooks already migrated in a prior run (default ON). Set off with `--no-skip-migrated`. |
-| `--parallel <N>` | Concurrent task workers (default 20). Reduce if the cluster is contended. |
-| `--catalog-manifest <path>` | Apply deterministic source-catalog → `default` remap in string literals. Required when source code has hardcoded `<source-catalog>.<schema>` strings. |
+| `--skip-migrated` | Reuse notebooks already migrated in a prior run. **Default OFF** (fresh migration guarantees nested `%run` deps are converted); prefer `--start-task` to scope a resume. `--no-skip-migrated` states the default explicitly. |
+| `--catalog-manifest <path>` | Apply deterministic source-catalog → `default` remap in string literals (the `--out-manifest` file from `migrate_catalog.py`). **Only on `job_migrate_from_workflow.py`** — the core `job_migrate.py` has no such flag. |
 
 ## Two-pass mental model
 
@@ -67,45 +60,47 @@ tail -f /tmp/migration.log
 Pass 1 — DEPS (ensure_migrated):
   For every transitive %run / notebook.run target:
     if already in _migration_cache or already on cluster → SKIP
-    else → migrate code only (the OpenAI model rewrites Databricks APIs)
-           save .ipynb to <output-base>/<job>/deps/
+    else → migrate code only (the model rewrites Databricks APIs)
+           save .ipynb to <migrate-output>/<job>/deps/
 
 Pass 2 — TASKS (per task in topo order):
   For each task notebook, for each code cell:
     1. Analyze (cell_plan: description, action, risks)
-    2. Migrate (OpenAI model with tool use rewrites)
+    2. Migrate (the configured model with tool use rewrites)
     3. Execute on live cluster via WebSocket
     4. Verify:
         a. raised exception?
         b. error patterns in stdout? ("Error:", "Traceback", "FAILED")
         c. Spark logs show stage failure?
-        d. model eval: does the output look correct?
-    5. If any verify check failed → call_fix() with OpenAI model + full tools.
-       Up to 10 fix attempts per cell. fixup_cell can rewind to earlier indices.
-  Save the fixed-up .ipynb to <output-base>/<job>/notebooks/...
+        d. Model eval: does the output look correct?
+    5. If any verify check failed → call_fix() with the model + full tools.
+       Up to 5 fix attempts per cell (MAX_FIX_ATTEMPTS; env AIDP_MAX_FIX_ATTEMPTS
+       or runtime.fix_max_attempts in the YAML). fixup_cell can rewind to
+       earlier indices.
+  Save the fixed-up .ipynb to <migrate-output>/<job>/notebooks/...
   Emit JOB_REPORT.md
 ```
 
 ## Log patterns to watch for
 
-When tailing `/tmp/migration.log`, key lines:
+Key lines in the migrator's output:
 
 ```
 [12:34:56]   [<job>/<task>]    Cell 5/27: OK
 [12:35:42]   [<job>/<task>]    Cell 12/27: OK (fixed attempt 2)
-[12:36:18]   [<job>/<task>]    Cell 14/27: VERIFY FAIL (attempt 3/10): TABLE_OR_VIEW_NOT_FOUND
+[12:36:18]   [<job>/<task>]    Cell 14/27: VERIFY FAIL (attempt 3/5): TABLE_OR_VIEW_NOT_FOUND
 [12:39:01]   [<job>/<task>]    [child:helpers/io_utils.ipynb] Cell 3/8: OK
 [12:42:15]   [<job>/<task>]    [fixup_cell] Rewinding to index 7 (reason: variable redefined upstream)
 [12:48:30]   [<job>/<task>]    RESULT: PASS
 ```
 
-`RESULT: PASS` → all cells executed cleanly. `RESULT: PARTIAL` → some cells failed all 10 attempts; review `JOB_REPORT.md`. `RESULT: FAIL` → catastrophic (cluster died, manifest broken).
+`RESULT: PASS` → all cells executed cleanly. `RESULT: PARTIAL` → some cells failed all 5 attempts; review `JOB_REPORT.md`. `RESULT: FAIL` → catastrophic (cluster died, manifest broken).
 
 ## Output layout
 
 After a successful run:
 ```
-<output-base>/<job-name>/
+<migrate-output>/<job-name>/
   notebooks/Users/.../<notebook>.ipynb   ← the migrated, run-validated notebook
   deps/dep_<name>/<notebook>.ipynb       ← Pass-1 dep artifacts (informational)
   tasks/<numbered_key>/                  ← per-task reports
@@ -113,34 +108,34 @@ After a successful run:
   JOB_REPORT.md                          ← cell pass/fail/fix counts
 ```
 
-The migrated `.ipynb`s are uploaded to your AIDP workspace at `<output-base>` AND saved to your local `oci-aidp-databricks-validator/reports/<job-name>/` for offline review.
+The migrated `.ipynb`s are uploaded to your AIDP workspace at `<migrate-output>` AND saved to your local `./reports/<job-name>/` for offline review.
 
 ## When it goes wrong
 
 | Symptom | Skill / fix |
 |---|---|
-| `RESULT: PARTIAL` with N cells failing all 10 attempts | [`aidp-fixup-cell`](../aidp-fixup-cell/SKILL.md) for each. |
-| Cluster died mid-run (WS disconnects) | Restart cluster. Re-invoke with `--skip-migrated` (default) — Pass-1 deps already done aren't repeated. |
+| `RESULT: PARTIAL` with N cells failing all 5 attempts | [`aidp-fixup-cell`](../aidp-fixup-cell/SKILL.md) for each. |
+| Cluster died mid-run (WS disconnects) | Restart cluster. Re-invoke with `--start-task <substring>` (or an explicit `--skip-migrated` for a confident resume — it is OFF by default). |
 | User wants to abort | `kill <pid>` with the PID recorded at launch (SIGTERM) — lets the current cell finish. `pkill -f` would also hit other users' runs on a shared host. |
 | User wants to resume after manual fixes to a dep | [`aidp-resume-migration`](../aidp-resume-migration/SKILL.md). |
-| Migrated table is in the redirect schema (`<sandbox>`) but user expected production location | Check [`references/gotchas.md`](../../references/gotchas.md) §"redirect schema". Re-run with `--no-redirect-schema` (USE WITH CARE — bypasses data-safety gate). |
+| Migrated table is in the redirect schema (`<sandbox>`) but user expected production location | Expected: the write-redirect sandbox is mandatory during migration (there is NO bypass flag). Promote data to the production location as a deliberate post-migration step, outside the migrator. |
 
 ## Safety notes the skill enforces
 
 - **Write-redirect sandbox schema.** Every `.saveAsTable(...)` / `INSERT INTO` is silently rewritten to a sandbox `<schema>.<table>` location during migration. Source production data is never touched. The redirect schema is verified per-task (`databaseExists`) — if verification fails, the task fails fast.
-- **No `--no-redirect-schema` without explicit user consent.** Bypassing the redirect drops the data-safety guarantee.
-- **Runtime sandbox gate on the cluster.** The bootstrap declares the redirect schema/bucket, the staging areas the migration rules themselves use (`/Volumes/default/default/dbfs/`, `/tmp/`) and the output directory as `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` / `AIDP_SANDBOX_PREFIX` in the kernel, and freezes that declaration for the kernel. `aidp_compat` then refuses, before execution, any `dbutils.notebook.run` child cell that imports `subprocess` / network modules (also via `importlib`, `builtins`, `sys.modules` or an alias), reads `os.environ`, calls `shutil.rmtree` / `eval` / `exec`, imports or rebinds the compat shims / policy module, or opens, removes, renames or writes (`open`, `pathlib`, `os.remove`, `shutil.move`, `df.write.*`, `writeTo`, `spark.sql` DDL/DML, `dbutils.fs.*`) a target outside the sandbox (`PermissionError` naming notebook, cell index, rule id, remediation); targets that cannot be resolved statically are refused unless allowlisted; `..` segments never count as inside. `dbutils.fs.rm/mv/cp/put/mkdirs` + `safe_io` writers assert their targets at runtime. Refusals appear in the task test report under **Notebook Policy Log**. If a refusal is legitimate, the fix is a reviewed exception (`AIDP_NOTEBOOK_POLICY_ALLOW=<rule-id>`), an extra staging prefix (comma-separated `AIDP_SANDBOX_PREFIX`, set on the cluster before the bootstrap -- it replaces the whole list), or `AIDP_SANDBOX_ALLOW_NETWORK=1` -- never editing the gate. The gate is a static check of listed forms, not a Python sandbox; the runtime assertions are the enforcement layer for compat-helper writes (see `engine/aidp_compat/SUPPORTED_OPERATIONS.md` section 8 for what is not covered).
+- **The redirect cannot be bypassed.** There is no `--no-redirect-schema` (or equivalent) flag — the data-safety gate is unconditional during migration.
+- **Runtime sandbox gate on the cluster.** The bootstrap declares the redirect schema/bucket, the staging areas the migration rules themselves use (`/Volumes/default/default/dbfs/`, `/tmp/`) and the output directory as `AIDP_SANDBOX_CATALOG` / `AIDP_SANDBOX_SCHEMA` / `AIDP_SANDBOX_PREFIX` in the kernel, and freezes that declaration for the kernel. `aidp_compat` then refuses, before execution, any `dbutils.notebook.run` child cell that imports `subprocess` / network modules (also via `importlib`, `builtins`, `sys.modules` or an alias), reads `os.environ`, calls `shutil.rmtree` / `eval` / `exec`, imports or rebinds the compat shims / policy module, or opens, removes, renames or writes (`open`, `pathlib`, `os.remove`, `shutil.move`, `df.write.*`, `writeTo`, `spark.sql` DDL/DML, `dbutils.fs.*`) a target outside the sandbox (`PermissionError` naming notebook, cell index, rule id, remediation); targets that cannot be resolved statically are refused unless allowlisted; `..` segments never count as inside. `dbutils.fs.rm/mv/cp/put/mkdirs` + `safe_io` writers assert their targets at runtime. Refusals appear in the task test report under **Notebook Policy Log**. If a refusal is legitimate, the fix is a reviewed exception (`AIDP_NOTEBOOK_POLICY_ALLOW=<rule-id>`), an extra staging prefix (comma-separated `AIDP_SANDBOX_PREFIX`, set on the cluster before the bootstrap -- it replaces the whole list), or `AIDP_SANDBOX_ALLOW_NETWORK=1` -- never editing the gate. The gate is a static check of listed forms, not a Python sandbox; the runtime assertions are the enforcement layer for compat-helper writes (see `engine/aidp_compat/SUPPORTED_OPERATIONS.md` section 5 for what is not covered).
 - **No plaintext secrets.** `dbutils.secrets` resolves from OCI Vault only. Do not set `AIDP_ALLOW_PLAINTEXT_SECRETS=1` on a cluster that runs customer notebooks; it is a local-demo switch. The bootstrap also restricts `dbutils.secrets` to the scope/key literals found while planning each task (`AIDP_SECRET_SCOPES` / `AIDP_SECRET_KEYS`; `none` before the first task). A `NBP-RUNTIME-SECRET` refusal in the Notebook Policy Log means a scope/key the plan did not see (for example a scope taken from a widget): the fix is an operator-provided `AIDP_SECRET_SCOPES` / `AIDP_SECRET_KEYS` on the cluster after review.
-- **No `--skip-migrated=false` without explicit user consent.** Force-re-migration re-spends model tokens and can overwrite manual fixes the user applied to a previously-migrated notebook.
+- **Re-migration overwrites manual edits — confirm first.** The default is a fresh migration (`--skip-migrated` is OFF), which re-spends model tokens AND can overwrite manual fixes the user applied to a previously-migrated notebook at the output path. If the user has manual edits, get an explicit "yes, overwrite" or scope the run with `--start-task` / `--only-tasks` / `--skip-migrated`.
 
 ## Cost / time guidance
 
-- A typical 30-cell notebook takes ~5-15 minutes on a warm cluster, uses model tokens; exact cost depends on the selected OpenAI model.
-- A typical 5-task workflow with ~150 cells total: 30-90 min; token cost depends on the selected OpenAI model.
+- A typical 30-cell notebook takes ~5-15 minutes on a warm cluster, costs $1-3 in model tokens.
+- A typical 5-task workflow with ~150 cells total: 30-90 min, $10-30 in model usage.
 - Pass-1 deps are SHARED across jobs in the same run — second job is cheaper.
 
 ## After this
 
-- Read the JOB_REPORT.md ([`/migration-status`](../migration-status/SKILL.md) command auto-parses it).
+- Read the JOB_REPORT.md ([`migration-status`](../migration-status/SKILL.md) auto-parses it).
 - For any `PARTIAL` cells, route to [`aidp-fixup-cell`](../aidp-fixup-cell/SKILL.md).
 - For streaming / batch convergence pipelines, follow up with [`aidp-acceptance-contract`](../aidp-acceptance-contract/SKILL.md).

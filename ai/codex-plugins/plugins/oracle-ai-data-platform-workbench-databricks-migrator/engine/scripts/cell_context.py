@@ -2,11 +2,11 @@
 Cell Context Accumulator
 ==========================
 Carries forward context across cells within a notebook migration.
-Prevents OpenAI model from re-exploring paths, re-reading notebooks, and
+Prevents Opus from re-exploring paths, re-reading notebooks, and
 re-checking tables that were already verified for earlier cells.
 
 Context is ordered newest-first so the most recent information
-is at the top of the OpenAI model prompt.
+is at the top of the Opus prompt.
 """
 
 import json
@@ -21,7 +21,7 @@ class CellContext:
         self.tool_cache: Dict[str, str] = {}         # tool_name:json(input) -> result
         self.paths_checked: Dict[str, str] = {}      # path -> "EXISTS"/"NOT_FOUND"/"ERROR"
         self.tables_checked: Dict[str, str] = {}     # table/query -> result summary
-        self.notebook_summaries: Dict[str, str] = {} # path -> summary (from OpenAI model)
+        self.notebook_summaries: Dict[str, str] = {} # path -> summary (from Sonnet)
         self._tool_call_count = 0
         self._cache_hit_count = 0
 
@@ -85,11 +85,11 @@ class CellContext:
         return result
 
     def add_notebook_summary(self, path: str, summary: str):
-        """Cache a OpenAI model-generated notebook summary."""
+        """Cache a Sonnet-generated notebook summary."""
         self.notebook_summaries[path] = summary
 
     def render(self, max_entries: int = 20) -> str:
-        """Render the context as a text block for the OpenAI model prompt.
+        """Render the context as a text block for the Opus prompt.
         Newest entries first. Truncates to max_entries."""
         parts = []
 

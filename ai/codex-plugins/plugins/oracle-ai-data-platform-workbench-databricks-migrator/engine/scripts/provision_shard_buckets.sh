@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Provision a pool of OCI Object Storage buckets for the Databricks->AIDP
 # migration sharding strategy. Each shard absorbs its own per-bucket request
-# budget so 2,500 parallel jobs do not collectively trip the OCI Java SDK
+# budget so thousands of parallel jobs do not collectively trip the OCI Java SDK
 # CircuitBreaker on a single bucket.
 #
 # Idempotent: re-running skips buckets that already exist.
@@ -12,19 +12,19 @@
 #
 # Usage:
 #   ./provision_shard_buckets.sh \
-#       --prefix migration-shard \
+#       --prefix mig-shard \
 #       --count 16 \
 #       --compartment ocid1.compartment.oc1..xxxxx \
 #       --profile DEFAULT \
-#       --region <OCI_REGION>
+#       --region us-ashburn-1
 #
 # After running, configure the migration host:
-#   export AIDP_SHARD_PREFIX=migration-shard
+#   export AIDP_SHARD_PREFIX=mig-shard
 #   export AIDP_SHARD_COUNT=16
 #   export AIDP_NAMESPACE=$(oci os ns get --profile DEFAULT --query 'data' --raw-output)
 #
 # IAM note: the AIDP cluster's principal still needs a policy granting it
-# 'manage objects' on the new buckets. See MIGRATION_THROTTLING.md.
+# 'manage objects' on the new buckets.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -41,7 +41,7 @@ usage() {
 Usage: $0 --prefix <name> --count <N> --compartment <ocid> [options]
 
 Required:
-  --prefix <name>          Bucket name prefix, e.g. 'migration-shard'
+  --prefix <name>          Bucket name prefix, e.g. 'mig-shard'
   --count <N>              Number of shard buckets (1..99)
   --compartment <ocid>     Target compartment OCID
 

@@ -9,12 +9,12 @@ The rewriter NEVER performs I/O — all bucket mapping and catalog mapping is
 passed in as data. Fully unit-testable.
 
 Rules implemented (subset of the 18 from the design spec; rest stub out as
-warnings since the sample fixture corpus doesn't exercise them):
+warnings since the source workspace's samples don't exercise them):
 
   R01  3-part name -> 2-part (schema-qualified)
   R02  s3:// LOCATION -> oci:// LOCATION via bucket_map
   R03  /Volumes/ LOCATION -> /Volumes/<aidp_cat>/...
-  R09  USING <override> if --target-using is set; otherwise preserve source format (default)
+  R09  USING DELTA -> USING parquet (AIDP default; iceberg via opt-in)
   R10  drop HMS-internal TBLPROPERTIES (transient_lastDdlTime, numFiles, ...)
   R11  drop spark.sql.* TBLPROPERTIES
   R13  drop unsupported delta.feature.* / delta.enable* / delta.parquet.*
@@ -51,7 +51,7 @@ class RuleApplication:
 @dataclass
 class RewriteResult:
     """Output of rewrite_table_ddl()."""
-    aidp_full_name: str             # e.g. "samples_tpch.orders"
+    aidp_full_name: str             # e.g. "samples_tpch.customer"
     create_table_sql: str           # the SQL to execute on AIDP
     applied_rules: list[RuleApplication] = field(default_factory=list)
     dropped_properties: list[str] = field(default_factory=list)
@@ -119,11 +119,11 @@ def rewrite_full_name(
     flatten_strategy:
       - "catalog-remap" (default): AIDP supports 3-level naming, so preserve the
         schema + table names and only remap the catalog →
-        `main.sample_schema.t` -> `default.sample_schema.t`. Keeps notebook
+        `main.example_team.t` -> `default.example_team.t`. Keeps notebook
         references stable (no schema renaming).
-      - "schema-prefix": `samples.tpch.orders` -> `samples_tpch.orders`
+      - "schema-prefix": `samples.tpch.customer` -> `samples_tpch.customer`
         (2-level flatten — preserves origin catalog in the schema name).
-      - "schema-only":   `samples.tpch.orders` -> `tpch.orders`
+      - "schema-only":   `samples.tpch.customer` -> `tpch.customer`
         (lossy — collisions across catalogs).
     """
     parts = dbx_full_name.split(".")
@@ -271,7 +271,7 @@ def rewrite_table_ddl(
         raise UnsupportedDDL("R17_STREAMING_UNSUPPORTED", f"AIDP doesn't support STREAMING TABLE: {full_name}")
     if table_type == "VIEW":
         # Views with view_definition need separate handling — for v1 we skip.
-        # The sample fixtures don't include views, so this is a deferred path.
+        # The source-workspace samples don't include views, so this is a deferred path.
         raise UnsupportedDDL("R15_VIEW_DEFERRED", f"VIEW migration not yet implemented: {full_name}")
 
     # ── R01 rewrite name ──

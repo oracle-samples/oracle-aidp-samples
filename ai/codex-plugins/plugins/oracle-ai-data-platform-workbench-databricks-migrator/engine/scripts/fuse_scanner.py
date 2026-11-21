@@ -10,10 +10,10 @@ FUSE mount problem:
     will hit FUSE issues that are invisible in the notebook source code.
 
 Usage:
-    python3 $HOME/.aidp-migrator/engine/scripts/fuse_scanner.py --manifest reports/example_job_manifest.json
-    python3 $HOME/.aidp-migrator/engine/scripts/fuse_scanner.py --manifest reports/example_job_manifest.json --output /tmp/fuse_report.md
-    python3 $HOME/.aidp-migrator/engine/scripts/fuse_scanner.py --notebook /Volumes/.../my_notebook.ipynb
-    python3 $HOME/.aidp-migrator/engine/scripts/fuse_scanner.py --manifest reports/example_job_manifest.json --unknown-packages
+    python3 scripts/fuse_scanner.py --manifest reports/examplevendor_job_manifest.json
+    python3 scripts/fuse_scanner.py --manifest reports/examplevendor_job_manifest.json --output /tmp/fuse_report.md
+    python3 scripts/fuse_scanner.py --notebook /Volumes/.../my_notebook.ipynb
+    python3 scripts/fuse_scanner.py --manifest reports/examplevendor_job_manifest.json --unknown-packages
 """
 
 import argparse
@@ -26,7 +26,7 @@ from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Built-in FUSE risk database
-# Extended at runtime from $HOME/.aidp-migrator/engine/scripts/fuse_risk_db.json if present
+# Extended at runtime from scripts/fuse_risk_db.json if present
 # ---------------------------------------------------------------------------
 
 FUSE_RISKY_PACKAGES: dict[str, dict] = {
@@ -39,7 +39,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"Memory\s*\(\s*location\s*=",
             r"Parallel\s*\(",  # may write temp files
         ],
-        "mitigation": "Replace joblib.dump/load with safe_joblib_dump/safe_joblib_load from aidp_compat.",
+        "mitigation": "joblib.dump/load on /Volumes was historically flaky; FUSE issues resolved 2026-04-11. If issues resurface, /tmp/ stage + shutil.copy2() to /Volumes/.",
         "import_names": ["joblib"],
     },
     "optuna": {
@@ -61,7 +61,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"mlflow\.log_artifact\s*\(",
             r"mlflow\.set_tracking_uri\s*\(",
             r"mlflow\.set_experiment\s*\(",
-            r"/Users/\S+@example\.com/",  # Databricks user-namespace experiment paths
+            r"/Users/\S+@\S+\.\S+/",  # Databricks user-namespace experiment paths
             r"azuredatabricks://",
             r"databricks://",
         ],
@@ -100,7 +100,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"keras\.models\.load_model\s*\(",
             r"load_model\s*\(",
         ],
-        "mitigation": "Use load_saved_model_from_volumes() from aidp_compat (copies to /tmp then loads locally).",
+        "mitigation": "For TF SavedModel on /Volumes: save via tf.saved_model.save(); if load fails, copy the SavedModel dir to /tmp/ with shutil.copytree() and load from there.",
         "import_names": ["tensorflow", "tf", "keras"],
     },
     "lightgbm": {
@@ -152,7 +152,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
             r"dill\.dump\s*\(",
             r"dill\.load\s*\(",
         ],
-        "mitigation": "Replace with safe_pickle_dump/safe_pickle_load from aidp_compat (handles any pickle-compatible serializer).",
+        "mitigation": "dill.dump/load on /Volumes was historically flaky; FUSE issues resolved 2026-04-11. If issues resurface, /tmp/ stage + shutil.copy2() to /Volumes/.",
         "import_names": ["dill"],
     },
     "shelve": {
@@ -161,7 +161,7 @@ FUSE_RISKY_PACKAGES: dict[str, dict] = {
         "patterns": [
             r"shelve\.open\s*\(",
         ],
-        "mitigation": "Avoid shelve on /Volumes/. Use pickle + safe_pickle_dump/load or a database in /tmp/.",
+        "mitigation": "Avoid shelve on /Volumes/. Use plain pickle to /tmp/ + shutil.copy2() to /Volumes/, or a database in /tmp/.",
         "import_names": ["shelve"],
     },
     "sklearn": {
@@ -423,10 +423,10 @@ def generate_report(results: list[dict], unknown_packages: bool = False) -> str:
         if all_unknown:
             lines.append("## Unknown Packages (not in FUSE risk DB)")
             lines.append("")
-            lines.append("Run `python3 $HOME/.aidp-migrator/engine/scripts/fuse_package_analyzer.py --packages` to analyze these:")
+            lines.append("Run `python3 scripts/fuse_package_analyzer.py --packages` to analyze these:")
             lines.append("")
             lines.append("```")
-            lines.append("python3 $HOME/.aidp-migrator/engine/scripts/fuse_package_analyzer.py --packages " + " ".join(sorted(all_unknown)))
+            lines.append("python3 scripts/fuse_package_analyzer.py --packages " + " ".join(sorted(all_unknown)))
             lines.append("```")
             lines.append("")
             lines.append("| Package | Notebooks |")
@@ -448,7 +448,7 @@ def main():
     parser.add_argument("--unknown-packages", action="store_true",
                         help="List packages not in the FUSE risk DB (candidate for fuse_package_analyzer.py)")
     parser.add_argument("--db", default=os.path.join(os.path.dirname(__file__), "fuse_risk_db.json"),
-                        help="Path to external fuse_risk_db.json (default: $HOME/.aidp-migrator/engine/scripts/fuse_risk_db.json)")
+                        help="Path to external fuse_risk_db.json (default: scripts/fuse_risk_db.json)")
     args = parser.parse_args()
 
     _load_external_db(args.db)

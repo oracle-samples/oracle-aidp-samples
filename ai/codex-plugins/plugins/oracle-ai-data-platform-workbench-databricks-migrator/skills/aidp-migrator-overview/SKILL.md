@@ -16,21 +16,22 @@ Migrating a Databricks workload onto AIDP is a multi-phase operation. This skill
 ## The two-pass architecture (mental model)
 
 ```
-┌────────────────────┐   ┌──────────────────────┐   ┌─────────────────────┐
-│ Pass-0: Plan       │ → │ Pass-1: Dep code     │ → │ Pass-2: Execute     │
-│  build_dag.py      │   │  ensure_migrated()   │   │  job_migrate.py     │
-│  check_data_       │   │  walks %run tree,    │   │  cell-by-cell on a  │
-│  availability.py   │   │  rewrites Databricks │   │  live AIDP cluster, │
-│                    │   │  APIs in each dep    │   │  4-way verify, up   │
-│  (read-only)       │   │  notebook (no run)   │   │  to 10 fix attempts │
-└────────────────────┘   └──────────────────────┘   └─────────────────────┘
+┌────────────────────┐   ┌────────────────────┐   ┌──────────────────────┐   ┌─────────────────────┐
+│ Export             │ → │ Pass-0: Plan       │ → │ Pass-1: Dep code     │ → │ Pass-2: Execute     │
+│  python3 -m        │   │  build_dag_from_   │   │  ensure_migrated()   │   │  job_migrate_from_  │
+│  dbx_export        │   │  workflow.py       │   │  walks %run tree,    │   │  workflow.py        │
+│  (DBX → AIDP       │   │  check_data_avail- │   │  rewrites Databricks │   │  cell-by-cell on a  │
+│  replication,      │   │  ability_for_      │   │  APIs in each dep    │   │  live AIDP cluster, │
+│  3 phases)         │   │  workflow.py       │   │  notebook (no run)   │   │  4-way verify, up   │
+│                    │   │  (read-only)       │   │                      │   │  to 5 fix attempts  │
+└────────────────────┘   └────────────────────┘   └──────────────────────┘   └─────────────────────┘
 
 The catalog migration is a SEPARATE flow, run BEFORE Pass-2 (so the
 schemas + table locations exist when migrated notebooks try to read them):
 
 ┌──────────────────────────────────┐   ┌──────────────────────────────────┐
 │ extract_catalog_databricks.py    │ → │ migrate_catalog.py               │
-│  REST against Unity Catalog API  │   │  18 DDL rewrite rules → batched  │
+│  REST against Unity Catalog API  │   │  DDL rewrite rules (10) → batched│
 │  → reports/catalog_pack.json     │   │  CREATE SCHEMA / CREATE TABLE    │
 │                                  │   │  on AIDP in a single WS execute  │
 └──────────────────────────────────┘   └──────────────────────────────────┘
@@ -40,6 +41,7 @@ schemas + table locations exist when migrated notebooks try to read them):
 
 | User says | Skill to invoke |
 |---|---|
+| "Export this Databricks job to AIDP", "bring the notebooks over", "stage the job on AIDP" | [`aidp-dbx-export`](../aidp-dbx-export/SKILL.md) |
 | "Migrate this Databricks job", "port this workflow", "convert to AIDP" | [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) |
 | "Build a migration manifest", "what would migrate", "show the DAG" | [`aidp-build-dag`](../aidp-build-dag/SKILL.md) |
 | "Are my source tables available?", "pre-migration check", "is the data ready" | [`aidp-check-data`](../aidp-check-data/SKILL.md) |
@@ -52,12 +54,12 @@ schemas + table locations exist when migrated notebooks try to read them):
 
 ## What the user must have set up before any of this
 
-This plugin is **self-contained for Codex**. The OpenAI-based migrator engine is bundled under `engine/` and staged by the SessionStart hook to `~/.aidp-migrator/engine`. Before any skill in this plugin can do real work, the user needs:
+This plugin is **self-contained** — the full migrator engine ships bundled under `~/.aidp-migrator/engine/`. Before any skill in this plugin can do real work, the user needs:
 
-1. **Bundled engine staged locally.** Start a new Codex thread after install, or run `python <plugin-root>/hooks/session_start.py` once. Skill [`aidp-migrator-bootstrap`](../aidp-migrator-bootstrap/SKILL.md) verifies this.
+1. **Engine Python deps installed.** One-time `pip install -r ~/.aidp-migrator/engine/requirements.txt`. Skill [`aidp-migrator-bootstrap`](../aidp-migrator-bootstrap/SKILL.md) walks through this and the rest of these checks.
 2. **`~/.oci/config`** with either an `api_key` profile (unattended) or session-token profile (interactive).
-3. **An ACTIVE AIDP cluster.** The migrator's Pass-2 requires a live cluster — the WebSocket execute path. If the cluster is stopped, ask the user to start it via AIDP console before invoking [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md).
-4. **`OPENAI_API_KEY`** in the environment. The migrator uses OpenAI model with tool use for every cell rewrite. Without this key the Pass-2 loop won't run.
+3. **An ACTIVE AIDP cluster.** The engine's Pass-2 requires a live cluster — the WebSocket execute path. If the cluster is stopped, ask the user to start it via AIDP console before invoking [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md).
+4. **`OPENAI_API_KEY`** in the environment. The engine uses the configured OpenAI model with tool use for every cell rewrite. Without this key the Pass-2 loop won't run.
 5. **An `env-coords.md` file** — see [references/env-coords.md](../../references/env-coords.md). The customer fills in their DataLake OCID, workspace UUID, cluster ID, AIDP base URL, OCI profile name once; every other skill threads these through.
 
 ## What this plugin does NOT do
@@ -71,16 +73,17 @@ This plugin is **self-contained for Codex**. The OpenAI-based migrator engine is
 
 - [`references/cli-map.md`](../../references/cli-map.md) — every migrator CLI entrypoint mapped to its purpose.
 - [`references/gotchas.md`](../../references/gotchas.md) — 15 Databricks → AIDP gotchas with fix recipes.
-- [`references/ddl-rewrite-rules.md`](../../references/ddl-rewrite-rules.md) — the 18 DDL rewrite rules.
+- [`references/ddl-rewrite-rules.md`](../../references/ddl-rewrite-rules.md) — the DDL rewrite rules (10 implemented).
 - [`references/env-coords.md`](../../references/env-coords.md) — the scaffold every skill threads from.
 
 ## Order of operations for a fresh migration
 
 1. [`aidp-migrator-bootstrap`](../aidp-migrator-bootstrap/SKILL.md) — once per workstation.
-2. [`aidp-migrate-catalog`](../aidp-migrate-catalog/SKILL.md) — schemas and tables FIRST, so notebook reads have targets.
-3. [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) — only if migrating tables with `s3://` external locations.
-4. [`aidp-build-dag`](../aidp-build-dag/SKILL.md) — produces `reports/<job>_manifest.json`.
-5. [`aidp-check-data`](../aidp-check-data/SKILL.md) — verify before committing cluster time.
-6. [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) — the big run.
-7. [`aidp-fixup-cell`](../aidp-fixup-cell/SKILL.md) (only if needed) for cells the auto-fix loop couldn't recover.
-8. [`aidp-acceptance-contract`](../aidp-acceptance-contract/SKILL.md) (for streaming / batch convergence pipelines).
+2. [`aidp-dbx-export`](../aidp-dbx-export/SKILL.md) — export the Databricks job into AIDP (creates the AIDP workflow the next steps read).
+3. [`aidp-migrate-catalog`](../aidp-migrate-catalog/SKILL.md) — schemas and tables FIRST, so notebook reads have targets.
+4. [`aidp-bucket-mapping`](../aidp-bucket-mapping/SKILL.md) — only if migrating tables with `s3://` external locations.
+5. [`aidp-build-dag`](../aidp-build-dag/SKILL.md) — produces `reports/<job>_manifest.json` from the exported workflow.
+6. [`aidp-check-data`](../aidp-check-data/SKILL.md) — verify before committing cluster time.
+7. [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) — the big run.
+8. [`aidp-fixup-cell`](../aidp-fixup-cell/SKILL.md) (only if needed) for cells the auto-fix loop couldn't recover.
+9. [`aidp-acceptance-contract`](../aidp-acceptance-contract/SKILL.md) (for streaming / batch convergence pipelines).

@@ -6,7 +6,7 @@ Wraps optuna.create_study() to route SQLite/journal storage away from the
 
 The FUSE problem:
     optuna.create_study(storage="sqlite:///path/study.db")
-    Where path is on /Volumes/ â€” SQLite WAL mode relies on atomic file
+    Where path is on /Volumes/ — SQLite WAL mode relies on atomic file
     operations that FUSE breaks. Symptoms: "no such table: trials", study
     lock errors, or data loss between trials.
 
@@ -51,10 +51,10 @@ def safe_optuna_create_study(
     Args:
         name: Study name (optuna study_name param)
         storage_path: Target persistence path or URL. Examples:
-            "/Volumes/default/default/dbfs/.../study.db"  â†’ routed to /tmp
-            "/dbfs/FileStore/.../study.db"  â†’ translated + routed to /tmp
-            None  â†’ in-memory (no persistence)
-            "sqlite:////tmp/study.db"  â†’ used directly (already in /tmp)
+            "/Volumes/default/default/dbfs/.../study.db"  → routed to /tmp
+            "/dbfs/FileStore/.../study.db"  → translated + routed to /tmp
+            None  → in-memory (no persistence)
+            "sqlite:////tmp/study.db"  → used directly (already in /tmp)
         direction: "minimize" or "maximize"
         **kwargs: Passed through to optuna.create_study()
 
@@ -78,7 +78,7 @@ def safe_optuna_create_study(
     if storage_path is None:
         storage = None
     elif "/Volumes/" in str(storage_path) and not storage_path.startswith("sqlite://"):
-        # Route SQLite to /tmp â€” FUSE WAL unsafe
+        # Route SQLite to /tmp — FUSE WAL unsafe
         _tmp_db = f"/tmp/optuna_{name}_{os.getpid()}.db"
         _final_path = storage_path
         storage = f"sqlite:///{_tmp_db}"

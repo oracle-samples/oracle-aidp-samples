@@ -5,7 +5,7 @@ description: Targeted rewind of a migrated notebook. Re-executes cells from hist
 
 # `aidp-fixup-cell` — surgical re-execute of cells in a migrated notebook
 
-The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 10 fix attempts each. `fixup_cell` is the per-cell escape hatch when those 10 attempts weren't enough OR when the user discovers a latent issue downstream.
+The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 5 fix attempts each (default `MAX_FIX_ATTEMPTS`; env `AIDP_MAX_FIX_ATTEMPTS` / `runtime.fix_max_attempts`). `fixup_cell` is the per-cell escape hatch when those 5 attempts weren't enough OR when the user discovers a latent issue downstream.
 
 ## When to use
 
@@ -17,15 +17,15 @@ The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 10 
 
 ### Mode A — re-run from a history index (model tool)
 
-Inside an already-running migration, the migrator can call the `fixup_cell` tool:
+Inside an already-running migration, the model can call the `fixup_cell` tool:
 
 ```
-fixup_cell(start_index=12, why="cell 11 redefined `Basedata` to use a different schema; replay downstream so the new var flows through")
+fixup_cell(start_index=12, why="cell 11 redefined `<base_table>` to use a different schema; replay downstream so the new var flows through")
 ```
 
 This is the in-process mode. It:
 1. Truncates `_cell_history[start_index:]` (drops everything from index 12 forward).
-2. Replays each old entry through `_replay_cell_entry()` — execute + verify + fix loop with the `why` injected into the model prompt so the model knows what changed.
+2. Replays each old entry through `_replay_cell_entry()` — execute + verify + fix loop with the `why` injected into the model prompt so it knows what changed.
 3. Appends the new (post-replay) entries back to `_cell_history`.
 
 The cells replayed start at the absolute history index 12 — could be in the SAME notebook or a downstream one if the cells were inlined via `%run`.
@@ -35,14 +35,13 @@ The cells replayed start at the absolute history index 12 — could be in the SA
 When the migration is done and the user wants to "fix this one cell":
 
 ```bash
-python3 $HOME/.aidp-migrator/engine/scripts/job_migrate.py \
+python3 ~/.aidp-migrator/engine/scripts/job_migrate_from_workflow.py \
+  --config <customer>.yaml \
   --manifest reports/<MyJob>_manifest.json \
-  --cluster <CLUSTER_ID> \
-  --only-tasks <task_key> \
-  --no-skip-migrated
+  --only-tasks <task_key>
 ```
 
-This re-runs that single task end-to-end (deps already cached → fast). Combine with `--start-task <substring>` to run only that one task.
+This re-runs that single task end-to-end (a fresh migration of just that task — re-migration is the default; never pass `--cluster`, it is a deprecated no-op).
 
 If the user wants finer-grained control (specific cell, not full task), they need to open the saved `.ipynb` and edit manually. The migrator doesn't expose a "replay cell K only" CLI outside of the in-process fixup_cell tool.
 
@@ -50,7 +49,7 @@ If the user wants finer-grained control (specific cell, not full task), they nee
 
 **Helps:**
 - The cell's failure is due to upstream state the migrator's auto-fix didn't anticipate (variable shape, schema drift, missing import).
-- The cell needs context the model did not have in the first pass (a hidden dependency, a manual override the user just applied).
+- The cell needs context the model didn't have in the first pass (a hidden dependency, a manual override the user just applied).
 - The notebook flow needs to be replayed after a structural fix (e.g. you redefined a function).
 
 **Won't help:**
@@ -89,12 +88,12 @@ So make the `why` precise — vague reasons produce vague fixes:
 
 | Symptom | Action |
 |---|---|
-| Cell K failed 10 attempts, all with the same error | Try fixup_cell with a specific `why` that names the error. |
+| Cell K failed all 5 attempts, all with the same error | Try fixup_cell with a specific `why` that names the error. |
 | Cell K failed because cell K-2 produced a different schema than expected | fixup_cell from K-2 (not K) with `why` describing the upstream change. |
 | Cell K failed because of a known gotcha (see [references/gotchas.md](../../references/gotchas.md)) | Apply the gotcha-recipe fix in cell K manually, then fixup_cell from K with `why="applied gotcha #N fix"`. |
-| Cell K failed because the cluster died mid-execution | Restart the cluster, re-invoke [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) with `--skip-migrated` — fixup not needed. |
+| Cell K failed because the cluster died mid-execution | Restart the cluster, re-invoke [`aidp-migrate-job`](../aidp-migrate-job/SKILL.md) scoped with `--start-task` (or an explicit `--skip-migrated` — it is OFF by default) — fixup not needed. |
 
 ## After this
 
-- Re-read `JOB_REPORT.md` to confirm the cell is now `OK` ([`/migration-status`](../migration-status/SKILL.md)).
+- Re-read `JOB_REPORT.md` to confirm the cell is now `OK` ([`migration-status`](../migration-status/SKILL.md)).
 - If the replay produced more failures, that's a structural problem — escalate to [`migration-reviewer`](../migration-reviewer/SKILL.md) for a second-opinion review.

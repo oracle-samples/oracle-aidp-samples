@@ -1,0 +1,12 @@
+# Runtime dependencies required by aidp_compat on workload clusters.
+# Control-plane packages such as anthropic and websocket-client belong only
+# on the shared migration/control cluster and must not be merged here.
+oci
+requests
+nbformat
+
+# Keep the pandas/PyArrow compatibility profile while allowing pip to select
+# a NumPy version compatible with workload packages such as TensorFlow 2.13.
+numpy>=1.23.5,<2
+pyarrow>=14.0.1,<15
+pandas>=1.5.3,<3

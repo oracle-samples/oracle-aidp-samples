@@ -1,10 +1,10 @@
 # Databricks → AIDP Gotchas
 
-15 platform differences the migrator handles, with the exact recipe for each. The migrator applies most automatically; this reference is here so Codex can route failed-cell scenarios to the correct fix and so the user can review which fixes are being applied.
+15 platform differences the migrator handles, with the exact recipe for each. The migrator applies most automatically; this reference is here so the assistant can route failed-cell scenarios to the correct fix and so the user can review which fixes are being applied.
 
 ---
 
-## Gotcha #1 — `entity_decrypt` / `decrypt_raw_data` UDF
+## Gotcha #1 — AWS-Secrets-Manager-backed decrypt UDFs
 
 **What breaks:** notebooks reference a UDF backed by AWS Secrets Manager. AIDP has no equivalent.
 
@@ -13,7 +13,7 @@
 - If output is used, replace with a passthrough stub via `synthetic_overrides.toml`:
   ```toml
   [[mock_udf]]
-  name = "entity_decrypt"
+  name = "<legacy_secret_udf>"
   strategy = "passthrough"
   return_type = "string"
   ```
@@ -59,7 +59,7 @@
 
 **Fix recipe:**
 - Batch all `CREATE SCHEMA` / `CREATE TABLE` into ONE WS execute call.
-- The catalog migrator's `migrate_catalog.py` does this automatically via `--chunk-size 25`.
+- The catalog migrator's `migrate_catalog.py` does this batching automatically (no flag needed).
 - For ad-hoc DDL, wrap in a single multi-statement Python cell:
   ```python
   for stmt in [...DDL list...]:
@@ -114,13 +114,13 @@
 
 ---
 
-## Gotcha #10 — `get_parameter_value` undefined when `00_Parameters.ipynb` reduces to a stub
+## Gotcha #10 — `<param_lookup_helper>` undefined when `<parameters_stub>.ipynb` reduces to a stub
 
-**What breaks:** Pass-1 dep migration reduces a parameter-bootstrap notebook to a stub (e.g. just imports). Downstream cells call `get_parameter_value(...)` → `NameError`.
+**What breaks:** Pass-1 dep migration reduces a parameter-bootstrap notebook to a stub (e.g. just imports). Downstream cells call `<param_lookup_helper>(...)` → `NameError`.
 
 **Fix recipe:**
-- Migrator inlines a `get_parameter_value` helper at the cell USE site (not at import time) when it detects the call without a corresponding definition.
-- Manual fix: prepend a code cell that defines `get_parameter_value` from `dbutils.widgets.get` semantics.
+- Migrator inlines a `<param_lookup_helper>` helper at the cell USE site (not at import time) when it detects the call without a corresponding definition.
+- Manual fix: prepend a code cell that defines `<param_lookup_helper>` from `dbutils.widgets.get` semantics.
 
 ---
 
@@ -176,14 +176,14 @@
 
 ---
 
-## Gotcha #15 — `base_table_post` NameError when `00_Parameters.ipynb` stub doesn't define it
+## Gotcha #15 — `<base_table_var>` NameError when `<parameters_stub>.ipynb` stub doesn't define it
 
-**What breaks:** same family as Gotcha #10. The source parameter notebook defines `base_table_post`, but the migrator's stub-reduction dropped that line.
+**What breaks:** same family as Gotcha #10. The source parameter notebook defines `<base_table_var>`, but the migrator's stub-reduction dropped that line.
 
 **Fix recipe:**
 - Migrator detects the cell-level NameError + inlines:
   ```python
-  base_table_post = locals().get('base_table_post', '<sandbox_schema>.Basedata')
+  <base_table_var> = locals().get('<base_table_var>', '<sandbox_schema>.<base_table>')
   ```
 - Manual fix: prepend a cell that defines all expected globals before the consuming cell.
 
@@ -205,4 +205,15 @@
 | `NameError: name '<var>' is not defined` in a parameter context | #10 / #15 |
 | `S3 bucket "<name>" not found in OCI bucket mapping` | #14 |
 | `object datastax is not a member of package com` | #13 |
-| `entity_decrypt is not defined` / `AWS Secrets Manager` | #1 |
+| `<legacy_secret_udf> is not defined` / `AWS Secrets Manager` | #1 |
+
+
+## Missing imports are reported, not auto-installed
+
+Cluster-side dependency resolution installs CURATED mappings only. When a
+notebook imports something with no curated mapping, the migrator logs
+`no curated pip mapping ... will NOT be installed automatically` and moves on.
+To supply the dependency: install it through the cluster libraries API (or your
+workspace's library UI), or add an explicit `%pip install <distribution>` cell,
+or extend `_IMPORT_TO_PIP` in `engine/scripts/cluster_lifecycle.py` when the
+import→distribution mapping is unambiguous.

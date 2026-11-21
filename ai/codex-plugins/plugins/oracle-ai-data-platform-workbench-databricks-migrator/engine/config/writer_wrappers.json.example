@@ -1,0 +1,352 @@
+{
+  "_warning": "DEPLOYMENT-SPECIFIC CATALOG \u2014 the entries below were mined from ONE deployment's notebooks and are shipped as worked examples. Regenerate this catalog from YOUR notebooks before migrating: wrapper functions NOT listed here are not intercepted, so their writes/drops are NOT redirected into the sandbox during validation.",
+  "_comment": "Customer writer-wrapper catalog. Drives the AST-based cell-text rewrite in scripts/job_migrate.py:_apply_wrapper_call_redirect that rewrites literal db/bucket/path args at execution-time to migration_sandbox_overwrite (db) and migration_sandbox (bucket). Saved customer code is NOT modified \u2014 the rewrite is applied only to the exec_code sent to the kernel. Edit this file to add or remove wrappers.",
+  "_redirect_targets": {
+    "db": "migration_sandbox_overwrite",
+    "bucket": "migration_sandbox",
+    "bucket_namespace": "exmplnspace1",
+    "path_template": "oci://migration_sandbox@exmplnspace1/<orig-bucket>/<orig-path>"
+  },
+  "_format": {
+    "name": "function name as it appears at the call site",
+    "is_method": "true if defined as `def f(self, ...)` and called as `obj.f(...)` (positions in call shift by -1 vs def). Default false.",
+    "positional_args": "ordered list of parameter names matching the def signature. For methods, INCLUDE 'self' as positional_args[0].",
+    "args": "{param_name: role} where role is one of: table, db, bucket, path, full_id, mode. Roles db/bucket/path/full_id are redirected."
+  },
+  "actionable": [
+    {
+      "name": "createTable",
+      "source": "SaveTableHelpers.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "write_mode",
+        "write_format",
+        "bucket_name",
+        "pod_name",
+        "partition_by_column"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db",
+        "db_name": "db",
+        "bucket_name": "bucket",
+        "write_mode": "mode"
+      }
+    },
+    {
+      "name": "createTableOld",
+      "source": "SaveTableHelpers.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "write_mode",
+        "write_format",
+        "bucket_name",
+        "pod_name",
+        "partition_by_column"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db",
+        "bucket_name": "bucket",
+        "write_mode": "mode"
+      }
+    },
+    {
+      "name": "createTableIntermediate",
+      "source": "SaveTableHelpers.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "timestamp"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db"
+      }
+    },
+    {
+      "name": "createTableIntermediateOld",
+      "source": "SaveTableHelpers.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "timestamp"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db"
+      }
+    },
+    {
+      "name": "createTableIntermediate_append",
+      "source": "user10/SaveTableHelpers.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "timestamp"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db"
+      }
+    },
+    {
+      "name": "createTableIntermediate_1",
+      "source": "user10/Example_Clone_Monitoring_L1.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "timestamp"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db"
+      }
+    },
+    {
+      "name": "createTableInHelper",
+      "source": "user11/SaveTableInHelperPrefix.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "write_mode",
+        "write_format",
+        "bucket_name"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db",
+        "bucket_name": "bucket",
+        "write_mode": "mode"
+      }
+    },
+    {
+      "name": "createTable_oracle",
+      "source": "user9/all_utils.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "database_name",
+        "write_mode",
+        "write_format",
+        "bucket_name",
+        "pod_name",
+        "partition_by_column"
+      ],
+      "args": {
+        "table_name": "table",
+        "database_name": "db",
+        "bucket_name": "bucket",
+        "write_mode": "mode"
+      }
+    },
+    {
+      "name": "saveTable",
+      "source": "user9/all_utils.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "df",
+        "table_name",
+        "mode",
+        "partition_by",
+        "write_type",
+        "bucket_name"
+      ],
+      "args": {
+        "table_name": "full_id",
+        "bucket_name": "bucket",
+        "mode": "mode"
+      }
+    },
+    {
+      "name": "writeTable",
+      "source": "user12/Utils/Utils.ipynb",
+      "is_method": true,
+      "positional_args": [
+        "self",
+        "df",
+        "bucket_name",
+        "s3_base_path"
+      ],
+      "args": {
+        "bucket_name": "bucket",
+        "s3_base_path": "path"
+      }
+    },
+    {
+      "name": "write_to_delta",
+      "source": "user13/001_library_importing.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "dataset",
+        "table_name_with_db",
+        "overwrite",
+        "overwrite_schema",
+        "append",
+        "partitionBy",
+        "path"
+      ],
+      "args": {
+        "table_name_with_db": "full_id",
+        "path": "path"
+      }
+    },
+    {
+      "name": "process_source",
+      "source": "user9/FT_TABLES_vs_DATAPROXY_ANALYSIS.ipynb",
+      "is_method": false,
+      "positional_args": [
+        "source",
+        "feature_name",
+        "dsp_df",
+        "flags_to_remove",
+        "run_date",
+        "output_path"
+      ],
+      "args": {
+        "output_path": "path"
+      }
+    },
+    {
+      "name": "drop_database",
+      "source": "user3/Utils/Data_Utils.ipynb",
+      "_note": "DESTRUCTIVE \u2014 redirect db so we don't drop real databases",
+      "destructive": true,
+      "is_method": false,
+      "positional_args": [
+        "db",
+        "bucket_name",
+        "pod_name",
+        "delete_paths"
+      ],
+      "args": {
+        "db": "db",
+        "bucket_name": "bucket"
+      }
+    },
+    {
+      "name": "drop_table",
+      "source": "user3/Utils/Data_Utils.ipynb",
+      "_note": "DESTRUCTIVE \u2014 route the full identifier to the collision-safe sandbox table",
+      "destructive": true,
+      "is_method": false,
+      "positional_args": [
+        "table_name",
+        "bucket_name",
+        "pod_name",
+        "delete_paths"
+      ],
+      "args": {
+        "table_name": "full_id",
+        "bucket_name": "bucket"
+      }
+    },
+    {
+      "name": "delete_table",
+      "source": "user10/nb16_delete_job.ipynb",
+      "_note": "DESTRUCTIVE \u2014 db arg gets redirected; table_list is a list of names (untouched)",
+      "destructive": true,
+      "is_method": false,
+      "positional_args": [
+        "table_list",
+        "db"
+      ],
+      "args": {
+        "db": "db"
+      }
+    }
+  ],
+  "refuse": [
+    {
+      "name": "get_mid_month_df",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "calculate_column_statistics_optimized",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "process_in_parallel",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "updateDataIngestionMetadata",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "save_model_scores",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "_extract_and_append_one",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "log_job_execution",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "update_daily_query_table",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "run_distributed_forecasting_pipeline",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "create_base_table",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "process_ft_source_wrapper",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "process_helperlib_source_wrapper",
+      "reason": "writes-but-no-redirectable-arg"
+    },
+    {
+      "name": "initialize_spark_session",
+      "reason": "writes-but-no-redirectable-arg"
+    }
+  ],
+  "excluded": [
+    {
+      "name": "store_task_variables",
+      "reason": "paired with read_task_variables \u2014 redirecting only write breaks round-trip"
+    },
+    {
+      "name": "run_column_statistics",
+      "reason": "diagnostic local CSV writer; default output_path is relative filename"
+    },
+    {
+      "name": "updateDataIngestionMetadataTable",
+      "reason": "Cassandra write \u2014 not Spark catalog / OCI path"
+    },
+    {
+      "name": "write_to_csv",
+      "reason": "DataFrame method writing to /Volumes/.../adhoc/ \u2014 personal scratch CSV"
+    },
+    {
+      "name": "write_to_delta_classMethod",
+      "reason": "DataFrame method requires class-level monkey-patch; revisit if needed"
+    }
+  ]
+}

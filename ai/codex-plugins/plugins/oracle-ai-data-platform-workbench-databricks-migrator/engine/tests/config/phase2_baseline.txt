@@ -1,0 +1,16 @@
+# Phase-2 burn-down baseline for test_no_hardcoded_customer_values.py.
+# Format: <repo-relative path>	<forbidden string>	<frozen occurrence count>
+# Counts may only SHRINK — the test fails on any count above its frozen
+# value, and test_phase2_baseline_is_not_stale fails when a fully-cleaned
+# entry is left behind. Do NOT add entries for new code.
+#
+# Remaining entries are all in scripts/job_migrate.py — prompt templates
+# and inline example strings that reference the write-redirect sandbox
+# (the pilot deployment's `migration_sandbox` / `exmplnspace1`) or the cross-tenancy
+# fallback (`exmplnspace2`). Phase 3: parameterize via <REDIRECT_BUCKET>
+# / <REDIRECT_NAMESPACE> / <DEFAULT_TENANCY_NS> prompt placeholders
+# substituted at apply_cfg_to_modules() time, same pattern as
+# <MLFLOW_TRACKING_URI>.
+scripts/job_migrate.py	exmplnspace2	4
+scripts/job_migrate.py	exmplnspace1	16
+scripts/job_migrate.py	migration_sandbox	17
