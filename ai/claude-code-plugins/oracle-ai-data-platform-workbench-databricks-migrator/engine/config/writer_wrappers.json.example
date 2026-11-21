@@ -16,7 +16,7 @@
   "actionable": [
     {
       "name": "createTable",
-      "source": "SaveTableUtils.ipynb",
+      "source": "SaveTableHelpers.ipynb",
       "is_method": false,
       "positional_args": [
         "df",
@@ -38,7 +38,7 @@
     },
     {
       "name": "createTableOld",
-      "source": "SaveTableUtils.ipynb",
+      "source": "SaveTableHelpers.ipynb",
       "is_method": false,
       "positional_args": [
         "df",
@@ -59,7 +59,7 @@
     },
     {
       "name": "createTableIntermediate",
-      "source": "SaveTableUtils.ipynb",
+      "source": "SaveTableHelpers.ipynb",
       "is_method": false,
       "positional_args": [
         "df",
@@ -74,7 +74,7 @@
     },
     {
       "name": "createTableIntermediateOld",
-      "source": "SaveTableUtils.ipynb",
+      "source": "SaveTableHelpers.ipynb",
       "is_method": false,
       "positional_args": [
         "df",
@@ -89,7 +89,7 @@
     },
     {
       "name": "createTableIntermediate_append",
-      "source": "user10/SaveTableUtils.ipynb",
+      "source": "user10/SaveTableHelpers.ipynb",
       "is_method": false,
       "positional_args": [
         "df",

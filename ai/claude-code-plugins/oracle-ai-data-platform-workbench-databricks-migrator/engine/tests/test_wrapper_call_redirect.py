@@ -230,7 +230,7 @@ def test_refuse_list_not_rewritten():
 
 
 def test_saveTable_redirects_qualified_table_name_and_bucket():
-    """SaveTableUtils requires a two-part identifier. Redirect it through the
+    """SaveTableHelpers requires a two-part identifier. Redirect it through the
     standard full_id role while preserving mode and redirecting the bucket."""
     clear_write_redirect_map()
     src = (

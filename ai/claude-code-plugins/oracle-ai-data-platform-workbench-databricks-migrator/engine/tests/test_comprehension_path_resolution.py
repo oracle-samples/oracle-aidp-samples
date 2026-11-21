@@ -3,7 +3,7 @@
 Incident: DBX job 800000000000006 (Cost Alerting) builds its CUR input as
 
     years = [2025]
-    paths = [f"s3://example-data-metrics/.../year={y}" for y in years]
+    paths = [f"s3://example-metrics-bucket/.../year={y}" for y in years]
     spark.read.parquet(*paths)
 
 Phase 1 left the reference DYNAMIC_REFERENCE/unresolved, so the concrete
@@ -25,14 +25,14 @@ import data_check_extract as dce  # noqa: E402
 
 CUR_CELL = (
     'years = [2025]\n'
-    'paths = [f"s3://example-data-metrics/aws-cur-daily/DailyReport/DailyReport/year={y}"\n'
+    'paths = [f"s3://example-metrics-bucket/aws-cur-daily/DailyReport/DailyReport/year={y}"\n'
     '         for y in years]\n'
     'dailyreport = (\n'
     '    spark.read.parquet(*paths)\n'
     '    .filter(F.col("resource_tags_user_team") == "DataScience")\n'
     ')\n'
 )
-CUR_PATH = "s3://example-data-metrics/aws-cur-daily/DailyReport/DailyReport/year=2025"
+CUR_PATH = "s3://example-metrics-bucket/aws-cur-daily/DailyReport/DailyReport/year=2025"
 
 
 def _analyze(src, cell_number=3, **kwargs):

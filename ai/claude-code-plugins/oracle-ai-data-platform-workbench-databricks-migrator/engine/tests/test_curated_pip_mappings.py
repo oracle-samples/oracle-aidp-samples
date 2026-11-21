@@ -28,6 +28,9 @@ def _no_ambient_config(monkeypatch, tmp_path):
 def _fresh(monkeypatch, exists):
     monkeypatch.setattr(cl, "_pypi_cache", {})
     monkeypatch.setattr(cl, "_pypi_exists", lambda name: exists)
+    # ordinary cases assume the index is reachable; the offline cases below
+    # stub reachability False explicitly — never depend on the real network
+    monkeypatch.setattr(cl, "_pypi_reachable", lambda: True)
 
 
 def test_unmapped_name_on_pypi_is_not_installed(monkeypatch, capsys):
@@ -70,6 +73,7 @@ def test_batch_survives_a_rejected_import(monkeypatch, capsys):
 
     monkeypatch.setattr(cl, "_pypi_cache", {})
     monkeypatch.setattr(cl, "_pypi_exists", lambda name: True)
+    monkeypatch.setattr(cl, "_pypi_reachable", lambda: True)
     # The cluster-libraries REST layer is out of scope for this pin: record and no-op.
     rest_calls = []
     class _Resp:
@@ -126,6 +130,7 @@ def test_single_install_refuses_unmapped(monkeypatch, capsys):
 
     monkeypatch.setattr(cl, "_pypi_cache", {})
     monkeypatch.setattr(cl, "_pypi_exists", lambda name: True)
+    monkeypatch.setattr(cl, "_pypi_reachable", lambda: True)
 
     executed = []
 

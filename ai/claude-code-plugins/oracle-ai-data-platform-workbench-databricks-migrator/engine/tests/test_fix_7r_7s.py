@@ -308,10 +308,10 @@ def test_7s_regression_relative_paths_still_work():
     out_rel = M._rewrite_internal_paths(src_rel, MIGRATED_BASE, ALL_UTILS_PATH, {})
     assert "HelperFunctions/sibling_utils.ipynb" in out_rel
 
-    src_up = "%run ../SaveTableUtils\n"
+    src_up = "%run ../SaveTableHelpers\n"
     out_up = M._rewrite_internal_paths(src_up, MIGRATED_BASE, ALL_UTILS_PATH, {})
     # ALL_UTILS_PATH lives under SampleJob/HelperFunctions/, so `../X` → SampleJob/X.ipynb
-    assert "SampleJob/SaveTableUtils.ipynb" in out_up
+    assert "SampleJob/SaveTableHelpers.ipynb" in out_up
 
 
 def test_run_rewrite_preserves_double_quoted_path_with_spaces():
