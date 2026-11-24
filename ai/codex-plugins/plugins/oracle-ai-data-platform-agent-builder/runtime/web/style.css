@@ -1,0 +1,51 @@
+:root {font: 15px/1.55 system-ui, sans-serif; color: #173332; background: #f3f6f5;}
+* {box-sizing: border-box;}
+body {margin: 0;}
+main {max-width: 1200px; margin: auto; padding: 30px 36px 70px;}
+header {display: flex; justify-content: space-between; align-items: center; margin-bottom: 36px;}
+.brand {color: #226256; text-decoration: none; font-size: 12px; font-weight: 750; letter-spacing: 2px;}
+.badge {font-size: 10px; border: 1px solid #bbcfc7; padding: 4px 9px; border-radius: 12px; letter-spacing: 1px;}
+h1 {font-size: 36px; line-height: 1.2; letter-spacing: -1px; margin: 0 0 12px;}
+h2 {font-size: 18px; letter-spacing: -.2px;}
+.subtitle {color: #5c716c; margin-bottom: 24px;}
+p {overflow-wrap: anywhere;}
+.card {background: white; border: 1px solid #dae5e0; border-radius: 14px; padding: 24px; margin: 20px 0;}
+button, .button {font: inherit; font-size: 13px; display: inline-block; border: 1px solid #276a5c; background: #276a5c; color: white; padding: 9px 15px; border-radius: 7px; cursor: pointer; text-decoration: none; margin: 4px 8px 4px 0; vertical-align: middle;}
+button:disabled {opacity: .5; cursor: wait;}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {outline: 3px solid #386abd; outline-offset: 3px;}
+.secondary {color: #276a5c; background: white; border-color: #c7d9d1;}
+label {display: block; font-size: 12px; font-weight: 650; margin: 14px 0;}
+input, select, textarea {display: block; width: min(100%, 650px); font: inherit; font-size: 14px; background: white; border: 1px solid #c7d9d1; border-radius: 6px; padding: 10px; margin-top: 5px;}
+input[type=checkbox] {width: auto;}
+nav {display: flex; flex-wrap: wrap; align-items: center; margin: 22px 0;}
+.status {font-size: 12px; color: #4d756a;}
+.error {background: #fff1ee; color: #982f20; border: 1px solid #efc3ba; padding: 15px; border-radius: 8px;}
+pre {white-space: pre-wrap; overflow-wrap: anywhere; background: #f5f8f6; padding: 16px; border-radius: 7px; font: 12px/1.65 ui-monospace, monospace;}
+.row {display: flex; gap: 20px;}
+.row > * {flex: 1; min-width: 0;}
+.plot {height: 240px; display: flex; gap: 2px; border-bottom: 1px solid #a9c6b7; margin-top: 36px;}
+.plot > .column {position: relative; flex: 1;}
+.plot .bar {position: absolute; width: 100%; bottom: 0; border-radius: 2px 2px 0 0; background: #3d8872; min-height: 1px;}
+.plot.mixed .bar {bottom: 50%;}
+.plot.mixed .negative {top: 50%; bottom: auto;}
+.negative {background: #bc715a !important;}
+.ticks {display: flex; justify-content: space-between; font-size: 11px; color: #6b7d76; margin: 10px 0;}
+.rank-row {display: grid; grid-template-columns: minmax(150px, 1.5fr) 2fr 100px; gap: 20px; align-items: center; margin: 13px 0; font-size: 12px;}
+.value-label {overflow-wrap: anywhere;}
+.track {height: 14px; background: #eff4f1; border-radius: 3px; overflow: hidden;}
+.rank-bar {height: 100%; background: #3d8872; border-radius: 3px;}
+.rank-row strong {text-align: right; font-variant-numeric: tabular-nums;}
+details {margin-top: 20px; font-size: 12px;}
+summary {cursor: pointer; color: #326a59;}
+table {border-collapse: collapse; width: 100%; margin-top: 12px;}
+td, th {padding: 7px; text-align: left; border-bottom: 1px solid #edf2ef; overflow-wrap: anywhere;}
+.batch-table {overflow-x: auto;}
+.rule-highlight {background: #fff0ae; border-left: 4px solid #947100; padding: 12px; scroll-margin-top: 24px;}
+@media (max-width: 650px) {
+  main {padding: 22px 18px;}
+  .card {padding: 18px;}
+  h1 {font-size: 28px;}
+  .rank-row {grid-template-columns: 1fr 1fr 76px; gap: 9px;}
+  .plot {gap: 1px;}
+  .row {flex-direction: column;}
+}

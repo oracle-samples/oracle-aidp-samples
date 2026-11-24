@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+.local-agent-client/
+*.sqlite*
+CLIENT.json
+TARGET.json
