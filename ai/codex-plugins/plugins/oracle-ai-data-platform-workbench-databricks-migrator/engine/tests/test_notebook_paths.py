@@ -383,8 +383,8 @@ class TestNormalizeNbPath:
     # ── /Workspace/ stripping ──
 
     def test_strips_workspace_prefix(self):
-        result = self._normalize("/Workspace/GIT/Auto_FL/notebook.ipynb")
-        assert result == "GIT/Auto_FL/notebook.ipynb"
+        result = self._normalize("/Workspace/GIT/Auto_FT/notebook.ipynb")
+        assert result == "GIT/Auto_FT/notebook.ipynb"
 
     def test_strips_leading_slash_without_workspace(self):
         result = self._normalize("/Users/foo/notebook.ipynb")
@@ -400,32 +400,32 @@ class TestNormalizeNbPath:
         # Contract (caf9fdac): strip /Workspace/ ONLY — JOB_ROOT is preserved
         # so keys are unambiguous across jobs; EXPORT_BASE handles collapsing.
         result = self._normalize(
-            "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb",
-            job_root="GIT/Auto_FL_Derived"
+            "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb",
+            job_root="GIT/Auto_FT_Derived"
         )
-        assert result == "GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
+        assert result == "GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
 
     def test_job_root_trailing_slash(self):
         result = self._normalize(
-            "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb",
-            job_root="GIT/Auto_FL_Derived/"
+            "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb",
+            job_root="GIT/Auto_FT_Derived/"
         )
-        assert result == "GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
+        assert result == "GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
 
     def test_job_root_no_match(self):
         """Path outside JOB_ROOT is not stripped."""
         result = self._normalize(
             "/Workspace/Users/user2@example.com/Utils.ipynb",
-            job_root="GIT/Auto_FL_Derived"
+            job_root="GIT/Auto_FT_Derived"
         )
         assert result == "Users/user2@example.com/Utils.ipynb"
 
     def test_empty_job_root(self):
         result = self._normalize(
-            "/Workspace/GIT/Auto_FL/notebook.ipynb",
+            "/Workspace/GIT/Auto_FT/notebook.ipynb",
             job_root=""
         )
-        assert result == "GIT/Auto_FL/notebook.ipynb"
+        assert result == "GIT/Auto_FT/notebook.ipynb"
 
     def test_staging_root(self):
         """Long staging paths from behavioral_job manifests."""
@@ -453,10 +453,10 @@ class TestNormalizeNbPath:
 
     def test_users_path_no_job_root(self):
         result = self._normalize(
-            "/Workspace/Users/user2@example.com/ReadMLExecutionLogRequestLog.ipynb",
-            job_root="GIT/Auto_FL_Derived"
+            "/Workspace/Users/user2@example.com/ReadLogsNotebookA.ipynb",
+            job_root="GIT/Auto_FT_Derived"
         )
-        assert result == "Users/user2@example.com/ReadMLExecutionLogRequestLog.ipynb"
+        assert result == "Users/user2@example.com/ReadLogsNotebookA.ipynb"
 
 
 # ─── download_path computation ────────────────────────────────────────────────
@@ -476,16 +476,16 @@ class TestDownloadPath:
 
     def test_workspace_prefix_stripped(self):
         result = self._compute_download_path(
-            "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
+            "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
         )
-        assert result == "GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
+        assert result == "GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
 
     def test_preserves_job_root(self):
         """Key fix: JOB_ROOT is NOT stripped — API needs full workspace path."""
         result = self._compute_download_path(
-            "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
+            "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
         )
-        assert result.startswith("GIT/Auto_FL_Derived/")
+        assert result.startswith("GIT/Auto_FT_Derived/")
 
     def test_no_workspace_prefix(self):
         result = self._compute_download_path(
@@ -514,14 +514,14 @@ class TestDownloadPath:
         import job_migrate
         old_root = job_migrate.JOB_ROOT
         try:
-            job_migrate.JOB_ROOT = "GIT/Auto_FL_Derived"
-            path = "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
+            job_migrate.JOB_ROOT = "GIT/Auto_FT_Derived"
+            path = "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
             download = self._compute_download_path(path)
             normalized = job_migrate.normalize_nb_path(path)
             # BOTH keep JOB_ROOT since caf9fdac — normalization can no longer
             # produce a path the download API would 404 on.
-            assert download == "GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
-            assert normalized == "GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
+            assert download == "GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
+            assert normalized == "GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
         finally:
             job_migrate.JOB_ROOT = old_root
 
@@ -544,12 +544,12 @@ class TestDownloadPath:
         import job_migrate
         old_root = job_migrate.JOB_ROOT
         try:
-            job_migrate.JOB_ROOT = "GIT/Auto_FL_Derived"
-            path = "/Workspace/Users/user2@example.com/ReadMLLogs.ipynb"
+            job_migrate.JOB_ROOT = "GIT/Auto_FT_Derived"
+            path = "/Workspace/Users/user2@example.com/ReadLogsNotebookB.ipynb"
             download = self._compute_download_path(path)
             normalized = job_migrate.normalize_nb_path(path)
-            assert download == "Users/user2@example.com/ReadMLLogs.ipynb"
-            assert normalized == "Users/user2@example.com/ReadMLLogs.ipynb"
+            assert download == "Users/user2@example.com/ReadLogsNotebookB.ipynb"
+            assert normalized == "Users/user2@example.com/ReadLogsNotebookB.ipynb"
         finally:
             job_migrate.JOB_ROOT = old_root
 
@@ -558,37 +558,37 @@ class TestDownloadPath:
         dep_path (not normalized) so download_path can recover JOB_ROOT.
 
         Simulates the bug: parent notebook has %run ../HelperFunctions/all_utils,
-        which resolves to /Workspace/GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb.
+        which resolves to /Workspace/GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb.
         If we normalize first → 'HelperFunctions/all_utils.ipynb', the download_path
         would also be 'HelperFunctions/all_utils.ipynb' → 404 from AIDP API.
         Passing the original path preserves JOB_ROOT for download."""
         import job_migrate
         old_root = job_migrate.JOB_ROOT
         try:
-            job_migrate.JOB_ROOT = "GIT/Auto_FL_Derived"
+            job_migrate.JOB_ROOT = "GIT/Auto_FT_Derived"
 
             # Simulate: parent notebook at HelperFunctions/HelperFunctions.ipynb
             # has %run all_utils → resolved to full path
-            parent_path = "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/HelperFunctions.ipynb"
+            parent_path = "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/HelperFunctions.ipynb"
             sub_dep_run = "../HelperFunctions/all_utils"
             import os
             parent_dir = posixpath.dirname(parent_path)
             resolved = posixpath.normpath(posixpath.join(parent_dir, sub_dep_run)) + ".ipynb"
-            # resolved = /Workspace/GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb
+            # resolved = /Workspace/GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb
 
             # Historic bug structurally gone: normalization preserves the
             # full path now, so download-from-normalized stays correct.
             dep_normalized = job_migrate.normalize_nb_path(resolved)
             download = self._compute_download_path(dep_normalized)
-            assert download == "GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
+            assert download == "GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
 
             # FIX: pass original resolved path, download gets correct path
             good_download = self._compute_download_path(resolved)
-            assert good_download == "GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"  # works!
+            assert good_download == "GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"  # works!
 
             # Both should normalize the same (for cache/output) — full path kept
-            assert dep_normalized == "GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
-            assert job_migrate.normalize_nb_path(resolved) == "GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
+            assert dep_normalized == "GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
+            assert job_migrate.normalize_nb_path(resolved) == "GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
         finally:
             job_migrate.JOB_ROOT = old_root
 
@@ -597,14 +597,14 @@ class TestDownloadPath:
         import job_migrate
         old_root = job_migrate.JOB_ROOT
         try:
-            job_migrate.JOB_ROOT = "GIT/Auto_FL_Derived"
-            run_path = "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
+            job_migrate.JOB_ROOT = "GIT/Auto_FT_Derived"
+            run_path = "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
             nb_norm = job_migrate.normalize_nb_path(run_path)
             if not nb_norm.endswith(".ipynb"):
                 nb_norm += ".ipynb"
             migrated_base = "/Workspace/output/job/notebooks"
             fallback = f"{migrated_base}/{nb_norm}"
-            assert fallback == "/Workspace/output/job/notebooks/GIT/Auto_FL_Derived/HelperFunctions/utils.ipynb"
+            assert fallback == "/Workspace/output/job/notebooks/GIT/Auto_FT_Derived/HelperFunctions/utils.ipynb"
             assert fallback != run_path  # different from original → replacement will happen
         finally:
             job_migrate.JOB_ROOT = old_root
@@ -665,16 +665,16 @@ class TestFlattenManifestRunDeps:
         deps = [
             {"path": "/Workspace/GIT/read_ft_tables.ipynb",
              "location": "external", "exists": True, "nested_deps": []},
-            {"path": "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/HelperFunctions.ipynb",
+            {"path": "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/HelperFunctions.ipynb",
              "location": "external", "exists": True, "nested_deps": [
-                {"path": "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb",
+                {"path": "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb",
                  "location": "external", "exists": True, "nested_deps": [
-                    {"path": "/Workspace/Users/user2@example.com/ReadMLExecutionLogRequestLog.ipynb",
+                    {"path": "/Workspace/Users/user2@example.com/ReadLogsNotebookA.ipynb",
                      "location": "external", "exists": True, "nested_deps": []},
-                    {"path": "/Workspace/Users/user2@example.com/SaveTableUtils.ipynb",
+                    {"path": "/Workspace/Users/user2@example.com/SaveTableHelpers.ipynb",
                      "location": "external", "exists": True, "nested_deps": []},
                 ]},
-                {"path": "/Workspace/GIT/read_data_from_req_logs.ipynb",
+                {"path": "/Workspace/GIT/read_logs_notebook_c.ipynb",
                  "location": "external", "exists": True, "nested_deps": []},
             ]},
         ]
@@ -683,11 +683,11 @@ class TestFlattenManifestRunDeps:
         # then HelperFunctions branch: nested children before parent
         assert len(result) == 6
         assert result[0] == "/Workspace/GIT/read_ft_tables.ipynb"  # no nested, processed first
-        assert result[1] == "/Workspace/Users/user2@example.com/ReadMLExecutionLogRequestLog.ipynb"
-        assert result[2] == "/Workspace/Users/user2@example.com/SaveTableUtils.ipynb"
-        assert result[3] == "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/all_utils.ipynb"
-        assert result[4] == "/Workspace/GIT/read_data_from_req_logs.ipynb"
-        assert result[5] == "/Workspace/GIT/Auto_FL_Derived/HelperFunctions/HelperFunctions.ipynb"
+        assert result[1] == "/Workspace/Users/user2@example.com/ReadLogsNotebookA.ipynb"
+        assert result[2] == "/Workspace/Users/user2@example.com/SaveTableHelpers.ipynb"
+        assert result[3] == "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/all_utils.ipynb"
+        assert result[4] == "/Workspace/GIT/read_logs_notebook_c.ipynb"
+        assert result[5] == "/Workspace/GIT/Auto_FT_Derived/HelperFunctions/HelperFunctions.ipynb"
 
 
 # ─── _flatten_deps (check_data_availability_for_workflow) ─────────────────────
@@ -968,13 +968,13 @@ class TestExampleVendorPaths:
     # ── External dep (outside JOB_ROOT) ──
 
     def test_external_dep_savetableutils(self):
-        """SaveTableUtils is under a different user — JOB_ROOT should not affect it."""
-        path = "/Workspace/Users/user2@example.com/SaveTableUtils.ipynb"
+        """SaveTableHelpers is under a different user — JOB_ROOT should not affect it."""
+        path = "/Workspace/Users/user2@example.com/SaveTableHelpers.ipynb"
         download = self._compute_download_path(path)
         normalized = self._normalize(path)
         # Both should be the same since path is outside JOB_ROOT
-        assert download == "Users/user2@example.com/SaveTableUtils.ipynb"
-        assert normalized == "Users/user2@example.com/SaveTableUtils.ipynb"
+        assert download == "Users/user2@example.com/SaveTableHelpers.ipynb"
+        assert normalized == "Users/user2@example.com/SaveTableHelpers.ipynb"
 
     # ── Task notebook itself ──
 
@@ -1065,7 +1065,7 @@ class TestTransitiveDepResolution:
     """Tests for transitive (nested) %run dependency resolution.
 
     Scenario: task notebook has %run 00_Parameters, and 00_Parameters itself
-    has %run ./Job_Slack_Utils. Job_Slack_Utils is a transitive dep (Level 2)
+    has %run ./Shared_Slack_Utils. Shared_Slack_Utils is a transitive dep (Level 2)
     that must be resolvable in dep_path_map during _inline_child_notebook.
     """
 
@@ -1086,7 +1086,7 @@ class TestTransitiveDepResolution:
 
         # Simulate: ensure_migrated cached these transitive deps
         cache = {
-            "Users/user3/Utils/Job_Slack_Utils.ipynb": "/Workspace/scratch/output/MyJob/notebooks/Users/user3/Utils/Job_Slack_Utils.ipynb",
+            "Users/user3/Utils/Shared_Slack_Utils.ipynb": "/Workspace/scratch/output/MyJob/notebooks/Users/user3/Utils/Shared_Slack_Utils.ipynb",
             "Users/user3/Utils/Data_Utils.ipynb": "/Workspace/scratch/output/MyJob/notebooks/Users/user3/Utils/Data_Utils.ipynb",
             "00_Parameters.ipynb": "/Workspace/scratch/output/MyJob/notebooks/00_Parameters.ipynb",
         }
@@ -1109,19 +1109,19 @@ class TestTransitiveDepResolution:
                     if bare not in dep_path_map:
                         dep_path_map[bare] = cached_path
 
-        # Now Job_Slack_Utils should be findable
-        assert "Users/user3/Utils/Job_Slack_Utils.ipynb" in dep_path_map
+        # Now Shared_Slack_Utils should be findable
+        assert "Users/user3/Utils/Shared_Slack_Utils.ipynb" in dep_path_map
         assert "Users/user3/Utils/Data_Utils.ipynb" in dep_path_map
         # Workspace-prefixed variant
-        assert "/Workspace/Users/user3/Utils/Job_Slack_Utils.ipynb" in dep_path_map
+        assert "/Workspace/Users/user3/Utils/Shared_Slack_Utils.ipynb" in dep_path_map
         # Bare (without .ipynb) variant
-        assert "Users/user3/Utils/Job_Slack_Utils" in dep_path_map
+        assert "Users/user3/Utils/Shared_Slack_Utils" in dep_path_map
 
     def test_relative_run_in_child_resolves_under_migrated_base(self):
-        """When child is at MIGRATED_BASE/X/00_Parameters.ipynb and has %run ./Job_Slack_Utils,
-        the resolved path should be MIGRATED_BASE/X/Job_Slack_Utils.ipynb."""
+        """When child is at MIGRATED_BASE/X/00_Parameters.ipynb and has %run ./Shared_Slack_Utils,
+        the resolved path should be MIGRATED_BASE/X/Shared_Slack_Utils.ipynb."""
         child_path = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/00_Parameters.ipynb"
-        run_ref = "./Job_Slack_Utils"
+        run_ref = "./Shared_Slack_Utils"
 
         # Simulate what _inline_child_notebook does
         run_path = run_ref.replace(" ", "_")
@@ -1130,14 +1130,14 @@ class TestTransitiveDepResolution:
         child_dir = posixpath.dirname(child_path)
         resolved = posixpath.normpath(posixpath.join(child_dir, run_path))
 
-        expected = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Job_Slack_Utils.ipynb"
+        expected = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Shared_Slack_Utils.ipynb"
         assert resolved == expected
 
     def test_relative_run_resolves_already_under_migrated_base(self):
         """When resolved path is already under MIGRATED_BASE, it should be
         recognized as a valid migrated path (not sent to the fallback)."""
         child_path = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/00_Parameters.ipynb"
-        run_ref = "./Job_Slack_Utils.ipynb"
+        run_ref = "./Shared_Slack_Utils.ipynb"
         child_dir = posixpath.dirname(child_path)
         resolved = posixpath.normpath(posixpath.join(child_dir, run_ref))
 
@@ -1147,7 +1147,7 @@ class TestTransitiveDepResolution:
     def test_dep_path_map_lookup_matches_migrated_base_path(self):
         """dep_path_map with transitive deps should match paths resolved under MIGRATED_BASE."""
         child_path = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/00_Parameters.ipynb"
-        run_ref = "./Job_Slack_Utils"
+        run_ref = "./Shared_Slack_Utils"
 
         run_path = run_ref.replace(" ", "_") + ".ipynb"
         child_dir = posixpath.dirname(child_path)
@@ -1155,10 +1155,10 @@ class TestTransitiveDepResolution:
 
         # dep_path_map enriched with transitive deps (normalized keys)
         dep_path_map = {
-            "Users/user3/CX/V0/Job_Slack_Utils.ipynb":
-                f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Job_Slack_Utils.ipynb",
-            "/Workspace/Users/user3/CX/V0/Job_Slack_Utils.ipynb":
-                f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Job_Slack_Utils.ipynb",
+            "Users/user3/CX/V0/Shared_Slack_Utils.ipynb":
+                f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Shared_Slack_Utils.ipynb",
+            "/Workspace/Users/user3/CX/V0/Shared_Slack_Utils.ipynb":
+                f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Shared_Slack_Utils.ipynb",
         }
 
         # Simulate the dep_path_map lookup (suffix matching)
@@ -1179,7 +1179,7 @@ class TestTransitiveDepResolution:
             f"dep_path_map lookup failed for resolved path: {run_path_resolved}\n"
             f"dep_path_map keys: {list(dep_path_map.keys())}"
         )
-        assert resolved == f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Job_Slack_Utils.ipynb"
+        assert resolved == f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Shared_Slack_Utils.ipynb"
 
     def test_normalize_on_migrated_base_path_equality_bug(self):
         """When run_path_to_inline is already under MIGRATED_BASE, normalize_nb_path
@@ -1192,7 +1192,7 @@ class TestTransitiveDepResolution:
             job_migrate.MIGRATED_BASE = self.MIGRATED_BASE
 
             # Path already under MIGRATED_BASE (from relative resolution in child)
-            run_path = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Job_Slack_Utils.ipynb"
+            run_path = f"{self.MIGRATED_BASE}/Users/user3/CX/V0/Shared_Slack_Utils.ipynb"
             nb_norm = job_migrate.normalize_nb_path(run_path)
             migrated_candidate = f"{self.MIGRATED_BASE}/{nb_norm}"
 
@@ -1211,7 +1211,7 @@ class TestTransitiveDepResolution:
 
     def test_collection_escalations_scenario(self):
         """Real scenario from Example_Escalations_V0 log:
-        Task 05_HRC_Calls_data → 00_Parameters → %run ./Job_Slack_Utils (fails)."""
+        Task 05_HRC_Calls_data → 00_Parameters → %run ./Shared_Slack_Utils (fails)."""
         import job_migrate
         old_root = job_migrate.JOB_ROOT
         try:
@@ -1230,12 +1230,12 @@ class TestTransitiveDepResolution:
             migration_cache = {
                 "Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb":
                     f"{migrated_base}/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb",
-                "Users/user3@example.com/Utils/Job_Slack_Utils.ipynb":
-                    f"{migrated_base}/Users/user3@example.com/Utils/Job_Slack_Utils.ipynb",
+                "Users/user3@example.com/Utils/Shared_Slack_Utils.ipynb":
+                    f"{migrated_base}/Users/user3@example.com/Utils/Shared_Slack_Utils.ipynb",
                 "Users/user3@example.com/Utils/Data_Utils.ipynb":
                     f"{migrated_base}/Users/user3@example.com/Utils/Data_Utils.ipynb",
-                "Users/user3@example.com/Utils/SaveTableUtils.ipynb":
-                    f"{migrated_base}/Users/user3@example.com/Utils/SaveTableUtils.ipynb",
+                "Users/user3@example.com/Utils/SaveTableHelpers.ipynb":
+                    f"{migrated_base}/Users/user3@example.com/Utils/SaveTableHelpers.ipynb",
             }
 
             # Merge transitive deps (the fix)
@@ -1251,10 +1251,10 @@ class TestTransitiveDepResolution:
                         if bare not in dep_path_map:
                             dep_path_map[bare] = cached_path
 
-            # Now simulate _inline_child_notebook resolving %run ./Job_Slack_Utils
+            # Now simulate _inline_child_notebook resolving %run ./Shared_Slack_Utils
             # inside 00_Parameters.ipynb
             child_path = f"{migrated_base}/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb"
-            run_ref = "./Job_Slack_Utils"
+            run_ref = "./Shared_Slack_Utils"
             run_path = run_ref.replace(" ", "_") + ".ipynb"
             child_dir = posixpath.dirname(child_path)
             run_path_resolved = posixpath.normpath(posixpath.join(child_dir, run_path))
@@ -1273,16 +1273,16 @@ class TestTransitiveDepResolution:
                 if resolved:
                     break
 
-            # Job_Slack_Utils is in a DIFFERENT directory (Utils/) from 00_Parameters (CX_Escalations/V0/).
-            # The relative resolution from child_dir gives .../CX_Escalations/V0/Job_Slack_Utils.ipynb
-            # which won't match the cache entry .../Utils/Job_Slack_Utils.ipynb.
-            # But the dep_path_map NOW has the Utils/Job_Slack_Utils entry from the cache.
+            # Shared_Slack_Utils is in a DIFFERENT directory (Utils/) from 00_Parameters (CX_Escalations/V0/).
+            # The relative resolution from child_dir gives .../CX_Escalations/V0/Shared_Slack_Utils.ipynb
+            # which won't match the cache entry .../Utils/Shared_Slack_Utils.ipynb.
+            # But the dep_path_map NOW has the Utils/Shared_Slack_Utils entry from the cache.
             # The original %run in 00_Parameters was likely an ABSOLUTE path like
-            # %run /Workspace/Users/user3@example.com/Utils/Job_Slack_Utils
-            # not a relative ./Job_Slack_Utils. Let's test that scenario.
+            # %run /Workspace/Users/user3@example.com/Utils/Shared_Slack_Utils
+            # not a relative ./Shared_Slack_Utils. Let's test that scenario.
 
             # Re-test with absolute path (more likely the real scenario)
-            run_ref_abs = "/Workspace/Users/user3@example.com/Utils/Job_Slack_Utils"
+            run_ref_abs = "/Workspace/Users/user3@example.com/Utils/Shared_Slack_Utils"
             run_path_abs = run_ref_abs.replace(" ", "_") + ".ipynb"
             # Absolute paths are NOT resolved relative to child_dir
 
@@ -1304,7 +1304,7 @@ class TestTransitiveDepResolution:
                 f"Looking for: {run_path_abs}\n"
                 f"dep_path_map keys: {sorted(dep_path_map.keys())}"
             )
-            assert "Job_Slack_Utils" in resolved_abs
+            assert "Shared_Slack_Utils" in resolved_abs
         finally:
             job_migrate.JOB_ROOT = old_root
 
@@ -1315,7 +1315,7 @@ class TestChildNotebookContentCache:
     """Tests for _notebook_content_cache population after _inline_child_notebook.
 
     Root cause of Example_Escalations_V0 HRC_Calls failure:
-    SaveTableUtils.ipynb was migrated+fixed on first %run, but _notebook_content_cache
+    SaveTableHelpers.ipynb was migrated+fixed on first %run, but _notebook_content_cache
     was never populated. Second %run (nested inside 00_Parameters) hit FUSE miss x3,
     fell back to API download of ORIGINAL unmigrated notebook, then failed on
     'from aidp_dbutils import _DBUtils' again.
@@ -1329,7 +1329,7 @@ class TestChildNotebookContentCache:
         try:
             job_migrate._notebook_content_cache.clear()
 
-            child_path = "/Workspace/scratch/output/MyJob/notebooks/Users/user3/Utils/SaveTableUtils.ipynb"
+            child_path = "/Workspace/scratch/output/MyJob/notebooks/Users/user3/Utils/SaveTableHelpers.ipynb"
             migrated_cells = [
                 "from aidp_compat import dbutils, translate_path",
                 "def save_table(df, name):\n    df.write.saveAsTable(name)",
@@ -1388,7 +1388,7 @@ class TestChildNotebookContentCache:
         try:
             job_migrate._notebook_content_cache.clear()
 
-            child_path = "/Workspace/scratch/output/Job/notebooks/Utils/SaveTableUtils"
+            child_path = "/Workspace/scratch/output/Job/notebooks/Utils/SaveTableHelpers"
             migrated_cells = ["print('hello')"]
 
             cache_nb = {"cells": []}
@@ -1415,7 +1415,7 @@ class TestChildNotebookContentCache:
             job_migrate._notebook_content_cache.clear()
 
             # Task 1 populates cache
-            path = "/Workspace/scratch/output/Job/notebooks/Utils/SaveTableUtils.ipynb"
+            path = "/Workspace/scratch/output/Job/notebooks/Utils/SaveTableHelpers.ipynb"
             nb_json = json.dumps({"cells": [{"cell_type": "code", "source": ["from aidp_compat import dbutils"]}]})
             job_migrate._notebook_content_cache[path] = nb_json
 
@@ -1444,7 +1444,7 @@ class TestChildNotebookContentCache:
         try:
             job_migrate._notebook_content_cache.clear()
 
-            path = "/Workspace/scratch/output/Job/notebooks/Utils/SaveTableUtils.ipynb"
+            path = "/Workspace/scratch/output/Job/notebooks/Utils/SaveTableHelpers.ipynb"
 
             # First migration populates cache with fixed code
             first_nb = json.dumps({"cells": [{"cell_type": "code", "source": ["from aidp_compat import dbutils"]}]})
@@ -1752,9 +1752,9 @@ class TestSource3MigrationCacheLookup:
         assert found, f"None of {norm_keys} found in cache {list(cache.keys())}"
 
     def test_examplevendor_dep_savetableutils_external(self):
-        """SaveTableUtils.ipynb — external dep under different user."""
-        child_path = f"{self.MIGRATED_BASE}/Users/user2@example.com/SaveTableUtils.ipynb"
-        cache_key = "Users/user2@example.com/SaveTableUtils.ipynb"
+        """SaveTableHelpers.ipynb — external dep under different user."""
+        child_path = f"{self.MIGRATED_BASE}/Users/user2@example.com/SaveTableHelpers.ipynb"
+        cache_key = "Users/user2@example.com/SaveTableHelpers.ipynb"
         cache = {cache_key: child_path}
 
         _, norm_keys = self._build_source3_paths(child_path)
@@ -1785,7 +1785,7 @@ class TestSource3MigrationCacheLookup:
 
     def test_child_path_not_under_migrated_base(self):
         """When child_path is NOT under MIGRATED_BASE, _mb_path should be constructed."""
-        child_path = "/Workspace/Users/user2@example.com/SaveTableUtils.ipynb"
+        child_path = "/Workspace/Users/user2@example.com/SaveTableHelpers.ipynb"
         new_paths, _ = self._build_source3_paths(child_path)
 
         # Should include both the original path and a MIGRATED_BASE path
@@ -1882,7 +1882,7 @@ class TestSource3MigrationCacheLookup:
             dep_path_map[dep_norm] = dep_migrated
 
             # Step 3: process_notebook encounters %run ../Optimiser_Utils/0_Imports
-            notebook_path = "/Workspace/Users/user1@example.com/Payments/Example_Optimizer_Realtime/ACTIVATION/M76_Simulation_custom_sc.ipynb"
+            notebook_path = "/Workspace/Users/user1@example.com/Payments/Example_Optimizer_Realtime/ACTIVATION/M76_Simulation_custom.ipynb"
             run_ref = "../Optimiser_Utils/0_Imports"
             run_path = run_ref + ".ipynb"
             current_dir = posixpath.dirname(notebook_path)

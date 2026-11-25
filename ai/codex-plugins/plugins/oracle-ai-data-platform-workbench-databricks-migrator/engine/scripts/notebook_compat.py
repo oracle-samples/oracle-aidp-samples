@@ -209,7 +209,7 @@ for _old_body in (_PREVIOUS_STORAGE_PARTITION_BODY, _PREVIOUS_SPARK_INDEX_BODY):
 
 
 def rewrite_latest_partition_helper(source: str) -> tuple[str, bool]:
-    """Repair the known SaveTableUtils helper, preserving other source verbatim.
+    """Repair the known SaveTableHelpers helper, preserving other source verbatim.
 
     Only top-level Python functions matching the complete known AST qualify.
     Replace just the latest-partition branch; the explicit timestamp branch,

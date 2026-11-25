@@ -2718,7 +2718,7 @@ CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta table
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
 ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
-DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
+DESCRIBE DETAIL on parquet tables (e.g. SaveTableHelpers.createTable looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
 
@@ -3074,9 +3074,9 @@ CRITICAL - OCI STORAGE PATH RULES (only for s3://, s3a://, oci:// paths):
      correcting:
 
        - REWRITING A CALL SITE. A line like
-             bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'bau_flows_response_data')
+             bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'example_flows_data_b')
          MUST STAY IDENTICAL. NEVER comment it out and replace with
-             bfrd_table_path = "sales_analytics.bau_flows_response_data"
+             bfrd_table_path = "sales_analytics.example_flows_data_b"
          or any other hardcoded catalog identifier. The call expression is
          correct as-is — the FUNCTION's body is what gets fixed (case A above),
          not the call.
@@ -3762,7 +3762,7 @@ FIELD-LEARNED RULES (recurring issues seen migrating the pilot deployment jobs �
 - read_table("schema.table") -> spark.read.table("schema.table"): The bare `read_table(...)` helper is a
   Databricks convenience that does not exist on AIDP. ONLY rewrite when `read_table` is called as a bare
   function AND is NOT defined locally or in a %run dependency (check with get_cell_history / read_notebook_source).
-  If it is a project-defined method (e.g. SaveTableUtils.read_table), leave it — its body is migrated separately.
+  If it is a project-defined method (e.g. SaveTableHelpers.read_table), leave it — its body is migrated separately.
 - Glob/wildcard in a read path (e.g. .load("oci://b@ns/x/dt=*/*.parquet")): AIDP's reader does not expand
   path wildcards. Point the reader at the parent directory (drop the wildcard segments:
   "oci://b@ns/x/") and KEEP any existing .dropDuplicates(...) / .filter(...) that narrowed the data. Do not add
@@ -8927,10 +8927,10 @@ def _detect_path_returning_to_identifier_regression(original: str, migrated: str
     replaces a path-returning function call with a hardcoded catalog identifier:
 
         # original (path-returning call):
-        bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'bau_flows_response_data')
+        bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'example_flows_data_b')
 
         # migrated (hardcoded catalog ident — wrong):
-        bfrd_table_path = "sales_analytics.bau_flows_response_data"
+        bfrd_table_path = "sales_analytics.example_flows_data_b"
 
     The variable name advertises a PATH (`_path` / `_location` / `_uri` /
     `_s3_location` suffix); downstream consumers do
@@ -12297,7 +12297,7 @@ def _looks_like_code(text: str) -> bool:
     fire and `call_opus_with_tools` returns the model's raw text, which
     `_extract_code_from_response` passes through unchanged — so a preamble like
     "Producing the final migrated code." would be persisted AS the cell, silently
-    destroying the real code (observed: SaveTableUtils_2 `createTable` wiped to a
+    destroying the real code (observed: SaveTableHelpers_2 `createTable` wiped to a
     34-char preamble → downstream NameError).
 
     Deliberately permissive (either signal suffices) so valid code is never
@@ -27338,7 +27338,7 @@ else:
             # ensure_migrated() recursively migrates sub-deps and caches them in
             # _migration_cache, but only returns the top-level migrated path.
             # Without this, _inline_child_notebook can't resolve nested %run paths
-            # (e.g. 00_Parameters.ipynb -> %run ./Job_Slack_Utils) because they're
+            # (e.g. 00_Parameters.ipynb -> %run ./Shared_Slack_Utils) because they're
             # not direct deps of the task notebook.
             transitive_added = 0
             for cached_norm, cached_path in _migration_cache.items():
@@ -27906,7 +27906,7 @@ async def main():
     # REVIEWER NOTE: the default is now --no-skip-migrated (skip OFF). Why the
     # flip: --skip-migrated reuses previously-migrated notebooks to save time,
     # but it is unsafe for jobs with nested %run util deps. A dep such as
-    # SaveTableUtils that gets child-inlined can be served from its execute-first
+    # SaveTableHelpers that gets child-inlined can be served from its execute-first
     # (UN-converted) copy rather than its Opus-dep-migrated version — so
     # Databricks-only APIs inside it (boto3/Glue, dbutils, etc.) are never
     # converted and every downstream task that %runs it fails. Forcing fresh

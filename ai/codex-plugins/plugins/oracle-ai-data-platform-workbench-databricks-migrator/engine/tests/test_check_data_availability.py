@@ -33,7 +33,7 @@ from data_check_extract import (
 # Historical bug #7: `#` strip was not quote-aware.
 
 def test_strip_preserves_s3_url_python():
-    src = 'x = "s3://examplecorp-dp-unit-rds/rds-and-kafka/customer_device_service/"'
+    src = 'x = "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_device_service/"'
     out = strip_comments(src, lang="python")
     assert out == src, f"URL corrupted: {out!r}"
 
@@ -44,7 +44,7 @@ def test_strip_preserves_s3a_url_python():
 
 
 def test_strip_preserves_oci_url_python():
-    src = 'p = "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/customer_device_service/"'
+    src = 'p = "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_device_service/"'
     assert strip_comments(src, lang="python") == src
 
 
@@ -221,7 +221,7 @@ def test_extract_does_not_report_dynamic_partition_prefix_as_concrete_path():
 
 def test_extract_does_not_report_dynamic_bucket_key_prefix_as_concrete_path():
     src = (
-        'path = f"s3://examplecorp-ds-data-store/user-{first_char}/'
+        'path = f"s3://examplecorp-store-alpha/user-{first_char}/'
         'upi-scratch-card/recent/{userId}.snappy.avro"'
     )
     out = extract_from_source(src)
@@ -231,7 +231,7 @@ def test_extract_does_not_report_dynamic_bucket_key_prefix_as_concrete_path():
 
 def test_extract_does_not_report_concatenated_url_prefix_as_concrete_path():
     src = (
-        'currentPathForUserId = "s3://examplecorp-ds-data-store/user-" + '
+        'currentPathForUserId = "s3://examplecorp-store-alpha/user-" + '
         'userId[0] + "/upi/recent/" + userId + ".snappy.avro"\n'
         'df = spark.read.format("avro").load(currentPathForUserId)'
     )
@@ -1353,20 +1353,20 @@ def test_nb_ignores_markdown_cells():
 # dropped by the historical scanner. If any of these regress, revert.
 
 CORPUS_URLS = [
-    "oci://oci-example-data-lake@exmplnspace2/raw-data/sales_analytics/batch_flows_response_data/",
-    "oci://oci-uw-ml-aggregator-store-example-prod@exmplnspace1/datalake_s3store/ml_attributes_nfs_bau/",
-    "oci://oci-ml-data-store-unit-bau@exmplnspace1/datalake_s3store/ml_attributes_unit_bau/",
-    "oci://oci-ml-data-store-unit-batch@exmplnspace2/datalake_s3store/ml_attributes_unit_batch/",
+    "oci://oci-example-data-lake@exmplnspace2/raw-data/sales_analytics/example_flows_data_a/",
+    "oci://oci-example-aggregator-prod@exmplnspace1/datalake_store/ml_attrs_set_a/",
+    "oci://oci-ml-data-store-unit-bau@exmplnspace1/datalake_store/ml_attrs_set_b/",
+    "oci://oci-ml-data-store-unit-batch@exmplnspace2/datalake_store/ml_attrs_set_c/",
     "s3a://example-datascience-temporary-bucket/intermediate_tables/",
     "oci://oci-example-datascience-temporary-bucket@exmplnspace1/intermediate_tables/",
-    "oci://oci-example-datascience-userspace-bucket@exmplnspace1/intermediate_data/",
+    "oci://oci-example-workspace-bucket@exmplnspace1/intermediate_data/",
     "s3://examplecorp-underwriting-teamx-data/event-data/teamx-data-reference-link-events/data/p_origination",
     "s3a://examplecorp-underwriting-teamx-data/event-data/",
     "s3a://example-datascience-temporary-bucket/db_tables/default_user/x/user6/appEmbeddingsO2/",
     "s3://examplecorp-dp-unit-rds/rds-and-kafka/sales_analytics/location_features",
-    "s3://examplecorp-underwriting-event-data-bau/event-data/bau_flows_response_data/data/",
+    "s3://examplecorp-underwriting-event-data-bau/event-data/example_flows_data_b/data/",
     "s3://user14-v2-bucket/user14_v2_dump/user14dump/",
-    "s3://examplecorp-dp-unit-rds/rds-and-kafka/customer_device_service/customer_device_temp/",  # THE Task 02 blocker
+    "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_device_service/example_device_temp/",  # THE Task 02 blocker
 ]
 
 
@@ -1386,7 +1386,7 @@ def test_corpus_task02_specific_case():
     """The exact code from HelperFunctions Cell 26 that broke v19 Task 02."""
     src = '''def get_all_device_summary(start_date, end_date, flow_type = "O2"):
 
-    cust_device_path = "s3://examplecorp-dp-unit-rds/rds-and-kafka/customer_device_service/customer_device_temp/"
+    cust_device_path = "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_device_service/example_device_temp/"
     cust_device_table = spark.read.format('org.apache.hudi').load(cust_device_path)
 
     cd = spark.read.table("example_feature_backup.datascience_serviceable_base").filter(F.col("flow_type") == flow_type)
@@ -1396,7 +1396,7 @@ def test_corpus_task02_specific_case():
     out = extract_from_source(src_stripped)
 
     # URL preserved AND captured
-    assert "s3://examplecorp-dp-unit-rds/rds-and-kafka/customer_device_service/customer_device_temp/" in out["paths"], \
+    assert "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_device_service/example_device_temp/" in out["paths"], \
         f"THE Task 02 blocker URL is still missed! paths={out['paths']}"
 
     # Variable-based Hudi read captured as unresolved
@@ -2115,9 +2115,9 @@ def test_scala_cands_method_chain_appends_trim():
 
 
 def test_scala_cands_ledger_utils_variant():
-    """Second real bug from HELPER — ledger.utils.Utils.getFeatAvlSms."""
-    got = _cands("com.example.datascience.ledger.utils.Utils.getFeatAvlSms")
-    assert "com.example.datascience.ledger.utils.Utils" in got
+    """Second real bug from HELPER — ledger.utils.Utils.getFeatureStatus."""
+    got = _cands("com.example.datascience.example.utils.Utils.getFeatureStatus")
+    assert "com.example.datascience.example.utils.Utils" in got
 
 
 def test_scala_cands_scala_object_method_chain():

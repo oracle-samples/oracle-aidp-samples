@@ -4,7 +4,7 @@ The literal sweep (`_apply_s3_translations` + `_apply_dbfs_translations`)
 rewrites every S3/DBFS string, including the strings a check uses to
 RECOGNIZE an input form. On Python it broke path checks in customer and model
 code alike (Example_Monitoring_Generic_Job, job 500000000000008: Case A, the
-location SaveTableUtils reads itself; Case B, Data_Aggregation's path helper).
+location SaveTableHelpers reads itself; Case B, Data_Aggregation's path helper).
 Python cells are therefore never swept (`_sweep_storage_literals`): the model
 migrates them, and what it returns is what runs and what is saved.
 
@@ -63,7 +63,7 @@ class _Spark:
         return type("Frame", (), {"inputFiles": lambda frame: [self.location]})()
 
 
-# A table's location as Model_Monitoring's SaveTableUtils reads it: the
+# A table's location as Model_Monitoring's SaveTableHelpers reads it: the
 # function builds the value itself, so no caller holds it.
 LOCATION = 'spark.sql(f"DESCRIBE DETAIL {table}").collect()[0]["location"]'
 # A path helper's call, on the input under test.
@@ -115,7 +115,7 @@ PANDAS_PATH_TRANSLATED = f'''def to_pandas_path(path):
 '''
 
 
-# REF-158 Case A as Model_Monitoring's current SaveTableUtils writes it: the
+# REF-158 Case A as Model_Monitoring's current SaveTableHelpers writes it: the
 # check reads a normalised copy of the location, the write uses the location.
 def _save_table(prefix_line, translation=""):
     return ('GOLD_BUCKET = "example-gold"\n'
@@ -242,7 +242,7 @@ def check(table):
         raise ValueError("wrong bucket")
     return path
 '''], "check", "location"),
-    ("SaveTableUtils: the model's translation", [SAVE_TRANSLATED], "save", "location"),
+    ("SaveTableHelpers: the model's translation", [SAVE_TRANSLATED], "save", "location"),
     # The model's rewrite of DESCRIBE DETAIL (Delta-only on AIDP).
     ("location: DESCRIBE EXTENDED rows (model reply)", ['''def f(table):
     rows = spark.sql(f"DESCRIBE EXTENDED {table}").collect()
@@ -396,7 +396,7 @@ def f(path):
 BROKEN_BY_SWEEP = [
     "Case A, same cell", "Case A, constant in a later cell", "Case A, constant in an earlier cell",
     "Case A, local prefix", "Case A, literal + len (model reply)",
-    "SaveTableUtils: the model's translation", "star import before the constant",
+    "SaveTableHelpers: the model's translation", "star import before the constant",
     "location: DESCRIBE EXTENDED rows (model reply)", "location: original only in messages",
     "Case B, DBFS loop", "Case B, prefixes in another cell", "Case B, early return",
     "closure called only past the early return",
@@ -513,8 +513,8 @@ if path.startswith("s3://example-gold/"):
 ''']),
     *[(f"review: {title}", [source]) for title, (source, _, _) in REVIEW_SHAPES.items()],
     # A location the function reads itself, used again after the check.
-    ("SaveTableUtils: f-string prefix, copy checked", [SAVE_FSTRING]),
-    ("SaveTableUtils: literal prefix, copy checked", [SAVE_LITERAL]),
+    ("SaveTableHelpers: f-string prefix, copy checked", [SAVE_FSTRING]),
+    ("SaveTableHelpers: literal prefix, copy checked", [SAVE_LITERAL]),
     ("location: yes/no result returned", [_located('''    return path.startswith("s3://example-gold/")
 ''')]),
     ("location: yes/no result stored", [_located('''    ok = path.startswith("s3://example-gold/")

@@ -1464,7 +1464,7 @@ CRITICAL — DESCRIBE DETAIL is Delta-only and FAILS on AIDP for non-Delta table
 On AIDP, `spark.sql("DESCRIBE DETAIL <tbl>")` raises "Operation not allowed: DESCRIBE
 DETAIL is only supported for Delta tables" whenever the underlying table is parquet,
 ORC, CSV, JSON, Iceberg, or any non-Delta format. Customer codebases commonly call
-DESCRIBE DETAIL on parquet tables (e.g. SaveTableUtils.createTable looks up the existing
+DESCRIBE DETAIL on parquet tables (e.g. SaveTableHelpers.createTable looks up the existing
 location before appending). Rewrite to DESCRIBE EXTENDED, which works universally on
 AIDP — BUT note the result schema differs and the downstream access must change too:
 
@@ -1508,9 +1508,9 @@ B) INLINE EXTRACTION BLOCKS — where DESCRIBE FORMATTED is written out in the c
 ABSOLUTELY FORBIDDEN — these are the over-migration mistakes we are correcting:
 
   - REWRITING A CALL SITE. A line like
-        bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'bau_flows_response_data')
+        bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'example_flows_data_b')
     MUST STAY IDENTICAL. NEVER comment it out and replace with
-        bfrd_table_path = "sales_analytics.bau_flows_response_data"
+        bfrd_table_path = "sales_analytics.example_flows_data_b"
     or any other hardcoded catalog identifier. The call expression is correct
     as-is — the FUNCTION's body is what gets fixed (case A above), not the call.
 
@@ -2459,9 +2459,9 @@ CRITICAL - OCI Path Resolution (only for s3://, s3a://, oci:// paths):
      correcting:
 
        - REWRITING A CALL SITE. A line like
-             bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'bau_flows_response_data')
+             bfrd_table_path = get_glue_table_s3_location('sales_analytics', 'example_flows_data_b')
          MUST STAY IDENTICAL. NEVER comment it out and replace with
-             bfrd_table_path = "sales_analytics.bau_flows_response_data"
+             bfrd_table_path = "sales_analytics.example_flows_data_b"
          or any other hardcoded catalog identifier. The call expression is
          correct as-is — the FUNCTION's body is what gets fixed (case A above),
          not the call.

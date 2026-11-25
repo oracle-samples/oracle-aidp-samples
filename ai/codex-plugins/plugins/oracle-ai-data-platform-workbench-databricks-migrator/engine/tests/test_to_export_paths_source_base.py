@@ -131,12 +131,12 @@ class TestSourceDifferentFromTarget(unittest.TestCase):
         TARGET = "/Workspace/examplecorp_tool_demo/examplecorp_migrate/notebooks"
         run_target = (
             "/Workspace/examplecorp_tool_demo/dbx_export/notebooks/Users/"
-            "user2@example.com/SaveTableUtils.ipynb"
+            "user2@example.com/SaveTableHelpers.ipynb"
         )
         _, migrated = _to_export_paths(run_target, TARGET, SOURCE)
         self.assertEqual(
             migrated,
-            TARGET + "/Users/user2@example.com/SaveTableUtils.ipynb",
+            TARGET + "/Users/user2@example.com/SaveTableHelpers.ipynb",
         )
 
     def test_source_and_target_can_be_deeply_nested(self):

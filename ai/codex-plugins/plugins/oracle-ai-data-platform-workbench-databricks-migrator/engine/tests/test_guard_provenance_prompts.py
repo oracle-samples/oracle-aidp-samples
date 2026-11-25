@@ -13,7 +13,7 @@ from test_conditional_exit_below_execute import am, jm, _patch_common
 from test_eval_verdict_gate import _notebook, _ScriptedKernel
 
 
-# Exact original section from the main branch at c094cd6daa65b8f9a88ba8e9fea4aced810a1cbd.
+# Exact original section from the source toolkit at the sync point.
 ORIGINAL_GUIDANCE_SHA256 = "73b3e8388ac02846db7de835c50f7febd5fbaa47ae1a91744c9439ab4e91dc14"
 
 
