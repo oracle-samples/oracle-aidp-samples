@@ -256,6 +256,9 @@ class ContentBlock:
     # raw Responses reasoning items that preceded this tool call; replayed
     # verbatim before the function_call item on the next round.
     preceding_items: tuple = ()
+    # True on the 2nd..nth text part of one native message: the FIRST part's
+    # raw_item replays the whole message, so these parts must not re-emit it.
+    covered_by_raw: bool = False
 
 
 class CompatResponse:
@@ -308,10 +311,22 @@ class CompatResponse:
                 )
                 pending_reasoning = []
             elif item_type == "message":
+                first_part = True
                 for content in getattr(item, "content", []) or []:
                     ctype = getattr(content, "type", None)
                     if ctype in ("output_text", "text"):
-                        blocks.append(ContentBlock(type="text", text=getattr(content, "text", "") or ""))
+                        # The FIRST text part carries the raw message item
+                        # (id/phase intact, replayed exactly once, covering ALL
+                        # its parts) plus any reasoning that preceded it; later
+                        # parts keep the text facade but are replay-suppressed.
+                        blocks.append(ContentBlock(type="text",
+                                                   text=getattr(content, "text", "") or "",
+                                                   raw_item=item if first_part else None,
+                                                   preceding_items=tuple(pending_reasoning) if first_part else (),
+                                                   covered_by_raw=not first_part))
+                        if first_part:
+                            pending_reasoning = []
+                            first_part = False
         if not blocks:
             text = response_text(response)
             if text:
@@ -349,7 +364,14 @@ class CompatMessages:
             for block in content:
                 if isinstance(block, ContentBlock):
                     if block.type == "text":
-                        converted.append({"type": "output_text", "text": block.text})
+                        if block.covered_by_raw:
+                            continue  # this part replays inside its message's raw item
+                        for r in block.preceding_items:
+                            converted.append(r)  # raw reasoning item, verbatim
+                        if block.raw_item is not None:
+                            converted.append(block.raw_item)  # raw message item (id/phase intact)
+                        else:
+                            converted.append({"type": "output_text", "text": block.text})
                     elif block.type == "tool_use":
                         for r in block.preceding_items:
                             converted.append(r)  # raw reasoning item, verbatim (encrypted content)
@@ -391,7 +413,7 @@ class CompatMessages:
                 for item in cls._convert_content(content):
                     if isinstance(item, dict) and item.get("type") == "function_call":
                         converted.append(item)
-                    elif not isinstance(item, dict) and getattr(item, "type", None) in ("reasoning", "function_call"):
+                    elif not isinstance(item, dict) and getattr(item, "type", None) in ("reasoning", "function_call", "message"):
                         converted.append(item)  # raw Responses output item, replayed verbatim
                     elif isinstance(item, dict) and item.get("type") in ("output_text", "text"):
                         converted.append({"role": "assistant", "content": item.get("text", "")})

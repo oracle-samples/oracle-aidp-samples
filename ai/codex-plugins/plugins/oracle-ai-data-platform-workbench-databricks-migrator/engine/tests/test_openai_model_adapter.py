@@ -239,3 +239,60 @@ def test_error_translation_overflow_and_5xx():
     e = openai.InternalServerError("upstream connect error", response=resp503, body=None)
     out = om._translate_error(e)
     assert isinstance(out, anthropic.InternalServerError) and "overloaded_error" in str(out)
+
+
+def test_mixed_response_replays_in_native_order():
+    """reasoning -> commentary message -> function_call must replay in that
+    order with raw items (ids/phase intact), not text-first."""
+    class _C2:
+        type = "output_text"
+        text = "let me check"
+    class _Msg:
+        type = "message"
+        id = "msg_1"
+        phase = "commentary"
+        content = [_C2()]
+    class R:
+        output = [_Reasoning(), _Msg(), _Call()]
+        output_text = "let me check"
+        usage = None
+    resp = om.CompatResponse(R())
+    assert [b.type for b in resp.content] == ["text", "tool_use"]
+    assert resp.content[0].text == "let me check"      # legacy facade intact
+    replay = om.CompatMessages._convert_messages([
+        {"role": "assistant", "content": resp.content},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "c1", "content": "ok"}]},
+    ])
+    kinds = [getattr(x, "type", None) if not isinstance(x, dict) else x.get("type") for x in replay]
+    r, m, f = kinds.index("reasoning"), kinds.index("message"), kinds.index("function_call")
+    assert r < m < f, kinds                             # native order
+    assert getattr(replay[m], "id", None) == "msg_1"    # id preserved
+    assert getattr(replay[m], "phase", None) == "commentary"
+
+
+def test_multipart_message_replays_exactly_once():
+    class _A:
+        type = "output_text"
+        text = "part A"
+    class _B:
+        type = "output_text"
+        text = "part B"
+    class _Msg:
+        type = "message"
+        id = "msg_2"
+        content = [_A(), _B()]
+    class R:
+        output = [_Reasoning(), _Msg(), _Call()]
+        output_text = "part Apart B"
+        usage = None
+    resp = om.CompatResponse(R())
+    texts = [b.text for b in resp.content if b.type == "text"]
+    assert texts == ["part A", "part B"]   # facade keeps every part
+    replay = om.CompatMessages._convert_messages([
+        {"role": "assistant", "content": resp.content},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "c1", "content": "ok"}]},
+    ])
+    msg_ids = [getattr(x, "id", None) for x in replay if getattr(x, "type", None) == "message"]
+    assert msg_ids == ["msg_2"], msg_ids   # the native message exactly once
+    kinds = [getattr(x, "type", None) if not isinstance(x, dict) else x.get("type") for x in replay]
+    assert kinds.index("reasoning") < kinds.index("message") < kinds.index("function_call")

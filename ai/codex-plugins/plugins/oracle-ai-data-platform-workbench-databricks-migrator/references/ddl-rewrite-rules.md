@@ -63,8 +63,8 @@ The statement is NOT skipped: the original `s3://` LOCATION passes through uncha
 ```
 -- IN:
 LOCATION 'dbfs:/FileStore/<path>'
--- OUT:
-LOCATION '/Volumes/default/default/dbfs/FileStore/<path>'
+-- OUT (unchanged; reported for a separate dbfs mapping):
+LOCATION 'dbfs:/FileStore/<path>'
 ```
 
 The migrator's `translate_path()` helper handles this.
@@ -181,17 +181,18 @@ CREATE STREAMING TABLE <schema>.<st> AS SELECT ... FROM STREAM ...
 [SKIP] streaming table <schema>.<st>: AIDP does not support STREAMING TABLE (DLT-only). Re-implement as structured streaming + scheduled writer.
 ```
 
-### Rule 18 (spec only, not implemented): VIEW handling — views are deferred (the rewriter passes them through)
+### Rule 18 (spec only, not implemented): VIEW handling
 
+Views are not replayed: the rewriter records `R15_VIEW_DEFERRED` and passes the
+statement through for manual migration (the source-workspace samples contain no
+views, so this path is deliberately deferred).
 ```
 -- IN:
 CREATE VIEW <schema>.<v> AS SELECT * FROM <other_cat>.<other_schema>.<other_table>
--- OUT (if <other_cat> not in manifest):
-[FLAG] view <schema>.<v>: references cross-catalog <other_cat>.<other_schema>.<other_table>;
-       review whether the source catalog should be added to --catalog-map before replay.
+-- OUT: unchanged; verdict row R15_VIEW_DEFERRED
 ```
 
-Statement IS replayed (views are cheap; let it fail loudly if the catalog truly doesn't resolve).
+Statement is NOT replayed (recorded as `R15_VIEW_DEFERRED` and passed through) (views are cheap; let it fail loudly if the catalog truly doesn't resolve).
 
 ---
 
