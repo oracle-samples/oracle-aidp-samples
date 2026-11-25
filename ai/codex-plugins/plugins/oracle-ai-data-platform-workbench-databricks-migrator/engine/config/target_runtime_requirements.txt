@@ -8,5 +8,5 @@ nbformat
 # Keep the pandas/PyArrow compatibility profile while allowing pip to select
 # a NumPy version compatible with workload packages such as TensorFlow 2.13.
 numpy>=1.23.5,<2
-pyarrow>=10,<13
+pyarrow>=14.0.1,<15
 pandas>=1.5.3,<3

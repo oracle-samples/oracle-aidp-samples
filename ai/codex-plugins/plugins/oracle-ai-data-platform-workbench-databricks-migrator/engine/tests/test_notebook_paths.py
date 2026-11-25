@@ -1211,7 +1211,7 @@ class TestTransitiveDepResolution:
 
     def test_collection_escalations_scenario(self):
         """Real scenario from Example_Escalations_V0 log:
-        Task 05_HRC_Calls_data → 00_Parameters → %run ./Shared_Slack_Utils (fails)."""
+        Task 05_Example_Calls_data → 00_Parameters → %run ./Shared_Slack_Utils (fails)."""
         import job_migrate
         old_root = job_migrate.JOB_ROOT
         try:
@@ -1220,16 +1220,16 @@ class TestTransitiveDepResolution:
 
             # Direct deps (Level 1) — what process_job builds
             dep_path_map = {
-                "/Workspace/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb":
-                    f"{migrated_base}/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb",
-                "Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb":
-                    f"{migrated_base}/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb",
+                "/Workspace/Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb":
+                    f"{migrated_base}/Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb",
+                "Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb":
+                    f"{migrated_base}/Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb",
             }
 
             # Simulate _migration_cache after ensure_migrated ran recursively
             migration_cache = {
-                "Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb":
-                    f"{migrated_base}/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb",
+                "Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb":
+                    f"{migrated_base}/Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb",
                 "Users/user3@example.com/Utils/Shared_Slack_Utils.ipynb":
                     f"{migrated_base}/Users/user3@example.com/Utils/Shared_Slack_Utils.ipynb",
                 "Users/user3@example.com/Utils/Data_Utils.ipynb":
@@ -1253,7 +1253,7 @@ class TestTransitiveDepResolution:
 
             # Now simulate _inline_child_notebook resolving %run ./Shared_Slack_Utils
             # inside 00_Parameters.ipynb
-            child_path = f"{migrated_base}/Users/user3@example.com/CX_Escalations/V0/00_Parameters.ipynb"
+            child_path = f"{migrated_base}/Users/user3@example.com/Example_Escalations/V0/00_Parameters.ipynb"
             run_ref = "./Shared_Slack_Utils"
             run_path = run_ref.replace(" ", "_") + ".ipynb"
             child_dir = posixpath.dirname(child_path)
@@ -1273,8 +1273,8 @@ class TestTransitiveDepResolution:
                 if resolved:
                     break
 
-            # Shared_Slack_Utils is in a DIFFERENT directory (Utils/) from 00_Parameters (CX_Escalations/V0/).
-            # The relative resolution from child_dir gives .../CX_Escalations/V0/Shared_Slack_Utils.ipynb
+            # Shared_Slack_Utils is in a DIFFERENT directory (Utils/) from 00_Parameters (Example_Escalations/V0/).
+            # The relative resolution from child_dir gives .../Example_Escalations/V0/Shared_Slack_Utils.ipynb
             # which won't match the cache entry .../Utils/Shared_Slack_Utils.ipynb.
             # But the dep_path_map NOW has the Utils/Shared_Slack_Utils entry from the cache.
             # The original %run in 00_Parameters was likely an ABSOLUTE path like
@@ -1882,7 +1882,7 @@ class TestSource3MigrationCacheLookup:
             dep_path_map[dep_norm] = dep_migrated
 
             # Step 3: process_notebook encounters %run ../Optimiser_Utils/0_Imports
-            notebook_path = "/Workspace/Users/user1@example.com/Payments/Example_Optimizer_Realtime/ACTIVATION/M76_Simulation_custom.ipynb"
+            notebook_path = "/Workspace/Users/user1@example.com/Payments/Example_Optimizer_Realtime/ACTIVATION/Example_Simulation_custom.ipynb"
             run_ref = "../Optimiser_Utils/0_Imports"
             run_path = run_ref + ".ipynb"
             current_dir = posixpath.dirname(notebook_path)

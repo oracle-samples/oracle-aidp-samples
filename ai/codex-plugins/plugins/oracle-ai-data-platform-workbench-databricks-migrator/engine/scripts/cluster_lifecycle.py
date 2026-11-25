@@ -97,7 +97,7 @@ def _resolve_lib_dir(config_path: str = None) -> str:
 
 AIDP_LIB_DIR = _resolve_lib_dir()
 
-# The pinned runtime triad (pandas==2.2.3, numpy==1.26.4, pyarrow==12.0.1) lives
+# The pinned runtime triad (pandas==2.2.3, numpy==1.26.4, pyarrow==14.0.1) lives
 # in this requirements file. It MUST be installed on every migration cluster —
 # otherwise the cluster keeps the stock image's pandas 3.0.x / numpy 2.x, which
 # breaks read_csv/.apply on string columns (ArrowStringArray dtype('O') error).
