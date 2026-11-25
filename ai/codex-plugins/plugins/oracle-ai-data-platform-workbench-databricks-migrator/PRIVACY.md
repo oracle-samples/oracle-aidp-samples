@@ -6,7 +6,7 @@
 
 ## Summary
 
-This plugin **does not collect, store, transmit, or share any user data**. It ships Markdown skills, reference docs, and a bundled Python migration engine that runs locally under your Codex environment. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy, **your own** Databricks workspace, and **your own** model-provider API key (OpenAI by default; Anthropic optional).
+This plugin itself **collects, stores, and shares nothing**; the bundled migrator transmits data only to the services you configure (listed below), under your own credentials. It ships Markdown skills, reference docs, and a bundled Python migration engine that runs locally under your Codex environment. Everything runs against **your own** Oracle AI Data Platform (AIDP) tenancy, **your own** Databricks workspace, and **your own** model-provider API key (OpenAI by default; Anthropic optional).
 
 ## What the plugin ships
 
@@ -31,7 +31,8 @@ All of this is under your own credentials, against your own infrastructure, **wi
 
 - **No telemetry.** The plugin sends nothing to the author or to any third party. No analytics, no error reporting, no usage metrics.
 - **No credential collection.** OCI authentication, Databricks PATs, and model-provider API keys (OPENAI_API_KEY by default; ANTHROPIC_API_KEY for the alternative provider) are read from your local environment by the migrator scripts. The plugin's SKILL Markdown files cannot collect or transmit them.
-- **No phone-home.** The skills make no outbound calls to the author. Every network call goes to **your** Databricks workspace, **your** AIDP REST endpoint, and **your** model provider under **your** key.
+- **No phone-home.** The skills make no outbound calls to the author. The migrator's network destinations are: **your** Databricks workspace, **your** AIDP REST endpoint, **your** model provider under **your** key, and the **public PyPI index** (existence checks for import names found in your notebooks during dependency resolution — the query carries the import name only, and an unmapped name is never auto-installed).
+- **What reaches the model provider.** Model requests carry notebook source and, through tool results, cell output and error text. Under the default `provider: openai`, every request is sent with `store=false` — the provider keeps no response as retrievable application state, and reasoning state round-trips as encrypted content inside your own requests. Provider data-handling is governed by your own OpenAI (or Anthropic) account terms.
 
 ## Data flow
 

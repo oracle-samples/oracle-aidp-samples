@@ -58,7 +58,7 @@ CREATE TABLE ... LOCATION 's3://<unknown-bucket>/...'   -- unchanged
 
 The statement is NOT skipped: the original `s3://` LOCATION passes through unchanged and the rewriter records an `R02_BUCKET_UNMAPPED` warning in its rule-application audit. Review every such warning in `--out-report` / `--dry-run` output — a replayed table that still points at `s3://` fails at first read on AIDP. Fix by adding the bucket to the mapping CSV and re-running.
 
-### Rule 5: `dbfs:/` paths translated to `/Volumes/<vol>/`
+### Rule 5: `dbfs:/` paths — NOT rewritten (passed through; the caller warns and the path needs a separate dbfs mapping)
 
 ```
 -- IN:
@@ -181,7 +181,7 @@ CREATE STREAMING TABLE <schema>.<st> AS SELECT ... FROM STREAM ...
 [SKIP] streaming table <schema>.<st>: AIDP does not support STREAMING TABLE (DLT-only). Re-implement as structured streaming + scheduled writer.
 ```
 
-### Rule 18: VIEW with cross-catalog FROM clause flagged
+### Rule 18 (spec only, not implemented): VIEW handling — views are deferred (the rewriter passes them through)
 
 ```
 -- IN:

@@ -48,10 +48,10 @@ carried over (see the carried-detail subsection at the end of this entry).
 
 ### Changed
 - The write-redirect sandbox (catalog/schema/bucket) is **config-derived**
-  (customer YAML `write_redirect`), no longer built-in: the kernel bootstrap
+  (customer YAML `redirect`), no longer built-in: the kernel bootstrap
   declares the notebook policy only when the redirect is configured, and
   `build_sandbox_policy_snippet` refuses to fabricate one
-  (`_write_redirect_configured()` is the single gate).
+  (`_redirect_configured()` is the single gate).
 - The notebook-policy report log is never fetched through a latched main
   kernel (unknown in-flight outcome): it is skipped, not routed to the kernel.
 - Fix-attempt default is 5 (`AIDP_MAX_FIX_ATTEMPTS`); job-report table gains
@@ -59,21 +59,25 @@ carried over (see the carried-detail subsection at the end of this entry).
   and references re-verified flag-by-flag against the engine argparse.
 - UX layer (skills, flow skills, references, README) rewritten against the
   new engine: `~/.aidp-migrator/engine/...` invocation paths (SessionStart
-  staging unchanged), `OPENAI_API_KEY` as the default-provider key,
+  staged by the same SessionStart hook, which now writes a staging manifest and
+  prunes bundle-owned files that leave the bundle (0.2.x stagings are pruned
+  against an embedded legacy file list; deployment files are never touched).
   provider-neutral model wording.
 - `requirements.txt` now carries the loader runtime deps (PyYAML, jsonschema)
   and `packaging` (exporter requirement parsing).
 
 ### Removed
-- Private-toolkit dev tooling not meaningful in the plugin:
-  `scripts/ci/policy_gate_checks.py` (+ its test) and the cluster-side probe
-  `scripts/test_jar_functionality.py`.
-- Legacy modules superseded upstream: `aidp_compat/credentials.py`,
-  `glue_compat.py`, `spark_config.py`, `s3_compat.py`,
-  `scripts/upload_migration_dependencies.py`, and the stale `engine/setup.py`
-  (the wheel builds from `aidp_compat/setup.py`).
-- Customer-pack content tests (the pack itself is not distributed; the
-  customization-pack mechanism and its synthetic-fixture tests remain).
+- Relative to the 0.2.x CODEX bundle: `engine/setup.py` (the cluster wheel
+  builds from `aidp_compat/setup.py`), `scripts/check_aws_creds.py` (customer-
+  specific credential scanner), and the 0.2.x engine's OpenAI-rewritten script
+  copies (superseded by the provider-dispatched factory + Responses adapter);
+  the SessionStart hook prunes these from an existing staging on upgrade.
+- Not carried from the toolkit: private dev tooling (`scripts/ci/
+  policy_gate_checks.py` + test), legacy modules superseded upstream
+  (`aidp_compat/credentials.py`, `glue_compat.py`, `spark_config.py`,
+  `s3_compat.py`, `scripts/upload_migration_dependencies.py`), and
+  customer-pack content tests (the pack is not distributed; the mechanism and
+  its synthetic-fixture tests remain).
 
 ### Security
 - All 0.2.x hardening preserved and re-integrated: the mandatory notebook
@@ -95,7 +99,7 @@ carried over (see the carried-detail subsection at the end of this entry).
 - The hardcoded-customer-values ban-list now also forbids the pilot
   customer's name in any source file, permanently.
 
-### Security — hardening detail carried from the unreleased 0.2.x line
+### Security — hardening detail carried from the unreleased 0.2.x line (entries for files this release removes — e.g. check_aws_creds.py — are historical)
 - Cluster-side dependency resolution no longer installs an import name just because a PyPI
   package of that name exists; only curated mappings are installed and the rest are
   reported for the operator to add explicitly. The generated availability check follows

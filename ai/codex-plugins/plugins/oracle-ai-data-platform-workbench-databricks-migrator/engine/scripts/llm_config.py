@@ -31,9 +31,9 @@ SCOPE:
 Multi-provider dispatch (a client factory) is likewise deferred to when a second
 provider is available to TEST.
 
-This is also the seam for future MULTI-PROVIDER support: `llm.provider` is recorded
-now, but only "anthropic" is dispatched today. A provider-dispatch client factory
-belongs here later, added when a second provider is actually available to TEST.
+This is the MULTI-PROVIDER seam: `llm.provider` selects the dispatched client
+via make_client() — "openai" (the Responses adapter in openai_model.py, this
+bundle's default) or "anthropic" (native SDK).
 
 Call sites read `llm_config.MODEL` / `llm_config.thinking_kwargs()` at call time;
 `configure()` (invoked from `job_migrate.apply_cfg_to_modules`) sets them from the

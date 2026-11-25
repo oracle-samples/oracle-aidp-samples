@@ -73,7 +73,7 @@ def test_sequential_tasks_use_current_widgets(monkeypatch, tmp_path, with_run, s
             kernel.ns[name].widgets.text('current_helper_widget', 'keep')
         return {'status': 'ok', 'did_exit': False, 'cells_ok': 1, 'cells_fixed': 0}
     monkeypatch.setattr(jm, '_inline_child_notebook', child)
-    first = {'source_table': 'O1_TARDIS', 'save_path': 'o1_output',
+    first = {'source_table': 'O1_TEAMX', 'save_path': 'o1_output',
              'TOF': '{"UNIT":"o1"}', 'only_o1': 'must disappear'}
     for key, params in [('01_o1', first), ('02_o2', second)]:
         result = asyncio.run(jm.process_notebook(
@@ -97,9 +97,9 @@ def test_bad_widget_setup_stops_before_customer_execution(monkeypatch, tmp_path,
     _patch_common(monkeypatch, tmp_path, notebook())
     kernel = Kernel()
     widgets = kernel.ns['aidputils'].widgets
-    widgets.text('source_table', 'O1_TARDIS')
+    widgets.text('source_table', 'O1_TEAMX')
     if failure == 'readback':
-        monkeypatch.setattr(widgets, 'get', lambda key: 'O1_TARDIS')
+        monkeypatch.setattr(widgets, 'get', lambda key: 'O1_TEAMX')
     else:
         def fail(*args):
             raise RuntimeError('widget operation failed')

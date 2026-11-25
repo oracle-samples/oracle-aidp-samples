@@ -4927,6 +4927,7 @@ when evidence shows a required resource prevents validation.
             with claude().messages.stream(
                 model=llm_config.MODEL,
                 max_tokens=128000,
+                timeout=1800,  # a 128k-token generation can exceed the SDK default; bound it explicitly
                 system=FIX_PROMPT,
                 messages=[{"role": "user", "content": fix_input}]
             ) as stream:

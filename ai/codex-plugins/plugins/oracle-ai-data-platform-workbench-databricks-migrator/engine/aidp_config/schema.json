@@ -359,15 +359,14 @@
             "anthropic",
             "openai"
           ],
-          "description": "Only 'anthropic' is dispatched today; adding a provider is a code+schema change (adapter), not a YAML-only swap."
+          "description": "Dispatched providers in this bundle: 'openai' (default) and 'anthropic'. The provider/model pair is validated in llm_config.configure."
         },
         "model": {
           "type": "string",
           "enum": [
             "claude-opus-5",
             "claude-opus-5-5",
-            "gpt-5.5",
-            "gpt-5.5-codex"
+            "gpt-5.5"
           ],
           "description": "Validated models per provider: the Opus-5 family (anthropic) and the GPT-5.5 family (openai). Switching within the list is a YAML-only edit; adding a model is a code+schema+test change. See scripts/llm_config.py and scripts/openai_model.py."
         }

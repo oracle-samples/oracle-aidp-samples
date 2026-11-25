@@ -1731,17 +1731,23 @@ def _resolve_pip_name(import_name: str) -> str:
         _pypi_cache[lowered] = mapped
         return mapped
 
-    # 3. No mapping — validate import name directly on PyPI
+    # 3. No curated mapping — NEVER install an import name just because a PyPI
+    #    package of that name exists (a squatted/unrelated package would be
+    #    installed onto the customer's cluster). Report it for the operator to
+    #    add to _IMPORT_TO_PIP or install via the cluster libraries API.
     if _pypi_exists(lowered):
-        _pypi_cache[lowered] = lowered
-        return lowered
+        print(f"[cluster-lifecycle] WARNING: import '{import_name}' has no curated pip mapping; "
+              f"a PyPI package of that name exists but will NOT be installed automatically — "
+              f"add it to _IMPORT_TO_PIP or install it via the cluster libraries API", flush=True)
+        _pypi_cache[lowered] = None
+        return None
 
-    # 4. Not on PyPI either — pass through with warning (let pip fail explicitly
-    #    rather than silently skipping, which could mask a mapping we need to add)
+    # 4. Not on PyPI either — not installed; report rather than pass a name pip
+    #    would fail on (the operator may own a private package of that name).
     print(f"[cluster-lifecycle] WARNING: no PyPI package found for import "
-          f"'{import_name}' — passing through as-is", flush=True)
-    _pypi_cache[lowered] = lowered
-    return lowered
+          f"'{import_name}' — not installed", flush=True)
+    _pypi_cache[lowered] = None
+    return None
 
 # Standard library modules — never install these
 _STDLIB = {

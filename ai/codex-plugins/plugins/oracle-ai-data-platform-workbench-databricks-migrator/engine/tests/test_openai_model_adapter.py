@@ -136,26 +136,106 @@ def test_client_never_mutates_openai_env(monkeypatch):
     om._EXPLICIT_API_KEY = None  # reset module state for other tests
 
 
-def test_reasoning_items_carried_across_rounds():
-    class Reasoning:
-        type = "reasoning"
-        id = "rs_1"
-    class Call:
-        type = "function_call"
-        name = "run_sql"
-        arguments = "{}"
-        call_id = "c1"
+class _Reasoning:
+    type = "reasoning"
+    id = "rs_1"
+    encrypted_content = "enc"
+
+
+class _Call:
+    type = "function_call"
+    name = "run_sql"
+    arguments = "{}"
+    call_id = "c1"
+    id = "fc_1"
+
+
+def test_reasoning_rides_on_the_tool_use_block():
     class R:
-        output = [Reasoning(), Call()]
+        output = [_Reasoning(), _Call()]
         output_text = ""
         usage = None
     resp = om.CompatResponse(R())
     kinds = [b.type for b in resp.content]
-    assert kinds == ["thinking", "tool_use"]
+    assert kinds == ["tool_use"]            # never a leading thinking block
+    assert resp.content[0].preceding_items and resp.content[0].preceding_items[0].type == "reasoning"
     replay = om.CompatMessages._convert_messages([
         {"role": "assistant", "content": resp.content},
         {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "c1", "content": "ok"}]},
     ])
-    assert any(getattr(item, "type", None) == "reasoning" for item in replay)
-    assert any(isinstance(item, dict) and item.get("type") == "function_call" for item in replay)
-    assert any(isinstance(item, dict) and item.get("type") == "function_call_output" for item in replay)
+    # raw reasoning item immediately precedes the RAW function_call item (ids intact)
+    r_idx = next(i for i, x in enumerate(replay) if getattr(x, "type", None) == "reasoning")
+    assert getattr(replay[r_idx + 1], "type", None) == "function_call"
+    assert getattr(replay[r_idx + 1], "id", None) == "fc_1"
+    assert any(isinstance(x, dict) and x.get("type") == "function_call_output" for x in replay)
+
+
+def test_reasoning_then_message_keeps_text_first():
+    class _C:
+        type = "output_text"
+        text = "the answer"
+    class Msg:
+        type = "message"
+        content = [_C()]
+    class R:
+        output = [_Reasoning(), Msg()]
+        output_text = "the answer"
+        usage = None
+    resp = om.CompatResponse(R())
+    assert resp.content[0].type == "text"
+    assert resp.content[0].text == "the answer"
+
+
+def test_requests_are_stateless_with_encrypted_reasoning(monkeypatch):
+    seen = {}
+    class FakeResponses:
+        def create(self, **kw):
+            seen.update(kw)
+            class R:
+                output = []
+                output_text = "ok"
+                usage = None
+            return R()
+    class FakeClient:
+        responses = FakeResponses()
+        def with_options(self, **kw):
+            return self
+    monkeypatch.setattr(om, "_CLIENT", FakeClient())
+    om.responses_create(instructions=None, input=[], max_tokens=10)
+    assert seen["store"] is False
+    assert seen["include"] == ["reasoning.encrypted_content"]
+    om._CLIENT = None
+
+
+def test_effort_max_clamps_to_high(monkeypatch):
+    seen = {}
+    def fake(**kw):
+        seen.update(kw)
+        class R:
+            output = []
+            output_text = "ok"
+            usage = None
+        return R()
+    monkeypatch.setattr(om, "responses_create", fake)
+    om.OpenAIModelCompatClient(api_key="k").messages.create(
+        model="gpt-5.5", messages=[{"role": "user", "content": "x"}],
+        output_config={"effort": "max"})
+    assert seen["effort"] == "max"  # clamped inside responses_create
+    assert om._clamp_effort("max") == "high"
+    assert om._clamp_effort("low") == "low"
+
+
+def test_error_translation_overflow_and_5xx():
+    openai = pytest.importorskip("openai")
+    anthropic = pytest.importorskip("anthropic")
+    import httpx
+    req = httpx.Request("POST", "https://api.openai.com/v1/responses")
+    resp400 = httpx.Response(400, request=req)
+    e = openai.BadRequestError("This model's maximum context length is exceeded",
+                               response=resp400, body=None)
+    out = om._translate_error(e)
+    assert isinstance(out, anthropic.BadRequestError) and "prompt is too long" in str(out)
+    resp503 = httpx.Response(503, request=req)
+    e = openai.InternalServerError("upstream connect error", response=resp503, body=None)
+    out = om._translate_error(e)
+    assert isinstance(out, anthropic.InternalServerError) and "overloaded_error" in str(out)

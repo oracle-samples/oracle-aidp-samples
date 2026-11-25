@@ -1,6 +1,6 @@
 # `JOB_REPORT.md` — Format Reference
 
-After every `aidp-migrate-job` run, the migrator emits a `JOB_REPORT.md` summarizing per-cell results. This document specifies the format so `/migration-status` (and any automation reading the report) can parse it reliably.
+After every `aidp-migrate-job` run, the migrator emits a `JOB_REPORT.md` summarizing per-cell results. This document specifies the format so the `migration-status` skill (and any automation reading the report) can parse it reliably.
 
 ## Location
 
@@ -148,7 +148,7 @@ python3 parse_report.py reports/<MyJob>/JOB_REPORT.md
 
 ## Roll-up rules
 
-When `/migration-status` summarizes:
+When the `migration-status` skill summarizes:
 
 ```
 overall PASS         = ALL tasks are PASS-family (PASS, PASS_CONDITIONAL_EXIT_COVERAGE,

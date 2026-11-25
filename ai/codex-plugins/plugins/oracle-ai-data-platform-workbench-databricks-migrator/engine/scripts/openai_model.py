@@ -78,12 +78,19 @@ def response_text(response: Any) -> str:
     return "".join(parts)
 
 
+_EFFORT_MAP = {"max": "high"}  # Anthropic-side 'max' has no Responses equivalent
+
+
+def _clamp_effort(effort: str) -> str:
+    return _EFFORT_MAP.get(effort, effort)
+
+
 def _response_create_kwargs(max_tokens: Optional[int] = None) -> Dict[str, Any]:
     kwargs: Dict[str, Any] = {}
     if max_tokens:
         kwargs["max_output_tokens"] = max_tokens
     if OPENAI_REASONING_EFFORT:
-        kwargs["reasoning"] = {"effort": OPENAI_REASONING_EFFORT}
+        kwargs["reasoning"] = {"effort": _clamp_effort(OPENAI_REASONING_EFFORT)}
     return kwargs
 
 
@@ -101,9 +108,15 @@ def responses_create(
     call_client = client.with_options(timeout=timeout) if timeout else client
     kwargs = _response_create_kwargs(max_tokens=max_tokens)
     if effort:
-        kwargs["reasoning"] = {"effort": effort}
+        kwargs["reasoning"] = {"effort": _clamp_effort(effort)}
     if tools is not None:
         kwargs["tools"] = tools
+    # Stateless: nothing is retained provider-side as application state, and
+    # reasoning items come back with encrypted content so they can be replayed
+    # verbatim on the next round (required: a bare reasoning id cannot be
+    # replayed when store=false).
+    kwargs["store"] = False
+    kwargs["include"] = ["reasoning.encrypted_content"]
     # Per-call model (= the schema-validated llm.model from YAML) is honored;
     # the OPENAI_MODEL env var remains an explicit operator override.
     return call_client.responses.create(
@@ -181,6 +194,23 @@ def _translate_error(exc: Exception) -> Exception:
         return _anthropic.APITimeoutError(request=req)
     if isinstance(exc, getattr(_openai, "APIConnectionError", ())):
         return _anthropic.APIConnectionError(message=str(exc), request=req)
+    # Engine-visible markers: the emergency context trim keys on the Anthropic
+    # phrase "prompt is too long"; the patient backoff keys on "overloaded_error".
+    # Append those markers to the translated message so the engine's handling
+    # fires for the OpenAI equivalents (context overflow / 5xx).
+    status = getattr(exc, "status_code", None)
+    msg = str(exc)
+    if status == 400 and ("context length" in msg or "context_length_exceeded" in msg
+                          or "maximum context" in msg):
+        resp = _httpx.Response(status_code=400, request=req)
+        return _anthropic.BadRequestError(
+            message=msg + " (prompt is too long)", response=resp,
+            body={"error": {"message": msg + " (prompt is too long)"}})
+    if status is not None and int(status) >= 500:
+        resp = _httpx.Response(status_code=int(status), request=req)
+        return _anthropic.InternalServerError(
+            message=msg + " (overloaded_error)", response=resp,
+            body={"error": {"message": msg + " (overloaded_error)"}})
     return exc
 
 
@@ -223,6 +253,9 @@ class ContentBlock:
     id: str = ""
     thinking: str = ""
     raw_item: Any = None
+    # raw Responses reasoning items that preceded this tool call; replayed
+    # verbatim before the function_call item on the next round.
+    preceding_items: tuple = ()
 
 
 class CompatResponse:
@@ -245,15 +278,17 @@ class CompatResponse:
     @staticmethod
     def _content_blocks(response: Any) -> List[ContentBlock]:
         blocks: List[ContentBlock] = []
+        pending_reasoning: List[Any] = []
         for item in getattr(response, "output", []) or []:
             item_type = getattr(item, "type", None)
             if item_type == "reasoning":
-                # Reasoning items must be replayed alongside the function calls
-                # they precede (Responses function-calling contract). Carried as
-                # a thinking-typed block holding the raw item; _convert_content
-                # re-emits it verbatim. Residual: engine-side history compaction
-                # strips thinking blocks — those turns fall back to plain replay.
-                blocks.append(ContentBlock(type="thinking", raw_item=item))
+                # Reasoning items must be replayed verbatim alongside the item
+                # they precede (Responses function-calling contract). Carried ON
+                # the next tool_use block — never as a leading block of its own,
+                # so content[0].text stays the model's text for single-shot
+                # callers, and the engine's thinking-block stripping cannot
+                # split a reasoning/function_call pair.
+                pending_reasoning.append(item)
                 continue
             if item_type == "function_call":
                 raw_args = getattr(item, "arguments", "{}") or "{}"
@@ -268,8 +303,10 @@ class CompatResponse:
                         input=parsed,
                         id=getattr(item, "call_id", None) or getattr(item, "id", ""),
                         raw_item=item,
+                        preceding_items=tuple(pending_reasoning),
                     )
                 )
+                pending_reasoning = []
             elif item_type == "message":
                 for content in getattr(item, "content", []) or []:
                     ctype = getattr(content, "type", None)
@@ -311,19 +348,22 @@ class CompatMessages:
             converted: List[Any] = []
             for block in content:
                 if isinstance(block, ContentBlock):
-                    if block.type == "thinking" and block.raw_item is not None:
-                        converted.append(block.raw_item)
-                    elif block.type == "text":
+                    if block.type == "text":
                         converted.append({"type": "output_text", "text": block.text})
                     elif block.type == "tool_use":
-                        converted.append(
-                            {
-                                "type": "function_call",
-                                "call_id": block.id,
-                                "name": block.name,
-                                "arguments": json.dumps(block.input or {}),
-                            }
-                        )
+                        for r in block.preceding_items:
+                            converted.append(r)  # raw reasoning item, verbatim (encrypted content)
+                        if block.raw_item is not None:
+                            converted.append(block.raw_item)  # raw function_call item, ids intact
+                        else:
+                            converted.append(
+                                {
+                                    "type": "function_call",
+                                    "call_id": block.id,
+                                    "name": block.name,
+                                    "arguments": json.dumps(block.input or {}),
+                                }
+                            )
                 elif isinstance(block, dict) and block.get("type") == "tool_result":
                     converted.append(
                         {
@@ -351,8 +391,8 @@ class CompatMessages:
                 for item in cls._convert_content(content):
                     if isinstance(item, dict) and item.get("type") == "function_call":
                         converted.append(item)
-                    elif not isinstance(item, dict) and getattr(item, "type", None) == "reasoning":
-                        converted.append(item)  # raw Responses reasoning item, replayed verbatim
+                    elif not isinstance(item, dict) and getattr(item, "type", None) in ("reasoning", "function_call"):
+                        converted.append(item)  # raw Responses output item, replayed verbatim
                     elif isinstance(item, dict) and item.get("type") in ("output_text", "text"):
                         converted.append({"role": "assistant", "content": item.get("text", "")})
                     else:

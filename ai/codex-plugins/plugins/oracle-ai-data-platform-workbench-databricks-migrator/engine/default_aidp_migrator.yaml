@@ -396,10 +396,10 @@ migration:
 # config keys, and both are REQUIRED here (no code default — an absent/partial `llm`
 # block fails loudly), so the model is always explicit and swapping it needs NO code
 # change.
-#   provider:  only "anthropic" is dispatched today; other values are rejected.
-#   model:     restricted to the validated Opus-5 family — "claude-opus-5" or
-#              "claude-opus-5-5" (switch between them freely; any other value is
-#              rejected at load).
+#   provider:  "openai" (this bundle's default) or "anthropic"; other values
+#              are rejected, and the provider/model pair is validated.
+#   model:     the validated families — "gpt-5.5" (openai) or "claude-opus-5" /
+#              "claude-opus-5-5" (anthropic); any other value is rejected at load.
 # thinking (adaptive) and output budget (16000) are FIXED internal constants, NOT
 # config knobs: on the Opus-5 family "thinking: off" cannot disable adaptive thinking
 # and max_tokens is not a true per-request cap, so they are not exposed (the schema
