@@ -1,4 +1,4 @@
-# AIDP Databricks Validator - Python Dependencies
+# AIDP Databricks Migrator - Python Dependencies
 # Install: pip install -r requirements.txt
 
 # OCI SDK (for API signing and Object Storage)
@@ -10,12 +10,31 @@ requests>=2.31.0
 # WebSocket client (for AIDP kernel execution - sync client)
 websocket-client>=1.6.0
 
-# OpenAI API (for GPT-5.5 deep analysis and migration)
-openai>=1.99.0
+# Anthropic API (for Claude Opus deep analysis and migration)
+# Floor 0.125.0: matches the SDK validated on live AIDP control clusters.
+# The API minimum
+# is lower — 0.83.0 is the first release whose messages.create() accepts
+# top-level `cache_control` (sent on every tool-loop request) and 0.77.0 added
+# `output_config` (effort); older installs raise TypeError on every tool-loop
+# call. Ceiling <1.0: 1.x moves to httpx2 and is unvalidated here.
+# config/default_requirements.txt (what clusters install) carries the same
+# range; constraints-ci.txt pins the floor. Pinned by tests/test_sdk_request_shape.py.
+anthropic>=0.125.0,<1.0
+# OpenAI SDK — the Codex bundle's default provider (llm.provider: openai routes
+# every model call through scripts/openai_model.py, the Responses adapter).
+openai>=3,<4  # tested major: the full suite + adapter pins ran on 3.57.0
 
 # Jupyter notebook parsing
 nbformat>=5.9.0
 
+# PEP 508 requirement parsing for per-cluster dependency consolidation
+packaging>=23.0
+
 # Standard data processing (usually pre-installed)
 pandas>=2.0.0
 numpy>=1.24.0
+# Config loader (aidp_config) runtime deps — CI compile-imports exposed the gap 2026-09-08
+pyyaml
+jsonschema
+# Data migration requirements workbook export
+openpyxl>=3.1.5,<4.0

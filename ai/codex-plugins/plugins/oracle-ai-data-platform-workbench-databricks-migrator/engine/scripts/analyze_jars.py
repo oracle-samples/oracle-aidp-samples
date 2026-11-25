@@ -21,39 +21,28 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JARS_DIR = os.path.join(PROJECT_DIR, "jars")
 REPORTS_DIR = os.path.join(PROJECT_DIR, "reports")
 
-# AIDP config
-AIDP_BASE = "https://aidp.<OCI_REGION>.oci.oraclecloud.com/20240831"
-DATALAKE_OCID = os.environ.get("AIDP_DATALAKE", "")
-WORKSPACE_ID = os.environ.get("AIDP_WORKSPACE", "")
+# AIDP config — sourced from aidp_migrator.yaml (via aidp_config) with env-var fallback.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _aidp_env_defaults import load_aidp_defaults, aidp_base_url
+_defs = load_aidp_defaults()
+DATALAKE_OCID = _defs["lake_ocid"]
+WORKSPACE_ID  = _defs["workspace_id"]
+OCI_PROFILE   = _defs["oci_profile"]
+AIDP_BASE     = aidp_base_url(_defs["region"]) if _defs["region"] else ""
 DOWNLOAD_META_URL = f"{AIDP_BASE}/dataLakes/{DATALAKE_OCID}/workspaces/{WORKSPACE_ID}/actions/downloadFileMeta"
-OCI_PROFILE = os.environ.get("OCI_PROFILE", "DEFAULT")
 
-def load_workspace_jars() -> list:
-    """Load workspace JAR paths from env or a newline-delimited manifest."""
-    jars = []
-
-    manifest = os.environ.get("AIDP_WORKSPACE_JARS_FILE", "").strip()
-    if manifest and os.path.exists(manifest):
-        with open(manifest, "r", encoding="utf-8") as f:
-            jars.extend(line.strip() for line in f if line.strip() and not line.lstrip().startswith("#"))
-
-    raw = os.environ.get("AIDP_WORKSPACE_JARS", "").strip()
-    if raw:
-        jars.extend(part.strip() for part in re.split(r"[\n,;]+", raw) if part.strip())
-
-    return list(dict.fromkeys(jars))
-
-
-WORKSPACE_JARS = load_workspace_jars()
+# Known JARs on the workspace (from enumeration)
+WORKSPACE_JARS: list = [
+    # Populate with your workspace's JAR paths (e.g. from the dbx_export
+    # manifest or 'Databricks workspace / Production Jar' folder listing).
+    # Shipped empty: the tool must never assume one deployment's inventory.
+]
 
 
 def get_oci_signer():
-    config = oci.config.from_file(profile_name=OCI_PROFILE)
-    signer = oci.signer.Signer(
-        tenancy=config["tenancy"], user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-    )
+    # Single auth source: oci_auth (Credential Store on-cluster → config file on laptop).
+    from oci_auth import get_oci_signer as _shared
+    _, signer = _shared(OCI_PROFILE)
     return signer
 
 
@@ -84,7 +73,7 @@ def analyze_jar(jar_path: str) -> dict:
         "spark_version": None,
         "is_assembly": "assembly" in jar_path.lower() or "all" in jar_path.lower(),
         "classes": [],
-        "private_packages": [],
+        "examplecorp_packages": [],
         "spark_deps": [],
         "potential_conflicts": [],
         "compatibility": "UNKNOWN",
@@ -103,17 +92,14 @@ def analyze_jar(jar_path: str) -> dict:
             if any("scala/collection/immutable" in n for n in names):
                 result["has_scala_stdlib"] = True
 
-            # Look for common private package namespaces without assuming a tenant name.
-            private_classes = [
-                n for n in class_files
-                if n.startswith(("com/company/", "com/example/", "org/company/", "io/company/"))
-            ]
-            private_packages = set()
-            for c in private_classes:
+            # Look for the pilot deployment-specific packages
+            examplecorp_classes = [n for n in class_files if "com/example/" in n]
+            examplecorp_packages = set()
+            for c in examplecorp_classes:
                 parts = c.split("/")
                 if len(parts) >= 4:
-                    private_packages.add("/".join(parts[:4]))
-            result["private_packages"] = sorted(private_packages)
+                    examplecorp_packages.add("/".join(parts[:4]))
+            result["examplecorp_packages"] = sorted(examplecorp_packages)
 
             # Check for Spark API usage
             spark_classes = [n for n in class_files if "org/apache/spark" in n]
@@ -176,7 +162,7 @@ def analyze_jar(jar_path: str) -> dict:
             if conflicts:
                 result["compatibility"] = "INCOMPATIBLE"
                 result["potential_conflicts"].extend(conflicts)
-            elif result.get("private_packages"):
+            elif result.get("examplecorp_packages"):
                 result["compatibility"] = "NEEDS_TESTING"
             else:
                 result["compatibility"] = "LIKELY_OK"
@@ -196,12 +182,6 @@ def main():
 
     print("JAR Dependency Analyzer")
     print("=" * 60)
-
-    if not WORKSPACE_JARS:
-        print("\nNo workspace JARs configured.")
-        print("Set AIDP_WORKSPACE_JARS to a comma/newline-separated list of workspace paths,")
-        print("or set AIDP_WORKSPACE_JARS_FILE to a newline-delimited manifest.")
-        return
 
     signer = get_oci_signer()
 
@@ -234,8 +214,8 @@ def main():
         results.append(analysis)
         compat = analysis["compatibility"]
         classes = analysis.get("class_count", 0)
-        private = len(analysis.get("private_packages", []))
-        print(f"[{compat}] {classes} classes, {private} private packages")
+        examplecorp = len(analysis.get("examplecorp_packages", []))
+        print(f"[{compat}] {classes} classes, {examplecorp} the pilot deployment packages")
 
         if analysis.get("potential_conflicts"):
             for c in analysis["potential_conflicts"]:

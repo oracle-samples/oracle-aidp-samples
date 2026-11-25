@@ -3,10 +3,18 @@
 Setup Migration Cluster
 ========================
 Deploys migration dependencies to a dedicated AIDP compute cluster:
-1. Copies JARs to /Workspace/migration-dependencies/jars/ (one at a time for large files)
-2. Writes requirements.txt
+1. Copies baseline JARs to the configured dependency repository
+   (paths.lib_repository_dir, default /Workspace/migration-dependencies/libs/)
+2. Writes default_requirements.txt (control-plane deps) and
+   target_runtime_requirements.txt (workload-cluster deps)
 3. Copies JARs to /aidp/libraries/java/jars/ (Spark classpath)
 4. Installs pip packages
+
+Per-job JARs and per-job pip packages are handled elsewhere:
+  - Per-job JARs: attached by dbx_export at cluster-provision time (reads the
+    source DBX job's cluster spec).
+  - Per-job pip: dynamically discovered by cluster_lifecycle.py and appended
+    to <job_output_path>/job_requirements.txt at migrate time.
 
 Uses the AIDP executor to run commands on the cluster.
 
@@ -15,7 +23,6 @@ Usage:
 """
 
 import asyncio
-import json
 import os
 import sys
 import argparse
@@ -25,80 +32,18 @@ from aidp_executor import AIDPSession, format_outputs
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# New migration testing cluster
-DEFAULT_CLUSTER = os.environ.get("AIDP_CLUSTER", "")
 
-REQUIREMENTS_TXT = """pandas>=2.3.0
-numpy>=2.4.0
-requests>=2.32.0
-oci>=2.167.0
-nbformat>=5.10.0
-ray>=2.54.0
-slack_sdk>=3.27.0
-boto3>=1.42.0
-IPython>=8.0.0
-matplotlib>=3.7.0
-scikit-learn>=1.3.0
-scipy>=1.11.0
-xgboost>=1.7.6
-seaborn>=0.12.0
-shap>=0.42.0
-optuna>=3.3.0
-joblib>=1.3.0
-pytz>=2023.3
-python-dateutil>=2.8.0
-python-box>=7.0.0
-tqdm>=4.65.0
-pyarrow>=12.0.0
-openpyxl>=3.1.0
-xlsxwriter>=3.1.0
-fuzzywuzzy>=0.18.0
-python-Levenshtein>=0.21.0
-brotli>=1.0.9
-mlflow>=2.8.0
-plotly>=5.15.0
-kaleido>=0.2.1
-dataframe-image>=0.2.0
-Pillow>=10.0.0
-pyathena>=3.0.0
-trino>=0.326.0
-gspread>=5.10.0
-gspread-dataframe>=3.3.0
-econml>=0.14.0
-psutil>=5.9.0
-omegaconf>=2.3.0"""
+with open(os.path.join(PROJECT_DIR, "config", "default_requirements.txt"), encoding="utf-8") as _requirements_file:
+    REQUIREMENTS_TXT = _requirements_file.read()
+with open(os.path.join(PROJECT_DIR, "config", "target_runtime_requirements.txt"), encoding="utf-8") as _target_requirements_file:
+    TARGET_REQUIREMENTS_TXT = _target_requirements_file.read()
 
-def load_jar_map() -> list:
-    """Load workspace JAR copy map from env without shipping sample JAR names."""
-    raw_json = os.environ.get("AIDP_MIGRATOR_JARS_JSON", "").strip()
-    if raw_json:
-        data = json.loads(raw_json)
-        pairs = []
-        for item in data:
-            if isinstance(item, dict):
-                src = item.get("src") or item.get("source")
-                dest = item.get("dest") or item.get("name") or os.path.basename(src or "")
-            else:
-                src, dest = item
-            if src:
-                pairs.append((src, dest or os.path.basename(src)))
-        return pairs
-
-    raw = os.environ.get("AIDP_MIGRATOR_JARS", "").strip()
-    if not raw:
-        return []
-
-    pairs = []
-    for part in raw.replace("\n", ";").split(";"):
-        part = part.strip()
-        if not part:
-            continue
-        if "=" in part:
-            src, dest = [value.strip() for value in part.split("=", 1)]
-        else:
-            src, dest = part, os.path.basename(part)
-        pairs.append((src, dest or os.path.basename(src)))
-    return pairs
+# Baseline JARs (generic Spark deps, not customer-specific).
+# Source path on workspace -> destination name.
+JARS = [
+    ("/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0-3975ca4.jar", "hudi-spark3.5-bundle_2.12-0.15.0-3975ca4.jar"),
+    ("/Workspace/jars/scala-logging_2.12-3.9.5.jar", "scala-logging_2.12-3.9.5.jar"),
+]
 
 
 async def run_step(session, description, code, timeout=300):
@@ -120,18 +65,28 @@ async def run_step(session, description, code, timeout=300):
 
 async def main():
     parser = argparse.ArgumentParser(description="Setup migration cluster")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
+    parser.add_argument("--cluster", required=True,
+                        help="AIDP cluster ID (required — no default)")
     parser.add_argument("--profile", default="DEFAULT")
     parser.add_argument("--skip-jars", action="store_true", help="Skip JAR copy step")
     parser.add_argument("--skip-pip", action="store_true", help="Skip pip install step")
+    parser.add_argument("--config", default=None,
+                        help="Path to aidp_migrator.yaml (falls back to "
+                             "$AIDP_CONFIG_PATH / default discovery). Resolves "
+                             "paths.lib_repository_dir — where JARs are provisioned.")
     args = parser.parse_args()
+
+    # Provision into the SAME dependency repository the migrator resolves
+    # (paths.lib_repository_dir), so setup and runtime never disagree.
+    import cluster_lifecycle
+    cluster_lifecycle.configure(args.config)
+    lib_dir = cluster_lifecycle.AIDP_LIB_DIR
 
     print("=" * 60)
     print("AIDP Migration Cluster Setup")
     print("=" * 60)
     print(f"Cluster: {args.cluster}")
-    jar_map = load_jar_map()
-    print(f"Configured JARs: {len(jar_map)}")
+    print(f"Dependency repository: {lib_dir}")
 
     session = AIDPSession(cluster_id=args.cluster, oci_profile=args.profile)
     await session.connect()
@@ -140,32 +95,40 @@ async def main():
         # Step 1: Create migration-dependencies folder structure
         await run_step(session, "Create folder structure", """
 import os
-os.makedirs('/Workspace/migration-dependencies/jars', exist_ok=True)
+os.makedirs('__LIB_DIR__', exist_ok=True)
 print('Folder structure ready')
 print('Writable:', os.access('/aidp/libraries/java/jars', os.W_OK))
+""".replace("__LIB_DIR__", lib_dir))
+
+        # Step 2: Write default_requirements.txt
+        await run_step(session, "Write default_requirements.txt", f"""
+with open('/Workspace/migration-dependencies/default_requirements.txt', 'w') as f:
+    f.write('''{REQUIREMENTS_TXT}''')
+print('default_requirements.txt written')
 """)
 
-        # Step 2: Write requirements.txt
-        await run_step(session, "Write requirements.txt", f"""
-with open('/Workspace/migration-dependencies/requirements.txt', 'w') as f:
-    f.write('''{REQUIREMENTS_TXT}''')
-print('requirements.txt written')
+        await run_step(session, "Write target_runtime_requirements.txt", f"""
+with open('/Workspace/migration-dependencies/target_runtime_requirements.txt', 'w') as f:
+    f.write('''{TARGET_REQUIREMENTS_TXT}''')
+print('target_runtime_requirements.txt written')
 """)
 
         # Step 3: Copy JARs one at a time (to avoid timeouts on large files)
         if not args.skip_jars:
-            if not jar_map:
-                print("\n  No JARs configured. Set AIDP_MIGRATOR_JARS or AIDP_MIGRATOR_JARS_JSON to copy JARs.")
-                print("  Continuing with Python package setup only.")
-            else:
             # Copy all JARs in one execution to minimize session overhead,
             # but with sleeps between copies to let the filesystem sync
-                await run_step(session, "Copy all JARs to workspace and classpath", f"""
+            await run_step(session, "Copy all JARs to workspace and classpath", """
 import shutil, os, time
 
-jars = {json.dumps(jar_map)}
+jars = [
+    # Tool-owned baseline artifacts only. Add YOUR deployment's exported JARs
+    # here (source workspace path, classpath filename) — the exporter stages
+    # them under /Workspace; never assume another deployment's inventory.
+    ('/Workspace/jars/hudi-spark3.5-bundle_2.12-0.15.0-3975ca4.jar', 'hudi-spark3.5-bundle_2.12-0.15.0-3975ca4.jar'),
+    ('/Workspace/jars/scala-logging_2.12-3.9.5.jar', 'scala-logging_2.12-3.9.5.jar'),
+]
 
-ws_dir = '/Workspace/migration-dependencies/jars'
+ws_dir = '__LIB_DIR__'
 cp_dir = '/aidp/libraries/java/jars'
 
 for src, name in jars:
@@ -196,17 +159,17 @@ for src, name in jars:
 
 print()
 print('All copies issued. Filesystem will sync in the background.')
-""", timeout=600)  # 10 min timeout for all JAR copies
+""".replace("__LIB_DIR__", lib_dir), timeout=600)  # 10 min timeout for all JAR copies
 
-                print("\n  JARs copied. Filesystem needs time to sync.")
-                print("  Run with --skip-jars --skip-pip later to verify.")
+            print("\n  JARs copied. Filesystem needs time to sync.")
+            print("  Run with --skip-jars --skip-pip later to verify.")
 
         # Step 4: Install pip packages
         if not args.skip_pip:
             await run_step(session, "Install pip packages", """
 import subprocess, sys
 result = subprocess.run(
-    [sys.executable, '-m', 'pip', 'install', '-r', '/Workspace/migration-dependencies/requirements.txt'],
+    [sys.executable, '-m', 'pip', 'install', '-r', '/Workspace/migration-dependencies/default_requirements.txt'],
     capture_output=True, text=True, timeout=600
 )
 # Show just the install summary
@@ -223,7 +186,7 @@ print(f'Exit code: {result.returncode}')
         await run_step(session, "Write copy_jars.sh", """
 script = '''#!/bin/bash
 DEST=/aidp/libraries/java/jars
-SRC=/Workspace/migration-dependencies/jars
+SRC=__LIB_DIR__
 for jar in "$SRC"/*.jar; do
     name=$(basename "$jar")
     if [ ! -f "$DEST/$name" ]; then
@@ -238,15 +201,13 @@ with open('/Workspace/migration-dependencies/copy_jars.sh', 'w') as f:
 import os
 os.chmod('/Workspace/migration-dependencies/copy_jars.sh', 0o755)
 print('copy_jars.sh written and made executable')
-""")
+""".replace("__LIB_DIR__", lib_dir))
 
         # Step 6: Test JAR class loading
         await run_step(session, "Test class loading (NOTE: may need cluster restart)", """
 tests = [
     ('org.apache.hudi.DataSourceReadOptions', 'Hudi'),
-    ('com.example.library.Constants', 'Custom library'),
-    ('com.example.library.ConcurrentHandler', 'Secondary custom library'),
-    ('com.example.util.Decryptor', 'Decryptor'),
+    ('com.typesafe.scalalogging.Logger', 'scala-logging'),
     ('io.delta.tables.DeltaTable', 'Delta Lake'),
 ]
 for class_name, label in tests:
@@ -264,22 +225,22 @@ print('=== Migration Cluster Setup Summary ===')
 print()
 
 # Workspace deps
-ws_jars = [f for f in os.listdir('/Workspace/migration-dependencies/jars') if f.endswith('.jar')]
-print(f'/Workspace/migration-dependencies/jars: {len(ws_jars)} JARs')
+ws_jars = [f for f in os.listdir('__LIB_DIR__') if f.endswith('.jar')]
+print(f'__LIB_DIR__: {len(ws_jars)} JARs')
 
 # Classpath JARs
 cp_jars = [f for f in os.listdir('/aidp/libraries/java/jars') if f.endswith('.jar')]
 print(f'/aidp/libraries/java/jars: {cp_jars} JARs')
 
 # requirements.txt
-print(f'requirements.txt: {os.path.exists("/Workspace/migration-dependencies/requirements.txt")}')
+print(f'default_requirements.txt: {os.path.exists("/Workspace/migration-dependencies/default_requirements.txt")}')
 print(f'copy_jars.sh: {os.path.exists("/Workspace/migration-dependencies/copy_jars.sh")}')
 
 print()
 print('NOTE: If class loading test shows NOT LOADED, the cluster needs to be')
 print('restarted for JARs in /aidp/libraries/java/jars/ to take effect.')
 print('After restart, run this script again with --skip-jars --skip-pip to verify.')
-""")
+""".replace("__LIB_DIR__", lib_dir))
 
     finally:
         await session.close()

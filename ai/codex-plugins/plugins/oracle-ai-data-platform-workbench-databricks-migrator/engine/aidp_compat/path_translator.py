@@ -113,7 +113,7 @@ class PathTranslator:
         # via the shared _translate_dbfs helper (no hard-coded /default/default).
         for _dbfs_alias in ("/FileStore/",):
             if path.startswith(_dbfs_alias):
-                # Pass the path through unchanged â€” _translate_dbfs prepends
+                # Pass the path through unchanged — _translate_dbfs prepends
                 # the configured /Volumes/{catalog}/{schema}/dbfs root.
                 return self._translate_dbfs(path)
 
@@ -152,8 +152,8 @@ class PathTranslator:
         where catalog and schema default to 'default'.
 
         So:
-            /dbfs/FileStore/x  â†’  /Volumes/default/default/dbfs/FileStore/x
-            dbfs:/FileStore/x  â†’  /Volumes/default/default/dbfs/FileStore/x
+            /dbfs/FileStore/x  →  /Volumes/default/default/dbfs/FileStore/x
+            dbfs:/FileStore/x  →  /Volumes/default/default/dbfs/FileStore/x
 
         Override via AIDP_DBFS_PREFIX env var or 'dbfs_root' in the path config file.
         """

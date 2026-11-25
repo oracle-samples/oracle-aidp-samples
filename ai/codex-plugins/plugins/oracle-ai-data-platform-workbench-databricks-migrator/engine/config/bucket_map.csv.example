@@ -1,0 +1,3 @@
+s3_bucket,oci_bucket,oci_namespace
+example-raw-data,example-raw-data,exmplnspace1
+example-feature-store,example-feature-store,exmplnspace2

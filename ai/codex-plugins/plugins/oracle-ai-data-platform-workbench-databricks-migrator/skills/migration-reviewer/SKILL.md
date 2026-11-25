@@ -15,7 +15,7 @@ Code-review specialist for Databricks → AIDP migrated notebooks. DO NOT modify
 
 ## Inputs
 
-- Path to the migrated `.ipynb` (under `<output-base>/<job>/notebooks/...`).
+- Path to the migrated `.ipynb` (under `<migrate-output>/<job>/notebooks/...`).
 - (Optional) Path to the original Databricks source notebook for side-by-side diff. If unavailable, do best-effort review of the migrated file in isolation.
 - (Optional) The relevant `JOB_REPORT.md` for cell pass/fail status — read this to know which cells the migrator already considered "OK".
 
@@ -26,7 +26,7 @@ For each cell:
 1. **Write-mode drift.** Original had `.mode("overwrite")` — migrated has `.mode("append")` or vice versa.
 2. **Schema drift.** Original wrote 12 columns — migrated writes 11 or 13.
 3. **Path drift.** Original `s3://bucket/path` — migrated should be `oci://bucket@ns/path`. Flag any leftover `s3://` paths.
-4. **Hardcoded identifiers.** Customer-specific catalog / schema names hardcoded in literals that the migrator was supposed to remap via `--catalog-manifest`.
+4. **Hardcoded identifiers.** Source-specific catalog / schema names hardcoded in literals that the migrator was supposed to remap via `--catalog-manifest`.
 5. **Dead Databricks-isms.** `dbutils.fs.*`, `dbutils.secrets.*`, `dbutils.widgets.*`, `dbutils.notebook.run` left in unchanged (should be rewritten or shimmed via aidp_compat).
 6. **Wrong `%sql` cell handling.** AIDP supports `%sql` natively — flag any conversion to `spark.sql(...)` that lost SQL features (e.g. multi-statement, comment lines).
 7. **Builtins shadowing.** `from pyspark.sql.functions import *` left in WITHOUT a corresponding `import builtins` and re-aliased `sum`.
@@ -58,7 +58,7 @@ For each cell:
 - Cell N: <description>
 
 ### Good
-- Note specific successful rewrites worth confirming (e.g. "Cell 12 correctly rewrote `dbutils.widgets.get` → `oidlUtils.parameters.getParameter`")
+- Note specific successful rewrites worth confirming (e.g. "Cell 12 correctly rewrote Python `dbutils.widgets.get` → `aidputils.widgets.get`"; in Scala cells the correct target is `oidlUtils` — e.g. `dbutils.widgets.get` → the `oidlUtils` widgets API)
 
 ## Recommendation
 

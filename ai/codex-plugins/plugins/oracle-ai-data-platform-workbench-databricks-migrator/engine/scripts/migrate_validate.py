@@ -3,10 +3,10 @@
 Unified Migrate-Validate-Fix Pipeline
 =======================================
 Single-pass per notebook:
-1. OpenAI model migrates the notebook AND classifies each cell (READ_ONLY vs WRITE/ACTION)
+1. Claude migrates the notebook AND classifies each cell (READ_ONLY vs WRITE/ACTION)
 2. READ_ONLY cells execute on the AIDP cluster immediately
 3. Outputs are compared against original notebook outputs where available
-4. Failed cells are sent back to OpenAI model for fixing (OpenAI model x2, then OpenAI model x3)
+4. Failed cells are sent back to the configured LLM for fixing (retry escalation)
 5. Produces: migrated .ipynb, REPORT.md with cell outputs + diffs
 
 Usage:
@@ -20,7 +20,8 @@ Usage:
     python3 migrate_validate.py --batch <list.json> --cluster <id> --parallel 5
 """
 
-from openai_model import OpenAIModelCompatClient, OPENAI_MODEL
+import llm_config  # central model/provider config
+import anthropic
 import asyncio
 import json
 import os
@@ -40,10 +41,9 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NOTEBOOKS_DIR = os.path.join(PROJECT_DIR, "notebooks")
 OUTPUT_DIR = os.path.join(PROJECT_DIR, "migrated")
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-DEFAULT_CLUSTER = os.environ.get("AIDP_CLUSTER", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
-MIGRATE_AND_CLASSIFY_PROMPT = """You are an expert Spark/Databricks migration engineer. You are given a Jupyter notebook that needs to be migrated from Databricks to OCI AIDP (Python 3.11).
+MIGRATE_AND_CLASSIFY_PROMPT = """You are an expert Spark/Databricks migration engineer. You are given a Jupyter notebook that needs to be migrated from Databricks to OCI AIDP (Spark 3.5.0, Python 3.11).
 
 Your job is to produce a JSON object with TWO parts:
 
@@ -89,7 +89,7 @@ A list of strings, each describing a change made.
 - Add these two lines as the first cell:
   ```
   import sys; sys.path.insert(0, '/Workspace/migration-dependencies/python_libs/')
-  from aidp_compat import dbutils, display, displayHTML, sql, translate_path
+  from aidp_compat import dbutils, translate_path
   ```
 - Convert `%sql <query>` to `sql('''<query>''')`
 - Convert `%run /path/to/notebook` to `dbutils.notebook.run(translate_path("/path/to/notebook.ipynb"), timeout=0)`
@@ -101,17 +101,17 @@ A list of strings, each describing a change made.
 - `/Workspace/` paths work as-is on AIDP
 
 ## AIDP Environment:
-- Python 3.11.13, Apache Spark, Scala 2.12.18, Java 17 (GraalVM)
-- JARs installed: configured migration libraries and required connector libraries
+- Python 3.11.13, Spark 3.5.0, Scala 2.12.18, Java 17 (GraalVM)
+- JARs installed: the export manifest's libraries plus tool baselines (Hudi bundle, Delta Lake 3.2)
 - OCI HDFS connector available (oci:// paths work; BmcFilesystem configured with API key at cluster level)
-- OCI Python SDK auth: API key via CLI config file at /Workspace/<oci-config-workspace-path> (DEFAULT).
-  FORBIDDEN: oci.auth.signers.get_resource_principals_signer() â€” resource principal has known
+- OCI Python SDK auth: credentials fetched from AIDP Credential Store via aidputils.secrets.get('migration_tool_api', key=...).
+  FORBIDDEN: oci.auth.signers.get_resource_principals_signer() — resource principal has known
   failure modes on AIDP. Always use API key + oci.signer.Signer pattern.
 - Libraries should be installed via cluster libraries section (not pip install at runtime)
 
 Return ONLY valid JSON: {"cells": [...], "migration_notes": [...]}"""
 
-FIX_PROMPT = """You are fixing a PySpark cell that failed on OCI AIDP.
+FIX_PROMPT = """You are fixing a PySpark cell that failed on OCI AIDP (Spark 3.5.0).
 The notebook is in READ-ONLY validation mode. Do NOT add writes or notifications.
 Keep the fix minimal. Return ONLY the fixed Python code, no markdown."""
 
@@ -139,7 +139,7 @@ def read_original_notebook(path: str) -> Tuple[dict, List[dict]]:
 
 
 def build_readable(nb: dict) -> str:
-    """Build readable notebook representation for OpenAI model."""
+    """Build readable notebook representation for Claude."""
     parts = []
     for i, cell in enumerate(nb.get("cells", [])):
         cell_type = cell.get("cell_type", "unknown")
@@ -150,16 +150,16 @@ def build_readable(nb: dict) -> str:
     return "\n".join(parts)
 
 
-def migrate_with_openai(nb: dict, notebook_path: str) -> Tuple[List[dict], List[str], dict]:
-    """Send notebook to OpenAI model for migration + cell classification."""
+def migrate_with_claude(nb: dict, notebook_path: str) -> Tuple[List[dict], List[str], dict]:
+    """Send notebook to Claude for migration + cell classification."""
     readable = build_readable(nb)
     if len(readable) > 80000:
         readable = readable[:80000] + "\n\n[... TRUNCATED ...]"
 
-    client = OpenAIModelCompatClient(api_key=OPENAI_API_KEY or None)
+    client = llm_config.make_client(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model=OPENAI_MODEL,
-        max_tokens=16000,
+        model=llm_config.MODEL,
+        max_tokens=llm_config.MAX_TOKENS,
         system=MIGRATE_AND_CLASSIFY_PROMPT,
         messages=[{"role": "user", "content": f"Migrate and classify: {notebook_path}\n\n```\n{readable}\n```"}]
     )
@@ -189,16 +189,16 @@ def migrate_with_openai(nb: dict, notebook_path: str) -> Tuple[List[dict], List[
                 "source": "".join(cell.get("source", [])),
                 "classification": "READ_ONLY" if cell.get("cell_type") == "code" else "SKIP"
             })
-        notes = ["OpenAI model JSON parse failed - using original cells with READ_ONLY classification"]
+        notes = ["Claude JSON parse failed - using original cells with READ_ONLY classification"]
 
     usage = {"input": message.usage.input_tokens, "output": message.usage.output_tokens}
     return cells, notes, usage
 
 
-def ask_openai_fix(code: str, error: str, context: List[str], attempt: int) -> str:
-    """Ask OpenAI model to fix a failing cell."""
-    client = OpenAIModelCompatClient(api_key=OPENAI_API_KEY or None)
-    model = OPENAI_MODEL if attempt <= 2 else OPENAI_MODEL
+def ask_claude_fix(code: str, error: str, context: List[str], attempt: int) -> str:
+    """Ask Claude to fix a failing cell."""
+    client = llm_config.make_client(api_key=ANTHROPIC_API_KEY)
+    model = llm_config.MODEL
 
     ctx = ""
     if context:
@@ -209,7 +209,7 @@ def ask_openai_fix(code: str, error: str, context: List[str], attempt: int) -> s
         model=model,
         max_tokens=4000,
         system=FIX_PROMPT,
-        messages=[{"role": "user", "content": f"Fix (attempt {attempt}, {'OpenAI model' if attempt > 2 else 'OpenAI model'}):\n```python\n{code}\n```\nError:\n```\n{error[:2000]}\n```{ctx}"}]
+        messages=[{"role": "user", "content": f"Fix (attempt {attempt}):\n```python\n{code}\n```\nError:\n```\n{error[:2000]}\n```{ctx}"}]
     )
     resp = msg.content[0].text.strip()
     if resp.startswith("```"):
@@ -268,9 +268,9 @@ async def process_notebook(notebook_rel_path: str, session: AIDPSession, max_ret
     total_cells = len(nb.get("cells", []))
     print(f"  Original: {total_cells} cells, {sum(1 for o in original_outputs if o)} with saved outputs")
 
-    # Step 2: OpenAI model migrates + classifies
-    print(f"  Migrating with OpenAI GPT-5.5...")
-    migrated_cells, migration_notes, usage = migrate_with_openai(nb, notebook_rel_path)
+    # Step 2: Claude migrates + classifies
+    print(f"  Migrating with {llm_config.MODEL}...")
+    migrated_cells, migration_notes, usage = migrate_with_claude(nb, notebook_rel_path)
     print(f"  Migration: {len(migrated_cells)} cells, {usage['input']+usage['output']} tokens")
 
     # Build the migrated notebook
@@ -367,10 +367,9 @@ async def process_notebook(notebook_rel_path: str, session: AIDPSession, max_ret
                 break
             else:
                 if attempt < max_retries:
-                    model_name = "OpenAI model" if attempt < 2 else "OpenAI model"
-                    print(f"  Cell {i} FAIL (attempt {attempt+1}), asking {model_name}...")
+                    print(f"  Cell {i} FAIL (attempt {attempt+1}), asking {llm_config.MODEL}...")
                     try:
-                        current_code = ask_openai_fix(current_code, output, executed_code, attempt + 1)
+                        current_code = ask_claude_fix(current_code, output, executed_code, attempt + 1)
                     except Exception as e:
                         print(f"  Fix request failed: {e}")
                         break
@@ -398,7 +397,7 @@ async def process_notebook(notebook_rel_path: str, session: AIDPSession, max_ret
 - **Result**: **{overall}**
 - **Cells OK**: {cells_ok} | **Failed**: {cells_failed} | **Skipped**: {cells_skipped} | **Auto-fixed**: {cells_fixed}
 - **Output comparisons**: {output_matches} match, {output_mismatches} differ
-- **OpenAI tokens**: {usage['input'] + usage['output']:,} (migration)
+- **Claude tokens**: {usage['input'] + usage['output']:,} (migration)
 
 ## Migration Notes
 """
@@ -465,7 +464,7 @@ async def run_parallel_batch(notebooks: List[str], cluster_id: str, parallel: in
     print(f"{'='*60}")
     print(f"Notebooks: {len(notebooks)}")
     print(f"Parallel sessions: {parallel}")
-    print(f"Max retries: {max_retries} (OpenAI model 1-2, OpenAI model 3-5)")
+    print(f"Max retries: {max_retries}")
     print(f"Cluster: {cluster_id}")
     print(f"Started: {datetime.now().isoformat()}")
 
@@ -575,11 +574,19 @@ async def main():
     parser = argparse.ArgumentParser(description="Unified migrate-validate-fix pipeline")
     parser.add_argument("notebook", nargs="?", help="Single notebook relative path")
     parser.add_argument("--batch", help="JSON list of notebooks")
-    parser.add_argument("--cluster", default=DEFAULT_CLUSTER)
+    parser.add_argument("--cluster", required=True,
+                        help="AIDP cluster ID (required — no default)")
     parser.add_argument("--parallel", type=int, default=5, help="Parallel AIDP sessions")
     parser.add_argument("--max-retries", type=int, default=5)
     parser.add_argument("--profile", default="DEFAULT")
+    parser.add_argument("--config", default=None,
+                        help="aidp_config YAML path (highest precedence; else "
+                             "$AIDP_CONFIG_PATH / ./aidp_migrator.yaml / ~).")
     args = parser.parse_args()
+
+    # Standalone entrypoint: resolve the model from YAML (no code default).
+    # --config has highest precedence, matching the documented loader contract.
+    llm_config.ensure_configured(args.config)
 
     if args.notebook:
         session = AIDPSession(cluster_id=args.cluster, oci_profile=args.profile)

@@ -1,0 +1,38 @@
+# CI runner pins for .github/workflows/regression-gate.yml (pip -c file).
+#
+# Absolute suite-green is environment-fragile: a fresh runner resolving
+# floor-pinned requirements can pull a breaking release mid-PR — anthropic
+# 1.4.0 (httpx2) broke 3 tests during PR #84. Pins below are DERIVED, not
+# hand-picked (PR #88 review): every direct dependency in requirements.txt
+# plus the breakage-prone transitives (HTTP/validation/crypto stack), at the
+# exact versions of the known-good local environment (pip freeze). Regenerate
+# with: pip freeze | grep -iE '^(oci|requests|websocket-client|anthropic|
+# nbformat|packaging|pandas|numpy|pyyaml|jsonschema|pytest|cloudpickle|httpx|pydantic|
+# cryptography|anyio|certifi|circuitbreaker|python-dateutil|pytz)=='
+# Local dev installs are NOT constrained by this file — CI jobs only.
+#
+# direct dependencies (requirements.txt)
+anthropic==0.125.0  # = requirements.txt floor (live control-cluster version, #185)
+jsonschema==4.26.0
+nbformat==5.10.4
+numpy==2.4.4
+oci==2.170.0
+openpyxl==3.1.5
+packaging==26.0
+pandas==3.0.2
+PyYAML==6.0.3
+requests==2.33.1
+websocket-client==1.9.0
+# test runner
+pytest==9.0.3
+cloudpickle==2.2.1  # = the copy Spark 3.5.0 bundles; tests of functions Spark ships to its workers
+# breakage-prone transitives
+anyio==4.13.0
+certifi==2026.2.25
+circuitbreaker==2.1.3
+cryptography==46.0.6
+httpx==0.28.1
+pydantic==2.12.5
+python-dateutil==2.9.0.post0
+pytz==2026.1.post1
+openai==3.57.0

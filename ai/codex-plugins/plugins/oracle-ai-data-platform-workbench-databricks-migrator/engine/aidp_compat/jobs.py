@@ -3,7 +3,7 @@ import os, json, tempfile
 
 def _default_task_values_file():
     # Per-user path so a file left behind by another user does not block writes
-    # (a shared /tmp/aidp_task_values.json owned by someone else â†’ PermissionError).
+    # (a shared /tmp/aidp_task_values.json owned by someone else → PermissionError).
     try:
         uid = os.getuid()
     except AttributeError:  # non-POSIX
@@ -19,7 +19,7 @@ class TaskValues:
                 with open(self._file) as f:
                     self._values = json.load(f)
         except (OSError, ValueError):
-            # Unreadable/corrupt store â€” start empty rather than crash the cell.
+            # Unreadable/corrupt store — start empty rather than crash the cell.
             self._values = {}
 
     def _save(self):
@@ -27,7 +27,7 @@ class TaskValues:
             with open(self._file, 'w') as f:
                 json.dump(self._values, f)
         except OSError as e:
-            # Not writable (e.g. /tmp owned by another user) â€” keep values
+            # Not writable (e.g. /tmp owned by another user) — keep values
             # in-memory for this session instead of crashing the cell. WARN
             # (don't swallow silently): a later get() in a fresh kernel would
             # otherwise raise "Task value not found" detached from the cause.

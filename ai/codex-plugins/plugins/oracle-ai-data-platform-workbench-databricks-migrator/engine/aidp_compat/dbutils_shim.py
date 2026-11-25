@@ -69,13 +69,6 @@ class DBUtils:
         return self._library
 
     @property
-    def credentials(self):
-        if not hasattr(self, '_credentials'):
-            from aidp_compat.credentials import AIDPCredentialsUtils
-            self._credentials = AIDPCredentialsUtils()
-        return self._credentials
-
-    @property
     def data(self):
         if not hasattr(self, '_data'):
             from aidp_compat.data import AIDPDataUtils
@@ -93,7 +86,6 @@ class DBUtils:
         print("  dbutils.notebook - Notebook orchestration")
         print("  dbutils.jobs     - Job task values")
         print("  dbutils.library  - Library management")
-        print("  dbutils.credentials - Credential management")
         print("  dbutils.data     - Data utilities")
         print()
         print("Use dbutils.<module>.help() for module-specific help.")
