@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIDP Agent Builder"
+  short_description: "Build contract-defined AIDP business agents"
+  default_prompt: "Use $aidp-agent-builder to build an agent that helps me complete a business process."

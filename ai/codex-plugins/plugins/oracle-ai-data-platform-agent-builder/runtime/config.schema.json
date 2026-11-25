@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIDP A2App standard client target",
+  "description": "Non-secret configuration. Credentials remain in OCI configuration and are consumed by OCI CLI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["endpoint", "agentKey", "workspaceKey", "runtimeRevision", "definitionFile", "stateDirectory", "ociProfile", "region"],
+  "properties": {
+    "endpoint": {"type": "string", "format": "uri", "description": "Advertised HTTPS A2A endpoint, ending in /a2a; never a chat endpoint or guessed control-plane route."},
+    "agentKey": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "workspaceKey": {"type": "string", "minLength": 1},
+    "runtimeRevision": {"type": "string", "minLength": 1, "description": "Exact revision returned by this agent's A2App responses."},
+    "definitionFile": {"type": "string", "minLength": 1, "description": "Saved complete component definition JSON; relative paths resolve from this configuration file."},
+    "stateDirectory": {"type": "string", "minLength": 1, "description": "Dedicated private client receipt directory for this binding/revision. Contains no authoritative business state."},
+    "ociProfile": {"type": "string", "minLength": 1},
+    "region": {"type": "string", "minLength": 1},
+    "authType": {"type": "string", "enum": ["api_key", "security_token", "instance_principal", "resource_principal"], "default": "security_token"},
+    "ociConfigFile": {"type": "string", "minLength": 1},
+    "expectedHostname": {"type": "string", "pattern": "^[A-Za-z0-9.-]+$", "description": "Optional exact, user-approved endpoint hostname for a sovereign/other OCI realm. No wildcards."},
+    "agentCardUrl": {"type": "string", "format": "uri", "description": "Optional advertised Agent Card URL under endpoint; no discovery path is guessed."},
+    "title": {"type": "string", "minLength": 1}
+  }
+}

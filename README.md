@@ -325,6 +325,7 @@ Agent Skills (`SKILL.md` packages) that give AI coding agents product-specific, 
 
 | Sample | Description |
 |---|---|
+| [AIDP Agent Builder (Codex plugin)](ai/codex-plugins/plugins/oracle-ai-data-platform-agent-builder/README.md) | Build experimental contract-defined high-code AIDP agents with typed actions and reusable UI/CLI clients, and prepare public deployment plans. |
 | [Claude Code Plugins for AIDP](ai/claude-code-plugins/README.md) | Anthropic Claude Code plugins published by the Oracle AIDP team. Includes Ask AIDP for 43-tool Workbench operations through `aidp-cli`, signed REST, and native SDK clients, plus connector, engineering, migration, and Fusion-to-OAC workflow plugins. |
 
 ---

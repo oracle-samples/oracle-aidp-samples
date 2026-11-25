@@ -24,6 +24,7 @@ manifest remains available when registering a local `ai/codex-plugins` checkout.
 | [`oracle-ai-data-platform-workbench-snowflake-migrator`](./plugins/oracle-ai-data-platform-workbench-snowflake-migrator/) | 0.29.0 | Security update: credential files, read-only role gate (SEC-AIDP-SAMPLES-001) | Migrate a Snowflake database to Oracle AIDP through a fixed twelve-step runbook: in-AIDP discovery, a reviewed translation plan, target schemas and Delta tables, and one verified copy job per schema. |
 | [`oracle-ai-data-platform-workbench-fabric-migrator`](./plugins/oracle-ai-data-platform-workbench-fabric-migrator/) | 0.1.1 | Security update: MCP path and environment containment (SEC-AIDP-SAMPLES-004), .env allowlist, Codex MCP launcher | Migrate a Microsoft Fabric workspace (notebooks, Warehouse T-SQL, Power Query M, Data Pipelines, shortcuts) to Oracle AIDP from Codex via an MCP server — inventory, plan, migrate, verify, publish (dry run); deterministic translation with explicit review gates. |
 | [`oracle-ai-data-platform-workbench-informatica-migrator`](./plugins/oracle-ai-data-platform-workbench-informatica-migrator/) | 0.1.0 | Initial release | Migrate Informatica ETL (IDMC/IICS cloud mapping JSON, PowerCenter 10.x repository XML) to Oracle AIDP from Codex — mappings to PySpark notebooks, workflows to AIDP jobs with the session dependency graph, Quartz schedules and a declarable timezone; worklets expanded. Deterministic compiler, no model required; anything unsafe is reported with a named reason and a rebuild path, never guessed. |
+| [`oracle-ai-data-platform-agent-builder`](./plugins/oracle-ai-data-platform-agent-builder/) | 0.1.0-alpha.1 | Experimental native profile | Build contract-defined high-code agents for a shared UI, CLI and chat; includes deterministic packaging and public deployment plans. |
 
 ## Install
 
@@ -43,6 +44,7 @@ codex plugin add oracle-ai-data-platform-workbench-databricks-migrator@oracle-ai
 codex plugin add oracle-ai-data-platform-workbench-engineer-agent@oracle-aidp-codex
 codex plugin add oracle-ai-data-platform-workbench-spark-connectors@oracle-aidp-codex
 codex plugin add ask-aidp@oracle-aidp-codex
+codex plugin add oracle-ai-data-platform-agent-builder@oracle-aidp-codex
 codex plugin add oracle-ai-data-platform-fusion-autopilot@oracle-aidp-codex
 codex plugin add oracle-ai-data-platform-workbench-snowflake-migrator@oracle-aidp-codex
 ```
@@ -68,6 +70,7 @@ Then reinstall or refresh the plugin you want to test:
 codex plugin add oracle-ai-data-platform-workbench-engineer-agent@oracle-aidp-codex
 codex plugin add oracle-ai-data-platform-workbench-spark-connectors@oracle-aidp-codex
 codex plugin add ask-aidp@oracle-aidp-codex
+codex plugin add oracle-ai-data-platform-agent-builder@oracle-aidp-codex
 ```
 
 Restart the Codex app after refreshing a plugin.
@@ -86,6 +89,7 @@ oracle-aidp-samples/
         |-- oracle-ai-data-platform-workbench-engineer-agent/
         |-- oracle-ai-data-platform-workbench-spark-connectors/
         |-- ask-aidp/
+        |-- oracle-ai-data-platform-agent-builder/
         `-- oracle-ai-data-platform-fusion-autopilot/
 ```
 

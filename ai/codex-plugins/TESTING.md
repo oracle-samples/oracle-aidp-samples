@@ -105,6 +105,46 @@ codex plugin add oracle-ai-data-platform-workbench-snowflake-migrator@oracle-aid
 
 See [`plugins/oracle-ai-data-platform-workbench-snowflake-migrator/README.md`](./plugins/oracle-ai-data-platform-workbench-snowflake-migrator/README.md) for prerequisites and the runbook. The offline suite runs with `bin/snowmig-test` inside the plugin directory, and `bin/snowmig demo` runs the whole pipeline against an emulated estate with no credentials.
 
+## Install Agent Builder (experimental)
+
+```bash
+codex plugin add oracle-ai-data-platform-agent-builder@oracle-aidp-codex
+```
+
+Start a new Codex chat. The [plugin README](./plugins/oracle-ai-data-platform-agent-builder/README.md)
+explains the component-contract authoring flow, optional public AIDP operations,
+shared UI/CLI and native runtime prerequisites.
+
+From the repository root, run the offline suites:
+
+```bash
+cd ai/codex-plugins/plugins/oracle-ai-data-platform-agent-builder
+python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s runtime/tests -v
+node --test runtime/tests/test_ui.mjs
+```
+
+Python tests use temporary synthetic files and fake cloud transports; the HTTP
+boundary test binds a loopback socket. Node is required only for UI tests.
+No cloud credentials, source data, GenAI calls or deployments are required.
+
+Authoring smoke prompt:
+
+```text
+Use AIDP Agent Builder. Create an agent that displays monthly deliveries
+and reviews late deliveries using documented rules. Use synthetic records
+for an offline authoring rehearsal; validate, package and show a deployment
+plan without publishing or claiming native runtime verification.
+```
+
+Check saved contracts, stable actions and requirement mapping. Run the bundled
+source validator and packager on the generated project. Verify that a plan's
+operations remain dry runs with an unresolved created-agent key, and that no
+private target configuration enters the ZIP. Offline success does not qualify
+native CODE hooks, A2A Parts, real data/model tools, persistence or interrupts.
+Those require separate probes on the selected target before a native readiness
+claim or UI/CLI end-to-end demonstration.
+
 ## Update
 
 ```bash

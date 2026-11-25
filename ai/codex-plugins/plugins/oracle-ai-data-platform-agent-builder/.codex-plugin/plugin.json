@@ -1,0 +1,22 @@
+{
+  "name": "oracle-ai-data-platform-agent-builder",
+  "version": "0.1.0-alpha.1",
+  "description": "Build contract-defined AIDP custom agents for a shared UI, CLI and chat.",
+  "author": {"name": "Oracle", "url": "https://github.com/oracle-samples/oracle-aidp-samples"},
+  "homepage": "https://github.com/oracle-samples/oracle-aidp-samples/tree/main/ai/codex-plugins/plugins/oracle-ai-data-platform-agent-builder",
+  "repository": "https://github.com/oracle-samples/oracle-aidp-samples",
+  "license": "MIT",
+  "keywords": ["oracle", "aidp", "agents", "langgraph", "a2ui", "component-contracts"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AIDP Agent Builder",
+    "shortDescription": "Build process-capable agents for shared UI, CLI and chat",
+    "longDescription": "Generate high-code AIDP custom agents from English business component contracts. Package typed actions, fixed Python tools, reasoning nodes and native workflow state with a reusable A2App UI and CLI. Experimental native A2A runtime capabilities must be verified on the selected compute.",
+    "developerName": "Oracle",
+    "category": "Data",
+    "websiteURL": "https://www.oracle.com/data-platform/",
+    "privacyPolicyURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/ai/codex-plugins/plugins/oracle-ai-data-platform-agent-builder/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/oracle-samples/oracle-aidp-samples/blob/main/LICENSE.txt",
+    "defaultPrompt": ["Build an AIDP agent with a dashboard and a business review process.", "Refine a component contract in my existing AIDP agent."]
+  }
+}
