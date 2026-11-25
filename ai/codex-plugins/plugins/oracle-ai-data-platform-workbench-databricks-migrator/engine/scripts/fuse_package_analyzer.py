@@ -31,10 +31,11 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 def _get_anthropic_client():
+    sdk = "openai" if llm_config.PROVIDER == "openai" else "anthropic"
     try:
-        import anthropic
+        __import__(sdk)
     except ImportError:
-        print("anthropic SDK not installed. Run: pip install anthropic", file=sys.stderr)
+        print(f"{sdk} SDK not installed. Run: pip install {sdk}", file=sys.stderr)
         sys.exit(1)
 
     key_var = "OPENAI_API_KEY" if llm_config.PROVIDER == "openai" else "ANTHROPIC_API_KEY"

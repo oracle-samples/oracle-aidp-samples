@@ -207,7 +207,7 @@ def test_requests_are_stateless_with_encrypted_reasoning(monkeypatch):
     om._CLIENT = None
 
 
-def test_effort_max_clamps_to_high(monkeypatch):
+def test_effort_max_clamps_to_xhigh(monkeypatch):
     seen = {}
     def fake(**kw):
         seen.update(kw)
@@ -221,7 +221,7 @@ def test_effort_max_clamps_to_high(monkeypatch):
         model="gpt-5.5", messages=[{"role": "user", "content": "x"}],
         output_config={"effort": "max"})
     assert seen["effort"] == "max"  # clamped inside responses_create
-    assert om._clamp_effort("max") == "high"
+    assert om._clamp_effort("max") == "xhigh"
     assert om._clamp_effort("low") == "low"
 
 

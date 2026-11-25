@@ -2,7 +2,7 @@
 
 **Plugin:** `oracle-ai-data-platform-workbench-databricks-migrator`
 **Surface:** OpenAI Codex CLI plugin
-**Effective:** 2026-06-23
+**Effective:** 2026-06-23 (updated 2026-11-20 for v0.3.0)
 
 ## Summary
 

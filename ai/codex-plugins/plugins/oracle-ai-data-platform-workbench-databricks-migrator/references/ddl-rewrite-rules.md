@@ -67,7 +67,7 @@ LOCATION 'dbfs:/FileStore/<path>'
 LOCATION 'dbfs:/FileStore/<path>'
 ```
 
-The migrator's `translate_path()` helper handles this.
+The DDL rewriter does NOT translate these; the migrator's runtime `translate_path()` applies only during notebook execution — a dbfs:/ LOCATION in DDL needs a manual mapping.
 
 ---
 
@@ -183,7 +183,7 @@ CREATE STREAMING TABLE <schema>.<st> AS SELECT ... FROM STREAM ...
 
 ### Rule 18 (spec only, not implemented): VIEW handling
 
-Views are not replayed: the rewriter records `R15_VIEW_DEFERRED` and passes the
+Views are not migrated by the rewriter: it records `R15_VIEW_DEFERRED` (the rewriter raises and the catalog run SKIPS the
 statement through for manual migration (the source-workspace samples contain no
 views, so this path is deliberately deferred).
 ```
@@ -192,7 +192,7 @@ CREATE VIEW <schema>.<v> AS SELECT * FROM <other_cat>.<other_schema>.<other_tabl
 -- OUT: unchanged; verdict row R15_VIEW_DEFERRED
 ```
 
-Statement is NOT replayed (recorded as `R15_VIEW_DEFERRED` and passed through) (views are cheap; let it fail loudly if the catalog truly doesn't resolve).
+Statement is NOT migrated: the rewriter raises and the catalog run records `R15_VIEW_DEFERRED`, skipping the statement for manual follow-up.
 
 ---
 

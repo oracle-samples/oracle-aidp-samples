@@ -78,7 +78,7 @@ def response_text(response: Any) -> str:
     return "".join(parts)
 
 
-_EFFORT_MAP = {"max": "high"}  # Anthropic-side 'max' has no Responses equivalent
+_EFFORT_MAP = {"max": "xhigh"}  # keep ordering: max maps to the highest Responses effort
 
 
 def _clamp_effort(effort: str) -> str:
@@ -312,6 +312,16 @@ class CompatResponse:
                 pending_reasoning = []
             elif item_type == "message":
                 first_part = True
+                _text_parts = [c for c in (getattr(item, "content", []) or [])
+                               if getattr(c, "type", None) in ("output_text", "text")]
+                if not _text_parts:
+                    # A message with no text part (e.g. a refusal): still carry
+                    # the raw item and its preceding reasoning so the pairing
+                    # survives the replay; the facade text is honestly empty.
+                    blocks.append(ContentBlock(type="text", text="", raw_item=item,
+                                               preceding_items=tuple(pending_reasoning)))
+                    pending_reasoning = []
+                    continue
                 for content in getattr(item, "content", []) or []:
                     ctype = getattr(content, "type", None)
                     if ctype in ("output_text", "text"):

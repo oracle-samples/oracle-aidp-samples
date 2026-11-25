@@ -11,6 +11,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import cluster_lifecycle as cl
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_ambient_config(monkeypatch, tmp_path):
+    """The caller pins drive real functions that run config discovery (via
+    oci_auth); isolate them from any config another test staged under HOME."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("AIDP_CONFIG_PATH", raising=False)
+    # the REST layer is neutered in the pins; the signer must not require a
+    # real ~/.oci/config either
+    monkeypatch.setattr(cl, "_get_signer", lambda: None)
 
 
 def _fresh(monkeypatch, exists):
@@ -52,23 +64,83 @@ def test_offline_curated_mapping_still_used(monkeypatch):
 
 
 def test_batch_survives_a_rejected_import(monkeypatch, capsys):
-    """Caller-level pin: one unmapped import never disrupts the rest of the
-    batch (no None in the package list, no TypeError on join)."""
-    import asyncio, inspect, re, textwrap
-    src = inspect.getsource(cl.ensure_requirements_installed)
-    # execute just the resolution block the same way the caller does
+    """Caller-level pin on the REAL ensure_requirements_installed: one unmapped
+    import never disrupts the batch, and the install command carries no None."""
+    import asyncio
+
     monkeypatch.setattr(cl, "_pypi_cache", {})
     monkeypatch.setattr(cl, "_pypi_exists", lambda name: True)
+    # The cluster-libraries REST layer is out of scope for this pin: record and no-op.
+    rest_calls = []
+    class _Resp:
+        status_code = 200
+        text = "{}"
+        def json(self):
+            return {"items": [], "status": "INSTALLED"}
+        def raise_for_status(self):
+            return None
+    monkeypatch.setattr(cl.http_requests, "get", lambda *a, **k: (rest_calls.append(("get", a)), _Resp())[1])
+    monkeypatch.setattr(cl.http_requests, "patch", lambda *a, **k: (rest_calls.append(("patch", a)), _Resp())[1])
+    monkeypatch.setattr(cl.http_requests, "post", lambda *a, **k: (rest_calls.append(("post", a)), _Resp())[1])
     mapped_name = next(iter(cl._IMPORT_TO_PIP))
-    pip_packages, seen, skipped = [], set(), []
-    for imp in [mapped_name, "totally_unmapped_import"]:
-        pip_name = cl._resolve_pip_name(imp)
-        if pip_name is None:
-            skipped.append(imp)
-            continue
-        if pip_name not in seen:
-            seen.add(pip_name)
-            pip_packages.append(pip_name)
-    assert skipped == ["totally_unmapped_import"]
-    assert pip_packages and all(isinstance(x, str) for x in pip_packages)
-    " ".join(pip_packages)  # the join that used to TypeError on None
+
+    executed = []
+
+    class _Session:
+        cluster_id = "fake-cluster"
+
+        async def execute(self, code, timeout=120):
+            executed.append(code)
+            if "__AIDP_MIG_MISSING_BEGIN__" in code:
+                # the import probe: report BOTH candidates missing
+                text = ("__AIDP_MIG_MISSING_BEGIN__"
+                        f"{mapped_name},totally_unmapped_import"
+                        "__AIDP_MIG_MISSING_END__")
+                return {"status": "ok", "outputs": [{"type": "stream", "text": text}]}
+            if "job_requirements" in code or "requirements" in code:
+                # existing requirements already carry the mapped package, so the
+                # REST install step (out of scope for this pin) is skipped.
+                resolved = cl._IMPORT_TO_PIP[mapped_name]
+                return {"status": "ok", "outputs": [{"type": "stream", "text": resolved}]}
+            return {"status": "ok", "outputs": [{"type": "stream", "text": "ok"}]}
+
+    async def _drive():
+        return await cl.ensure_requirements_installed(
+            "fake-cluster", _Session(), [mapped_name, "totally_unmapped_import"], "/tmp/out")
+
+    try:
+        result = asyncio.run(_drive())
+    except TypeError as exc:  # the pre-fix crash shape
+        raise AssertionError(f"caller crashed on a None resolution: {exc}")
+    blob = "\n".join(executed)
+    assert "None" not in blob, "a None resolution leaked into the install command"
+    out = capsys.readouterr().out
+    assert "NOT installing" in out and "totally_unmapped_import" in out
+    assert not any("totally_unmapped_import" in str(c) for c in rest_calls)
+
+
+def test_single_install_refuses_unmapped(monkeypatch, capsys):
+    """Caller-level pin on the REAL install_missing_package: an unmapped import
+    returns False (its boolean contract) and writes nothing."""
+    import asyncio
+
+    monkeypatch.setattr(cl, "_pypi_cache", {})
+    monkeypatch.setattr(cl, "_pypi_exists", lambda name: True)
+
+    executed = []
+
+    class _Session:
+        cluster_id = "fake-cluster"
+
+        async def execute(self, code, timeout=120):
+            executed.append(code)
+            return {"status": "ok", "outputs": [{"type": "stream", "text": "MISSING"}]}
+
+    async def _drive():
+        return await cl.install_missing_package(
+            "fake-cluster", _Session(), "totally_unmapped_import", "/tmp/out", timeout=60)
+
+    ok = asyncio.run(_drive())
+    assert ok is False
+    assert not any("pip install" in c for c in executed), "nothing may be installed"
+    assert "no curated pip mapping" in capsys.readouterr().out

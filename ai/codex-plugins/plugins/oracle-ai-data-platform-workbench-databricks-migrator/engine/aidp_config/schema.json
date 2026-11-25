@@ -351,7 +351,7 @@
         "provider",
         "model"
       ],
-      "description": "LLM provider/model for the migration engine \u2014 swap the model from YAML within the validated Opus-5 family. OPTIONAL at the schema level so non-migrator/partial configs still validate; the migrator REQUIRES it and fails loudly (llm_config.configure) if absent. thinking (adaptive) and output budget (16000) are FIXED internal constants, NOT config knobs \u2014 on the Opus-5 family 'thinking: off' can't disable adaptive thinking and max_tokens is not a true per-request cap, so they are not exposed. See scripts/llm_config.py.",
+      "description": "LLM provider/model for the migration engine \u2014 swap the model from YAML within the validated families (GPT-5.5 for openai, Opus-5 for anthropic). OPTIONAL at the schema level so non-migrator/partial configs still validate; the migrator REQUIRES it and fails loudly (llm_config.configure) if absent. thinking (adaptive) and output budget (16000) are FIXED internal constants, NOT config knobs \u2014 on the Opus-5 family 'thinking: off' can't disable adaptive thinking and max_tokens is not a true per-request cap, so they are not exposed. See scripts/llm_config.py.",
       "properties": {
         "provider": {
           "type": "string",

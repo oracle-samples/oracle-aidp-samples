@@ -46,7 +46,7 @@ ARCH_TO_AIDP_SHAPE: Dict[str, str] = {
 
 # ─── DBX node type catalog ───────────────────────────────────────────
 #
-# Source: the pilot deployment compute usage report (a large sample of # one-minute snapshots) — every DBX AWS instance type observed on the pilot deployment's
+# Source: the pilot deployment compute usage report (a large sample of one-minute snapshots) — every DBX AWS instance type observed on the pilot deployment's
 # Databricks fleet plus a few not-yet-observed variants for completeness.
 #
 # Each entry:  {"arch": "ARM|AMD|Intel|GPU", "vcpu": int, "mem_gb": int,

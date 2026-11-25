@@ -80,6 +80,8 @@ carried over (see the carried-detail subsection at the end of this entry).
   its synthetic-fixture tests remain).
 
 ### Security
+- PRIVACY.md updated: network destinations now name the model provider
+  (store=false posture) and the PyPI index existence checks.
 - All 0.2.x hardening preserved and re-integrated: the mandatory notebook
   sandbox gate (`notebook_policy`), runtime SQL guard, `safe_io` runtime
   assertions, context-compactor filename/path-traversal guards, token-file

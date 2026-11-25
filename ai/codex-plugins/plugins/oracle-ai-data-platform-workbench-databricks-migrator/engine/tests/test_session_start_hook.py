@@ -15,7 +15,10 @@ HOOK = Path(__file__).resolve().parents[2] / "hooks" / "session_start.py"
 
 
 def _run(home):
-    env = dict(os.environ, HOME=str(home))
+    # Isolate on every platform: expanduser follows USERPROFILE on Windows, and
+    # an inherited PLUGIN_ROOT would redirect the staging SOURCE.
+    env = dict(os.environ, HOME=str(home), USERPROFILE=str(home))
+    env.pop("PLUGIN_ROOT", None)
     return subprocess.run([sys.executable, str(HOOK)], env=env,
                           capture_output=True, text=True, timeout=120)
 

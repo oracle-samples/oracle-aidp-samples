@@ -106,9 +106,14 @@ _LEGACY_020_BUNDLE = [
 
 
 def _valid_entry(rel) -> bool:
-    """Manifest entries must be plain relative paths inside the staging dir."""
-    return (isinstance(rel, str) and rel and not rel.startswith(("/", "~"))
-            and ".." not in rel.split(os.sep) and ".." not in rel.split("/"))
+    """Manifest entries must be plain relative paths that RESOLVE inside the
+    staging dir (realpath containment — string checks miss rooted drive-less
+    paths and symlinked directories)."""
+    if not isinstance(rel, str) or not rel or rel.startswith(("/", "\\", "~")):
+        return False
+    target = os.path.realpath(os.path.join(DST, rel))
+    root = os.path.realpath(DST)
+    return target == root or target.startswith(root + os.sep)
 
 
 def _load_manifest() -> set:
@@ -133,7 +138,7 @@ def _prune(src: str, dst: str, previously_staged: set) -> int:
     engine no longer ships (e.g. 0.2.x scripts removed in 0.3.0). Everything
     else in the staging dir is deployment-owned — customer YAML, an activated
     config/writer_wrappers.json, generated reports — and is never touched.
-    With no manifest from a previous staging, nothing is pruned."""
+    A manifest-less staging is pruned against the embedded 0.2.x bundle list."""
     removed = 0
     for rel in sorted(previously_staged, reverse=True):
         if not _valid_entry(rel):
