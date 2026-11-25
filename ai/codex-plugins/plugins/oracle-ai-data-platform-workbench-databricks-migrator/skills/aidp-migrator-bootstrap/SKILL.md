@@ -41,13 +41,16 @@ pip install -r ~/.aidp-migrator/engine/requirements.txt
 
 Expected packages: `oci`, `requests`, `websocket-client`, `openai`, `anthropic`, `nbformat`, `PyYAML`, `jsonschema`, `packaging` (plus `pandas` / `numpy`, usually pre-installed). If any is missing, install + retry.
 
-### 2. `OPENAI_API_KEY` env var
+### 2. Model-provider API key
+
+Check the key for the provider configured in `aidp_migrator.yaml` (`llm.provider`; this bundle defaults to `openai`):
 
 ```bash
-echo $OPENAI_API_KEY | wc -c    # should be >50 chars
+echo $OPENAI_API_KEY | wc -c      # llm.provider: openai — should be >50 chars
+echo $ANTHROPIC_API_KEY | wc -c   # llm.provider: anthropic — should be >50 chars
 ```
 
-If empty, the migrator's Pass-2 cell-by-cell loop will crash. Ask the user to `export OPENAI_API_KEY=sk-...`.
+If the configured provider's key is empty, the migrator's Pass-2 cell-by-cell loop will crash. Ask the user to export it (`OPENAI_API_KEY=sk-...` or `ANTHROPIC_API_KEY=sk-ant-...`). The OTHER provider's key may stay unset — the engine never reads it.
 
 ### 3. OCI authentication
 

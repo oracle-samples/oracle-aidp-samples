@@ -18,13 +18,15 @@ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.5")
 OPENAI_REASONING_EFFORT = os.environ.get("OPENAI_REASONING_EFFORT", "medium")
 
 _CLIENT: Optional[Any] = None
+_EXPLICIT_API_KEY: Optional[str] = None
 
 
 def openai_client() -> Any:
     """Return a cached OpenAI client, failing early with clear setup messages."""
     global _CLIENT
     if _CLIENT is None:
-        if not os.environ.get("OPENAI_API_KEY"):
+        key = _EXPLICIT_API_KEY or os.environ.get("OPENAI_API_KEY")
+        if not key:
             raise RuntimeError(
                 "OPENAI_API_KEY is not set. Export your OpenAI API key before running the migrator."
             )
@@ -34,7 +36,7 @@ def openai_client() -> Any:
             raise RuntimeError(
                 "The openai Python SDK is not installed. Run: pip install -r requirements.txt"
             ) from exc
-        _CLIENT = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        _CLIENT = OpenAI(api_key=key)
     return _CLIENT
 
 
@@ -49,10 +51,15 @@ def _usage_value(usage: Any, name: str, default: int = 0) -> int:
 def usage_dict(response: Any) -> Dict[str, int]:
     usage = getattr(response, "usage", None)
     details = getattr(usage, "input_tokens_details", None)
+    total_in = _usage_value(usage, "input_tokens")
+    cached = min(_usage_value(details, "cached_tokens"), total_in)
     return {
-        "input": _usage_value(usage, "input_tokens"),
+        # Disjoint meters, matching the Anthropic ledger semantics the engine
+        # sums: OpenAI's input_tokens INCLUDES cached tokens, so uncached
+        # input = total - cached (never double-count).
+        "input": total_in - cached,
         "output": _usage_value(usage, "output_tokens"),
-        "cached": _usage_value(details, "cached_tokens"),
+        "cached": cached,
     }
 
 
@@ -225,13 +232,29 @@ class CompatResponse:
         self.usage = Usage(input_tokens=usage["input"], output_tokens=usage["output"],
                            cache_read_input_tokens=usage.get("cached", 0))
         self.content = self._content_blocks(response)
-        self.stop_reason = "tool_use" if any(b.type == "tool_use" for b in self.content) else "end_turn"
+        if getattr(response, "status", None) == "incomplete":
+            # Responses truncated output (e.g. max_output_tokens): surface the
+            # Anthropic stop reason the engine's completion guard checks, so a
+            # partial reply is never accepted as a complete one.
+            self.stop_reason = "max_tokens"
+        elif any(b.type == "tool_use" for b in self.content):
+            self.stop_reason = "tool_use"
+        else:
+            self.stop_reason = "end_turn"
 
     @staticmethod
     def _content_blocks(response: Any) -> List[ContentBlock]:
         blocks: List[ContentBlock] = []
         for item in getattr(response, "output", []) or []:
             item_type = getattr(item, "type", None)
+            if item_type == "reasoning":
+                # Reasoning items must be replayed alongside the function calls
+                # they precede (Responses function-calling contract). Carried as
+                # a thinking-typed block holding the raw item; _convert_content
+                # re-emits it verbatim. Residual: engine-side history compaction
+                # strips thinking blocks — those turns fall back to plain replay.
+                blocks.append(ContentBlock(type="thinking", raw_item=item))
+                continue
             if item_type == "function_call":
                 raw_args = getattr(item, "arguments", "{}") or "{}"
                 try:
@@ -288,7 +311,9 @@ class CompatMessages:
             converted: List[Any] = []
             for block in content:
                 if isinstance(block, ContentBlock):
-                    if block.type == "text":
+                    if block.type == "thinking" and block.raw_item is not None:
+                        converted.append(block.raw_item)
+                    elif block.type == "text":
                         converted.append({"type": "output_text", "text": block.text})
                     elif block.type == "tool_use":
                         converted.append(
@@ -326,6 +351,8 @@ class CompatMessages:
                 for item in cls._convert_content(content):
                     if isinstance(item, dict) and item.get("type") == "function_call":
                         converted.append(item)
+                    elif not isinstance(item, dict) and getattr(item, "type", None) == "reasoning":
+                        converted.append(item)  # raw Responses reasoning item, replayed verbatim
                     elif isinstance(item, dict) and item.get("type") in ("output_text", "text"):
                         converted.append({"role": "assistant", "content": item.get("text", "")})
                     else:
@@ -372,6 +399,9 @@ class OpenAIModelCompatClient:
     """Small compatibility facade for legacy messages.* call sites."""
 
     def __init__(self, api_key: Optional[str] = None):
-        if api_key:
-            os.environ["OPENAI_API_KEY"] = api_key
+        # Never mutate the process environment: an Anthropic key passed by a
+        # legacy call site must not overwrite OPENAI_API_KEY. The explicit key
+        # (when given) is handed to the OpenAI client directly.
+        global _EXPLICIT_API_KEY
+        _EXPLICIT_API_KEY = api_key or None
         self.messages = CompatMessages()

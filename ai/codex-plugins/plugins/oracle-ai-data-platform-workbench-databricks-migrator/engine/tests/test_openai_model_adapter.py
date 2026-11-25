@@ -81,7 +81,7 @@ def test_usage_maps_cached_tokens():
         output_text = "x"
         usage = U()
     resp = om.CompatResponse(R())
-    assert resp.usage.input_tokens == 10
+    assert resp.usage.input_tokens == 3   # uncached = total(10) - cached(7)
     assert resp.usage.cache_read_input_tokens == 7
     assert resp.usage.cache_creation_input_tokens == 0
 
@@ -97,3 +97,65 @@ def test_transport_errors_translate_to_anthropic_types():
     assert isinstance(out, anthropic.APITimeoutError)
     plain = ValueError("x")
     assert om._translate_error(plain) is plain
+
+
+def test_incomplete_response_maps_to_max_tokens():
+    class R:
+        output = []
+        output_text = "partial PASS:"
+        usage = None
+        status = "incomplete"
+    resp = om.CompatResponse(R())
+    assert resp.stop_reason == "max_tokens"
+
+
+def test_usage_meters_are_disjoint():
+    class Details:
+        cached_tokens = 60
+    class U:
+        input_tokens = 100
+        output_tokens = 5
+        input_tokens_details = Details()
+    class R:
+        output = []
+        output_text = "x"
+        usage = U()
+    resp = om.CompatResponse(R())
+    assert resp.usage.input_tokens == 40          # uncached only
+    assert resp.usage.cache_read_input_tokens == 60
+    # billed sum per engine ledger = uncached + cache_read + cache_write + output
+    assert 40 + 60 + 0 + 5 == 105
+
+
+def test_client_never_mutates_openai_env(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-right")
+    om._EXPLICIT_API_KEY = None
+    om.OpenAIModelCompatClient(api_key="sk-ant-wrong-provider-key")
+    import os
+    assert os.environ["OPENAI_API_KEY"] == "sk-right"
+    om._EXPLICIT_API_KEY = None  # reset module state for other tests
+
+
+def test_reasoning_items_carried_across_rounds():
+    class Reasoning:
+        type = "reasoning"
+        id = "rs_1"
+    class Call:
+        type = "function_call"
+        name = "run_sql"
+        arguments = "{}"
+        call_id = "c1"
+    class R:
+        output = [Reasoning(), Call()]
+        output_text = ""
+        usage = None
+    resp = om.CompatResponse(R())
+    kinds = [b.type for b in resp.content]
+    assert kinds == ["thinking", "tool_use"]
+    replay = om.CompatMessages._convert_messages([
+        {"role": "assistant", "content": resp.content},
+        {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "c1", "content": "ok"}]},
+    ])
+    assert any(getattr(item, "type", None) == "reasoning" for item in replay)
+    assert any(isinstance(item, dict) and item.get("type") == "function_call" for item in replay)
+    assert any(isinstance(item, dict) and item.get("type") == "function_call_output" for item in replay)

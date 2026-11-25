@@ -93,6 +93,12 @@ def configure(cfg) -> None:
             f"aidp_config `llm.provider={provider!r}` is not supported — this "
             "bundle dispatches 'anthropic' and 'openai'. Adding a provider "
             "requires an adapter (code change), not a YAML edit.")
+    _FAMILIES = {"anthropic": "claude-", "openai": "gpt-"}
+    if not model.startswith(_FAMILIES[provider]):
+        raise LLMConfigError(
+            f"aidp_config `llm.model={model!r}` does not belong to provider "
+            f"{provider!r} (expected a {_FAMILIES[provider]}* model). The "
+            "schema validates each enum; the PAIR is validated here.")
     PROVIDER = provider
     MODEL = model
     # thinking + output-budget are FIXED internal constants (adaptive / 16000), not
@@ -144,9 +150,13 @@ def make_client(api_key=None, max_retries=None):
     surface the Anthropic SDK does (see openai_model.py for what is mapped,
     absorbed, and translated)."""
     if PROVIDER == "openai":
+        # The api_key argument at every engine call site is ANTHROPIC-shaped
+        # (resolved from ANTHROPIC_API_KEY); never let it cross providers.
+        # The openai path reads OPENAI_API_KEY itself and must not inherit or
+        # overwrite the other provider's credential.
         from openai_model import OpenAIModelCompatClient
         import os as _os
-        return OpenAIModelCompatClient(api_key=api_key or _os.environ.get("OPENAI_API_KEY"))
+        return OpenAIModelCompatClient(api_key=_os.environ.get("OPENAI_API_KEY"))
     import anthropic as _anthropic
     import os as _os
     kwargs = {"api_key": api_key or _os.environ.get("ANTHROPIC_API_KEY")}

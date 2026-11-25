@@ -17,31 +17,44 @@ DST = os.path.join(DST_ROOT, "engine")
 SKIP_DIRS = {"__pycache__", ".pytest_cache", ".git", "reports", "env"}
 
 
-def _prune(src: str, dst: str) -> int:
-    """Remove staged files/dirs that no longer exist in the bundled engine, so an
-    upgrade never leaves a deleted or renamed module importable from the old
-    staging (e.g. 0.2.x scripts removed in 0.3.0)."""
+def _manifest_path() -> str:
+    return os.path.join(DST_ROOT, ".staged_manifest.json")
+
+
+def _load_manifest() -> set:
+    try:
+        import json
+        with open(_manifest_path()) as fh:
+            return set(json.load(fh))
+    except (OSError, ValueError):
+        return set()
+
+
+def _prune(src: str, dst: str, previously_staged: set) -> int:
+    """Remove ONLY files this hook itself staged earlier that the bundled
+    engine no longer ships (e.g. 0.2.x scripts removed in 0.3.0). Everything
+    else in the staging dir is deployment-owned — customer YAML, an activated
+    config/writer_wrappers.json, generated reports — and is never touched.
+    With no manifest from a previous staging, nothing is pruned."""
     removed = 0
-    if not os.path.isdir(dst):
-        return 0
-    for root, dirs, files in os.walk(dst, topdown=False):
-        rel = os.path.relpath(root, dst)
-        src_root = src if rel == "." else os.path.join(src, rel)
-        for name in files:
-            if name.endswith(".pyc"):
-                continue
-            if not os.path.exists(os.path.join(src_root, name)):
+    for rel in sorted(previously_staged, reverse=True):
+        if not os.path.exists(os.path.join(src, rel)) and not rel.endswith(".pyc"):
+            target = os.path.join(dst, rel)
+            if os.path.isfile(target):
                 try:
-                    os.remove(os.path.join(root, name))
+                    os.remove(target)
                     removed += 1
                 except OSError:
                     pass
-        if rel != "." and not os.path.isdir(src_root):
-            try:
-                shutil.rmtree(root)
-                removed += 1
-            except OSError:
-                pass
+    # drop directories the prune emptied (bundle-owned leftovers only)
+    for root, dirs, files in os.walk(dst, topdown=False):
+        if root != dst and not dirs and not files:
+            rel = os.path.relpath(root, dst)
+            if any(p.startswith(rel + os.sep) or p == rel for p in previously_staged):
+                try:
+                    os.rmdir(root)
+                except OSError:
+                    pass
     return removed
 
 
@@ -50,18 +63,27 @@ def stage():
         print(f"[aidp-migrator] bundled engine not found at {SRC}", file=sys.stderr)
         return False
     os.makedirs(DST, exist_ok=True)
-    pruned = _prune(SRC, DST)
+    pruned = _prune(SRC, DST, _load_manifest())
     if pruned:
-        print(f"[aidp-migrator] pruned {pruned} stale staged file(s) from {DST}")
+        print(f"[aidp-migrator] pruned {pruned} stale bundle file(s) from {DST}")
+    staged_now = []
     for root, dirs, files in os.walk(SRC):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         rel = os.path.relpath(root, SRC)
         out = DST if rel == "." else os.path.join(DST, rel)
         os.makedirs(out, exist_ok=True)
         for name in files:
+            staged_now.append(name if rel == "." else os.path.join(rel, name))
             if name.endswith((".pyc", ".pyo")):
                 continue
             shutil.copy2(os.path.join(root, name), os.path.join(out, name))
+    try:
+        import json
+        with open(_manifest_path(), "w") as fh:
+            json.dump(sorted(staged_now), fh)
+    except OSError:
+        pass
+
     return True
 
 
