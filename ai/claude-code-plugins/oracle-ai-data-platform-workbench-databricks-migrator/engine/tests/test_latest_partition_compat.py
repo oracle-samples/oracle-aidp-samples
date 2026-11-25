@@ -1,4 +1,4 @@
-"""Behavioral tests for the SaveTableUtils compatibility conversion."""
+"""Behavioral tests for the SaveTableHelpers compatibility conversion."""
 
 import ast
 from pathlib import Path
@@ -58,7 +58,7 @@ def load_rewritten(spark, source=ORIGINAL_HELPER):
     rewritten, changed = rewrite_latest_partition_helper(source)
     assert changed
     namespace = {"spark": spark}
-    exec(compile(rewritten, "SaveTableUtils.ipynb", "exec"), namespace)
+    exec(compile(rewritten, "SaveTableHelpers.ipynb", "exec"), namespace)
     return namespace["readIntermediateTable"]
 
 
@@ -260,7 +260,7 @@ def test_line_endings_and_missing_final_newline(newline):
     assert not rewritten.endswith("\n")
     if newline == "\r\n":
         assert "\n" not in rewritten.replace("\r\n", "")
-    compile(rewritten, "SaveTableUtils.ipynb", "exec")
+    compile(rewritten, "SaveTableHelpers.ipynb", "exec")
 
 
 @pytest.mark.parametrize("engine", ["scripts"])
@@ -307,7 +307,7 @@ def test_child_execution_receives_repaired_source_and_opens_save_gate(direct, qu
         "child_source": fixture, "DIRECT_EXECUTE": direct,
         "rewrite_latest_partition_helper": rewrite_latest_partition_helper,
         "cells_fixed": 0, "child_source_rewritten": False,
-        "log": Mock(), "child_name": "SaveTableUtils.ipynb", "ci": 4,
+        "log": Mock(), "child_name": "SaveTableHelpers.ipynb", "ci": 4,
     }
     exec(compile(ast.Module(body=[hook, current], type_ignores=[]), "child preparation", "exec"), namespace)
     if direct:

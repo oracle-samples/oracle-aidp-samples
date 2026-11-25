@@ -15,7 +15,7 @@ from dbx_export.ray_cluster_init_script import (
 from test_customer_cluster_libraries import Aidp, REPO, graph, report
 
 
-SCRIPT = "/Workspace/migration-dependencies/initscript/ray_exectuor.sh"
+SCRIPT = "/Workspace/migration-dependencies/initscript/ray_executor.sh"
 
 
 def test_aidp_client_get_cluster_reads_complete_cluster_definition(monkeypatch):

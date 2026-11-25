@@ -385,7 +385,7 @@ async def main():
     # ── skip-migrated: DEFAULT FLIPPED TO DISABLED (2026-08-05) ───────────────
     # REVIEWER NOTE: default is now --no-skip-migrated (skip OFF). Reusing
     # already-migrated notebooks is unsafe for jobs with nested %run util deps:
-    # a child-inlined dep (e.g. SaveTableUtils) can be served from its
+    # a child-inlined dep (e.g. SaveTableHelpers) can be served from its
     # execute-first UN-converted copy instead of its Opus-dep-migrated version,
     # leaving Databricks-only APIs (boto3/Glue, dbutils) unconverted and failing
     # every downstream task that %runs it. Fresh migration guarantees every dep

@@ -11,7 +11,7 @@ converted without the model keep their storage paths and report them.
 
 Exercise the real cell loop with model/platform boundaries offline; judge the
 saved functions by calling them, rather than checking their shape. Case A
-reads its location itself (SaveTableUtils asks the metastore); Case B is a
+reads its location itself (SaveTableHelpers asks the metastore); Case B is a
 path helper (Data_Aggregation's).
 """
 import asyncio
@@ -674,7 +674,7 @@ def test_cells_after_a_failed_cell_are_kept_and_reported(monkeypatch, tmp_path, 
 
 @pytest.mark.parametrize("mode", ["parent", "dependency"])
 def test_the_models_save_table_utils_translation_is_saved_unchanged(monkeypatch, tmp_path, mode):
-    # Model_Monitoring SaveTableUtils: the model translates the metastore
+    # Model_Monitoring SaveTableHelpers: the model translates the metastore
     # location and keeps an f-string S3 recognizer, which the literal sweep
     # used to rewrite (run cd189909).
     _patch_cell_loop(monkeypatch, tmp_path, _notebook([SAVE_FSTRING]))

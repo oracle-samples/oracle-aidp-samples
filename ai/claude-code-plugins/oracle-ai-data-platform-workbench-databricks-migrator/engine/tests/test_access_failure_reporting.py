@@ -151,11 +151,11 @@ def _report_with_entries(entries):
 
 def test_shared_authority_failures_aggregate_to_one_finding():
     entries = [
-        {"source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/mars_evaluations",
-         "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/mars_evaluations",
+        {"source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/example_evals",
+         "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/example_evals",
          "probe_status": "ACCESS_ERROR", "error": "Caused by: BmcException ... BucketNotFound ..."},
-        {"source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/mars_evaluations_anomalous_results",
-         "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/mars_evaluations_anomalous_results",
+        {"source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/example_evals_anomalous",
+         "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/example_evals_anomalous",
          "probe_status": "ACCESS_ERROR", "error": "Caused by: BmcException ... BucketNotFound ..."},
         {"source": "s3://other/ok", "oci_path": "oci://other@ns/ok", "exists": True},
     ]
@@ -179,8 +179,8 @@ def test_plan_row_carries_access_failure_message():
     report = {
         "notebooks": {"/nb": {
             "read_paths": [{
-                "source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/mars_evaluations",
-                "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/mars_evaluations",
+                "source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/example_evals",
+                "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/example_evals",
                 "exists": "access_error", "probe_status": "ACCESS_ERROR",
                 "object_type": "DIRECTORY",
                 "error": "Caused by: BmcException ... BucketNotFound ...",
@@ -188,7 +188,7 @@ def test_plan_row_carries_access_failure_message():
         }},
     }
     plan = build_plan(report, "100000000000003")
-    rows = [r for r in plan["requirements"] if "mars_evaluations" in r["object_name"]]
+    rows = [r for r in plan["requirements"] if "example_evals" in r["object_name"]]
     assert rows, plan["requirements"]
     row = rows[0]
     assert row["access_failure"] == "ACCESS_ERROR"
@@ -234,9 +234,9 @@ def test_access_errors_never_render_ready_to_migrate(capsys):
         "job_name": "t", "generated_at": "now",
         "summary": _summary_with(paths_access_errors=1),
         "notebooks": {"/nb": {"read_paths": [{
-            "source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/mars_evaluations",
+            "source": "s3://examplecorp-dp-unit-rds/rds-and-kafka/example_db2/example_evals",
             "type": "s3",
-            "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/mars_evaluations",
+            "oci_path": "oci://oci-example-dp-rds@exmplnspace2/rds-and-kafka/example_db2/example_evals",
             "exists": "access_error", "probe_status": "ACCESS_ERROR",
             "error": "Caused by: BmcException ... BucketNotFound ...",
         }], "read_tables": [], "write_tables": [], "write_paths": [],
